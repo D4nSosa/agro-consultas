@@ -1,0 +1,89 @@
+/* AGROTECH PRO — styles.css (premium + dark-mode) */
+:root{
+  --verde-principal: #1b5e20;
+  --verde-secundario: #2e7d32;
+  --verde-acento: #66bb6a;
+  --gris-fondo: #f5f6f7;
+  --gris-card: #ffffff;
+  --texto-principal: #121212;
+  --texto-secundario: #4a4a4a;
+  --sombra-suave: rgba(0,0,0,0.08);
+  --sombra-media: rgba(0,0,0,0.14);
+  --borde-suave: #e6e6e6;
+  --transicion: 0.24s ease;
+}
+
+:root.theme-dark, .theme-dark {
+  --verde-principal: #66bb6a;
+  --verde-secundario: #4caf50;
+  --verde-acento: #81c784;
+  --gris-fondo: #071018;
+  --gris-card: #0b1220;
+  --texto-principal: #e6eef1;
+  --texto-secundario: #bfc9cc;
+  --sombra-suave: rgba(0,0,0,0.5);
+  --sombra-media: rgba(0,0,0,0.6);
+  --borde-suave: rgba(255,255,255,0.04);
+}
+
+*{box-sizing:border-box}
+body{ font-family:'Inter', 'Roboto', sans-serif; background:var(--gris-fondo); color:var(--texto-principal); margin:0; min-height:100vh; -webkit-font-smoothing:antialiased}
+
+.app-header{ display:flex; justify-content:space-between; align-items:center; padding:12px 18px; gap:12px;}
+.left{display:flex;align-items:center;gap:12px}
+.brand{ width:64px; height:64px; object-fit:cover; border-radius:50%; box-shadow:0 6px 20px var(--sombra-suave)}
+.brand-text .title{ font-weight:800; color:var(--verde-principal); font-size:18px}
+.brand-text .subtitle{ font-size:12px; color:var(--texto-secundario)}
+
+.container{ max-width:1100px; margin:0 auto; padding:16px}
+.card{ background:var(--gris-card); border-radius:12px; padding:18px; border:1px solid var(--borde-suave); box-shadow:0 10px 30px var(--sombra-suave)}
+
+.hero{ margin:20px auto; text-align:left}
+.hero h1{ margin:0 0 6px 0; font-size:22px }
+.lead{ color:var(--texto-secundario); margin-bottom:12px }
+
+.home-form label{ display:block; font-weight:600; margin-bottom:6px; color:var(--verde-principal)}
+.home-form input[type="text"]{ width:100%; padding:12px; border-radius:10px; border:1px solid var(--borde-suave); margin-bottom:10px; background:transparent; color:var(--texto-principal)}
+.row{ display:flex; gap:10px }
+.row .btn{ flex:1 }
+
+.btn{ display:inline-block; padding:10px 14px; border-radius:10px; border:1px solid var(--borde-suave); background:transparent; cursor:pointer; transition:all var(--transicion); color:var(--texto-principal)}
+.btn.primary{ background:var(--verde-principal); color:#fff; border:none; box-shadow:0 6px 18px rgba(27,94,32,0.12) }
+.btn.outline{ background:transparent; border:1px solid var(--verde-principal); color:var(--verde-principal) }
+.btn.link{ background:transparent; border:none; color:var(--verde-principal); padding:8px 10px }
+
+.app-footer{ padding:18px; text-align:center; color:var(--texto-secundario) }
+
+.info-tab{ position:fixed; left:20px; bottom:20px; background:var(--verde-secundario); color:#fff; padding:12px; border-radius:50%; cursor:pointer; box-shadow:0 8px 24px var(--sombra-media) }
+.info-content{ position:fixed; right:0; bottom:0; width:320px; background:var(--gris-card); padding:18px; border-radius:10px 0 0 0; border-left:1px solid var(--borde-suave) }
+.hidden{ display:none }
+
+/* Resultados layout */
+.page-grid{ max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 420px; gap:20px; padding:20px }
+@media (max-width:980px){ .page-grid{ grid-template-columns:1fr; padding:12px } }
+.panel{ background:var(--gris-card); border-radius:12px; padding:16px; border:1px solid var(--borde-suave); box-shadow:0 8px 22px var(--sombra-suave) }
+
+.kpi-grid{ display:flex; gap:12px; flex-wrap:wrap }
+.kpi{ padding:12px; border-radius:10px; min-width:120px; background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,250,0.9)); border:1px solid var(--borde-suave); text-align:left }
+.kpi h5{ margin:0; font-size:12px; color:var(--texto-secundario) }
+.kpi strong{ display:block; margin-top:6px; font-size:20px; color:var(--verde-principal) }
+
+.agro-ui label{ display:block; margin-top:8px; color:var(--texto-secundario) }
+.agro-ui select, .agro-ui input[type="checkbox"]{ margin-top:6px }
+
+pre{ background:transparent; margin:0; color:var(--texto-secundario) }
+
+.icon-btn{ background:transparent; border:1px solid var(--borde-suave); padding:8px 10px; border-radius:8px; cursor:pointer }
+
+@keyframes floatUp{ from{ transform:translateY(6px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
+.card, .panel{ animation:floatUp 0.36s ease both }
+
+@media (max-width:560px){
+  .brand-text .title{ display:none }
+  .hero h1{ font-size:18px }
+  .page-grid{ padding:10px; gap:12px }
+}
+
+/* small utility */
+.text-muted{ color:var(--texto-secundario); font-size:13px }
+.small{ font-size:12px; color:var(--texto-secundario) }

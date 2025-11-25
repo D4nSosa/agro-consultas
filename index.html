@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Recomendador de Cultivos</title>
+
+  <!-- Tipografía -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+
+  <link rel="icon" href="dwnl.png" type="image/png">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="left">
+      <img class="brand" src="dwnl.png" alt="logo" />
+      <div class="brand-text">
+        <div class="title">Recomendador de Cultivos</div>
+        <div class="subtitle">Recomendador inteligente · Preparado para presentación</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero card">
+      <h1>Recomendador de Cultivos</h1>
+      <p class="lead">Introduce la provincia y obtené recomendaciones basadas en datos técnicos y mapas interactivos.</p>
+
+      <form id="homeForm" class="home-form" onsubmit="event.preventDefault(); enviarFormulario();">
+        <label for="provincias">Provincia</label>
+        <input id="provincias" name="provincias" type="text" placeholder="Ej: Córdoba" required autocomplete="off" />
+
+        <div class="row" style="margin-top:8px;">
+          <button type="submit" class="btn primary">Buscar</button>
+          <button type="button" id="demoBtn" class="btn outline">Demo: Buenos Aires</button>
+        </div>
+      </form>
+
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <small>Recomendador de Cultivos — Diseño y desarrollo: Dan Sosa (Augmented Coder)</small>
+  </footer>
+
+  <!-- Inline helpers -->
+  <script>
+    function enviarFormulario() {
+      const provincia = document.getElementById('provincias').value.trim();
+      if (!provincia) return alert('Ingrese una provincia.');
+      window.location.href = 'resultados.html?ubicacion=' + encodeURIComponent(provincia);
+    }
+
+    document.getElementById('demoBtn').addEventListener('click', () => {
+      window.location.href = 'resultados.html?ubicacion=Buenos%20Aires';
+    });
+
+    // Theme toggle persistent
+    const themeToggle = document.getElementById('themeToggle');
+    function applyTheme(t) {
+      if (t === 'dark') document.documentElement.classList.add('theme-dark');
+      else document.documentElement.classList.remove('theme-dark');
+    }
+    const saved = localStorage.getItem('agro_theme') || 'dark';
+    applyTheme(saved);
+    themeToggle.addEventListener('click', () => {
+      const cur = document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      localStorage.setItem('agro_theme', next);
+    });
+  </script>
+
+</body>
+</html>

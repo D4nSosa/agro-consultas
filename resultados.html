@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Resultados - Recomendador de Cultivos</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <style>
+    #mapaContainer {
+      height: 420px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .page-grid {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 18px;
+      max-width: 1200px;
+      margin: 18px auto;
+      padding: 0 12px;
+    }
+
+    @media (max-width: 980px) {
+      .page-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #mapaContainer {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="app-header">
+    <div class="left">
+      <img class="brand" src="dwnl.png" alt="logo" />
+      <div class="brand-text">
+        <div class="title">Recomendador de Cultivos</div>
+        <div class="subtitle">Resultados · Mapa geográfico</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
+      <a class="btn link" href="index.html" style="margin-left:10px">← Nueva búsqueda</a>
+    </div>
+  </header>
+
+  <main>
+    <h2 style="text-align:center;margin-top:10px">
+      Provincia: <span id="resultado_ubicacion"></span>
+    </h2>
+
+    <div class="page-grid">
+
+      <!-- COLUMNA IZQUIERDA -->
+      <div>
+
+        <section class="panel">
+          <h3>Resumen</h3>
+          <pre id="recomendaciones" style="white-space:pre-wrap"></pre>
+        </section>
+
+        <section class="panel" style="margin-top:14px;">
+          <h3>Mapa Interactivo</h3>
+
+          <div id="mapaContainer"></div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <label><input type="checkbox" id="toggleClima" checked> Climas</label>
+            <label><input type="checkbox" id="toggleRegiones" checked> Regiones productivas</label>
+            <label><input type="checkbox" id="toggleProvincias" checked> Límites provinciales</label>
+          </div>
+        </section>
+
+        <section class="panel" style="margin-top:14px;">
+          <h3>Dashboard rápido</h3>
+
+          <div class="kpi-grid" id="kpis"></div>
+
+          <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
+            <canvas id="chartArea" width="400" height="200" style="flex:1 1 300px;"></canvas>
+            <canvas id="chartBars" width="400" height="200" style="flex:1 1 300px;"></canvas>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- COLUMNA DERECHA -->
+      <aside>
+
+        <div class="panel">
+          <h4>Detalles técnicos</h4>
+          <div id="detalles_card"></div>
+        </div>
+
+        <div class="panel" style="margin-top:12px;">
+          <h4>Sugerencias</h4>
+
+          <label for="mesSelect">Mes</label>
+          <select id="mesSelect"></select>
+
+          <label style="margin-top:8px;">
+            <input type="checkbox" id="riegoCheckbox"> ¿Dispone de riego?
+          </label>
+
+          <label for="sueloSelect" style="display:block;margin-top:8px">Tipo de suelo</label>
+          <select id="sueloSelect">
+            <option value="general">General</option>
+            <option value="arenoso">Arenoso</option>
+            <option value="arcilloso">Arcilloso</option>
+            <option value="franco">Franco</option>
+          </select>
+
+          <div style="margin-top:12px">
+            <button id="btnSugerir" class="btn primary">Ejecutar sugerencia</button>
+          </div>
+
+          <pre id="sugerenciaResult" style="margin-top:12px;white-space:pre-wrap"></pre>
+        </div>
+
+      </aside>
+
+    </div>
+
+  </main>
+
+  <footer style="padding:18px;text-align:center;color:var(--texto-secundario)">
+    Recomendador de Cultivos
+  </footer>
+
+  <!-- Tu motor principal -->
+  <script src="script.js"></script>
+
+  <!-- INTEGRACIÓN DEL MAPA + DASHBOARD -->
+  <script>
+    /* Normalización unificada */
+    function normalizeKey(s) {
+      return String(s || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    }
+
+    (function () {
+
+      /* ------------------- LECTURA DE PARÁMETROS ------------------- */
+      const params = new URLSearchParams(window.location.search);
+      let ubicRaw = params.get('ubicacion') || '';
+      document.getElementById('resultado_ubicacion').innerText =
+        ubicRaw || '(Seleccione una provincia en el mapa)';
+
+      function safeRender(ubic) {
+        document.getElementById('resultado_ubicacion').innerText = ubic;
+        if (typeof renderForLocation === 'function') renderForLocation(ubic);
+        populateKPIsAndCharts(ubic);
+      }
+
+      /* ------------------- SELECCIÓN DE MES ------------------- */
+      const months = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+      ];
+      const mesSelect = document.getElementById('mesSelect');
+      mesSelect.innerHTML = months.map((m, i) =>
+        `<option value="${i + 1}">${m}</option>`).join('');
+      mesSelect.value = (new Date()).getMonth() + 1;
+
+      /* ------------------- MAPA ------------------- */
+      const map = L.map('mapaContainer', { zoomControl: true })
+        .setView([-38.4, -63.6], 4);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+
+      function getProvinceName(props) {
+        return props.provincia || props.NAME || props.name || "";
+      }
+
+      const provinciaLayer = L.geoJSON(null, {
+        style: () => ({
+          color: '#2b6e2b',
+          weight: 1.2,
+          fillOpacity: 0.06
+        }),
+        onEachFeature: function (feature, layer) {
+          const name = getProvinceName(feature.properties);
+
+          layer.bindTooltip(name, {
+            permanent: false,
+            direction: 'center',
+            className: 'leaflet-tooltip-lite'
+          });
+
+          layer.on('click', function () {
+            safeRender(name);
+            map.fitBounds(layer.getBounds(), { maxZoom: 8, padding: [30, 30] });
+          });
+
+          layer.on('mouseover', () => layer.setStyle({ fillOpacity: 0.18 }));
+          layer.on('mouseout', () => layer.setStyle({ fillOpacity: 0.06 }));
+        }
+      }).addTo(map);
+
+      const climaLayer = L.geoJSON(null, {
+        style: f => ({
+          color: '#444',
+          weight: 1,
+          fillColor: f.properties.color || '#999',
+          fillOpacity: 0.28
+        })
+      });
+
+      const agroLayer = L.geoJSON(null, {
+        style: f => ({
+          color: '#333',
+          weight: 1,
+          fillColor: f.properties.color || '#bbb',
+          fillOpacity: 0.22
+        })
+      });
+
+      /* ------------------- CARGA DE GEOJSON ------------------- */
+      Promise.all([
+        fetch('data/provincias.geojson').then(r => r.json()),
+        fetch('data/climas.json').then(r => r.json()),
+        fetch('data/regiones_productivas.json').then(r => r.json())
+      ])
+        .then(([provJson, climaJson, agroJson]) => {
+
+          provinciaLayer.addData(provJson);
+          climaLayer.addData(climaJson);
+          agroLayer.addData(agroJson);
+
+          document.getElementById('toggleClima')
+            .addEventListener('change', e =>
+              e.target.checked ? map.addLayer(climaLayer) : map.removeLayer(climaLayer));
+
+          document.getElementById('toggleRegiones')
+            .addEventListener('change', e =>
+              e.target.checked ? map.addLayer(agroLayer) : map.removeLayer(agroLayer));
+
+          document.getElementById('toggleProvincias')
+            .addEventListener('change', e =>
+              e.target.checked ? map.addLayer(provinciaLayer) : map.removeLayer(provinciaLayer));
+
+          if (ubicRaw) {
+            const normalized = normalizeKey(ubicRaw);
+            let found = null;
+
+            provJson.features.forEach(feat => {
+              const name = getProvinceName(feat.properties);
+              if (normalizeKey(name) === normalized) found = feat;
+            });
+
+            if (found) {
+              const layerBounds = L.geoJSON(found).getBounds();
+              map.fitBounds(layerBounds, { maxZoom: 8, padding: [20, 20] });
+              safeRender(ubicRaw);
+            }
+          }
+
+        })
+        .catch(err => {
+          console.error("Error cargando datos geográficos:", err);
+          alert("No se pudieron cargar las capas geográficas.");
+        });
+
+      /* ------------------- SUGERENCIAS ------------------- */
+      document.getElementById('btnSugerir').addEventListener('click', () => {
+        const prov = document.getElementById('resultado_ubicacion').innerText || '';
+        if (!prov) return alert('Seleccione una provincia.');
+
+        const mes = parseInt(document.getElementById('mesSelect').value, 10);
+        const riego = !!document.getElementById('riegoCheckbox').checked;
+
+        const lista = recomendarCultivos(normalizeKey(prov), mes, riego, {});
+        const out = document.getElementById('sugerenciaResult');
+
+        if (!lista || lista.length === 0) {
+          out.innerText = 'No hay sugerencias.';
+          return;
+        }
+
+        out.innerText = lista.map((r, i) =>
+          `${i + 1}. ${r.cultivo} — score:${r.score}\n    motivos: ${r.motivos.join(', ')}`
+        ).join('\n\n');
+      });
+
+      /* ------------------- TEMA ------------------- */
+      const themeToggle = document.getElementById('themeToggle');
+
+      function applyTheme(t) {
+        if (t === 'dark') document.documentElement.classList.add('theme-dark');
+        else document.documentElement.classList.remove('theme-dark');
+      }
+
+      const saved = localStorage.getItem('agro_theme') || 'dark';
+      applyTheme(saved);
+
+      themeToggle.addEventListener('click', () => {
+        const cur = document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light';
+        const next = cur === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        localStorage.setItem('agro_theme', next);
+      });
+
+      /* ------------------- Dashboard KPIs ------------------- */
+      function populateKPIsAndCharts(provName) {
+        const key = normalizeKey(provName);
+        const info = agroDB[key];
+        const container = document.getElementById('kpis');
+        container.innerHTML = '';
+
+        if (!info) {
+          container.innerHTML = '<div class="kpi">Sin datos</div>';
+          return;
+        }
+
+        const kpis = [
+          { title: 'Cultivos', value: info.cultivos.join(', ') },
+          { title: 'Suelos', value: info.suelo },
+          { title: 'Clima', value: info.clima },
+          { title: 'Riego', value: info.riego }
+        ];
+
+        kpis.forEach(k => {
+          const el = document.createElement('div');
+          el.className = 'kpi';
+          el.innerHTML = `<h5>${k.title}</h5><strong>${k.value}</strong>`;
+          container.appendChild(el);
+        });
+
+        document.getElementById('recomendaciones').innerText =
+          `Cultivos: ${info.cultivos.join(', ')}\n\n` +
+          `Suelo: ${info.suelo}\n\n` +
+          `Clima: ${info.clima}\n\n` +
+          `Riego: ${info.riego}`;
+      }
+
+    })();
+  </script>
+
+</body>
+</html>
