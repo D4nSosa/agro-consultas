@@ -24,6 +24,28 @@
       overflow: hidden;
       margin-bottom: 8px;
     }
+    .legend {
+      padding: 6px 10px;
+      font: 14px/16px Arial, Helvetica, sans-serif;
+      background: rgba(255,255,255,0.85);
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      border-radius: 5px;
+      line-height: 20px;
+      color: #333;
+    }
+    .legend h4 {
+      margin: 0 0 5px;
+      color: #111;
+      text-align: center;
+    }
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.9;
+      border-radius: 4px;
+    }
 
     .page-grid {
       display: grid;
@@ -95,9 +117,8 @@
 
           <div class="kpi-grid" id="kpis"></div>
 
-          <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
-            <canvas id="chartArea" width="400" height="200" style="flex:1 1 300px;"></canvas>
-            <canvas id="chartBars" width="400" height="200" style="flex:1 1 300px;"></canvas>
+          <div style="margin-top:12px;">
+            <canvas id="seasonalityChart" width="400" height="220"></canvas>
           </div>
         </section>
 
@@ -253,6 +274,34 @@
           climaLayer.addData(climaJson);
           agroLayer.addData(agroJson);
 
+          /* ------------------- LEYENDA DEL MAPA ------------------- */
+          const legend = L.control({position: 'bottomright'});
+
+          legend.onAdd = function (map) {
+              const div = L.DomUtil.create('div', 'info legend');
+
+              function generateHtml(title, features) {
+                let html = `<h4>${title}</h4>`;
+                const added = new Set();
+                features.forEach(f => {
+                  const name = f.properties.nombre;
+                  const color = f.properties.color;
+                  if (name && color && !added.has(name)) {
+                    html += `<i style="background:${color}"></i> ${name}<br>`;
+                    added.add(name);
+                  }
+                });
+                return html;
+              }
+
+              div.innerHTML = generateHtml('Climas', climaJson.features) +
+                              '<br>' +
+                              generateHtml('Reg. Productivas', agroJson.features);
+              return div;
+          };
+
+          legend.addTo(map);
+
           document.getElementById('toggleClima')
             .addEventListener('change', e =>
               e.target.checked ? map.addLayer(climaLayer) : map.removeLayer(climaLayer));
@@ -265,18 +314,32 @@
             .addEventListener('change', e =>
               e.target.checked ? map.addLayer(provinciaLayer) : map.removeLayer(provinciaLayer));
 
+          // Si hay una ubicación en la URL, la buscamos y la resaltamos
           if (ubicRaw) {
             const normalized = normalizeKey(ubicRaw);
-            let found = null;
+            let foundLayer = null;
 
-            provJson.features.forEach(feat => {
-              const name = getProvinceName(feat.properties);
-              if (normalizeKey(name) === normalized) found = feat;
+            // Iteramos sobre las capas de provincia que acabamos de crear
+            provinciaLayer.eachLayer(layer => {
+              const name = getProvinceName(layer.feature.properties);
+              if (normalizeKey(name) === normalized) {
+                foundLayer = layer;
+              }
             });
 
-            if (found) {
-              const layerBounds = L.geoJSON(found).getBounds();
-              map.fitBounds(layerBounds, { maxZoom: 8, padding: [20, 20] });
+            if (foundLayer) {
+              // Aplicamos un estilo de resaltado a la provincia encontrada
+              foundLayer.setStyle({
+                color: '#28a745',      // Un color verde brillante
+                weight: 3,             // Borde más grueso
+                fillOpacity: 0.25      // Un relleno sutil para que destaque
+              });
+
+              // La traemos al frente para que su borde no sea tapado por provincias vecinas
+              foundLayer.bringToFront();
+
+              // Centramos el mapa en la provincia
+              map.fitBounds(foundLayer.getBounds(), { maxZoom: 8, padding: [20, 20] });
               safeRender(ubicRaw);
             }
           }
@@ -327,6 +390,8 @@
       });
 
       /* ------------------- Dashboard KPIs ------------------- */
+      let seasonalityChart = null;
+
       function populateKPIsAndCharts(provName) {
         const key = normalizeKey(provName);
         const info = agroDB[key];
@@ -335,6 +400,7 @@
 
         if (!info) {
           container.innerHTML = '<div class="kpi">Sin datos</div>';
+          if (seasonalityChart) seasonalityChart.destroy();
           return;
         }
 
@@ -357,8 +423,95 @@
           `Suelo: ${info.suelo}\n\n` +
           `Clima: ${info.clima}\n\n` +
           `Riego: ${info.riego}`;
-      }
 
+        /* ------------------- Gráfico de Estacionalidad ------------------- */
+        const chartCanvas = document.getElementById('seasonalityChart');
+        if (seasonalityChart) {
+          seasonalityChart.destroy();
+        }
+
+        const ventanaData = info.ventanaSiembra || {};
+        const crops = Object.keys(ventanaData);
+
+        if (crops.length === 0) {
+          chartCanvas.style.display = 'none';
+          return;
+        } else {
+          chartCanvas.style.display = 'block';
+        }
+
+        const datasets = [];
+        const colors = ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)', 'rgba(75, 192, 192, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'];
+        let colorIndex = 0;
+
+        crops.forEach(crop => {
+          const [start, end] = ventanaData[crop];
+          const color = colors[colorIndex % colors.length];
+          colorIndex++;
+
+          if (start <= end) {
+            datasets.push({
+              label: crop,
+              data: [{ x: [start, end], y: crop }],
+              backgroundColor: color,
+              barPercentage: 0.7,
+            });
+          } else {
+            datasets.push({
+              label: crop,
+              data: [{ x: [start, 12.5], y: crop }],
+              backgroundColor: color,
+              barPercentage: 0.7,
+            });
+            datasets.push({
+              label: crop,
+              data: [{ x: [0.5, end], y: crop }],
+              backgroundColor: color,
+              barPercentage: 0.7,
+            });
+          }
+        });
+
+        seasonalityChart = new Chart(chartCanvas, {
+          type: 'bar',
+          data: {
+            labels: crops,
+            datasets: datasets
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                min: 1, max: 12,
+                title: { display: true, text: 'Mes del Año' },
+                ticks: {
+                  stepSize: 1,
+                  callback: (value) => months[value - 1] || ''
+                }
+              },
+              y: {
+                grid: { display: false }
+              }
+            },
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Ventanas de Siembra' },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const [start, end] = context.raw.x;
+                    const startMonth = months[Math.ceil(start) - 1];
+                    const endMonth = months[Math.floor(end) - 1] || months[11];
+                    return `${context.dataset.label}: ${startMonth} a ${endMonth}`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
     })();
   </script>
 
