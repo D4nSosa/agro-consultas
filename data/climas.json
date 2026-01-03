@@ -1,0 +1,100 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Clima Árido",
+        "color": "#e6b422"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-68, -22],
+          [-65, -22],
+          [-64, -27],
+          [-67, -32],
+          [-69, -35],
+          [-70, -39],
+          [-70, -42],
+          [-71, -42],
+          [-71, -22],
+          [-68, -22]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Clima Semiárido",
+        "color": "#ffdd77"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-65, -25],
+          [-60, -25],
+          [-60, -32],
+          [-62, -36],
+          [-65, -36],
+          [-67, -32],
+          [-65, -25]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Clima Templado Pampeano",
+        "color": "#5ab4ac"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-63, -31],
+          [-58, -31],
+          [-57, -34],
+          [-58, -38],
+          [-61, -39],
+          [-63, -36],
+          [-63, -31]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Clima Subtropical Húmedo",
+        "color": "#74a9cf"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-59, -22],
+          [-54, -22],
+          [-54, -29],
+          [-57, -29],
+          [-59, -26],
+          [-59, -22]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Clima Frío Patagónico",
+        "color": "#4575b4"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-72, -40],
+          [-65, -40],
+          [-65, -50],
+          [-72, -50],
+          [-72, -40]
+        ]]
+      }
+    }
+  ]
+}

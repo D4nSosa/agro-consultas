@@ -1,0 +1,100 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Pampa Húmeda",
+        "cultivos": "Soja, maíz, trigo, girasol",
+        "color": "#9ecae1"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-63, -31],
+          [-58, -31],
+          [-57, -34],
+          [-58, -38],
+          [-61, -39],
+          [-64, -37],
+          [-63, -31]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "NOA Agrícola",
+        "cultivos": "Poroto, caña, cítricos, maíz, soja",
+        "color": "#a1d99b"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-67, -22],
+          [-63, -22],
+          [-62, -28],
+          [-65, -30],
+          [-67, -27],
+          [-67, -22]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Cuyo Vitivinícola",
+        "cultivos": "Vid, ajo, tomate, olivo",
+        "color": "#fdae6b"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-70, -31],
+          [-66, -31],
+          [-66, -35],
+          [-69, -36],
+          [-70, -34],
+          [-70, -31]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Patagonia Frutícola",
+        "cultivos": "Manzana, pera, cereza, frutos finos",
+        "color": "#c994c7"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-72, -39],
+          [-65, -39],
+          [-65, -45],
+          [-72, -45],
+          [-72, -39]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "NEA Forestal-yerbatero",
+        "cultivos": "Yerba mate, té, tabaco, forestal",
+        "color": "#fb9a99"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-59, -22],
+          [-54, -22],
+          [-54, -29],
+          [-57, -29],
+          [-59, -25],
+          [-59, -22]
+        ]]
+      }
+    }
+  ]
+}
