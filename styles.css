@@ -87,3 +87,36 @@ pre{ background:transparent; margin:0; color:var(--texto-secundario) }
 /* small utility */
 .text-muted{ color:var(--texto-secundario); font-size:13px }
 .small{ font-size:12px; color:var(--texto-secundario) }
+
+/* Overlay styles for map loader and error */
+.loader-overlay, .error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--gris-fondo), 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+.loader-text {
+  font-weight: 600;
+  color: var(--texto-principal);
+  padding: 12px 20px;
+  background: var(--gris-card);
+  border-radius: 6px;
+  box-shadow: 0 4px 15px var(--sombra-suave);
+}
+
+.error-overlay {
+  background: rgba(217, 66, 49, 0.9);
+  color: #fff;
+  padding: 15px;
+  text-align: center;
+  font-weight: 600;
+}
