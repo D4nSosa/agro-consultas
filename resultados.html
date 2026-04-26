@@ -241,17 +241,21 @@
         })
       });
 
-      /* ------------------- CARGA DE GEOJSON ------------------- */
+      /* ------------------- RENDER INICIAL ------------------- */
+      if (ubicRaw) {
+        safeRender(ubicRaw);
+      }
+
+      /* ------------------- CARGA DE GEOJSON (ASÍNCRONA) ------------------- */
       Promise.all([
-        fetch('data/provincias.geojson').then(r => r.json()),
-        fetch('data/climas.json').then(r => r.json()),
-        fetch('data/regiones_productivas.json').then(r => r.json())
+        fetch('data/provincias.geojson').then(r => r.ok ? r.json() : null),
+        fetch('data/climas.json').then(r => r.ok ? r.json() : null),
+        fetch('data/regiones_productivas.json').then(r => r.ok ? r.json() : null)
       ])
         .then(([provJson, climaJson, agroJson]) => {
-
-          provinciaLayer.addData(provJson);
-          climaLayer.addData(climaJson);
-          agroLayer.addData(agroJson);
+          if (provJson) provinciaLayer.addData(provJson);
+          if (climaJson) climaLayer.addData(climaJson);
+          if (agroJson) agroLayer.addData(agroJson);
 
           document.getElementById('toggleClima')
             .addEventListener('change', e =>
@@ -265,9 +269,8 @@
             .addEventListener('change', e =>
               e.target.checked ? map.addLayer(provinciaLayer) : map.removeLayer(provinciaLayer));
 
-          if (ubicRaw) {
-            safeRender(ubicRaw); // Renderizar datos siempre si hay ubicación
-
+          // Centrar mapa si ya tenemos ubicación y cargamos el GeoJSON
+          if (ubicRaw && provJson) {
             const normalized = normalizeKey(ubicRaw);
             let found = null;
 
@@ -281,11 +284,10 @@
               map.fitBounds(layerBounds, { maxZoom: 8, padding: [20, 20] });
             }
           }
-
         })
         .catch(err => {
           console.error("Error cargando datos geográficos:", err);
-          alert("No se pudieron cargar las capas geográficas.");
+          // No bloqueamos la app, el dashboard sigue funcionando sin mapa
         });
 
       /* ------------------- SUGERENCIAS ------------------- */
@@ -331,8 +333,8 @@
       });
 
       /* ------------------- Dashboard KPIs & Charts ------------------- */
-      let areaChartInstance = null;
-      let barChartInstance = null;
+      var areaChartInstance = null;
+      var barChartInstance = null;
 
       function populateKPIsAndCharts(provName) {
         const key = normalizeKey(provName);
