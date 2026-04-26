@@ -161,8 +161,6 @@
         .toLowerCase();
     }
 
-    let populateKPIsAndCharts;
-
     (function () {
 
       /* ------------------- LECTURA DE PARÁMETROS ------------------- */
@@ -197,7 +195,7 @@
       }).addTo(map);
 
       function getProvinceName(props) {
-        return props.provincia || props.NAME || props.name || "";
+        return props.nombre || props.provincia || props.NAME || props.name || "";
       }
 
       const provinciaLayer = L.geoJSON(null, {
@@ -268,6 +266,8 @@
               e.target.checked ? map.addLayer(provinciaLayer) : map.removeLayer(provinciaLayer));
 
           if (ubicRaw) {
+            safeRender(ubicRaw); // Renderizar datos siempre si hay ubicación
+
             const normalized = normalizeKey(ubicRaw);
             let found = null;
 
@@ -279,7 +279,6 @@
             if (found) {
               const layerBounds = L.geoJSON(found).getBounds();
               map.fitBounds(layerBounds, { maxZoom: 8, padding: [20, 20] });
-              safeRender(ubicRaw);
             }
           }
 
@@ -335,22 +334,27 @@
       let areaChartInstance = null;
       let barChartInstance = null;
 
-      populateKPIsAndCharts = function(provName) {
+      function populateKPIsAndCharts(provName) {
         const key = normalizeKey(provName);
-        const info = agroDB[key];
+        const info = (typeof agroDB !== 'undefined') ? agroDB[key] : null;
         const container = document.getElementById('kpis');
+        const recommendationsBox = document.getElementById('recomendaciones');
+
         container.innerHTML = '';
 
         if (!info) {
-          container.innerHTML = '<div class="kpi">Sin datos</div>';
+          container.innerHTML = '<div class="kpi">Sin datos para esta ubicación</div>';
+          if (recommendationsBox) recommendationsBox.innerText = 'No se encontró información técnica.';
+          if (barChartInstance) barChartInstance.destroy();
+          if (areaChartInstance) areaChartInstance.destroy();
           return;
         }
 
         const kpis = [
-          { title: 'Cultivos', value: info.cultivos.join(', ') },
-          { title: 'Suelos', value: info.suelo },
-          { title: 'Clima', value: info.clima },
-          { title: 'Riego', value: info.riego }
+          { title: 'Cultivos', value: (info.cultivos || []).join(', ') },
+          { title: 'Suelos', value: info.suelo || 'N/A' },
+          { title: 'Clima', value: info.clima || 'N/A' },
+          { title: 'Riego', value: info.riego || 'N/A' }
         ];
 
         kpis.forEach(k => {
@@ -360,22 +364,28 @@
           container.appendChild(el);
         });
 
-        document.getElementById('recomendaciones').innerText =
-          `Cultivos: ${info.cultivos.join(', ')}\n\n` +
-          `Suelo: ${info.suelo}\n\n` +
-          `Clima: ${info.clima}\n\n` +
-          `Riego: ${info.riego}`;
+        if (recommendationsBox) {
+          recommendationsBox.innerText =
+            `Cultivos: ${(info.cultivos || []).join(', ')}\n\n` +
+            `Suelo: ${info.suelo || 'N/A'}\n\n` +
+            `Clima: ${info.clima || 'N/A'}\n\n` +
+            `Riego: ${info.riego || 'N/A'}`;
+        }
 
         // Update Charts
         const mes = parseInt(document.getElementById('mesSelect').value, 10);
         const riego = !!document.getElementById('riegoCheckbox').checked;
-        const recommendations = recomendarCultivos(key, mes, riego);
+        const recommendations = (typeof recomendarCultivos === 'function')
+          ? recomendarCultivos(key, mes, riego)
+          : [];
 
         const labels = recommendations.map(r => r.cultivo);
         const scores = recommendations.map(r => r.score);
 
         if (barChartInstance) barChartInstance.destroy();
         if (areaChartInstance) areaChartInstance.destroy();
+
+        if (labels.length === 0) return;
 
         const ctxBar = document.getElementById('chartBars').getContext('2d');
         barChartInstance = new Chart(ctxBar, {
