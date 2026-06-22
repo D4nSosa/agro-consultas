@@ -1,9 +1,10 @@
 /* ============================================================================
-   script.js — Motor de recomendaciones + UI — Versión FINAL
-   NO USA mapa.js — El mapa avanzado está dentro de resultados.html
+   script.js — Motor de recomendaciones + UI — Agro Consultas v1.0
    ============================================================================ */
 
-/* ---------- Utilidades ---------- */
+/**
+ * Normaliza una cadena para búsqueda (quita acentos, múltiples espacios, pasa a minúsculas)
+ */
 function normalizeKey(s) {
   return String(s || "")
     .normalize("NFD")
@@ -13,6 +14,9 @@ function normalizeKey(s) {
     .toLowerCase();
 }
 
+/**
+ * Convierte índice de mes a nombre
+ */
 function monthIndexToName(i) {
   const months = [
     "Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -22,171 +26,219 @@ function monthIndexToName(i) {
 }
 
 /* ============================================================================
-   AgroDB — Datos técnicos realistas por provincia (24 jurisdicciones)
+   Base de Datos de Cultivos — Información detallada
+   ============================================================================ */
+
+const cultivosData = {
+  "trigo": {
+    descripcion: "Cereal de invierno fundamental para la rotación de cultivos.",
+    siembra: "Mayo a Julio",
+    cosecha: "Noviembre a Enero"
+  },
+  "soja": {
+    descripcion: "Principal cultivo de exportación, leguminosa de verano.",
+    siembra: "Octubre a Diciembre",
+    cosecha: "Marzo a Mayo"
+  },
+  "maiz": {
+    descripcion: "Cereal versátil con altos requerimientos nutricionales.",
+    siembra: "Septiembre a Diciembre",
+    cosecha: "Marzo a Agosto"
+  },
+  "cebada": {
+    descripcion: "Cereal de invierno, muy utilizado en la industria cervecera.",
+    siembra: "Junio a Julio",
+    cosecha: "Noviembre a Diciembre"
+  },
+  "girasol": {
+    descripcion: "Oleaginosa resistente a sequías moderadas.",
+    siembra: "Agosto a Noviembre",
+    cosecha: "Enero a Marzo"
+  },
+  "sorgo": {
+    descripcion: "Cereal rústico ideal para zonas con menor disponibilidad hídrica.",
+    siembra: "Octubre a Noviembre",
+    cosecha: "Marzo a Mayo"
+  },
+  "mani": {
+    descripcion: "Leguminosa regional de alto valor agregado.",
+    siembra: "Octubre a Noviembre",
+    cosecha: "Abril a Mayo"
+  },
+  "arroz": {
+    descripcion: "Cereal cultivado en suelos anegadizos con riego controlado.",
+    siembra: "Septiembre a Noviembre",
+    cosecha: "Febrero a Abril"
+  },
+  "yerba mate": {
+    descripcion: "Cultivo perenne emblemático de la región mesopotámica.",
+    siembra: "Marzo a Junio (plantación)",
+    cosecha: "Abril a Septiembre"
+  },
+  "citrus": {
+    descripcion: "Frutales como limón, naranja y mandarina.",
+    siembra: "Primavera",
+    cosecha: "Invierno a Primavera"
+  },
+  "te": {
+    descripcion: "Infusión cultivada principalmente en Misiones y Corrientes.",
+    siembra: "Otoño",
+    cosecha: "Noviembre a Abril"
+  },
+  "algodon": {
+    descripcion: "Fibra textil adaptada a climas subtropicales.",
+    siembra: "Octubre a Diciembre",
+    cosecha: "Abril a Julio"
+  },
+  "vid": {
+    descripcion: "Cultivo base de la industria vitivinícola en zonas áridas con riego.",
+    siembra: "Agosto a Octubre (plantación)",
+    cosecha: "Febrero a Abril"
+  },
+  "olivo": {
+    descripcion: "Frutal adaptado a climas secos para producción de aceite y aceitunas.",
+    siembra: "Marzo a Mayo (plantación)",
+    cosecha: "Febrero a Mayo"
+  },
+  "manzana": {
+    descripcion: "Fruta de pepita típica de los valles patagónicos.",
+    siembra: "Agosto a Septiembre",
+    cosecha: "Enero a Abril"
+  },
+  "pera": {
+    descripcion: "Fruta de pepita de alta calidad de exportación.",
+    siembra: "Agosto a Septiembre",
+    cosecha: "Enero a Marzo"
+  },
+  "cana de azucar": {
+    descripcion: "Cultivo industrial clave en el NOA.",
+    siembra: "Mayo a Septiembre",
+    cosecha: "Junio a Octubre"
+  },
+  "limon": {
+    descripcion: "Líder mundial en exportación de derivados cítricos.",
+    siembra: "Primavera",
+    cosecha: "Abril a Septiembre"
+  },
+  "porotos": {
+    descripcion: "Legumbre de ciclo corto producida principalmente en el NOA.",
+    siembra: "Enero a Febrero",
+    cosecha: "Mayo a Junio"
+  },
+  "papa": {
+    descripcion: "Tubérculo de consumo masivo con diversas zonas de producción.",
+    siembra: "Agosto a Octubre / Febrero",
+    cosecha: "Diciembre a Abril / Junio"
+  },
+  "quinoa": {
+    descripcion: "Pseudocereal andino de alto valor nutricional.",
+    siembra: "Octubre a Noviembre",
+    cosecha: "Marzo a Mayo"
+  },
+  "mandioca": {
+    descripcion: "Raíz amilácea fundamental en la dieta del NEA.",
+    siembra: "Agosto a Octubre",
+    cosecha: "Mayo a Agosto"
+  }
+};
+
+const defaultCropInfo = {
+  descripcion: "Información técnica en proceso de actualización.",
+  siembra: "Consultar calendario regional",
+  cosecha: "Sujeta a condiciones climáticas"
+};
+
+/* ============================================================================
+   AgroDB — Provincias
    ============================================================================ */
 
 const agroDB = {
-  "buenos aires": {
-    cultivos: ["trigo","soja","maiz","cebada","girasol","sorgo"],
-    suelo: "Molisoles (Pampa Húmeda); alta fertilidad",
-    clima: "Templado húmedo; riesgo: anegamientos",
-    riego: "Secano mayormente; pivots en zonas",
-    plagas: ["roya del trigo","arañuela","picudo del trigo"],
-    ventanaSiembra: { trigo:[5,7], soja:[10,12], maiz:[9,12], cebada:[6,7] }
-  },
-
-  "ciudad autonoma de buenos aires": {
-    cultivos: ["hortalizas urbanas","invernaderos","huertas"],
-    suelo: "Antropizado; hidroponia",
-    clima: "Templado urbano",
-    riego: "Local (invernaderos)",
-    plagas: ["pulgones","mosca blanca"],
-    ventanaSiembra: { lechuga:[1,12], tomate:[9,3] }
-  },
-
-  /* --- Resto de provincias (sin cambios) --- */
-
-  "catamarca": { cultivos:["olivo","nogal","forrajes","maiz en valles"], suelo:"Aridisoles y aluviales", clima:"Árido/semiárido", riego:"Acequias y goteo", plagas:["picudo"], ventanaSiembra:{ olivo:[3,5], maiz:[10,12] } },
-  "chaco": { cultivos:["algodon","soja","maiz","girasol"], suelo:"Vertisoles pesados", clima:"Subtropical", riego:"Limitado", plagas:["picudo del algodon","mosca blanca"], ventanaSiembra:{ algodon:[10,12], soja:[10,12], maiz:[10,12] } },
-  "chubut": { cultivos:["papa","hortalizas","frutales valles"], suelo:"Aridisoles y aluviales", clima:"Frío templado en valles", riego:"Canales en valles", plagas:["nematodos de la papa","tuta absoluta"], ventanaSiembra:{ papa:[9,10], tomate:[9,11] } },
-
-  "cordoba": { cultivos:["soja","maiz","trigo","mani"], suelo:"Molisoles / Aridisoles", clima:"Templado subhúmedo", riego:"Pivots en zonas", plagas:["oruga bolillera","chinche","picudo"], ventanaSiembra:{ soja:[10,12], maiz:[9,12], mani:[10,11], trigo:[5,7] } },
-  "corrientes": { cultivos:["arroz","yerba mate","citrus","te"], suelo:"Hidromorfos y aluviales", clima:"Subtropical húmedo", riego:"Arroz y drenaje", plagas:["hongos foliares"], ventanaSiembra:{ arroz:[11,12], citrus:[3,6] } },
-
-  "entre rios": { cultivos:["arroz","soja","maiz"], suelo:"Vertisoles", clima:"Templado húmedo", riego:"Sistemas para arroz", plagas:["isoca","gusanos cortadores"], ventanaSiembra:{ arroz:[11,12], trigo:[5,7], soja:[10,12] } },
-  "formosa": { cultivos:["soja","maiz","mandioca"], suelo:"Arcillosos", clima:"Subtropical", riego:"Bombeo local", plagas:["orugas"], ventanaSiembra:{ soja:[10,12], maiz:[10,12] } },
-  "jujuy": { cultivos:["maiz andino","quinoa","papa"], suelo:"Aluviales en valles", clima:"Andino/subtropical", riego:"Acequias", plagas:["pulgones"], ventanaSiembra:{ quinoa:[10,11], maiz:[10,12], papa:[9,10] } },
-
-  "la pampa": { cultivos:["trigo","maiz","soja"], suelo:"Molisoles y cambisoles", clima:"Semiárido", riego:"Escaso", plagas:["picudo"], ventanaSiembra:{ trigo:[5,7], soja:[10,12], maiz:[9,12] } },
-  "la rioja": { cultivos:["vid","olivo"], suelo:"Aridisoles", clima:"Seco continental", riego:"Oasis por acequias", plagas:["mosca de la fruta"], ventanaSiembra:{ vid:[8,10], olivo:[3,5] } },
-  "mendoza": { cultivos:["vid","frutales","hortalizas"], suelo:"Aridisoles aluviales", clima:"Desértico continental", riego:"Goteo/acequias", plagas:["mosca de la fruta"], ventanaSiembra:{ vid:[8,10], ajo:[2,4] } },
-
-  "misiones":{ cultivos:["yerba mate","te","citrus"], suelo:"Lateríticos", clima:"Tropical húmedo", riego:"Bajo", plagas:["hongos foliares"], ventanaSiembra:{ yerba:[3,6], citrus:[3,6] } },
-  "neuquen":{ cultivos:["manzana","pera","hortalizas"], suelo:"Aluviales", clima:"Semiárido frío", riego:"Canales", plagas:["carpocapsa"], ventanaSiembra:{ manzana:[8,10], pera:[8,10] } },
-
-  "rio negro":{ cultivos:["manzana","pera","frutilla"], suelo:"Aluviales", clima:"Árido-frío", riego:"Indispensable", plagas:["carpocapsa"], ventanaSiembra:{ frutilla:[8,10], manzana:[8,10] } },
-
-  "salta":{ cultivos:["soja","maiz","porotos","citricos"], suelo:"Aluviales", clima:"Subtropical", riego:"Acequias", plagas:["picudo"], ventanaSiembra:{ soja:[10,12], maiz:[10,12], poroto:[11,1] } },
-  "san juan":{ cultivos:["vid","olivo","hortalizas de valle"], suelo:"Aridisoles aluviales", clima:"Desértico", riego:"Goteo/acequias", plagas:["mosca de la fruta"], ventanaSiembra:{ vid:[8,10], olivo:[3,5] } },
-
-  "san luis":{ cultivos:["trigo","maiz","soja"], suelo:"Arenosos", clima:"Semiárido", riego:"Puntual", plagas:["orugas"], ventanaSiembra:{ trigo:[5,7], soja:[10,12] } },
-  "santa cruz":{ cultivos:["forrajeras","hortalizas invernadero"], suelo:"Patagónico", clima:"Frío extremo", riego:"Local", plagas:["hongos foliares"], ventanaSiembra:{ hortalizas:[9,3] } },
-
-  "santa fe":{ cultivos:["soja","maiz","trigo","arroz"], suelo:"Argiudoles", clima:"Templado húmedo", riego:"Arroz con manejo de inundación", plagas:["roya","picudo"], ventanaSiembra:{ soja:[10,12], maiz:[9,12], arroz:[11,12], trigo:[5,7] } },
-
-  "santiago del estero":{ cultivos:["soja","maiz","girasol","algodon"], suelo:"Arenosos", clima:"Muy seco", riego:"Pivots", plagas:["picudo"], ventanaSiembra:{ soja:[10,12], algodon:[10,12], maiz:[10,12] } },
-
-  "tierra del fuego":{ cultivos:["hortalizas","invernaderos"], suelo:"Fríos/turba", clima:"Frío húmedo", riego:"Local/invernadero", plagas:["pulgon"], ventanaSiembra:{ lechuga:[1,12], espinaca:[1,12] } },
-
-  "tucuman":{ cultivos:["cana de azucar","limon","hortalizas"], suelo:"Aluviales", clima:"Subtropical húmedo", riego:"Intensivo", plagas:["picudo de la caña"], ventanaSiembra:{ cana:[5,9], limon:[3,5] } }
+  "buenos aires": { cultivos: ["trigo","soja","maiz","cebada","girasol","sorgo"], suelo: "Molisoles; alta fertilidad", clima: "Templado húmedo" },
+  "ciudad autonoma de buenos aires": { cultivos: ["lechuga","tomate","espinaca"], suelo: "Urbano/Hidroponia", clima: "Templado" },
+  "catamarca": { cultivos:["olivo","nogal","maiz"], suelo:"Aridisoles", clima:"Árido/semiárido" },
+  "chaco": { cultivos:["algodon","soja","maiz","girasol"], suelo:"Vertisoles", clima:"Subtropical" },
+  "chubut": { cultivos:["papa","frutilla","manzana"], suelo:"Aluviales", clima:"Frío templado" },
+  "cordoba": { cultivos:["soja","maiz","trigo","mani"], suelo:"Molisoles", clima:"Templado subhúmedo" },
+  "corrientes": { cultivos:["arroz","yerba mate","citrus","te"], suelo:"Hidromorfos", clima:"Subtropical húmedo" },
+  "entre rios": { cultivos:["arroz","soja","maiz","trigo"], suelo:"Vertisoles", clima:"Templado húmedo" },
+  "formosa": { cultivos:["soja","maiz","mandioca"], suelo:"Arcillosos", clima:"Subtropical" },
+  "jujuy": { cultivos:["maiz","quinoa","papa","cana de azucar"], suelo:"Aluviales", clima:"Andino/subtropical" },
+  "la pampa": { cultivos:["trigo","maiz","soja","girasol"], suelo:"Molisoles", clima:"Semiárido" },
+  "la rioja": { cultivos:["vid","olivo"], suelo:"Aridisoles", clima:"Seco continental" },
+  "mendoza": { cultivos:["vid","olivo","ajo","pera","manzana"], suelo:"Aridisoles", clima:"Desértico continental" },
+  "misiones":{ cultivos:["yerba mate","te","citrus","mandioca"], suelo:"Lateríticos (rojos)", clima:"Tropical húmedo" },
+  "neuquen":{ cultivos:["manzana","pera","vid"], suelo:"Aluviales", clima:"Semiárido frío" },
+  "rio negro":{ cultivos:["manzana","pera","frutilla"], suelo:"Aluviales", clima:"Árido-frío" },
+  "salta":{ cultivos:["soja","maiz","porotos","citrus","tabaco"], suelo:"Aluviales", clima:"Subtropical" },
+  "san juan":{ cultivos:["vid","olivo","cebolla"], suelo:"Aridisoles", clima:"Desértico" },
+  "san luis":{ cultivos:["trigo","maiz","soja","girasol"], suelo:"Arenosos", clima:"Semiárido" },
+  "santa cruz":{ cultivos:["forrajeras","hortalizas en invernadero"], suelo:"Patagónico", clima:"Frío extremo" },
+  "santa fe":{ cultivos:["soja","maiz","trigo","arroz","girasol"], suelo:"Argiudoles", clima:"Templado húmedo" },
+  "santiago del estero":{ cultivos:["soja","maiz","girasol","algodon"], suelo:"Arenosos", clima:"Muy seco" },
+  "tierra del fuego":{ cultivos:["lechuga","espinaca","frutilla"], suelo:"Turba/Fríos", clima:"Frío húmedo" },
+  "tucuman":{ cultivos:["cana de azucar","limon","arandano"], suelo:"Aluviales", clima:"Subtropical húmedo" }
 };
 
-
 /* ============================================================================
-   Motor de recomendación
+   Lógica de Negocio
    ============================================================================ */
 
-function recomendarCultivos(provKey, mesIndex, tieneRiego, opciones={}) {
-  const info = agroDB[provKey];
-  if (!info) return [];
-
-  const results = [];
-
-  (info.cultivos||[]).forEach(cultivo => {
-    let score = 50;
-    const motivos = [];
-
-    const ventana = info.ventanaSiembra && info.ventanaSiembra[cultivo];
-    if (ventana) {
-      const [ini, fin] = ventana;
-      const inWindow = (ini <= fin)
-        ? (mesIndex >= ini && mesIndex <= fin)
-        : (mesIndex >= ini || mesIndex <= fin);
-
-      if (inWindow) { score += 30; motivos.push("dentro de ventana de siembra"); }
-      else { score -= 10; motivos.push("fuera de ventana"); }
-    }
-
-    if (tieneRiego && info.riego && /riego|goteo|pivot|irrig/i.test(info.riego)) {
-      score += 15;
-      motivos.push("ventaja por riego");
-    }
-
-    if (/subtropical|tropical/i.test(info.clima) &&
-        /soja|cana|citrus|tabaco/i.test(cultivo)) {
-      score += 8;
-      motivos.push("ajuste climático");
-    }
-
-    results.push({ cultivo, score, motivos });
-  });
-
-  results.sort((a,b)=>b.score - a.score);
-  return results;
-}
-
-
-/* ============================================================================
-   Render principal (sin mapa.js)
-   ============================================================================ */
-
-function createCard(title, content) {
-  const card = document.createElement("div");
-  card.className = "agro-card";
-
-  const h = document.createElement("h4");
-  h.innerText = title;
-
-  const p = document.createElement("pre");
-  p.innerText = content;
-
-  card.appendChild(h);
-  card.appendChild(p);
-
-  return card;
-}
-
-function renderForLocation(ubicacionRaw) {
-  if (!ubicacionRaw) return;
-
-  const key = normalizeKey(ubicacionRaw);
+/**
+ * Obtiene recomendaciones para una provincia
+ */
+function getRecomendaciones(provinciaRaw) {
+  const key = normalizeKey(provinciaRaw);
   const info = agroDB[key];
 
-  document.getElementById("resultado_ubicacion").innerText = ubicacionRaw;
+  if (!info) return null;
 
-  if (!info) {
-    document.getElementById("recomendaciones").innerText =
-      "No hay datos disponibles para esta provincia.";
+  return info.cultivos.map(nombre => {
+    const detalle = cultivosData[normalizeKey(nombre)] || defaultCropInfo;
+    return {
+      nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
+      descripcion: detalle.descripcion,
+      siembra: detalle.siembra,
+      cosecha: detalle.cosecha
+    };
+  });
+}
+
+/**
+ * Renderiza las tarjetas de cultivo
+ */
+function renderRecomendaciones(provinciaRaw) {
+  const container = document.getElementById("crop-results");
+  const tituloUbicacion = document.getElementById("resultado_ubicacion");
+
+  if (!container) return;
+
+  const recomendaciones = getRecomendaciones(provinciaRaw);
+
+  if (tituloUbicacion) tituloUbicacion.innerText = provinciaRaw;
+
+  if (!recomendaciones) {
+    container.innerHTML = `
+      <div class="error-msg">
+        <p>Lo sentimos, no tenemos datos registrados para la provincia: <strong>${provinciaRaw}</strong>.</p>
+        <p>Asegúrate de escribir correctamente el nombre (ej. Córdoba, Buenos Aires, Santa Fe).</p>
+      </div>`;
     return;
   }
 
-  const resumen =
-    `Cultivos: ${info.cultivos.join(", ")}\n\n` +
-    `Suelos: ${info.suelo}\n\n` +
-    `Clima: ${info.clima}\n\n` +
-    `Riego: ${info.riego}\n\n` +
-    `Plagas: ${(info.plagas||[]).join(", ")}`;
-
-  document.getElementById("recomendaciones").innerText = resumen;
-
-  const detalles = document.getElementById("detalles_card");
-  if (detalles) {
-    detalles.innerHTML = "";
-    detalles.appendChild(createCard("Cultivos", info.cultivos.join(", ")));
-    detalles.appendChild(createCard("Suelos", info.suelo));
-    detalles.appendChild(createCard(
-      "Ventanas de siembra",
-      Object.keys(info.ventanaSiembra).map(c=>{
-        const [s,e] = info.ventanaSiembra[c];
-        return `${c}: ${monthIndexToName(s)} – ${monthIndexToName(e)}`
-      }).join("\n")
-    ));
-  }
+  container.innerHTML = recomendaciones.map(c => `
+    <article class="crop-card">
+      <h3>${c.nombre}</h3>
+      <p class="desc">${c.descripcion}</p>
+      <div class="details">
+        <div><strong>Siembra:</strong> ${c.siembra}</div>
+        <div><strong>Cosecha:</strong> ${c.cosecha}</div>
+      </div>
+    </article>
+  `).join("");
 }
 
-
 /* ============================================================================
-   Inicialización automática resultados.html
+   Inicialización
    ============================================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -194,6 +246,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const ubic = params.get("ubicacion");
 
   if (ubic) {
-    renderForLocation(ubic);
+    renderRecomendaciones(ubic);
   }
 });
