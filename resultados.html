@@ -7,6 +7,10 @@
   <title>Resultados - Recomendador de Cultivos</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
   <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -32,6 +36,29 @@
       Provincia: <span id="resultado_ubicacion"></span>
     </h2>
 
+    <!-- Contenedor del mapa y panel lateral -->
+    <div class="map-section-container card" style="margin-bottom: 30px; padding: 0; overflow: hidden;">
+      <div class="map-layout">
+        <div id="map" style="height: 450px; min-height: 350px;"></div>
+        <div class="territory-sidebar" id="territory-info">
+          <h3>Información Territorial</h3>
+          <p class="text-muted">Hacé click en cualquier punto del mapa para obtener datos de suelo, clima y recomendaciones en tiempo real.</p>
+          <div id="territory-details" class="territory-details-content">
+            <!-- Cargado dinámicamente -->
+            <div class="empty-state">
+              <span style="font-size: 2rem;">📍</span>
+              <p>Esperando selección de punto o geolocalización...</p>
+            </div>
+          </div>
+          <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 15px;">📍 Usar mi Geolocalización</button>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 30px; border-bottom: 2px solid var(--verde-principal); padding-bottom: 10px;">
+      Recomendaciones de Cultivos
+    </h3>
+
     <section id="crop-results" class="crop-grid">
       <!-- Las recomendaciones se cargan aquí desde script.js -->
     </section>
@@ -41,6 +68,8 @@
     <small>Recomendador de Cultivos — Agro Consultas v1.0</small>
   </footer>
 
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="script.js"></script>
   <script>
     // Theme toggle logic (keeping it simple and consistent with index.html)
