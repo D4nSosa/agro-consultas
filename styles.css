@@ -114,6 +114,124 @@ body{ font-family:'Inter', 'Roboto', sans-serif; background:var(--gris-fondo); c
 
 @keyframes floatUp{ from{ transform:translateY(6px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
 
+/* Map Layout and Territory Sidebar Styles */
+.map-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  min-height: 450px;
+}
+
+#map {
+  z-index: 1;
+}
+
+.territory-sidebar {
+  padding: 20px;
+  background: var(--gris-card);
+  border-left: 1px solid var(--borde-suave);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-y: auto;
+  max-height: 450px;
+}
+
+.territory-sidebar h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: var(--verde-principal);
+  font-size: 1.15rem;
+}
+
+.text-muted {
+  color: var(--texto-secundario);
+  font-size: 0.85rem;
+  margin-bottom: 15px;
+  line-height: 1.4;
+}
+
+.territory-details-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--texto-secundario);
+  font-size: 0.9rem;
+}
+
+.empty-state span {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.info-item {
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.info-item strong {
+  color: var(--verde-principal);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Badge styles for compatibility */
+.compatibility-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  margin-top: 5px;
+}
+
+.badge-alta {
+  background-color: rgba(46, 125, 50, 0.15);
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+}
+
+.badge-media {
+  background-color: rgba(239, 108, 0, 0.15);
+  color: #ef6c00;
+  border: 1px solid #ef6c00;
+}
+
+.badge-baja {
+  background-color: rgba(198, 40, 40, 0.15);
+  color: #c62828;
+  border: 1px solid #c62828;
+}
+
+/* Dark theme specific fixes for Leaflet controls */
+.theme-dark .leaflet-bar a,
+.theme-dark .leaflet-control-zoom-in,
+.theme-dark .leaflet-control-zoom-out {
+  background: var(--gris-card) !important;
+  color: var(--texto-principal) !important;
+  border-color: var(--borde-suave) !important;
+}
+
+.theme-dark .leaflet-container {
+  background: var(--gris-fondo) !important;
+}
+
+@media (max-width: 850px) {
+  .map-layout {
+    grid-template-columns: 1fr;
+  }
+  .territory-sidebar {
+    border-left: none;
+    border-top: 1px solid var(--borde-suave);
+    max-height: none;
+  }
+}
+
 @media (max-width:560px){
   .brand-text .title{ display:none }
   .hero h1{ font-size:18px }

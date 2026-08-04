@@ -41,6 +41,55 @@ def test_search_and_results():
         assert page.is_visible(".desc")
         assert page.is_visible(".details")
 
+        # Check map integration (Fase 1)
+        assert page.is_visible("#map")
+        assert page.is_visible(".leaflet-container")
+
+        # Check territory details loaded (Fase 2)
+        assert page.is_visible("#territory-details")
+        assert page.is_visible(".info-item")
+
+        # Check recommendation engine details (Fase 3)
+        assert page.is_visible(".compatibility-badge")
+        assert page.is_visible(".compatibility-report")
+
+        browser.close()
+
+def test_map_click_and_updates():
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+
+        # Go straight to Misiones results
+        page.goto("http://localhost:8000/resultados.html?ubicacion=Misiones")
+
+        # Wait for map to be fully loaded
+        page.wait_for_selector(".leaflet-container")
+
+        # Click on the map to trigger location change (simulated coordinates selection)
+        # Instead of coordinate click which is hard to mock in headless, we can call the js method directly on window
+        page.evaluate("procesarSeleccionCoordenadas(-26.8756, -54.6543)")
+
+        # Verify territory is updated to Misiones
+        page.wait_for_selector("#territory-details")
+
+        # Check if Misiones-specific soils & crops (Yerba mate) are recommended
+        page.wait_for_selector(".crop-card")
+        card_titles = [card.query_selector("h3").inner_text().lower() for card in page.query_selector_all(".crop-card")]
+        assert "yerba mate" in card_titles or "te" in card_titles
+
+        # Check if Misiones laterite soil detail exists
+        details_text = page.locator("#territory-details").inner_text()
+        assert "Lateríticos" in details_text or "Rojos" in details_text
+
+        # Click on the map coordinate corresponding to Chaco
+        page.evaluate("procesarSeleccionCoordenadas(-26.3860, -60.7653)")
+
+        # Check if Chaco is selected
+        page.wait_for_selector("#territory-details")
+        details_text_chaco = page.locator("#territory-details").inner_text()
+        assert "Chaco" in details_text_chaco or "Vertisoles" in details_text_chaco
+
         browser.close()
 
 def test_normalization():
