@@ -90,6 +90,20 @@ def test_map_click_and_updates():
         details_text_chaco = page.locator("#territory-details").inner_text()
         assert "Chaco" in details_text_chaco or "Vertisoles" in details_text_chaco
 
+        # Click on the map coordinate corresponding to Mendoza (Cuyo Region)
+        page.evaluate("procesarSeleccionCoordenadas(-34.6297, -68.5831)")
+        page.wait_for_selector("#territory-details")
+        details_text_mendoza = page.locator("#territory-details").inner_text()
+        assert "Mendoza" in details_text_mendoza
+        assert "Aridisoles" in details_text_mendoza or "deshielo" in details_text_mendoza
+
+        # Click on the map coordinate corresponding to Córdoba (Pampean Region)
+        page.evaluate("procesarSeleccionCoordenadas(-32.1300, -63.7000)")
+        page.wait_for_selector("#territory-details")
+        details_text_cordoba = page.locator("#territory-details").inner_text()
+        assert "Córdoba" in details_text_cordoba
+        assert "Molisoles" in details_text_cordoba or "Maní" in details_text_cordoba
+
         browser.close()
 
 def test_normalization():
