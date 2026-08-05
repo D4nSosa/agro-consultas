@@ -104,6 +104,25 @@ def test_map_click_and_updates():
         assert "Córdoba" in details_text_cordoba
         assert "Molisoles" in details_text_cordoba or "Maní" in details_text_cordoba
 
+        # Test subregional resolution and live weather integration (Fase A & B)
+        # Select Córdoba Sur (Zona Manicera) specifically
+        page.evaluate("procesarSeleccionCoordenadas(-33.3, -64.3)")
+        page.wait_for_selector("#territory-details")
+
+        details_text_subregion = page.locator("#territory-details").inner_text()
+        assert "Córdoba" in details_text_subregion
+        assert "Zona Manicera" in details_text_subregion
+        assert "Suelos sueltos" in details_text_subregion or "Molisoles arenosos" in details_text_subregion
+
+        # Verify that Live Weather section (Fase B) loaded and has content or spinner
+        assert page.is_visible("#live-weather-info")
+
+        # Verify that sustainable and rotative crop report sections are present in cards (Fase C)
+        page.wait_for_selector(".sustainability-report")
+        sustainability_text = page.locator(".sustainability-report").first.inner_text()
+        assert "Manejo Sostenible Sugerido" in sustainability_text
+        assert "Rotación" in sustainability_text
+
         browser.close()
 
 def test_normalization():
