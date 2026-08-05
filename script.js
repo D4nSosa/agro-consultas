@@ -835,6 +835,215 @@ const agroambientalesDB = {
 };
 
 /* ============================================================================
+   Base de Datos de Subregiones Agroecológicas de Alta Resolución (Fase A)
+   ============================================================================ */
+
+const subregionesDB = {
+  "buenos aires": [
+    {
+      id: "buenos_aires_norte",
+      nombre: "Buenos Aires Norte (Zona Núcleo)",
+      lat: -34.5,
+      lng: -60.5,
+      suelo: {
+        tipo: "Molisoles típicos (Argiudoles súper fértiles, clase I-II)",
+        textura: "Franca a franco-limosa con excelente retención de humedad y materia orgánica (>3%)",
+        drenaje: "Muy bueno, escurrimiento óptimo",
+        limitantes: "Bajo riesgo de erosión hídrica en pendientes suaves, compactación por tránsito pesado",
+        aptitud: "Máxima aptitud para Maíz, Soja de primera, Trigo y Cebada"
+      },
+      clima: {
+        precipitaciones: "950 - 1100 mm anuales, excelente distribución estival",
+        temperatura: "Media anual de 16.5°C",
+        heladas: "Período libre de heladas amplio (octubre a abril)",
+        deficit_hidrico: "Leve e intermitente en enero",
+        estacionalidad: "Templado húmedo pampeano"
+      },
+      geografia: {
+        relieve: "Ondulado suave, terrazas fluviales estables",
+        hidrografia: "Cuencas de los arroyos del norte, cercanía al Río Paraná"
+      }
+    },
+    {
+      id: "buenos_aires_sur",
+      nombre: "Buenos Aires Sur (Zona Costera / Serrana)",
+      lat: -38.3,
+      lng: -61.5,
+      suelo: {
+        tipo: "Molisoles someros (Hapludoles y Argiustoles con tosca)",
+        textura: "Franco-arenosa a franco-limosa, menor retención hídrica",
+        drenaje: "Bueno a excesivo, limitado en profundidad por tosca caliza",
+        limitantes: "Tosca caliza subsuperficial (entre 40 y 80cm de profundidad), susceptibilidad a erosión eólica",
+        aptitud: "Excelente para Cebada cervecera, Trigo, Girasol y ganadería de cría"
+      },
+      clima: {
+        precipitaciones: "750 - 850 mm anuales",
+        temperatura: "Media anual de 13.5°C (influencia oceánica y serrana fría)",
+        heladas: "Riesgo alto de heladas tardías (hasta noviembre) y tempranas",
+        deficit_hidrico: "Moderado durante verano",
+        estacionalidad: "Templado-frío subhúmedo"
+      },
+      geografia: {
+        relieve: "Piedemonte de Ventania, llanuras con ondulación pronunciada y dunas dunas estabilizadas",
+        hidrografia: "Cuenca del Río Quequén Salado y arroyos serranos"
+      }
+    }
+  ],
+  "cordoba": [
+    {
+      id: "cordoba_norte",
+      nombre: "Córdoba Centro-Norte",
+      lat: -31.3,
+      lng: -63.5,
+      suelo: {
+        tipo: "Molisoles y Haplustoles típicos",
+        textura: "Franca a franco-limosa con buena materia orgánica",
+        drenaje: "Moderado, propensión a escurrimiento rápido en laderas serranas",
+        limitantes: "Pérdida de estructura del suelo por monocultivo, erosión hídrica en lomadas",
+        aptitud: "Alta para Maíz de siembra tardía, Soja, Sorgo y pasturas cultivadas"
+      },
+      clima: {
+        precipitaciones: "750 - 850 mm anuales (Estacionales de octubre a abril)",
+        temperatura: "Media anual de 17.5°C",
+        heladas: "Moderadas, riesgo concentrado de junio a agosto",
+        deficit_hidrico: "Marcado déficit invernal",
+        estacionalidad: "Templado subhúmedo con invierno seco"
+      },
+      geografia: {
+        relieve: "Llanura suavemente ondulada, transición a piedemonte de Sierras Chicas",
+        hidrografia: "Cuencas de los ríos Primero (Suquía) y Segundo (Xanaes)"
+      }
+    },
+    {
+      id: "cordoba_sur",
+      nombre: "Córdoba Sur (Zona Manicera)",
+      lat: -33.3,
+      lng: -64.3,
+      suelo: {
+        tipo: "Molisoles arenosos (Haplustoles énticos)",
+        textura: "Franca-arenosa, suelos muy sueltos y permeables",
+        drenaje: "Excelente a rápido",
+        limitantes: "Bajo contenido orgánico natural (<1.5%), altísima susceptibilidad a la erosión eólica",
+        aptitud: "Óptima para Maní (zona líder), Centeno de cobertura, Girasol y Maíz"
+      },
+      clima: {
+        precipitaciones: "680 - 780 mm anuales (Gran variabilidad interanual)",
+        temperatura: "Media anual de 15.5°C",
+        heladas: "Riesgo alto de heladas primaverales tardías",
+        deficit_hidrico: "Frecuente en meses de primavera y verano tardío",
+        estacionalidad: "Templado semiárido pampeano"
+      },
+      geografia: {
+        relieve: "Llanura eólica plana con médanos estabilizados y bajos temporarios",
+        hidrografia: "Cuenca del Río Quinto (Popopis) y lagunas salitrosas"
+      }
+    }
+  ],
+  "misiones": [
+    {
+      id: "misiones_norte",
+      nombre: "Misiones Norte (Alto Paraná / Selva)",
+      lat: -26.1,
+      lng: -54.5,
+      suelo: {
+        tipo: "Lateríticos profundos (Oxisoles clase VI/VII)",
+        textura: "Arcillosa pesada pero porosa (arcillas de óxido de hierro)",
+        drenaje: "Muy rápido, alta conductividad hidráulica",
+        limitantes: "Pendientes pronunciadas, riesgo extremo de erosión hídrica tras desmonte",
+        aptitud: "Excelente para Pino Taeda, Araucaria, Silvicultura y Yerba Mate en curvas de nivel"
+      },
+      clima: {
+        precipitaciones: "1900 - 2200 mm anuales (Distribución uniforme sin estación seca)",
+        temperatura: "Media de 21°C",
+        heladas: "Inexistentes a muy raras en laderas altas",
+        deficit_hidrico: "Nulo o inapreciable en condiciones normales",
+        estacionalidad: "Subtropical continuo muy húmedo"
+      },
+      geografia: {
+        relieve: "Serrano ondulado con valles profundos y pendientes superiores al 10%",
+        hidrografia: "Tributarios directos del Río Paraná, saltos y cascadas constantes",
+        cobertura: "Parches de Selva Paranaense mixta con plantaciones forestales activas"
+      }
+    },
+    {
+      id: "misiones_sur",
+      nombre: "Misiones Sur (Zona de Apóstoles / Campiña)",
+      lat: -27.8,
+      lng: -55.6,
+      suelo: {
+        tipo: "Lateríticos de lomadas bajas (Ultisoles con pedregosidad)",
+        textura: "Franco-arcillosa a pedregosa (presencia de piedra laja y areniscas)",
+        drenaje: "Bueno a moderado, con riesgo de encharcamiento en bajos planos",
+        limitantes: "Suelos más delgados y menos profundos que en el norte, pH muy ácido (4.5)",
+        aptitud: "Máxima aptitud para Yerba Mate tradicional, Té, Eucalyptus y pasturas subtropicales"
+      },
+      clima: {
+        precipitaciones: "1600 - 1800 mm anuales",
+        temperatura: "Media de 19.5°C",
+        heladas: "Moderadas, con heladas anuales en zonas de cuenca baja de arroyos",
+        deficit_hidrico: "Leve estival en enero-febrero",
+        estacionalidad: "Subtropical húmedo con invierno templado"
+      },
+      geografia: {
+        relieve: "Lomadas bajas y colinas redondeadas (Sierras de Apóstoles)",
+        hidrografia: "Cuenca tributaria del Río Uruguay",
+        cobertura: "Sabanas de pastizales naturales y montes de Yerba Mate"
+      }
+    }
+  ],
+  "mendoza": [
+    {
+      id: "mendoza_uco",
+      nombre: "Mendoza (Valle de Uco)",
+      lat: -33.6,
+      lng: -69.1,
+      suelo: {
+        tipo: "Torrifluventes pedregosos calcáreos",
+        textura: "Franca a arenosa con alta proporción de cantos rodados de montaña",
+        drenaje: "Perfecto a excesivo (excelente escurrimiento radicular)",
+        limitantes: "Nula materia orgánica, suelos muy delgados y permeables",
+        aptitud: "Máxima calidad para Vid (Malbec de altura), Nogales y duraznos"
+      },
+      clima: {
+        precipitaciones: "180 - 250 mm anuales",
+        temperatura: "Media anual de 14°C, altísima amplitud térmica (noches muy frías)",
+        heladas: "Frecuentes heladas primaverales tardías, alto riesgo de granizo",
+        deficit_hidrico: "Extremo, absoluta dependencia del riego de deshielo",
+        estacionalidad: "Árido templado-frío de altura"
+      },
+      geografia: {
+        relieve: "Piedemonte de la Cordillera Frontal (altitud entre 900 y 1400 msnm)",
+        hidrografia: "Cuenca alta del Río Tunuyán"
+      }
+    },
+    {
+      id: "mendoza_sur",
+      nombre: "Mendoza Sur (San Rafael / Alvear)",
+      lat: -34.6,
+      lng: -68.3,
+      suelo: {
+        tipo: "Aridisoles típicos y arenas aluvionales",
+        textura: "Arenosa a franco-arenosa, suelta y profunda",
+        drenaje: "Muy bueno, capas freáticas bajas",
+        limitantes: "Salinidad acumulada en zonas de bajo relieve con riego ineficiente",
+        aptitud: "Alta para Vid (Bonarda, Cabernet), Ciruela de secado, Olivo y Alfalfa"
+      },
+      clima: {
+        precipitaciones: "150 - 200 mm anuales",
+        temperatura: "Media anual de 16°C",
+        heladas: "Heladas invernales prolongadas y tardías en primavera",
+        deficit_hidrico: "Crónico todo el año",
+        estacionalidad: "Desértico templado cálido"
+      },
+      geografia: {
+        relieve: "Planicie aluvional de llanura desértica baja (800 msnm)",
+        hidrografia: "Cuencas de los ríos Atuel y Diamante"
+      }
+    }
+  ]
+};
+
+/* ============================================================================
    Lógica del Mapa Base (Fase 1)
    ============================================================================ */
 
@@ -938,28 +1147,147 @@ function procesarSeleccionCoordenadas(lat, lng) {
 
   colocarMarcador(lat, lng, nombreProvinciaBonito);
 
-  // Actualizar la vista de recomendaciones de cultivos
-  renderRecomendaciones(nombreProvinciaBonito);
+  // Actualizar la vista de recomendaciones de cultivos con coordenadas de alta resolución (Fase A)
+  renderRecomendaciones(nombreProvinciaBonito, lat, lng);
 
   // Mostrar información territorial básica en el panel lateral (Fase 1)
   actualizarPanelTerritorialBasico(nombreProvinciaBonito, lat, lng);
 }
 
 /**
- * Actualiza el panel lateral con datos básicos de coordenadas y datos agroambientales integrados (Fase 2)
+ * Obtiene la subregión agroecológica más cercana en base a coordenadas si existe
+ */
+function buscarSubregion(provinciaKey, lat, lng) {
+  const subregiones = subregionesDB[provinciaKey];
+  if (!subregiones || subregiones.length === 0) return null;
+
+  let subregionMasCercana = null;
+  let distMin = Infinity;
+
+  for (const sub of subregiones) {
+    const d = Math.pow(lat - sub.lat, 2) + Math.pow(lng - sub.lng, 2);
+    if (d < distMin) {
+      distMin = d;
+      subregionMasCercana = sub;
+    }
+  }
+
+  // Consideramos subregión válida si está a una distancia prudente (p.ej. < 3 grados de lat/lng)
+  return distMin < 9 ? subregionMasCercana : null;
+}
+
+/**
+ * Consulta la API de Open-Meteo en vivo para una coordenada dada de forma asíncrona
+ */
+async function consultarClimaEnVivo(lat, lng) {
+  const container = document.getElementById("live-weather-info");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="font-size: 0.85rem; color: var(--texto-secundario); padding: 10px; text-align: center;">
+      <span class="spinner" style="display: inline-block; animation: spin 1s linear infinite; margin-right: 5px;">⏳</span> Cargando clima en vivo...
+    </div>
+  `;
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&relative_humidity_2m=true`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Error de respuesta de red");
+    const data = await res.json();
+
+    if (data && data.current_weather) {
+      const temp = data.current_weather.temperature;
+      const wind = data.current_weather.windspeed;
+      const code = data.current_weather.weathercode;
+
+      // Mapeo simple de códigos de clima de Open-Meteo
+      let descClima = "Despejado / Estable";
+      if (code >= 1 && code <= 3) descClima = "Parcialmente nublado";
+      if (code >= 45 && code <= 48) descClima = "Niebla / Neblina";
+      if (code >= 51 && code <= 67) descClima = "Llovizna / Lluvia ligera";
+      if (code >= 71 && code <= 77) descClima = "Nieve / Escarcha";
+      if (code >= 80 && code <= 82) descClima = "Chubascos de lluvia";
+      if (code >= 95) descClima = "Tormenta eléctrica potencial";
+
+      let warningHtml = "";
+      if (temp <= 3) {
+        warningHtml = `
+          <div style="margin-top: 8px; padding: 6px; background: rgba(198, 40, 40, 0.1); border: 1px solid #c62828; border-radius: 6px; font-size: 0.8rem; color: #c62828;">
+            ⚠️ <strong>Alerta de Helada en Vivo:</strong> Temperatura actual de ${temp}°C. Proteger cultivos sensibles.
+          </div>
+        `;
+      } else if (temp >= 38) {
+        warningHtml = `
+          <div style="margin-top: 8px; padding: 6px; background: rgba(239, 108, 0, 0.1); border: 1px solid #ef6c00; border-radius: 6px; font-size: 0.8rem; color: #ef6c00;">
+            ⚠️ <strong>Alerta de Golpe de Calor:</strong> Temperatura extrema de ${temp}°C. Monitorear estrés hídrico.
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 10px; margin-top: 5px;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+            <span>🌡️ <strong>Temp. Actual:</strong></span>
+            <span>${temp}°C</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+            <span>💨 <strong>Viento:</strong></span>
+            <span>${wind} km/h</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+            <span>🌤️ <strong>Condición:</strong></span>
+            <span>${descClima}</span>
+          </div>
+          ${warningHtml}
+        </div>
+      `;
+    } else {
+      throw new Error("Formato de datos inválido");
+    }
+  } catch (err) {
+    container.innerHTML = `
+      <div style="font-size: 0.8rem; color: #c62828; padding: 6px; text-align: center;">
+        ❌ No se pudo conectar con el servicio meteorológico en vivo.
+      </div>
+    `;
+  }
+}
+
+/**
+ * Actualiza el panel lateral con datos básicos de coordenadas y datos agroambientales integrados (Fase 2 + Fase A Subregiones)
  */
 function actualizarPanelTerritorialBasico(provincia, lat, lng) {
   const detailsContainer = document.getElementById("territory-details");
   if (!detailsContainer) return;
 
   const key = normalizeKey(provincia);
-  const agroInfo = agroambientalesDB[key] || agroambientalesDB["default"];
-  const generalInfo = agroDB[key] || {};
+
+  // Buscar si hay subregión agroecológica más específica para esta coordenada
+  const subregion = buscarSubregion(key, lat, lng);
+
+  let agroInfo = null;
+  let nombreTerritorio = provincia;
+
+  if (subregion) {
+    agroInfo = subregion;
+    nombreTerritorio = `${provincia} (${subregion.nombre})`;
+  } else {
+    agroInfo = agroambientalesDB[key] || agroambientalesDB["default"];
+  }
 
   detailsContainer.innerHTML = `
     <div class="info-item">
       <strong>📍 Ubicación Seleccionada</strong>
-      <span>${provincia} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})</span>
+      <span style="font-weight: 600; color: var(--verde-principal);">${nombreTerritorio}</span>
+      <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario);">(Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})</span>
+    </div>
+
+    <!-- Clima en Vivo (Fase B) -->
+    <div class="info-section-title" style="margin: 12px 0 5px 0; font-weight: bold; border-bottom: 1px solid var(--borde-suave); padding-bottom: 3px; color: var(--verde-principal); font-size: 0.95rem;">
+      ⚡ Clima en Vivo (Open-Meteo)
+    </div>
+    <div id="live-weather-info">
+      <!-- Cargado asincrónicamente -->
     </div>
 
     <div class="info-section-title" style="margin: 15px 0 5px 0; font-weight: bold; border-bottom: 1px solid var(--borde-suave); padding-bottom: 3px; color: var(--verde-principal); font-size: 0.95rem;">
@@ -1018,6 +1346,9 @@ function actualizarPanelTerritorialBasico(provincia, lat, lng) {
       <span>${agroInfo.geografia?.hidrografia || "Arroyos y ríos locales"}</span>
     </div>
   `;
+
+  // Disparar la consulta del clima en vivo
+  consultarClimaEnVivo(lat, lng);
 }
 
 /**
@@ -1063,6 +1394,67 @@ function usarGeolocalizacion() {
 /* ============================================================================
    Lógica de Negocio & Motor de Recomendación Territorial (Fase 3)
    ============================================================================ */
+
+/**
+ * Entrega una rotación de cultivo sugerida y prácticas sostenibles para el suelo
+ */
+function obtenerPracticasSostenibles(cultivoKey, provinciaKey) {
+  const rotaciones = {
+    "soja": {
+      rotacion: "Rotar con Maíz o Trigo/Soja de segunda para evitar el monocultivo y fijar nitrógeno.",
+      manejo: "Siembra Directa estricta para mitigar erosión hídrica, y cultivos de cobertura invernales (como Vicia)."
+    },
+    "maiz": {
+      rotacion: "Rotar con Soja o Leguminosas. El rastrojo de maíz aporta alta relación C/N protegiendo el suelo.",
+      manejo: "Fertilización nitrogenada fraccionada y siembra directa para captar humedad."
+    },
+    "trigo": {
+      rotacion: "Secuencia Trigo/Soja de segunda o rotación con pasturas plurianuales en suelos pampeanos.",
+      manejo: "Monitoreo temprano de roya y fertilización con fósforo al inicio de la siembra."
+    },
+    "yerba mate": {
+      rotacion: "Consorciar con cubiertas verdes perennes (ej. leguminosas rastreras) para no dejar el suelo rojo expuesto.",
+      manejo: "Sistematización de suelos en curvas de nivel para frenar la fuerte erosión hídrica de laderas misiones."
+    },
+    "te": {
+      rotacion: "Consociar con árboles de sombra leguminosos en bordes.",
+      manejo: "Mantener mulching de rastrojo para conservar acidez, humedad y evitar erosión."
+    },
+    "pino": {
+      rotacion: "Sistemas silvopastoriles integrando ganadería vacuna bajo dosel forestal.",
+      manejo: "Poda y raleo sistemático para favorecer el crecimiento de madera de calidad y disminuir combustible forestal."
+    },
+    "eucalyptus": {
+      rotacion: "Rotación forestal larga con períodos de descanso o cultivo de cobertura pastoril.",
+      manejo: "Control biológico de avispa de la agalla y manejo de fajas de protección hídrica."
+    },
+    "mani": {
+      rotacion: "Rotar obligatoriamente 1 año de Maní cada 4-5 años con Gramíneas (Maíz/Sorgo) para evitar degradación física.",
+      manejo: "Siembra inmediata de cultivos de cobertura (Centeno) tras el arrancado para frenar la erosión eólica."
+    },
+    "vid": {
+      rotacion: "Mantener cubiertas verdes espontáneas o sembradas entre hileras (Cereales/Leguminosas).",
+      manejo: "Riego presurizado por goteo de alta eficiencia para mitigar el déficit crónico."
+    },
+    "olivo": {
+      rotacion: "Cubiertas vegetales de gramíneas para proteger el suelo de escorrentías en laderas.",
+      manejo: "Poda de rejuvenecimiento bien planificada y riego localizado."
+    },
+    "citrus": {
+      rotacion: "Manejo integrado de malezas interfilares sin labranza intensiva.",
+      manejo: "Monitoreo estricto de HLB y protección contra heladas con riego por aspersión."
+    },
+    "limon": {
+      rotacion: "Suelos cubiertos en entre líneas para mitigar erosión en laderas tucumanas.",
+      manejo: "Podas sanitarias preventivas post-cosecha."
+    }
+  };
+
+  return rotaciones[cultivoKey] || {
+    rotacion: "Rotar con gramíneas locales y leguminosas para sostener la fertilidad biológica.",
+    manejo: "Asegurar cobertura permanente del suelo y rotación de principios activos agrícolas."
+  };
+}
 
 /**
  * Evalúa la compatibilidad de un cultivo dadas las características agroambientales
@@ -1132,9 +1524,9 @@ function evaluarCompatibilidadCultivo(cultivoKey, agroInfo, provinciaKey) {
   if (cultivoKey === "citrus" || cultivoKey === "limon" || cultivoKey === "mandioca" || cultivoKey === "cana de azucar") {
     if (heladasTexto.includes("riesgo muy bajo") || heladasTexto.includes("ocurrencia muy rara") || heladasTexto.includes("bajo")) {
       motivos.push("Bajo o nulo riesgo de heladas protege la brotación y frutos.");
-    } else if (heladasTexto.includes("moderado") || heladasTexto.includes("alto")) {
+    } else if (heladasTexto.includes("moderado") || heladasTexto.includes("alto") || heladasTexto.includes("frecuentes") || heladasTexto.includes("tardías")) {
       score = 'MEDIA';
-      riesgos.push("Sensible a heladas tardías: peligro de daño en yemas de brotación.");
+      riesgos.push("Sensible a heladas tardías o invernales: peligro de daño en yemas de brotación.");
     }
   }
 
@@ -1151,20 +1543,28 @@ function evaluarCompatibilidadCultivo(cultivoKey, agroInfo, provinciaKey) {
 }
 
 /**
- * Obtiene recomendaciones completas y detalladas de un territorio (Fase 3)
+ * Obtiene recomendaciones completas y detalladas de un territorio (Fase 3 + Fase C Sostenibilidad)
  */
-function getRecomendaciones(provinciaRaw) {
+function getRecomendaciones(provinciaRaw, lat, lng) {
   const key = normalizeKey(provinciaRaw);
   const info = agroDB[key];
 
   if (!info) return null;
 
-  const agroInfo = agroambientalesDB[key] || agroambientalesDB["default"];
+  // Si tenemos coordenadas de click, buscamos si cae en subregión
+  let agroInfo = null;
+  if (lat !== undefined && lng !== undefined) {
+    const subregion = buscarSubregion(key, lat, lng);
+    agroInfo = subregion || agroambientalesDB[key] || agroambientalesDB["default"];
+  } else {
+    agroInfo = agroambientalesDB[key] || agroambientalesDB["default"];
+  }
 
   return info.cultivos.map(nombre => {
     const cultivoKey = normalizeKey(nombre);
     const detalle = cultivosData[cultivoKey] || defaultCropInfo;
     const compatibilidad = evaluarCompatibilidadCultivo(cultivoKey, agroInfo, key);
+    const sostenibilidad = obtenerPracticasSostenibles(cultivoKey, key);
 
     return {
       nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
@@ -1175,21 +1575,22 @@ function getRecomendaciones(provinciaRaw) {
       reqClima: detalle.reqClima || "Climas templados a cálidos estándar.",
       compatibilidad: compatibilidad.score,
       motivos: compatibilidad.motivos,
-      riesgos: compatibilidad.riesgos
+      riesgos: compatibilidad.riesgos,
+      sostenibilidad: sostenibilidad
     };
   });
 }
 
 /**
- * Renderiza las tarjetas de cultivo inteligentes con compatibilidad territorial (Fase 3)
+ * Renderiza las tarjetas de cultivo inteligentes con compatibilidad territorial (Fase 3 + Sostenibilidad)
  */
-function renderRecomendaciones(provinciaRaw) {
+function renderRecomendaciones(provinciaRaw, lat, lng) {
   const container = document.getElementById("crop-results");
   const tituloUbicacion = document.getElementById("resultado_ubicacion");
 
   if (!container) return;
 
-  const recomendaciones = getRecomendaciones(provinciaRaw);
+  const recomendaciones = getRecomendaciones(provinciaRaw, lat, lng);
 
   if (tituloUbicacion) tituloUbicacion.innerText = provinciaRaw;
 
@@ -1226,7 +1627,7 @@ function renderRecomendaciones(provinciaRaw) {
           <div><strong>🌦️ Requerimiento Clima:</strong> ${c.reqClima}</div>
         </div>
 
-        <div class="compatibility-report" style="font-size: 0.85rem; background: rgba(0,0,0,0.02); border-radius: 8px; padding: 10px; border: 1px solid var(--borde-suave);">
+        <div class="compatibility-report" style="font-size: 0.85rem; background: rgba(0,0,0,0.02); border-radius: 8px; padding: 10px; border: 1px solid var(--borde-suave); margin-bottom: 10px;">
           <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 5px;">📍 Reporte de Compatibilidad:</div>
           <div style="margin-bottom: 5px;"><strong>💡 Motivos:</strong>
             <ul style="margin: 2px 0; padding-left: 15px;">
@@ -1238,6 +1639,13 @@ function renderRecomendaciones(provinciaRaw) {
               ${c.riesgos.map(r => `<li>${r}</li>`).join("")}
             </ul>
           </div>
+        </div>
+
+        <!-- Sección de Prácticas Sostenibles y Rotaciones sugeridas (Fase C) -->
+        <div class="sustainability-report" style="font-size: 0.85rem; background: rgba(27, 94, 32, 0.03); border-radius: 8px; padding: 10px; border: 1px solid rgba(27, 94, 32, 0.15);">
+          <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 4px;">🔄 Manejo Sostenible Sugerido:</div>
+          <div style="margin-bottom: 4px;"><strong>🚜 Rotación Recomendada:</strong> ${c.sostenibilidad.rotacion}</div>
+          <div><strong>🌍 Conservación de Suelos:</strong> ${c.sostenibilidad.manejo}</div>
         </div>
       </article>
     `;
@@ -1254,7 +1662,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Si se buscó una ubicación, renderizarla tradicionalmente
   if (ubic) {
-    renderRecomendaciones(ubic);
+    const key = normalizeKey(ubic);
+    const coords = provinciaCoordenadas[key];
+    if (coords) {
+      renderRecomendaciones(ubic, coords.lat, coords.lng);
+    } else {
+      renderRecomendaciones(ubic);
+    }
   }
 
   // Inicializar mapa de forma segura
