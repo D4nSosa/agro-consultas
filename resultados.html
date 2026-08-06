@@ -39,7 +39,21 @@
     <!-- Contenedor del mapa y panel lateral -->
     <div class="map-section-container card" style="margin-bottom: 30px; padding: 0; overflow: hidden;">
       <div class="map-layout">
-        <div id="map" style="height: 450px; min-height: 350px;"></div>
+        <div style="position: relative; flex: 1; display: flex; flex-direction: column;">
+          <div id="map" style="height: 450px; min-height: 350px;"></div>
+          <!-- Leyenda del Mapa interactiva -->
+          <div class="map-legend">
+            <h4>Aptitud Agropecuaria</h4>
+            <div class="legend-items">
+              <div class="legend-item"><span class="legend-color forestal"></span> Forestal (Pinos/Eucaliptos)</div>
+              <div class="legend-item"><span class="legend-color pampeano"></span> Pampeano (Cereales/Granos)</div>
+              <div class="legend-item"><span class="legend-color vitivinicola"></span> Vitivinícola / Oasis Bajo Riego</div>
+              <div class="legend-item"><span class="legend-color citricola"></span> Citrícola / Frutales Regionales</div>
+              <div class="legend-item"><span class="legend-color horticola"></span> Horticultura / Cinturón Verde</div>
+              <div class="legend-item"><span class="legend-color multipropósito"></span> Multipropósito / General</div>
+            </div>
+          </div>
+        </div>
         <div class="territory-sidebar" id="territory-info">
           <h3>Información Territorial</h3>
           <p class="text-muted">Hacé click en cualquier punto del mapa para obtener datos de suelo, clima y recomendaciones en tiempo real.</p>

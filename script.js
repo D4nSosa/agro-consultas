@@ -245,6 +245,206 @@ const cultivosData = {
     reqSuelo: "Suelos de aptitud forestal de variada profundidad.",
     reqClima: "Adaptado a las condiciones climáticas del NEA pampeano.",
     pino_eucalyptus: true
+  },
+  "arandano": {
+    descripcion: "Fruto de alto valor comercial, cultivado principalmente para exportación.",
+    siembra: "Otoño a Invierno",
+    cosecha: "Octubre a Diciembre",
+    reqSuelo: "Suelos muy ácidos (pH 4.5 a 5.2), livianos, con excelente contenido de materia orgánica y drenaje.",
+    reqClima: "Templado a templado-cálido, requiere acumulación de horas de frío invernal.",
+    pino_eucalyptus: false
+  },
+  "ajo": {
+    descripcion: "Hortaliza de bulbo de alta relevancia en las economías regionales occidentales.",
+    siembra: "Marzo a Mayo",
+    cosecha: "Noviembre a Diciembre",
+    reqSuelo: "Suelos francos a franco-arenosos, bien drenados, ricos en potasio y materia orgánica.",
+    reqClima: "Clima templado a templado-frío, seco durante la etapa de maduración de bulbos.",
+    pino_eucalyptus: false
+  },
+  "nuez pecan": {
+    descripcion: "Fruto seco de alta longevidad y excelente rentabilidad a mediano plazo.",
+    siembra: "Julio a Agosto (plantas a raíz desnuda)",
+    cosecha: "Abril a Mayo",
+    reqSuelo: "Suelos profundos, fértiles, aluviales, con buen drenaje y sin capas impermeables.",
+    reqClima: "Templado húmedo a subtropical, con veranos cálidos y otoños libres de heladas tempranas.",
+    pino_eucalyptus: false
+  },
+  "alfalfa": {
+    descripcion: "La reina de las forrajeras, base de la alimentación ganadera pampeana.",
+    siembra: "Marzo a Abril",
+    cosecha: "Múltiples cortes de Primavera a Otoño",
+    reqSuelo: "Suelos profundos, bien drenados, pH neutro a ligeramente alcalino (no tolera acidez ni encharcamiento).",
+    reqClima: "Templado, adaptable a diversas condiciones con buen régimen hídrico o riego.",
+    pino_eucalyptus: false
+  },
+  "lupulo": {
+    descripcion: "Cultivo especializado para la industria cervecera artesanal e industrial.",
+    siembra: "Agosto a Septiembre (rizomas)",
+    cosecha: "Febrero a Marzo",
+    reqSuelo: "Suelos sueltos, profundos, ricos en nutrientes, con excelente drenaje físico.",
+    reqClima: "Templado-frío, con días largos en verano y reparado de vientos fuertes continuos.",
+    pino_eucalyptus: false
+  },
+  "cereza": {
+    descripcion: "Fruta fina de alta calidad con excelente mercado de exportación.",
+    siembra: "Invierno",
+    cosecha: "Noviembre a Diciembre",
+    reqSuelo: "Suelos aireados, de textura franca a franco-arenosa, sin capas arcillosas limitantes.",
+    reqClima: "Templado-frío, con alta demanda de horas de frío y baja probabilidad de lluvias en cosecha.",
+    pino_eucalyptus: false
+  },
+  "garbanzo": {
+    descripcion: "Legumbre de invierno con fuerte inserción de exportación en el centro-norte del país.",
+    siembra: "Mayo a Junio",
+    cosecha: "Noviembre a Diciembre",
+    reqSuelo: "Suelos sueltos, con buena aireación, tolerante a sequía pero sensible a encharcamientos.",
+    reqClima: "Templado-seco a templado-cálido, tolera heladas suaves en etapas iniciales.",
+    pino_eucalyptus: false
+  },
+  "lenteja": {
+    descripcion: "Legumbre de invierno de alto valor nutricional y consumo local y externo.",
+    siembra: "Mayo a Junio",
+    cosecha: "Noviembre",
+    reqSuelo: "Suelos francos a franco-limosos, fértiles y bien estructurados.",
+    reqClima: "Templado-frío, tolerante a heladas y de bajo requerimiento de agua estival.",
+    pino_eucalyptus: false
+  },
+  "lavanda": {
+    descripcion: "Aromática perenne rústica adaptada a zonas serranas e industriales.",
+    siembra: "Otoño o Primavera",
+    cosecha: "Verano (floración)",
+    reqSuelo: "Suelos pedregosos, calcáreos, secos, con excelente drenaje y tolerantes a pH elevados.",
+    reqClima: "Templado a cálido, muy resistente a la sequía y heladas intensas.",
+    pino_eucalyptus: false
+  },
+  "oregano": {
+    descripcion: "Condimento esencial cultivado intensivamente en economías familiares.",
+    siembra: "Otoño o Primavera",
+    cosecha: "Primavera avanzada a Verano",
+    reqSuelo: "Suelos ligeros, franco-arenosos, bien drenados, de fertilidad media.",
+    reqClima: "Templado-cálido, pleno sol, resistente a sequías moderadas.",
+    pino_eucalyptus: false
+  },
+  "sauce": {
+    descripcion: "Especie forestal higrófila de rápido crecimiento para el Delta y valles irrigados.",
+    siembra: "Invierno (estacas)",
+    cosecha: "Turnos de corte de 10 a 15 años",
+    reqSuelo: "Suelos húmedos, tolera anegamiento temporal y texturas arcillosas húmedas.",
+    reqClima: "Templado-húmedo a templado-cálido con alta disponibilidad hídrica.",
+    pino_eucalyptus: true
+  },
+  "alamo": {
+    descripcion: "Árbol forestal de madera clara de alta demanda para cajonería y tableros.",
+    siembra: "Invierno (estacas)",
+    cosecha: "Turnos de corte de 12 a 18 años",
+    reqSuelo: "Suelos profundos, aluviales, fértiles, con napa freática accesible pero no estancada.",
+    reqClima: "Templado a templado-cálido, requiere veranos luminosos y riego o lluvias adecuadas.",
+    pino_eucalyptus: true
+  },
+  "durazno": {
+    descripcion: "Frutal de carozo tradicional de consumo en fresco e industria conservera.",
+    siembra: "Otoño a Invierno",
+    cosecha: "Noviembre a Febrero",
+    reqSuelo: "Suelos francos, permeables, sin problemas de sales ni caliza excesiva.",
+    reqClima: "Templado a templado-cálido, con requerimiento moderado de horas de frío.",
+    pino_eucalyptus: false
+  },
+  "ciruela": {
+    descripcion: "Frutal rústico de carozo, muy difundido para desecado y consumo fresco.",
+    siembra: "Julio a Agosto",
+    cosecha: "Enero a Marzo",
+    reqSuelo: "Suelos franco-arcillosos, tolera condiciones de drenaje ligeramente más pesadas que el duraznero.",
+    reqClima: "Templado con veranos secos y calurosos para facilitar el secado de fruta.",
+    pino_eucalyptus: false
+  },
+  "almendro": {
+    descripcion: "Fruto seco altamente valorado, con floración muy temprana.",
+    siembra: "Invierno",
+    cosecha: "Febrero a Marzo",
+    reqSuelo: "Suelos ligeros, profundos, calcáreos y con excelente drenaje interno.",
+    reqClima: "Clima templado-cálido, muy sensible a heladas tardías de primavera durante la floración.",
+    pino_eucalyptus: false
+  },
+  "tabaco": {
+    descripcion: "Cultivo industrial intensivo de gran impacto socioeconómico en el norte argentino.",
+    siembra: "Julio (almácigos) - Trasplante en Octubre",
+    cosecha: "Enero a Marzo",
+    reqSuelo: "Suelos franco-arenosos, livianos, bien drenados, ricos en materia orgánica.",
+    reqClima: "Subtropical o templado-cálido con humedad relativa adecuada durante el desarrollo foliar.",
+    pino_eucalyptus: false
+  },
+  "avena": {
+    descripcion: "Cereal forrajero de doble propósito clave para verdeos de invierno.",
+    siembra: "Febrero a Abril",
+    cosecha: "Noviembre a Diciembre (grano) o pastoreo directo",
+    reqSuelo: "Suelos de fertilidad media, tolera mejor la acidez que el trigo y la cebada.",
+    reqClima: "Templado-frío, muy resistente al frío y a las heladas invernales.",
+    pino_eucalyptus: false
+  },
+  "centeno": {
+    descripcion: "Cereal de invierno sumamente rústico para suelos arenosos y climas rigurosos.",
+    siembra: "Marzo a Mayo",
+    cosecha: "Diciembre",
+    reqSuelo: "Suelos arenosos, de baja fertilidad y propensos a la erosión (excelente fijador de suelos).",
+    reqClima: "Clima templado-frío a frío, alta tolerancia a la sequía y vientos secos.",
+    pino_eucalyptus: false
+  },
+  "colza": {
+    descripcion: "Oleaginosa de invierno de gran expansión como alternativa al trigo.",
+    siembra: "Abril a Mayo",
+    cosecha: "Octubre a Noviembre",
+    reqSuelo: "Suelos profundos, sueltos, fértiles y sin impedimentos físicos.",
+    reqClima: "Templado-frío, alta sensibilidad a heladas extremas en floración.",
+    pino_eucalyptus: false
+  },
+  "kiwi": {
+    descripcion: "Fruto exótico trepador de excelente rentabilidad y nicho comercial.",
+    siembra: "Agosto a Septiembre",
+    cosecha: "Abril a Mayo",
+    reqSuelo: "Suelos muy permeables, ricos en materia orgánica, pH ligeramente ácido (5.5 a 6.5).",
+    reqClima: "Templado húmedo, con alta humedad ambiental y libre de vientos fuertes o heladas tardías.",
+    pino_eucalyptus: false
+  },
+  "pimiento": {
+    descripcion: "Cultivo hortícola de alta rentabilidad, tanto para fresco como para pimentón.",
+    siembra: "Agosto a Octubre",
+    cosecha: "Enero a Abril",
+    reqSuelo: "Suelos francos, fértiles, aireados y con excelente provisión de nutrientes.",
+    reqClima: "Subtropical o templado-cálido con veranos soleados, muy sensible al frío.",
+    pino_eucalyptus: false
+  },
+  "tomate": {
+    descripcion: "Hortaliza de fruto líder en consumo fresco e industria de conservas.",
+    siembra: "Agosto a Octubre",
+    cosecha: "Diciembre a Abril",
+    reqSuelo: "Suelos profundos, ricos en materia orgánica, bien abonados y permeables.",
+    reqClima: "Templado-cálido a cálido, requiere alta luminosidad solar y temperaturas estables.",
+    pino_eucalyptus: false
+  },
+  "arvejas": {
+    descripcion: "Legumbre invernal excelente antecesora del maíz de segunda.",
+    siembra: "Junio a Julio",
+    cosecha: "Noviembre",
+    reqSuelo: "Suelos sueltos, permeables, pH cercano al neutro.",
+    reqClima: "Templado-frío, requiere temperaturas frescas durante la floración y llenado.",
+    pino_eucalyptus: false
+  },
+  "melon": {
+    descripcion: "Cucurbitácea de fruto dulce muy cotizado en el verano argentino.",
+    siembra: "Octubre a Noviembre",
+    cosecha: "Enero a Marzo",
+    reqSuelo: "Suelos franco-arenosos, fértiles, profundos y con óptimo drenaje.",
+    reqClima: "Templado-cálido, seco y muy soleado, excelente tolerancia al calor estival.",
+    pino_eucalyptus: false
+  },
+  "sandia": {
+    descripcion: "Fruto de verano rústico de excelente tamaño y contenido de agua.",
+    siembra: "Septiembre a Noviembre",
+    cosecha: "Enero a Marzo",
+    reqSuelo: "Suelos arenosos o francos sueltos, tolera suelos menos fértiles con buena profundidad.",
+    reqClima: "Templado-cálido a subtropical, requiere alta insolación y calor constante.",
+    pino_eucalyptus: false
   }
 };
 
@@ -2366,44 +2566,89 @@ function renderRecomendaciones(provinciaRaw, lat, lng) {
     if (c.compatibilidad === "MEDIA") badgeClass = "badge-media";
     if (c.compatibilidad === "BAJA") badgeClass = "badge-baja";
 
+    // Icono correspondiente según cultivo
+    let icon = "🌱";
+    const nom = c.nombre.toLowerCase();
+    if (nom.includes("trigo") || nom.includes("cebada") || nom.includes("avena") || nom.includes("centeno")) icon = "🌾";
+    else if (nom.includes("soja") || nom.includes("poroto") || nom.includes("arveja")) icon = "🫛";
+    else if (nom.includes("maiz") || nom.includes("sorgo")) icon = "🌽";
+    else if (nom.includes("arroz")) icon = "🌾";
+    else if (nom.includes("mani")) icon = "🥜";
+    else if (nom.includes("girasol") || nom.includes("colza")) icon = "🌻";
+    else if (nom.includes("pino") || nom.includes("eucalyptus") || nom.includes("sauce") || nom.includes("alamo") || nom.includes("forestacion")) icon = "🌲";
+    else if (nom.includes("yerba")) icon = "🧉";
+    else if (nom.includes("te")) icon = "🍵";
+    else if (nom.includes("citrus") || nom.includes("limon") || nom.includes("naranja") || nom.includes("mandarina") || nom.includes("pomelo")) icon = "🍊";
+    else if (nom.includes("vid")) icon = "🍇";
+    else if (nom.includes("olivo")) icon = "🫒";
+    else if (nom.includes("manzana")) icon = "🍎";
+    else if (nom.includes("pera")) icon = "🍐";
+    else if (nom.includes("cana")) icon = "🎋";
+    else if (nom.includes("papa") || nom.includes("mandioca")) icon = "🥔";
+    else if (nom.includes("quinoa")) icon = "🌾";
+    else if (nom.includes("arandano")) icon = "🫐";
+    else if (nom.includes("durazno") || nom.includes("ciruela")) icon = "🍑";
+    else if (nom.includes("almendro") || nom.includes("nuez")) icon = "🌰";
+    else if (nom.includes("ajo")) icon = "🧄";
+    else if (nom.includes("lupulo")) icon = "🌿";
+    else if (nom.includes("lavanda") || nom.includes("oregano")) icon = "🪻";
+    else if (nom.includes("tomate") || nom.includes("pimiento")) icon = "🍅";
+    else if (nom.includes("melon") || nom.includes("sandia")) icon = "🍉";
+
     return `
       <article class="crop-card">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-          <h3 style="margin: 0;">${c.nombre}</h3>
+        <div class="crop-card-header">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="crop-icon">${icon}</span>
+            <h3 style="margin: 0; font-weight: 700; text-transform: capitalize;">${c.nombre}</h3>
+          </div>
           <span class="compatibility-badge ${badgeClass}">${c.compatibilidad}</span>
         </div>
 
         <p class="desc">${c.descripcion}</p>
 
-        <div class="details" style="margin-bottom: 15px;">
-          <div><strong>📅 Siembra:</strong> ${c.siembra}</div>
-          <div><strong>🧺 Cosecha:</strong> ${c.cosecha}</div>
-        </div>
-
-        <div class="agro-requirements" style="font-size: 0.85rem; border-top: 1px dashed var(--borde-suave); padding-top: 10px; margin-bottom: 10px;">
-          <div style="margin-bottom: 5px;"><strong>🌱 Requerimiento Suelo:</strong> ${c.reqSuelo}</div>
-          <div><strong>🌦️ Requerimiento Clima:</strong> ${c.reqClima}</div>
-        </div>
-
-        <div class="compatibility-report" style="font-size: 0.85rem; background: rgba(0,0,0,0.02); border-radius: 8px; padding: 10px; border: 1px solid var(--borde-suave); margin-bottom: 10px;">
-          <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 5px;">📍 Reporte de Compatibilidad:</div>
-          <div style="margin-bottom: 5px;"><strong>💡 Motivos:</strong>
-            <ul style="margin: 2px 0; padding-left: 15px;">
-              ${c.motivos.map(m => `<li>${m}</li>`).join("")}
-            </ul>
+        <!-- Sub-cards internas para mejorar la visual de dashboard premium -->
+        <div class="crop-grid-details">
+          <div class="sub-card calendar-sub-card">
+            <h4>📅 Calendario Agrícola</h4>
+            <div style="margin-top: 5px;"><strong>Siembra:</strong> ${c.siembra}</div>
+            <div><strong>Cosecha:</strong> ${c.cosecha}</div>
           </div>
-          <div><strong>⚠️ Riesgos / Limitaciones:</strong>
-            <ul style="margin: 2px 0; padding-left: 15px; color: var(--texto-secundario);">
-              ${c.riesgos.map(r => `<li>${r}</li>`).join("")}
-            </ul>
+
+          <div class="sub-card req-sub-card">
+            <h4>🌱 Requerimientos de Cultivo</h4>
+            <div style="margin-top: 5px;"><strong>Suelo:</strong> ${c.reqSuelo}</div>
+            <div style="margin-top: 4px;"><strong>Clima:</strong> ${c.reqClima}</div>
           </div>
         </div>
 
-        <!-- Sección de Prácticas Sostenibles y Rotaciones sugeridas (Fase C) -->
-        <div class="sustainability-report" style="font-size: 0.85rem; background: rgba(27, 94, 32, 0.03); border-radius: 8px; padding: 10px; border: 1px solid rgba(27, 94, 32, 0.15);">
-          <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 4px;">🔄 Manejo Sostenible Sugerido:</div>
-          <div style="margin-bottom: 4px;"><strong>🚜 Rotación Recomendada:</strong> ${c.sostenibilidad.rotacion}</div>
-          <div><strong>🌍 Conservación de Suelos:</strong> ${c.sostenibilidad.manejo}</div>
+        <div class="compatibility-report premium-report">
+          <div class="report-header">
+            <span style="font-size: 1.1rem;">📍</span> Reporte de Compatibilidad Territorial
+          </div>
+          <div class="report-body">
+            <div class="report-block">
+              <strong>💡 Factores de Éxito / Motivos:</strong>
+              <ul>
+                ${c.motivos.map(m => `<li>${m}</li>`).join("")}
+              </ul>
+            </div>
+            <div class="report-block">
+              <strong>⚠️ Limitantes / Riesgos Identificados:</strong>
+              <ul style="color: var(--texto-secundario);">
+                ${c.riesgos.map(r => `<li>${r}</li>`).join("")}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección de Prácticas Sostenibles (Fase C) -->
+        <div class="sustainability-report premium-sustainability">
+          <div class="sustainability-header">
+            <span>🔄</span> Manejo Sostenible Recomendado
+          </div>
+          <div style="margin-top: 6px;"><strong>🚜 Rotación Recomendada:</strong> ${c.sostenibilidad.rotacion}</div>
+          <div style="margin-top: 4px;"><strong>🌍 Conservación de Suelo:</strong> ${c.sostenibilidad.manejo}</div>
         </div>
       </article>
     `;
