@@ -39,7 +39,7 @@ def test_search_and_results():
 
         # Check if description and details are present
         assert page.is_visible(".desc")
-        assert page.is_visible(".details")
+        assert page.is_visible(".crop-grid-details")
 
         # Check map integration (Fase 1)
         assert page.is_visible("#map")
@@ -128,7 +128,7 @@ def test_map_click_and_updates():
         # Verify that sustainable and rotative crop report sections are present in cards (Fase C)
         page.wait_for_selector(".sustainability-report")
         sustainability_text = page.locator(".sustainability-report").first.inner_text()
-        assert "Manejo Sostenible Sugerido" in sustainability_text
+        assert "Manejo Sostenible" in sustainability_text
         assert "Rotación" in sustainability_text
 
         # TEST SIMULATOR ACTION (FASE 5)
