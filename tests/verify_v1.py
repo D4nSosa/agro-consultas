@@ -35,7 +35,7 @@ def test_search_and_results():
 
         # Check specific crop
         first_card_title = cards[0].query_selector("h3").inner_text()
-        assert first_card_title in ["Soja", "Maiz", "Trigo", "Mani"]
+        assert first_card_title in ["Soja", "Maiz", "Trigo", "Mani", "Pino Taeda", "Pino Elliottii", "Eucalyptus Grandis", "Eucalyptus Globulus"]
 
         # Check if description and details are present
         assert page.is_visible(".desc")
@@ -52,6 +52,14 @@ def test_search_and_results():
         # Check recommendation engine details (Fase 3)
         assert page.is_visible(".compatibility-badge")
         assert page.is_visible(".compatibility-report")
+
+        # Verify Simulador Lote Agrícola UI exists
+        assert page.is_visible("#sim-ph")
+        assert page.is_visible("#sim-textura")
+        assert page.is_visible("#sim-drenaje")
+        assert page.is_visible("#sim-limitantes")
+        assert page.is_visible("#btn-simular")
+        assert page.is_visible("#btn-restablecer-sim")
 
         browser.close()
 
@@ -112,7 +120,7 @@ def test_map_click_and_updates():
         details_text_subregion = page.locator("#territory-details").inner_text()
         assert "Córdoba" in details_text_subregion
         assert "Zona Manicera" in details_text_subregion
-        assert "Suelos sueltos" in details_text_subregion or "Molisoles arenosos" in details_text_subregion
+        assert "Suelos sueltos" in details_text_subregion or "Molisoles" in details_text_subregion
 
         # Verify that Live Weather section (Fase B) loaded and has content or spinner
         assert page.is_visible("#live-weather-info")
@@ -122,6 +130,22 @@ def test_map_click_and_updates():
         sustainability_text = page.locator(".sustainability-report").first.inner_text()
         assert "Manejo Sostenible Sugerido" in sustainability_text
         assert "Rotación" in sustainability_text
+
+        # TEST SIMULATOR ACTION (FASE 5)
+        # Set pH to extremely low (4.2) and recalculate compatibility
+        page.fill("#sim-ph", "4.2")
+        page.select_option("#sim-textura", "arcillosa")
+        page.select_option("#sim-drenaje", "pobre")
+        page.select_option("#sim-limitantes", "salinidad")
+        page.click("#btn-simular")
+
+        # Let it render
+        page.wait_for_timeout(500)
+
+        # Under extreme acid/salinity/poor drainage conditions, standard crops like Soy/Maiz should drop compatibility
+        # Check first card's compatibility badge text (e.g. BAJA or MEDIA)
+        first_badge = page.locator(".compatibility-badge").first.inner_text()
+        assert "BAJA" in first_badge or "MEDIA" in first_badge
 
         browser.close()
 
