@@ -1,0 +1,176 @@
+{
+  "pino taeda": {
+    "descripcion": "Variedad forestal de rápido crecimiento del género Pinus, ideal para NEA maderero.",
+    "siembra": "Otoño a Invierno",
+    "cosecha": "Raleos intermedios; corte final a los 15 años",
+    "reqSuelo": "Suelos profundos, texturas franco-arcillosas a arcillosas ácidas (pH 4.5-5.5).",
+    "reqClima": "Subtropical templado-cálido, lluvias superiores a 1200mm anuales.",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 6,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1200,
+        "temperaturaMin": 12,
+        "temperaturaMax": 26
+      }
+    }
+  },
+  "pino elliottii": {
+    "descripcion": "Variedad forestal de Pinus muy resistente a heladas y suelos con peor drenaje.",
+    "siembra": "Otoño a Invierno",
+    "cosecha": "Turno final de 15-18 años",
+    "reqSuelo": "Suelos arenosos pobres o arcillosos con drenaje deficiente o moderado.",
+    "reqClima": "Subtropical húmedo a templado, alta tolerancia al frío invernal.",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 6.2,
+        "drenaje": [
+          "bueno",
+          "moderado",
+          "pobre"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1000,
+        "temperaturaMin": 10,
+        "temperaturaMax": 26
+      }
+    }
+  },
+  "eucalyptus grandis": {
+    "descripcion": "Variedad de Eucalyptus de máxima velocidad de crecimiento para pasta y madera en NEA.",
+    "siembra": "Primavera u Otoño",
+    "cosecha": "Turno de corte corto de 8-10 años",
+    "reqSuelo": "Suelos muy profundos, bien drenados, texturas francas a franco-arenosas.",
+    "reqClima": "Subtropical húmedo continuo, heliofilia extrema, muy sensible a heladas severas.",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5,
+        "phMax": 6.5,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1100,
+        "temperaturaMin": 14,
+        "temperaturaMax": 28
+      }
+    }
+  },
+  "eucalyptus globulus": {
+    "descripcion": "Variedad de Eucalyptus ideal para zonas templadas y costeras (Buenos Aires Sur).",
+    "siembra": "Otoño",
+    "cosecha": "Turno de corte a los 10-12 años",
+    "reqSuelo": "Suelos franco-arcillosos moderados, profundos, tolera cierta tosca.",
+    "reqClima": "Templado húmedo, excelente tolerancia a heladas moderadas e influencia oceánica.",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 800,
+        "temperaturaMin": 10,
+        "temperaturaMax": 22
+      }
+    }
+  },
+  "forestacion": {
+    "descripcion": "Especies nativas y exóticas para protección y producción maderera.",
+    "siembra": "Primavera u Otoño",
+    "cosecha": "Variable según especie (20-40 años)",
+    "reqSuelo": "Suelos de aptitud forestal de variada profundidad.",
+    "reqClima": "Adaptado a las condiciones climáticas del NEA pampeano.",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "sauce": {
+    "descripcion": "Especie forestal higrófila de rápido crecimiento para el Delta y valles irrigados.",
+    "siembra": "Invierno (estacas)",
+    "cosecha": "Turnos de corte de 10 a 15 años",
+    "reqSuelo": "Suelos húmedos, tolera anegamiento temporal y texturas arcillosas húmedas.",
+    "reqClima": "Templado-húmedo a templado-cálido con alta disponibilidad hídrica.",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "alamo": {
+    "descripcion": "Árbol forestal de madera clara de alta demanda para cajonería y tableros.",
+    "siembra": "Invierno (estacas)",
+    "cosecha": "Turnos de corte de 12 a 18 años",
+    "reqSuelo": "Suelos profundos, aluviales, fértiles, con napa freática accesible pero no estancada.",
+    "reqClima": "Templado a templado-cálido, requiere veranos luminosos y riego o lluvias adecuadas.",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  }
+}

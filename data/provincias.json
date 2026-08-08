@@ -1,0 +1,906 @@
+{
+  "buenos aires": {
+    "nombre": {
+      "cultivos": [
+        "trigo",
+        "soja",
+        "maiz",
+        "cebada",
+        "girasol",
+        "sorgo"
+      ],
+      "suelo": "Molisoles; alta fertilidad",
+      "clima": "Templado húmedo"
+    },
+    "coordenadas": {
+      "lat": -36.6769,
+      "lng": -60.5588,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Argiudoles y Molisoles típicos (Altísima fertilidad natural)",
+        "textura": "Franco-limosa a franco-arcillosa, excelente retención hídrica",
+        "drenaje": "Generalmente bueno, con áreas bajas inundables en la Cuenca del Salado",
+        "limitantes": "Riesgo de encharcamiento temporal en bajos, erosión hídrica en zonas de colinas",
+        "aptitud": "Máxima aptitud para Trigo, Soja, Maíz, Cebada, Girasol y ganadería extensiva"
+      },
+      "clima": {
+        "precipitaciones": "850 - 1100 mm anuales (Distribución regular, mayor en verano-otoño)",
+        "temperatura": "Media anual de 15°C - 16°C",
+        "heladas": "Riesgo moderado a alto durante el período invernal (Mayo-Septiembre)",
+        "deficit_hidrico": "Leve estival en años secos (La Niña)",
+        "estacionalidad": "Templado pampeano húmedo"
+      },
+      "geografia": {
+        "relieve": "Llanura pampeana mayormente plana con ondulaciones suaves y sistemas de Tandilia y Ventania",
+        "hidrografia": "Río de la Plata, Río Paraná, Río Salado, Quequén Grande y lagunas pampeanas",
+        "cobertura": "Pastizales pampeanos, áreas de cultivo intensivo y pasturas cultivadas"
+      }
+    }
+  },
+  "ciudad autonoma de buenos aires": {
+    "nombre": {
+      "cultivos": [
+        "lechuga",
+        "tomate",
+        "espinaca"
+      ],
+      "suelo": "Urbano/Hidroponia",
+      "clima": "Templado"
+    },
+    "coordenadas": {
+      "lat": -34.6037,
+      "lng": -58.3816,
+      "zoom": 11
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Urbano antropogénico e Hidropónico",
+        "textura": "Modificada, artificial o sustratos preparados",
+        "drenaje": "Excelente en sistemas controlados / Pluvial urbano en exteriores",
+        "limitantes": "Espacio físico reducido, contaminación de suelos urbanos tradicionales",
+        "aptitud": "Especialmente apto para Horticultura vertical, Hidroponía de hoja y microgreens"
+      },
+      "clima": {
+        "precipitaciones": "1000 - 1200 mm anuales",
+        "temperatura": "Media de 18°C (Efecto isla de calor urbana)",
+        "heladas": "Raras y muy leves",
+        "deficit_hidrico": "Nulo en sistemas hidropónicos controlados",
+        "estacionalidad": "Templado húmedo costero"
+      },
+      "geografia": {
+        "relieve": "Urbano plano artificializado",
+        "hidrografia": "Costas del Río de la Plata y Cuenca Matanza-Riachuelo canalizada",
+        "cobertura": "Superficie de cemento, techos verdes y huertas urbanas comunitarias"
+      }
+    }
+  },
+  "catamarca": {
+    "nombre": {
+      "cultivos": [
+        "olivo",
+        "nogal",
+        "maiz"
+      ],
+      "suelo": "Aridisoles",
+      "clima": "Árido/semiárido"
+    },
+    "coordenadas": {
+      "lat": -27.2682,
+      "lng": -66.9747,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles y Entisoles (Suelos pedregosos de zonas montañosas)",
+        "textura": "Franco-arenosa a esquelética (abundante canto rodado y piedras)",
+        "drenaje": "Excesivo a muy rápido",
+        "limitantes": "Bajo contenido de materia orgánica, salinidad en bolsones, escasez de agua",
+        "aptitud": "Excelente para Nogal, Olivo, Vid, Membrillo y cultivos bajo riego por goteo"
+      },
+      "clima": {
+        "precipitaciones": "150 - 350 mm anuales (Altamente deficitario)",
+        "temperatura": "Media anual de 18°C - 21°C con fuerte amplitud térmica",
+        "heladas": "Frecuentes en alta montaña y valles desérticos elevados",
+        "deficit_hidrico": "Severo y continuo durante todo el año",
+        "estacionalidad": "Semiárido y árido de sierras y bolsones"
+      },
+      "geografia": {
+        "relieve": "Montañoso, valles intermontanos, altiplanicie de la Puna",
+        "hidrografia": "Ríos de régimen temporario y ríos de deshielo aprovechados para riego",
+        "cobertura": "Estepa arbustiva rala, monte xerófilo de valles y oasis de riego"
+      }
+    }
+  },
+  "chaco": {
+    "nombre": {
+      "cultivos": [
+        "algodon",
+        "soja",
+        "maiz",
+        "girasol"
+      ],
+      "suelo": "Vertisoles",
+      "clima": "Subtropical"
+    },
+    "coordenadas": {
+      "lat": -26.386,
+      "lng": -60.7653,
+      "zoom": 7
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Vertisoles y Molisoles (Suelos arcillosos pesados)",
+        "textura": "Franca a arcillosa, con arcillas expandibles (grietas en sequía)",
+        "drenaje": "Lento a deficiente (propensión a inundaciones superficiales breves)",
+        "limitantes": "Compactación, salinidad potencial, dificultad de labranza en húmedo",
+        "aptitud": "Alta para Algodón, Soja, Girasol, Sorgo y Ganadería silvopastoril"
+      },
+      "clima": {
+        "precipitaciones": "800 - 1100 mm anuales (Marcado gradiente decreciente de este a oeste)",
+        "temperatura": "Media anual de 22°C - 23°C (Máximas extremas superiores a 45°C)",
+        "heladas": "Riesgo bajo (pocas heladas suaves en invierno)",
+        "deficit_hidrico": "Fuerte déficit hídrico invernal y estival",
+        "estacionalidad": "Subtropical con estación seca invernal marcada"
+      },
+      "geografia": {
+        "relieve": "Llanura aluvial con pendiente mínima hacia el sudeste",
+        "hidrografia": "Ríos Paraná, Paraguay, Bermejo y Tapenagá. Cañadas temporales",
+        "cobertura": "Bosque nativo chaqueño (Quebracho, Algarrobo), cultivos anuales y pasturas"
+      }
+    }
+  },
+  "chubut": {
+    "nombre": {
+      "cultivos": [
+        "papa",
+        "frutilla",
+        "manzana"
+      ],
+      "suelo": "Aluviales",
+      "clima": "Frío templado"
+    },
+    "coordenadas": {
+      "lat": -43.7886,
+      "lng": -68.5247,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles y Suelos Aluviales de valles",
+        "textura": "Fina a franco-arcillosa en valles aluviales, arenosa-pedregosa en la meseta",
+        "drenaje": "Bueno a moderado en áreas irrigadas",
+        "limitantes": "Bajas temperaturas del suelo, salinidad potencial por mal drenaje de riego",
+        "aptitud": "Buena para Fruta Fina (cereza, frutilla), Papa, Alfalfa y vid patagónica"
+      },
+      "clima": {
+        "precipitaciones": "150 - 250 mm (este) a >1000 mm en la cordillera andina",
+        "temperatura": "Media anual de 8°C - 11°C",
+        "heladas": "Riesgo de heladas durante casi todo el año",
+        "deficit_hidrico": "Crónico en la meseta central",
+        "estacionalidad": "Árido patagónico a templado-frío de cordillera"
+      },
+      "geografia": {
+        "relieve": "Cordillera al oeste, mesetas escalonadas en el centro, valles fluviales fértiles",
+        "hidrografia": "Río Chubut y Senguer, lagos andinos",
+        "cobertura": "Estepa patagónica achaparrada y bosque andino patagónico húmedo al oeste"
+      }
+    }
+  },
+  "cordoba": {
+    "nombre": {
+      "cultivos": [
+        "soja",
+        "maiz",
+        "trigo",
+        "mani"
+      ],
+      "suelo": "Molisoles",
+      "clima": "Templado subhúmedo"
+    },
+    "coordenadas": {
+      "lat": -32.13,
+      "lng": -63.7,
+      "zoom": 7
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Molisoles (Haplustoles y Argiustoles fértiles)",
+        "textura": "Franca a franco-limosa con buena estructura y fertilidad natural",
+        "drenaje": "Moderado a bueno, propenso a erosión eólica e hídrica en laderas",
+        "limitantes": "Suelos arenosos en el sur, riesgo de compactación por labranza repetida",
+        "aptitud": "Excelente para Soja, Maíz, Trigo, Maní (principal productor) y Sorgo"
+      },
+      "clima": {
+        "precipitaciones": "700 - 900 mm anuales (Fuertemente concentradas en primavera-verano)",
+        "temperatura": "Media anual de 16°C - 18°C",
+        "heladas": "Moderadas de Mayo a Septiembre",
+        "deficit_hidrico": "Estacional marcado en invierno y principios de primavera",
+        "estacionalidad": "Templado subhúmedo con invierno seco"
+      },
+      "geografia": {
+        "relieve": "Llanura al este y sur, Sierras de Córdoba al oeste (Pampeanas)",
+        "hidrografia": "Ríos Primero (Suquía), Segundo, Tercero (Calamuchita), Cuarto y Quinto",
+        "cobertura": "Tierras de labranza continua, pastizales serranos y bosque nativo del Espinal"
+      }
+    }
+  },
+  "corrientes": {
+    "nombre": {
+      "cultivos": [
+        "arroz",
+        "yerba mate",
+        "citrus",
+        "te"
+      ],
+      "suelo": "Hidromorfos",
+      "clima": "Subtropical húmedo"
+    },
+    "coordenadas": {
+      "lat": -28.7745,
+      "lng": -57.8016,
+      "zoom": 7
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aluviales e Hidromórficos (Spodosoles / Alfisoles)",
+        "textura": "Arenosa a franco-arenosa, con horizontes arcillosos impermeables en profundidad",
+        "drenaje": "Deficiente a moderado (zonas anegables, esteros y lagunas)",
+        "limitantes": "Saturación hídrica temporal, baja fertilidad natural en lomas arenosas",
+        "aptitud": "Excelente para Arroz (con riego controlado), Citrus, Pino y Eucalyptus en lomas"
+      },
+      "clima": {
+        "precipitaciones": "1200 - 1600 mm anuales (Mayor concentración en primavera-otoño)",
+        "temperatura": "Media anual de 21°C - 22°C",
+        "heladas": "Riesgo muy bajo en el norte, moderado hacia el sur",
+        "deficit_hidrico": "Moderado durante el verano (Diciembre-Febrero)",
+        "estacionalidad": "Subtropical húmedo con veranos calurosos"
+      },
+      "geografia": {
+        "relieve": "Planicie suavemente ondulada, lomas arenosas, macrosistema de Esteros del Iberá",
+        "hidrografia": "Límites por ríos Paraná y Uruguay, cuenca interna del Iberá y río Corriente",
+        "cobertura": "Pastizales naturales, humedales, forestación de pino y cultivos cítricos"
+      }
+    }
+  },
+  "entre rios": {
+    "nombre": {
+      "cultivos": [
+        "arroz",
+        "soja",
+        "maiz",
+        "trigo"
+      ],
+      "suelo": "Vertisoles",
+      "clima": "Templado húmedo"
+    },
+    "coordenadas": {
+      "lat": -32.0589,
+      "lng": -59.2014,
+      "zoom": 7
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Vertisoles (Suelos arcillosos con propiedades expansivas excepcionales)",
+        "textura": "Arcillo-limosa, muy pesada y plástica",
+        "drenaje": "Pobre a lento (genera encharcamientos temporarios y grietas en sequía)",
+        "limitantes": "Baja conductividad hidráulica, susceptibilidad a erosión hídrica en lomadas",
+        "aptitud": "Alta para Arroz (con represas), Soja, Trigo, Maíz y Citricultura en lomas"
+      },
+      "clima": {
+        "precipitaciones": "1000 - 1300 mm anuales (Distribución regular)",
+        "temperatura": "Media anual de 18°C - 19°C",
+        "heladas": "Moderadas, menores en zonas costeras costeras de los ríos Paraná y Uruguay",
+        "deficit_hidrico": "Leve estival en años de sequía regional",
+        "estacionalidad": "Templado húmedo de transición"
+      },
+      "geografia": {
+        "relieve": "Cuchillas u ondulaciones suaves interrumpidas por densa red fluvial",
+        "hidrografia": "Rodeada por ríos Paraná y Uruguay. Red interna de ríos (Gualeguay)",
+        "cobertura": "Bosques de espinal (ñandubay, algarrobo), cultivos anuales y citrus"
+      }
+    }
+  },
+  "formosa": {
+    "nombre": {
+      "cultivos": [
+        "soja",
+        "maiz",
+        "mandioca"
+      ],
+      "suelo": "Arcillosos",
+      "clima": "Subtropical"
+    },
+    "coordenadas": {
+      "lat": -24.8949,
+      "lng": -59.9324,
+      "zoom": 7
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Entisoles y Alfisoles (Asociados a albardones de ríos)",
+        "textura": "Franco-arenosa en lomas y albardones, arcillosa pesada en esteros",
+        "drenaje": "Moderado en zonas altas, deficiente en bajos e interfluvios",
+        "limitantes": "Susceptibilidad a desbordes de ríos, baja retención de agua en lomas",
+        "aptitud": "Buena para Mandioca, Maíz, Banana, Pasturas megatérmicas y Forestal"
+      },
+      "clima": {
+        "precipitaciones": "700 - 1200 mm anuales (Gradiente decreciente de este a oeste)",
+        "temperatura": "Media anual de 23°C",
+        "heladas": "Ocurrencia muy rara y leve",
+        "deficit_hidrico": "Elevado en invierno-primavera en el oeste provincial",
+        "estacionalidad": "Subtropical con estación seca"
+      },
+      "geografia": {
+        "relieve": "Llanura sedimentaria muy plana, albardones y esteros paralelos",
+        "hidrografia": "Ríos Pilcomayo, Bermejo y Paraguay. Bañado La Estrella",
+        "cobertura": "Selva en galería, sabanas de palmeras (Caranday), monte chaqueño"
+      }
+    }
+  },
+  "jujuy": {
+    "nombre": {
+      "cultivos": [
+        "maiz",
+        "quinoa",
+        "papa",
+        "cana de azucar"
+      ],
+      "suelo": "Aluviales",
+      "clima": "Andino/subtropical"
+    },
+    "coordenadas": {
+      "lat": -23.32,
+      "lng": -65.7644,
+      "zoom": 7
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Suelos Aluviales y Entisoles de valles y quebradas",
+        "textura": "Franco-limosa a arenosa-pedregosa según relieve",
+        "drenaje": "Bueno a excesivo en laderas, riesgo de salinización en valles bajos",
+        "limitantes": "Pendientes extremas en quebradas, heladas fuertes en Puna, escasez de agua",
+        "aptitud": "Excelente para Caña de azúcar, Tabaco, Maíz, Quinoa, Papa andina y hortalizas"
+      },
+      "clima": {
+        "precipitaciones": "200 mm (Puna) a >1200 mm en Yungas (selva de montaña)",
+        "temperatura": "Fuerte variación altitudinal (Media de 12°C en Puna a 21°C en yungas)",
+        "heladas": "Diarias en Puna, inexistentes a moderadas en yungas bajas",
+        "deficit_hidrico": "Extremo en quebradas y Puna, nulo en temporada húmeda serrana",
+        "estacionalidad": "Subtropical de montaña con valles templados"
+      },
+      "geografia": {
+        "relieve": "Relieve extremo con Puna alta, Quebrada de Humahuaca, Sierras Subandinas y Valles bajos",
+        "hidrografia": "Río Grande de Jujuy, Río San Francisco",
+        "cobertura": "Selva de Yungas nubosa, estepa andina seca y cultivos bajo riego en valles"
+      }
+    }
+  },
+  "la pampa": {
+    "nombre": {
+      "cultivos": [
+        "trigo",
+        "maiz",
+        "soja",
+        "girasol"
+      ],
+      "suelo": "Molisoles",
+      "clima": "Semiárido"
+    },
+    "coordenadas": {
+      "lat": -37.1315,
+      "lng": -65.4384,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Molisoles (Haplustoles) y Entisoles (suelos de llanuras semiáridas)",
+        "textura": "Franco-arenosa a arenosa, muy susceptibles a erosión eólica",
+        "drenaje": "Bueno a rápido, baja retención de agua en el oeste",
+        "limitantes": "Presencia de costras de tosca caliza a profundidad variable, baja fertilidad al oeste",
+        "aptitud": "Buena para Trigo, Maíz, Girasol, Alfalfa y ganadería de cría"
+      },
+      "clima": {
+        "precipitaciones": "500 mm (oeste) a 800 mm (este) con gran variabilidad interanual",
+        "temperatura": "Media anual de 15°C - 16°C",
+        "heladas": "Intensas y prolongadas de Mayo a Octubre",
+        "deficit_hidrico": "Frecuente y severo en época estival hacia el oeste",
+        "estacionalidad": "Templado pampeano subhúmedo a semiárido"
+      },
+      "geografia": {
+        "relieve": "Llanura plana con dunas arenosas estabilizadas y valles pampeanos amplios",
+        "hidrografia": "Río Colorado en el límite sur, cuencas sin salida interna (lagunas salinas)",
+        "cobertura": "Bosques de Caldén (caldonal), pastizales naturales y campos agrícolas"
+      }
+    }
+  },
+  "la rioja": {
+    "nombre": {
+      "cultivos": [
+        "vid",
+        "olivo"
+      ],
+      "suelo": "Aridisoles",
+      "clima": "Seco continental"
+    },
+    "coordenadas": {
+      "lat": -29.685,
+      "lng": -67.1817,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles y Entisoles desérticos",
+        "textura": "Franco-arenosa a pedregosa, nula materia orgánica",
+        "drenaje": "Muy rápido por alta permeabilidad",
+        "limitantes": "Baja retención de agua, salinidad en áreas de cuencas cerradas",
+        "aptitud": "Alta para Vid, Olivo, Nogal, Jojoba e higos, exclusivamente con riego presurizado"
+      },
+      "clima": {
+        "precipitaciones": "100 - 250 mm anuales (Lluvias monzónicas estivales de corta duración)",
+        "temperatura": "Media anual de 19°C - 22°C (Veranos de calor extremo)",
+        "heladas": "Moderadas en invierno en áreas bajas abiertas",
+        "deficit_hidrico": "Extremo y continuo durante todo el ciclo",
+        "estacionalidad": "Árido montañoso y continental"
+      },
+      "geografia": {
+        "relieve": "Sierras Pampeanas, valles áridos planos e intermontanos (Chilecito)",
+        "hidrografia": "Ríos de caudal efímero aprovechados con sistemas de captación subterránea",
+        "cobertura": "Monte arbustivo ralo (Jarilla, Retortuño), cactus y cultivos bajo oasis"
+      }
+    }
+  },
+  "mendoza": {
+    "nombre": {
+      "cultivos": [
+        "vid",
+        "olivo",
+        "ajo",
+        "pera",
+        "manzana"
+      ],
+      "suelo": "Aridisoles",
+      "clima": "Desértico continental"
+    },
+    "coordenadas": {
+      "lat": -34.6297,
+      "lng": -68.5831,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles y Torrifluventes (Suelos aluviales de oasis áridos)",
+        "textura": "Arenosa, franco-arenosa, limosa con alto contenido de minerales y calcáreos",
+        "drenaje": "Excelente a excesivo, ideal para evitar pudriciones radiculares",
+        "limitantes": "Contenido de materia orgánica extremadamente bajo, peligro de salinización por mal drenaje",
+        "aptitud": "Excelente para Vid (Malbec premium), Olivo, Ajo, Pera y Manzana bajo riego"
+      },
+      "clima": {
+        "precipitaciones": "150 - 250 mm anuales (Máxima concentración veraniega de alta torrencialidad)",
+        "temperatura": "Media anual de 15°C - 17°C, altísima amplitud térmica diaria",
+        "heladas": "Frecuentes en otoño tardío y primavera, riesgo de granizadas estivales severas",
+        "deficit_hidrico": "Severo (La producción depende 100% de la red de canales de deshielo)",
+        "estacionalidad": "Desértico o árido templado continental"
+      },
+      "geografia": {
+        "relieve": "Cordillera de los Andes (Aconcagua), piedemontes y planicies aluviales al este",
+        "hidrografia": "Ríos Mendoza, Tunuyán, Atuel y Diamante (alimentados por deshielo glacial)",
+        "cobertura": "Estepas andinas, desierto arbustivo y oasis verdes intensamente cultivados"
+      }
+    }
+  },
+  "misiones": {
+    "nombre": {
+      "cultivos": [
+        "yerba mate",
+        "te",
+        "citrus",
+        "mandioca"
+      ],
+      "suelo": "Lateríticos (rojos)",
+      "clima": "Tropical húmedo"
+    },
+    "coordenadas": {
+      "lat": -26.8756,
+      "lng": -54.6543,
+      "zoom": 8
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Lateríticos (Suelos Rojos - Ultisoles / Oxisoles)",
+        "textura": "Arcillo-limosa, rica en óxidos de hierro y aluminio",
+        "drenaje": "Excelente en lomadas, susceptible a erosión hídrica en pendientes",
+        "limitantes": "Alta acidez (pH bajo), fijación de fósforo, profundidad variable",
+        "aptitud": "Alta para Yerba Mate, Té, Pino (Taeda y Elliotis), Eucalyptus y Selva Nativa"
+      },
+      "clima": {
+        "precipitaciones": "1800 - 2200 mm anuales (Distribución uniforme, sin estación seca definida)",
+        "temperatura": "Media anual de 20°C - 21°C",
+        "heladas": "Riesgo bajo a moderado en valles bajos (vórtices de aire frío)",
+        "deficit_hidrico": "Muy bajo o inexistente en años normales",
+        "estacionalidad": "Tropical/Subtropical húmedo"
+      },
+      "geografia": {
+        "relieve": "Meseta ondulada, sierras de baja altura (hasta 800m), pendientes pronunciadas",
+        "hidrografia": "Rodeada por ríos Paraná, Uruguay e Iguazú. Red densa de arroyos internos",
+        "cobertura": "Selva Paranaense y plantaciones forestales masivas"
+      }
+    }
+  },
+  "neuquen": {
+    "nombre": {
+      "cultivos": [
+        "manzana",
+        "pera",
+        "vid"
+      ],
+      "suelo": "Aluviales",
+      "clima": "Semiárido frío"
+    },
+    "coordenadas": {
+      "lat": -38.6417,
+      "lng": -70.1186,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles, Andisoles en cordillera y aluviales en valles fluviales",
+        "textura": "Arenosa-pedregosa a limosa en valles bajos",
+        "drenaje": "Excesivo en zonas altas, controlado en los valles cultivados",
+        "limitantes": "Pedregosidad superficial extrema, cenizas volcánicas en sectores occidentales",
+        "aptitud": "Óptima para Manzana, Pera, Vid de zonas frías, Frutilla y forrajes de corte"
+      },
+      "clima": {
+        "precipitaciones": "150 mm en estepa oriental hasta 2500 mm en cumbres andinas",
+        "temperatura": "Media anual de 10°C - 13°C (Vientos muy fuertes en primavera y verano)",
+        "heladas": "Alto riesgo de heladas tardías en floración (Primavera)",
+        "deficit_hidrico": "Elevado en toda la zona extraandina",
+        "estacionalidad": "Árido-templado patagónico con influencia andina húmeda"
+      },
+      "geografia": {
+        "relieve": "Cordillera de los Andes con volcanes activos, mesetas y valles fluviales profundos",
+        "hidrografia": "Ríos Limay y Neuquén (cuenca del Río Negro)",
+        "cobertura": "Bosques andinos (Araucarias/Pehuenes), estepa patagónica y oasis irrigados"
+      }
+    }
+  },
+  "rio negro": {
+    "nombre": {
+      "cultivos": [
+        "manzana",
+        "pera",
+        "frutilla"
+      ],
+      "suelo": "Aluviales",
+      "clima": "Árido-frío"
+    },
+    "coordenadas": {
+      "lat": -40.3268,
+      "lng": -67.4891,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles de meseta y Fluventes en el Alto Valle fluvial",
+        "textura": "Limo-arenosa en terrazas de cultivo, pedregosa en meseta",
+        "drenaje": "Muy bueno a moderado en áreas sistematizadas",
+        "limitantes": "Erosión eólica constante, capas calcáreas (tosca) a poca profundidad en meseta",
+        "aptitud": "Líder nacional en Peras y Manzanas, Vid de clima frío, Alfalfa y Frutilla"
+      },
+      "clima": {
+        "precipitaciones": "150 - 300 mm anuales (Clima muy seco de meseta)",
+        "temperatura": "Media anual de 12°C - 14°C (Altas temperaturas estivales con noches frescas)",
+        "heladas": "Prolongado período de heladas, sistemas activos de defensa en Alto Valle",
+        "deficit_hidrico": "Muy elevado (Cultivo dependiente de canales de riego derivados del Río Negro)",
+        "estacionalidad": "Árido-frío templado continental"
+      },
+      "geografia": {
+        "relieve": "Cordillera andina al oeste, mesetas escalonadas y valles fluviales del Río Negro y Colorado",
+        "hidrografia": "Ríos Negro, Colorado y Limay, lagos cordilleranos",
+        "cobertura": "Estepas arbustivas xerófilas, bosques húmedos cordilleranos y valles agrícolas"
+      }
+    }
+  },
+  "salta": {
+    "nombre": {
+      "cultivos": [
+        "soja",
+        "maiz",
+        "porotos",
+        "citrus",
+        "tabaco"
+      ],
+      "suelo": "Aluviales",
+      "clima": "Subtropical"
+    },
+    "coordenadas": {
+      "lat": -24.85,
+      "lng": -64.42,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aluviales profundos, Molisoles y Entisoles de valles de montaña",
+        "textura": "Franca a franco-arcillosa en áreas tabacaleras y cañeras",
+        "drenaje": "Bueno a moderado en valles, rápido en laderas con riesgo de aludes fluviales",
+        "limitantes": "Salinidad potencial en áreas llanas orientales de Chaco Salteño, erosión hídrica",
+        "aptitud": "Alta para Poroto (principal productor), Soja, Maíz, Citrus, Tabaco, Caña de azúcar y Vid (Cafayate)"
+      },
+      "clima": {
+        "precipitaciones": "400 mm en la prepuna a >1500 mm en yungas (Lluvias monzónicas de verano)",
+        "temperatura": "Media de 18°C a 21°C con grandes variaciones altitudinales de temperatura",
+        "heladas": "Inexistentes en valles bajos protegidos, frecuentes en Cafayate y Puna alta",
+        "deficit_hidrico": "Fuerte déficit estacional durante el período invernal seco",
+        "estacionalidad": "Subtropical húmedo y de montaña con estación seca"
+      },
+      "geografia": {
+        "relieve": "Complejo, con Puna árida, Valles Calchaquíes, Yungas boscosas y Llanura Chaqueña al este",
+        "hidrografia": "Río Bermejo, Pilcomayo, Juramento y río Calchaquí",
+        "cobertura": "Yungas, monte seco chaqueño, estepas andinas, y tierras de cultivo intensivo"
+      }
+    }
+  },
+  "san juan": {
+    "nombre": {
+      "cultivos": [
+        "vid",
+        "olivo",
+        "cebolla"
+      ],
+      "suelo": "Aridisoles",
+      "clima": "Desértico"
+    },
+    "coordenadas": {
+      "lat": -30.8653,
+      "lng": -68.8897,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles y Entisoles de valles intermontanos",
+        "textura": "Franco-arenosa a pedregosa, baja retención de humedad",
+        "drenaje": "Excelente, óptimo para el desarrollo radicular de cultivos leñosos",
+        "limitantes": "Falta crítica de materia orgánica y nitrógeno natural, salinidad en bolsones",
+        "aptitud": "Excelente para Vid (pasas, vino, mesa), Olivo, Cebolla, Ajo e higos bajo riego"
+      },
+      "clima": {
+        "precipitaciones": "80 - 150 mm anuales (Zonas más áridas del país)",
+        "temperatura": "Media anual de 16°C - 19°C (Vientos secos y cálidos muy frecuentes, Zonda)",
+        "heladas": "Heladas invernales normales y granizo veraniego esporádico",
+        "deficit_hidrico": "Crónico y absoluto todo el año (La agricultura vive del río San Juan)",
+        "estacionalidad": "Desértico y continental templado-cálido"
+      },
+      "geografia": {
+        "relieve": "Sierras Pampeanas, Precordillera andina y valles áridos planos bajo cuenca de oasis",
+        "hidrografia": "Río San Juan y Jáchal (alimentados por glaciares y nieve de alta cumbre)",
+        "cobertura": "Estepa xerófila y oasis de cultivo intensivo de regadío"
+      }
+    }
+  },
+  "san luis": {
+    "nombre": {
+      "cultivos": [
+        "trigo",
+        "maiz",
+        "soja",
+        "girasol"
+      ],
+      "suelo": "Arenosos",
+      "clima": "Semiárido"
+    },
+    "coordenadas": {
+      "lat": -33.7577,
+      "lng": -66.0281,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Molisoles arenosos y Entisoles (Suelos sueltos de llanuras templadas)",
+        "textura": "Franco-arenosa a arenosa con bajo contenido orgánico inicial",
+        "drenaje": "Muy rápido, excelente permeabilidad",
+        "limitantes": "Susceptibilidad severa a la erosión eólica, baja retención de agua de lluvia",
+        "aptitud": "Buena para Maíz, Soja, Sorgo, Trigo, Girasol y ganadería bovina extensiva"
+      },
+      "clima": {
+        "precipitaciones": "500 - 700 mm anuales (Estacionales en primavera y verano)",
+        "temperatura": "Media anual de 16°C - 17°C",
+        "heladas": "Moderadas a intensas de Mayo a Septiembre",
+        "deficit_hidrico": "Marcado durante el invierno y principios de primavera",
+        "estacionalidad": "Templado subhúmedo a semiárido"
+      },
+      "geografia": {
+        "relieve": "Sierras de San Luis al norte, llanura pampeana arenosa al sur y oeste",
+        "hidrografia": "Río Quinto, Río Conlara, cuencas de ríos de serranía aprovechados con diques",
+        "cobertura": "Pastizales de llanura, bosque nativo de Espinal (caldén) y campos agrícolas"
+      }
+    }
+  },
+  "santa cruz": {
+    "nombre": {
+      "cultivos": [
+        "forrajeras",
+        "hortalizas en invernadero"
+      ],
+      "suelo": "Patagónico",
+      "clima": "Frío extremo"
+    },
+    "coordenadas": {
+      "lat": -48.8154,
+      "lng": -69.9559,
+      "zoom": 5
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aridisoles y Entisoles de clima patagónico frío",
+        "textura": "Fina a pedregosa con abundante canto rodado",
+        "drenaje": "Generalmente excesivo",
+        "limitantes": "Bajas temperaturas del suelo todo el año, vientos desecantes severos",
+        "aptitud": "Producción forrajera patagónica (coirón, festucas), hortalizas bajo invernadero de protección"
+      },
+      "clima": {
+        "precipitaciones": "150 mm (este) a 1000 mm (cumbres de la cordillera andina)",
+        "temperatura": "Media anual de 6°C - 8°C (Inviernos extremadamente crudos)",
+        "heladas": "Ocurrencia de heladas intensas durante los 12 meses del año",
+        "deficit_hidrico": "Elevado en la meseta central",
+        "estacionalidad": "Árido frío continental extremo"
+      },
+      "geografia": {
+        "relieve": "Cordillera andina con campos de hielo continentales, meseta basáltica escalonada",
+        "hidrografia": "Ríos Santa Cruz, Deseado y Chico, lagos de origen glaciar gigantes (Argentino/Viedma)",
+        "cobertura": "Estepa patagónica rala arbustiva y estepas graminosas para ganadería ovina"
+      }
+    }
+  },
+  "santa fe": {
+    "nombre": {
+      "cultivos": [
+        "soja",
+        "maiz",
+        "trigo",
+        "arroz",
+        "girasol"
+      ],
+      "suelo": "Argiudoles",
+      "clima": "Templado húmedo"
+    },
+    "coordenadas": {
+      "lat": -30.7069,
+      "lng": -60.9461,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Argiudoles y Molisoles típicos (El núcleo agrícola de la Pampa húmeda)",
+        "textura": "Franco-limosa, excelente estabilidad de agregados y retención de humedad",
+        "drenaje": "Bueno a moderado, con llanuras aluviales anegables asociadas al Río Paraná al este",
+        "limitantes": "Erosión hídrica en zonas de lomas onduladas del sur, compactación de subsuelo",
+        "aptitud": "Aptitud de clase mundial para Soja, Maíz, Trigo, Girasol, Alfalfa, Sorgo y Arroz (norte)"
+      },
+      "clima": {
+        "precipitaciones": "900 - 1100 mm anuales (Bien distribuidas, mayor peso en semestre cálido)",
+        "temperatura": "Media anual de 17°C (norte más cálido: 21°C)",
+        "heladas": "Moderadas en invierno en el sur, prácticamente inexistentes en el norte",
+        "deficit_hidrico": "Leve estival en años secos continentales",
+        "estacionalidad": "Templado pampeano húmedo (sur) a subtropical de transición (norte)"
+      },
+      "geografia": {
+        "relieve": "Llanura pampeana sumamente plana al este de Argentina",
+        "hidrografia": "Río Paraná con su inmenso delta, río Salado del Norte e Carcarañá",
+        "cobertura": "Tierras de cultivo intensivo continuo, áreas de pasturas para producción lechera"
+      }
+    }
+  },
+  "santiago del estero": {
+    "nombre": {
+      "cultivos": [
+        "soja",
+        "maiz",
+        "girasol",
+        "algodon"
+      ],
+      "suelo": "Arenosos",
+      "clima": "Muy seco"
+    },
+    "coordenadas": {
+      "lat": -27.7824,
+      "lng": -63.2523,
+      "zoom": 6
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Haplustoles y Suelos arenosos de zonas semiáridas",
+        "textura": "Franca a arenosa, baja retención de agua general",
+        "drenaje": "Bueno a rápido en lomas arenosas, lento en valles bajos arcillosos",
+        "limitantes": "Salinidad potencial grave en bolsones, bajo nitrógeno, susceptibilidad de erosión",
+        "aptitud": "Alta para Soja y Maíz (bajo siembra directa), Algodón, Girasol, Sorgo y Ganadería caprina/bovina"
+      },
+      "clima": {
+        "precipitaciones": "550 - 750 mm anuales (Fuertemente concentradas en meses de verano)",
+        "temperatura": "Media de 21°C - 22°C (El 'Impenetrable', veranos tórridos con marcas de 48°C)",
+        "heladas": "Heladas invernales suaves a moderadas",
+        "deficit_hidrico": "Severo y prolongado durante otoño, invierno y primavera",
+        "estacionalidad": "Subtropical continental con estación seca muy marcada"
+      },
+      "geografia": {
+        "relieve": "Llanura aluvial muy chata con lagunas salinas bajas (Salinas Grandes)",
+        "hidrografia": "Ríos Dulce y Salado del Norte (Sistemas divagantes en la llanura)",
+        "cobertura": "Bosques nativos chaqueños xerófilos de quebracho/algarrobo y áreas de frontera agrícola"
+      }
+    }
+  },
+  "tierra del fuego": {
+    "nombre": {
+      "cultivos": [
+        "lechuga",
+        "espinaca",
+        "frutilla"
+      ],
+      "suelo": "Turba/Fríos",
+      "clima": "Frío húmedo"
+    },
+    "coordenadas": {
+      "lat": -54.2115,
+      "lng": -67.8772,
+      "zoom": 5
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Histosoles (Turberas) y Spodosoles de zonas frías forestales",
+        "textura": "Orgánica en turberas, franca a franco-limosa en áreas boscosas",
+        "drenaje": "Deficiente en turberas y valles bajos, bueno en laderas boscosas",
+        "limitantes": "Suelos fríos, saturados de agua, descomposición orgánica sumamente lenta, acidez alta",
+        "aptitud": "Apto para Horticultura en invernadero (lechuga, frutilla), forrajeras adaptadas a frío extremo"
+      },
+      "clima": {
+        "precipitaciones": "500 - 800 mm anuales (Constantes y en forma de nieve en invierno)",
+        "temperatura": "Media anual de 5°C - 6°C (Veranos de apenas 10°C)",
+        "heladas": "Riesgo de heladas severas durante todo el año, vientos polares del sudoeste",
+        "deficit_hidrico": "Nulo por baja tasa de evapotranspiración",
+        "estacionalidad": "Subpolar húmedo y frío extremo de isla austral"
+      },
+      "geografia": {
+        "relieve": "Montañas andinas al sur (Ushuaia), llanuras bajas glaciarias al norte",
+        "hidrografia": "Río Grande, lagos glaciarios de gran tamaño (Fagnano) y Canal Beagle",
+        "cobertura": "Bosques caducifolios fríos (Lenga, Guindo), turbales y estepa de gramíneas al norte"
+      }
+    }
+  },
+  "tucuman": {
+    "nombre": {
+      "cultivos": [
+        "cana de azucar",
+        "limon",
+        "arandano"
+      ],
+      "suelo": "Aluviales",
+      "clima": "Subtropical húmedo"
+    },
+    "coordenadas": {
+      "lat": -26.947,
+      "lng": -65.3647,
+      "zoom": 8
+    },
+    "datos": {
+      "suelo": {
+        "tipo": "Aluviales de cuencas de montaña y Molisoles (Argiustoles muy fértiles)",
+        "textura": "Franco-limosa a franca con alta materia orgánica en el piedemonte",
+        "drenaje": "Moderado a bueno en valles agrícolas",
+        "limitantes": "Riesgo alto de erosión hídrica en pendientes de cultivo, compactación de suelo",
+        "aptitud": "Alta para Caña de azúcar (principal productor nacional), Limón (líder exportador), Arándano y Maíz"
+      },
+      "clima": {
+        "precipitaciones": "800 - 1300 mm anuales (Régimen monzónico concentrado en verano)",
+        "temperatura": "Media de 19°C - 20°C con valles templados de microclimas húmedos",
+        "heladas": "Muy raras a leves en el llano de la cuenca cañera",
+        "deficit_hidrico": "Estacional marcado en invierno y principios de primavera",
+        "estacionalidad": "Subtropical húmedo con estación seca de invierno"
+      },
+      "geografia": {
+        "relieve": "Complejo, con llanura oriental, Sierras del Aconquija (hasta 5500m) y piedemontes fértiles",
+        "hidrografia": "Río Salí (Río Dulce) y numerosos afluentes de deshielo y lluvias",
+        "cobertura": "Selva de Yungas nubosa en laderas y cultivos continuos e intensivos en el llano"
+      }
+    }
+  }
+}

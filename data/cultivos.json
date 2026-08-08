@@ -1,0 +1,1024 @@
+{
+  "trigo": {
+    "descripcion": "Cereal de invierno fundamental para la rotación de cultivos.",
+    "siembra": "Mayo a Julio",
+    "cosecha": "Noviembre a Enero",
+    "reqSuelo": "Suelos profundos, texturas francas, buena fertilidad y drenaje sin encharcamientos.",
+    "reqClima": "Templado, precipitaciones moderadas durante macollaje y llenado.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa",
+          "franco-arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 500,
+        "temperaturaMin": 5,
+        "temperaturaMax": 25
+      }
+    }
+  },
+  "soja": {
+    "descripcion": "Principal cultivo de exportación, leguminosa de verano.",
+    "siembra": "Octubre a Diciembre",
+    "cosecha": "Marzo a Mayo",
+    "reqSuelo": "Suelos fértiles, pH neutro, buena capacidad de retención de agua.",
+    "reqClima": "Templado-cálido, lluvias estivales abundantes.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa",
+          "franco-arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 700,
+        "temperaturaMin": 15,
+        "temperaturaMax": 32
+      }
+    }
+  },
+  "maiz": {
+    "descripcion": "Cereal versátil con altos requerimientos nutricionales.",
+    "siembra": "Septiembre a Diciembre",
+    "cosecha": "Marzo a Agosto",
+    "reqSuelo": "Suelos profundos, ricos en materia orgánica y nitrógeno, buen drenaje.",
+    "reqClima": "Templado-cálido, alta radiación, lluvias suficientes en floración.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa",
+          "franco-arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 600,
+        "temperaturaMin": 10,
+        "temperaturaMax": 30
+      }
+    }
+  },
+  "cebada": {
+    "descripcion": "Cereal de invierno, muy utilizado en la industria cervecera.",
+    "siembra": "Junio a Julio",
+    "cosecha": "Noviembre a Diciembre",
+    "reqSuelo": "Suelos fértiles y bien drenados, tolera salinidad moderada.",
+    "reqClima": "Templado-frío, moderada humedad.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6,
+        "phMax": 8.2,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa",
+          "franco-arcillosa"
+        ],
+        "tolerancias": [
+          "salinidad"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 400,
+        "temperaturaMin": 5,
+        "temperaturaMax": 24
+      }
+    }
+  },
+  "girasol": {
+    "descripcion": "Oleaginosa resistente a sequías moderadas.",
+    "siembra": "Agosto a Noviembre",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos profundos, tolera texturas más arenosas pero requiere buen drenaje.",
+    "reqClima": "Templado-cálido, alta heliofania (sol). Resiste sequías moderadas.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "sorgo": {
+    "descripcion": "Cereal rústico ideal para zonas con menor disponibilidad hídrica.",
+    "siembra": "Octubre a Noviembre",
+    "cosecha": "Marzo a Mayo",
+    "reqSuelo": "Suelos arcillosos a francos, tolera salinidad y anegamiento temporario.",
+    "reqClima": "Cálido, alta resistencia al estrés hídrico y temperaturas extremas.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "mani": {
+    "descripcion": "Leguminosa regional de alto valor agregado.",
+    "siembra": "Octubre a Noviembre",
+    "cosecha": "Abril a Mayo",
+    "reqSuelo": "Suelos sueltos, arenosos, sin piedras para permitir el 'clavado' del fruto.",
+    "reqClima": "Templado-cálido, libre de heladas en ciclo de cultivo.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.8,
+        "phMax": 7.2,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "arenosa",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 550,
+        "temperaturaMin": 15,
+        "temperaturaMax": 30
+      }
+    }
+  },
+  "arroz": {
+    "descripcion": "Cereal cultivado en suelos anegadizos con riego controlado.",
+    "siembra": "Septiembre a Noviembre",
+    "cosecha": "Febrero a Abril",
+    "reqSuelo": "Suelos pesados (arcillosos), impermeables para retener la lámina de agua.",
+    "reqClima": "Subtropical o templado cálido, alta radiación solar.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7,
+        "drenaje": [
+          "pobre",
+          "moderado",
+          "lento"
+        ],
+        "texturas": [
+          "arcillosa",
+          "franco-arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1200,
+        "temperaturaMin": 18,
+        "temperaturaMax": 35
+      }
+    }
+  },
+  "yerba mate": {
+    "descripcion": "Cultivo perenne emblemático de la región mesopotámica.",
+    "siembra": "Marzo a Junio (plantación)",
+    "cosecha": "Abril a Septiembre",
+    "reqSuelo": "Suelos rojos lateríticos profundos, excelente drenaje, ácidos (pH 4.5 - 6.0).",
+    "reqClima": "Subtropical húmedo, lluvias abundantes (>1500mm), tolerante a heladas muy suaves.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 6,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1500,
+        "temperaturaMin": 18,
+        "temperaturaMax": 28
+      }
+    }
+  },
+  "citrus": {
+    "descripcion": "Frutales como limón, naranja y mandarina.",
+    "siembra": "Primavera",
+    "cosecha": "Invierno a Primavera",
+    "reqSuelo": "Suelos permeables, profundos, sin capas impermeables cerca de superficie.",
+    "reqClima": "Cálido y húmedo, muy sensible a heladas fuertes.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "te": {
+    "descripcion": "Infusión cultivada principalmente en Misiones y Corrientes.",
+    "siembra": "Otoño",
+    "cosecha": "Noviembre a Abril",
+    "reqSuelo": "Suelos muy ácidos, profundos, ricos en materia orgánica, excelente drenaje.",
+    "reqClima": "Cálido-templado, alta humedad ambiente y lluvias copiosas durante brotación.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 6,
+        "drenaje": [
+          "bueno"
+        ],
+        "texturas": [
+          "franca"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1600,
+        "temperaturaMin": 15,
+        "temperaturaMax": 25
+      }
+    }
+  },
+  "algodon": {
+    "descripcion": "Fibra textil adaptada a climas subtropicales.",
+    "siembra": "Octubre a Diciembre",
+    "cosecha": "Abril a Julio",
+    "reqSuelo": "Suelos profundos, fértiles, texturas francas a arcillo-limosas.",
+    "reqClima": "Subtropical cálido, largo período libre de heladas, lluvias estivales.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "vid": {
+    "descripcion": "Cultivo base de la industria vitivinícola en zonas áridas con riego.",
+    "siembra": "Agosto a Octubre (plantación)",
+    "cosecha": "Febrero a Abril",
+    "reqSuelo": "Suelos pedregosos o arenosos, baja fertilidad, drenaje perfecto.",
+    "reqClima": "Árido a semiárido con alta amplitud térmica diurna/nocturna.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "olivo": {
+    "descripcion": "Frutal adaptado a climas secos para producción de aceite y aceitunas.",
+    "siembra": "Marzo a Mayo (plantación)",
+    "cosecha": "Febrero a Mayo",
+    "reqSuelo": "Suelos permeables, calizos o arenosos, tolera cierta salinidad.",
+    "reqClima": "Seco, inviernos frescos (horas de frío) y veranos cálidos y secos.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6,
+        "phMax": 8.5,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "pedregosa"
+        ],
+        "tolerancias": [
+          "salinidad",
+          "tosca"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 350,
+        "temperaturaMin": 10,
+        "temperaturaMax": 35
+      }
+    }
+  },
+  "manzana": {
+    "descripcion": "Fruta de pepita típica de los valles patagónicos.",
+    "siembra": "Agosto a Septiembre",
+    "cosecha": "Enero a Abril",
+    "reqSuelo": "Suelos aluviales profundos, bien drenados, buen contenido de materia orgánica.",
+    "reqClima": "Templado-frío, requiere acumulación de horas de frío en invierno.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "pera": {
+    "descripcion": "Fruta de pepita de alta calidad de exportación.",
+    "siembra": "Agosto a Septiembre",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos aluviales profundos, tolera arcilla moderada si hay buen manejo.",
+    "reqClima": "Templado-frío, alta heliofania para calidad de fruta.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "cana de azucar": {
+    "descripcion": "Cultivo industrial clave en el NOA.",
+    "siembra": "Mayo a Septiembre",
+    "cosecha": "Junio a Octubre",
+    "reqSuelo": "Suelos fértiles, profundos, buena capacidad de retención de humedad.",
+    "reqClima": "Subtropical húmedo, alta radiación solar, libre de heladas fuertes.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "limon": {
+    "descripcion": "Líder mundial en exportación de derivados cítricos.",
+    "siembra": "Primavera",
+    "cosecha": "Abril a Septiembre",
+    "reqSuelo": "Suelos francos a franco-arenosos, bien aireados y profundos.",
+    "reqClima": "Templado cálido a subtropical, muy susceptible a heladas invernales.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "porotos": {
+    "descripcion": "Legumbre de ciclo corto producida principalmente en el NOA.",
+    "siembra": "Enero a Febrero",
+    "cosecha": "Mayo a Junio",
+    "reqSuelo": "Suelos francos, livianos, bien aireados, pH neutro.",
+    "reqClima": "Templado cálido, sensible a exceso de lluvias en maduración.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "papa": {
+    "descripcion": "Tubérculo de consumo masivo con diversas zonas de producción.",
+    "siembra": "Agosto a Octubre / Febrero",
+    "cosecha": "Diciembre a Abril / Junio",
+    "reqSuelo": "Suelos sueltos, francos, sin piedras, bien drenados y con buen aporte orgánico.",
+    "reqClima": "Templado a templado-frío, amplitudes térmicas óptimas.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 6.8,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "arenosa",
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 600,
+        "temperaturaMin": 10,
+        "temperaturaMax": 22
+      }
+    }
+  },
+  "quinoa": {
+    "descripcion": "Pseudocereal andino de alto valor nutricional.",
+    "siembra": "Octubre a Noviembre",
+    "cosecha": "Marzo a Mayo",
+    "reqSuelo": "Suelos arenosos o francos, rústico, tolera suelos pobres y sequía.",
+    "reqClima": "Frío continental árido de montaña.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "mandioca": {
+    "descripcion": "Raíz amilácea fundamental en la dieta del NEA.",
+    "siembra": "Agosto a Octubre",
+    "cosecha": "Mayo a Agosto",
+    "reqSuelo": "Suelos sueltos, arenosos, profundos, con buen drenaje para evitar pudriciones.",
+    "reqClima": "Subtropical a tropical, muy sensible al frío y heladas tempranas.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "arandano": {
+    "descripcion": "Fruto de alto valor comercial, cultivado principalmente para exportación.",
+    "siembra": "Otoño a Invierno",
+    "cosecha": "Octubre a Diciembre",
+    "reqSuelo": "Suelos muy ácidos (pH 4.5 a 5.2), livianos, con excelente contenido de materia orgánica y drenaje.",
+    "reqClima": "Templado a templado-cálido, requiere acumulación de horas de frío invernal.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "ajo": {
+    "descripcion": "Hortaliza de bulbo de alta relevancia en las economías regionales occidentales.",
+    "siembra": "Marzo a Mayo",
+    "cosecha": "Noviembre a Diciembre",
+    "reqSuelo": "Suelos francos a franco-arenosos, bien drenados, ricos en potasio y materia orgánica.",
+    "reqClima": "Clima templado a templado-frío, seco durante la etapa de maduración de bulbos.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "nuez pecan": {
+    "descripcion": "Fruto seco de alta longevidad y excelente rentabilidad a mediano plazo.",
+    "siembra": "Julio a Agosto (plantas a raíz desnuda)",
+    "cosecha": "Abril a Mayo",
+    "reqSuelo": "Suelos profundos, fértiles, aluviales, con buen drenaje y sin capas impermeables.",
+    "reqClima": "Templado húmedo a subtropical, con veranos cálidos y otoños libres de heladas tempranas.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "alfalfa": {
+    "descripcion": "La reina de las forrajeras, base de la alimentación ganadera pampeana.",
+    "siembra": "Marzo a Abril",
+    "cosecha": "Múltiples cortes de Primavera a Otoño",
+    "reqSuelo": "Suelos profundos, bien drenados, pH neutro a ligeramente alcalino (no tolera acidez ni encharcamiento).",
+    "reqClima": "Templado, adaptable a diversas condiciones con buen régimen hídrico o riego.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.2,
+        "phMax": 7.8,
+        "drenaje": [
+          "bueno"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 600,
+        "temperaturaMin": 5,
+        "temperaturaMax": 30
+      }
+    }
+  },
+  "lupulo": {
+    "descripcion": "Cultivo especializado para la industria cervecera artesanal e industrial.",
+    "siembra": "Agosto a Septiembre (rizomas)",
+    "cosecha": "Febrero a Marzo",
+    "reqSuelo": "Suelos sueltos, profundos, ricos en nutrientes, con excelente drenaje físico.",
+    "reqClima": "Templado-frío, con días largos en verano y reparado de vientos fuertes continuos.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "cereza": {
+    "descripcion": "Fruta fina de alta calidad con excelente mercado de exportación.",
+    "siembra": "Invierno",
+    "cosecha": "Noviembre a Diciembre",
+    "reqSuelo": "Suelos aireados, de textura franca a franco-arenosa, sin capas arcillosas limitantes.",
+    "reqClima": "Templado-frío, con alta demanda de horas de frío y baja probabilidad de lluvias en cosecha.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "garbanzo": {
+    "descripcion": "Legumbre de invierno con fuerte inserción de exportación en el centro-norte del país.",
+    "siembra": "Mayo a Junio",
+    "cosecha": "Noviembre a Diciembre",
+    "reqSuelo": "Suelos sueltos, con buena aireación, tolerante a sequía pero sensible a encharcamientos.",
+    "reqClima": "Templado-seco a templado-cálido, tolera heladas suaves en etapas iniciales.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "lenteja": {
+    "descripcion": "Legumbre de invierno de alto valor nutricional y consumo local y externo.",
+    "siembra": "Mayo a Junio",
+    "cosecha": "Noviembre",
+    "reqSuelo": "Suelos francos a franco-limosos, fértiles y bien estructurados.",
+    "reqClima": "Templado-frío, tolerante a heladas y de bajo requerimiento de agua estival.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "lavanda": {
+    "descripcion": "Aromática perenne rústica adaptada a zonas serranas e industriales.",
+    "siembra": "Otoño o Primavera",
+    "cosecha": "Verano (floración)",
+    "reqSuelo": "Suelos pedregosos, calcáreos, secos, con excelente drenaje y tolerantes a pH elevados.",
+    "reqClima": "Templado a cálido, muy resistente a la sequía y heladas intensas.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "oregano": {
+    "descripcion": "Condimento esencial cultivado intensivamente en economías familiares.",
+    "siembra": "Otoño o Primavera",
+    "cosecha": "Primavera avanzada a Verano",
+    "reqSuelo": "Suelos ligeros, franco-arenosos, bien drenados, de fertilidad media.",
+    "reqClima": "Templado-cálido, pleno sol, resistente a sequías moderadas.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "durazno": {
+    "descripcion": "Frutal de carozo tradicional de consumo en fresco e industria conservera.",
+    "siembra": "Otoño a Invierno",
+    "cosecha": "Noviembre a Febrero",
+    "reqSuelo": "Suelos francos, permeables, sin problemas de sales ni caliza excesiva.",
+    "reqClima": "Templado a templado-cálido, con requerimiento moderado de horas de frío.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "ciruela": {
+    "descripcion": "Frutal rústico de carozo, muy difundido para desecado y consumo fresco.",
+    "siembra": "Julio a Agosto",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos franco-arcillosos, tolera condiciones de drenaje ligeramente más pesadas que el duraznero.",
+    "reqClima": "Templado con veranos secos y calurosos para facilitar el secado de fruta.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "almendro": {
+    "descripcion": "Fruto seco altamente valorado, con floración muy temprana.",
+    "siembra": "Invierno",
+    "cosecha": "Febrero a Marzo",
+    "reqSuelo": "Suelos ligeros, profundos, calcáreos y con excelente drenaje interno.",
+    "reqClima": "Clima templado-cálido, muy sensible a heladas tardías de primavera durante la floración.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "tabaco": {
+    "descripcion": "Cultivo industrial intensivo de gran impacto socioeconómico en el norte argentino.",
+    "siembra": "Julio (almácigos) - Trasplante en Octubre",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos franco-arenosos, livianos, bien drenados, ricos en materia orgánica.",
+    "reqClima": "Subtropical o templado-cálido con humedad relativa adecuada durante el desarrollo foliar.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "avena": {
+    "descripcion": "Cereal forrajero de doble propósito clave para verdeos de invierno.",
+    "siembra": "Febrero a Abril",
+    "cosecha": "Noviembre a Diciembre (grano) o pastoreo directo",
+    "reqSuelo": "Suelos de fertilidad media, tolera mejor la acidez que el trigo y la cebada.",
+    "reqClima": "Templado-frío, muy resistente al frío y a las heladas invernales.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "centeno": {
+    "descripcion": "Cereal de invierno sumamente rústico para suelos arenosos y climas rigurosos.",
+    "siembra": "Marzo a Mayo",
+    "cosecha": "Diciembre",
+    "reqSuelo": "Suelos arenosos, de baja fertilidad y propensos a la erosión (excelente fijador de suelos).",
+    "reqClima": "Clima templado-frío a frío, alta tolerancia a la sequía y vientos secos.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "colza": {
+    "descripcion": "Oleaginosa de invierno de gran expansión como alternativa al trigo.",
+    "siembra": "Abril a Mayo",
+    "cosecha": "Octubre a Noviembre",
+    "reqSuelo": "Suelos profundos, sueltos, fértiles y sin impedimentos físicos.",
+    "reqClima": "Templado-frío, alta sensibilidad a heladas extremas en floración.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "kiwi": {
+    "descripcion": "Fruto exótico trepador de excelente rentabilidad y nicho comercial.",
+    "siembra": "Agosto a Septiembre",
+    "cosecha": "Abril a Mayo",
+    "reqSuelo": "Suelos muy permeables, ricos en materia orgánica, pH ligeramente ácido (5.5 a 6.5).",
+    "reqClima": "Templado húmedo, con alta humedad ambiental y libre de vientos fuertes o heladas tardías.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "pimiento": {
+    "descripcion": "Cultivo hortícola de alta rentabilidad, tanto para fresco como para pimentón.",
+    "siembra": "Agosto a Octubre",
+    "cosecha": "Enero a Abril",
+    "reqSuelo": "Suelos francos, fértiles, aireados y con excelente provisión de nutrientes.",
+    "reqClima": "Subtropical o templado-cálido con veranos soleados, muy sensible al frío.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "tomate": {
+    "descripcion": "Hortaliza de fruto líder en consumo fresco e industria de conservas.",
+    "siembra": "Agosto a Octubre",
+    "cosecha": "Diciembre a Abril",
+    "reqSuelo": "Suelos profundos, ricos en materia orgánica, bien abonados y permeables.",
+    "reqClima": "Templado-cálido a cálido, requiere alta luminosidad solar y temperaturas estables.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "arvejas": {
+    "descripcion": "Legumbre invernal excelente antecesora del maíz de segunda.",
+    "siembra": "Junio a Julio",
+    "cosecha": "Noviembre",
+    "reqSuelo": "Suelos sueltos, permeables, pH cercano al neutro.",
+    "reqClima": "Templado-frío, requiere temperaturas frescas durante la floración y llenado.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "melon": {
+    "descripcion": "Cucurbitácea de fruto dulce muy cotizado en el verano argentino.",
+    "siembra": "Octubre a Noviembre",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos franco-arenosos, fértiles, profundos y con óptimo drenaje.",
+    "reqClima": "Templado-cálido, seco y muy soleado, excelente tolerancia al calor estival.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  },
+  "sandia": {
+    "descripcion": "Fruto de verano rústico de excelente tamaño y contenido de agua.",
+    "siembra": "Septiembre a Noviembre",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos arenosos o francos sueltos, tolera suelos menos fértiles con buena profundidad.",
+    "reqClima": "Templado-cálido a subtropical, requiere alta insolación y calor constante.",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": null,
+        "phMax": null,
+        "drenaje": null,
+        "texturas": null
+      },
+      "clima": {
+        "precipitacionMin": null,
+        "temperaturaMin": null,
+        "temperaturaMax": null
+      }
+    }
+  }
+}
