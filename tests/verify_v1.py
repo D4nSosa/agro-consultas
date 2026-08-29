@@ -47,6 +47,7 @@ def test_search_and_results():
 
         # Check territory details loaded (Fase 2)
         assert page.is_visible("#territory-details")
+        page.wait_for_selector(".info-item")
         assert page.is_visible(".info-item")
 
         # Check recommendation engine details (Fase 3)
@@ -160,5 +161,33 @@ def test_normalization():
         page.wait_for_selector(".crop-card")
         cards = page.query_selector_all(".crop-card")
         assert len(cards) > 0
+
+        browser.close()
+
+def test_forestal_page():
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+
+        # Access Forestal page
+        page.goto("http://localhost:8000/forestal.html")
+
+        # Verify Leaflet map container
+        assert page.is_visible("#forest-map")
+
+        # Verify lot controls and GeoJSON text area
+        assert page.is_visible("#geojson-textarea")
+        assert page.is_visible("#btn-run-analysis")
+
+        # Wait for auto analysis to load timeline and report
+        page.wait_for_selector(".timeline-card")
+        assert page.is_visible("#printable-forest-report")
+
+        # Verify report traceability content
+        report_text = page.locator("#printable-forest-report").inner_text()
+        assert "Copernicus" in report_text
+        assert "Sentinel-2" in report_text
+        assert "NDVI" in report_text
+        assert "Análisis preliminar" in report_text
 
         browser.close()
