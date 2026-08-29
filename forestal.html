@@ -64,6 +64,7 @@
 
         <!-- Botonera de interacción con la geometría -->
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button id="btn-geo-forest" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #27ae60;">📍 Usar Mi Ubicación GPS</button>
           <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">✏️ Dibujar Lote en Mapa</button>
           <button id="btn-load-sample" class="btn secondary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Lote Demo (Misiones)</button>
           <button id="btn-toggle-ndvi" class="btn outline" style="font-size: 0.85rem; padding: 8px 14px;">🎨 Alternar Capa NDVI</button>
@@ -166,6 +167,48 @@
       reportComp = new ChangeReport('report-container');
 
       // Botones de interacción
+      document.getElementById('btn-geo-forest')?.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          return alert('Geolocalización no disponible.');
+        }
+        const btn = document.getElementById('btn-geo-forest');
+        btn.innerText = '📡 Obteniendo GPS...';
+        btn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            // Crear un polígono cuadrado alrededor de la ubicación del usuario (ej. ~10ha)
+            const delta = 0.0025;
+            const userLot = {
+              type: "Feature",
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                  [longitude - delta, latitude - delta],
+                  [longitude + delta, latitude - delta],
+                  [longitude + delta, latitude + delta],
+                  [longitude - delta, latitude + delta],
+                  [longitude - delta, latitude - delta]
+                ]]
+              },
+              properties: {
+                name: "Mi Lote GPS"
+              }
+            };
+            forestMap.setGeoJSON(userLot);
+            btn.innerText = '🟢 Mi Ubicación GPS Carga';
+            btn.disabled = false;
+          },
+          (err) => {
+            alert('No se pudo obtener la ubicación GPS.');
+            btn.innerText = '📍 Usar Mi Ubicación GPS';
+            btn.disabled = false;
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      });
+
       document.getElementById('btn-draw-lot').addEventListener('click', () => {
         alert('Haz click en 3 o más puntos sobre el mapa para cerrar el polígono del lote.');
         forestMap.startDrawing();

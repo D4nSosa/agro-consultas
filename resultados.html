@@ -33,7 +33,17 @@
   </header>
 
   <main class="container">
-    <h2 style="text-align:center;margin-top:20px">
+    <!-- Barra de geolocalización rápida accesible inmediatamente arriba del mapa -->
+    <div style="margin-top: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: var(--gris-card); padding: 12px 18px; border-radius: 12px; border: 1px solid var(--borde-suave);">
+      <div style="font-weight: 700; color: var(--verde-principal); font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+        <span>🎯</span> Ubicación Actual / Consulta por GPS
+      </div>
+      <button id="btn-top-geolocalizar" class="btn primary" style="background: #27ae60; padding: 8px 16px; font-size: 0.85rem;">
+        📍 Usar Mi Ubicación en Tiempo Real
+      </button>
+    </div>
+
+    <h2 style="text-align:center;margin-top:10px">
       Provincia: <span id="resultado_ubicacion"></span>
     </h2>
 

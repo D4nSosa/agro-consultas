@@ -82,6 +82,11 @@ export async function inicializarMapa(provinciaRaw) {
     btnGeo.addEventListener("click", usarGeolocalizacion);
   }
 
+  const btnTopGeo = document.getElementById("btn-top-geolocalizar");
+  if (btnTopGeo) {
+    btnTopGeo.addEventListener("click", usarGeolocalizacion);
+  }
+
   const selectAlcance = document.getElementById("select-alcance-radio");
   if (selectAlcance) {
     selectAlcance.addEventListener("change", (e) => {
@@ -621,10 +626,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Inicializar mapa de forma segura
   setTimeout(async () => {
+    const latParam = params.get("lat");
+    const lngParam = params.get("lng");
+
     await inicializarMapa(ubic);
 
-    // Si hay una provincia en la URL, cargar sus datos en el panel lateral e inicializar recomendaciones
-    if (ubic && ubic !== "Argentina") {
+    if (latParam && lngParam) {
+      const lat = parseFloat(latParam);
+      const lng = parseFloat(lngParam);
+      if (mapInstance) {
+        mapInstance.setView([lat, lng], 11);
+      }
+      await procesarSeleccionCoordenadas(lat, lng);
+    } else if (ubic && ubic !== "Argentina") {
       const key = normalizeKey(ubic);
       const coords = await getProvinceCoordinates(key);
       if (coords) {

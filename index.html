@@ -39,9 +39,10 @@
         <label for="provincias">Provincia</label>
         <input id="provincias" name="provincias" type="text" placeholder="Ej: Córdoba" required autocomplete="off" />
 
-        <div class="row" style="margin-top:8px;">
-          <button type="submit" class="btn primary">Buscar</button>
-          <button type="button" id="demoBtn" class="btn outline">Demo: Buenos Aires</button>
+        <div class="row" style="margin-top:8px; flex-wrap: wrap; gap: 8px;">
+          <button type="submit" class="btn primary" style="flex: 1; min-width: 140px;">Buscar</button>
+          <button type="button" id="geoIndexBtn" class="btn primary" style="flex: 1.5; min-width: 200px; background: #27ae60;">📍 Usar Mi Ubicación en Tiempo Real</button>
+          <button type="button" id="demoBtn" class="btn outline" style="flex: 1; min-width: 140px;">Demo: Buenos Aires</button>
         </div>
       </form>
     </section>
@@ -88,6 +89,27 @@
 
     document.getElementById('demoBtn').addEventListener('click', () => {
       window.location.href = 'resultados.html?ubicacion=Buenos%20Aires';
+    });
+
+    document.getElementById('geoIndexBtn').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert("La geolocalización no está soportada en tu navegador.");
+        return;
+      }
+      const btn = document.getElementById('geoIndexBtn');
+      btn.innerText = "📡 Obteniendo Ubicación GPS...";
+      btn.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          window.location.href = `resultados.html?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`;
+        },
+        (err) => {
+          alert("No se pudo obtener la geolocalización. Mostrando mapa general.");
+          window.location.href = 'resultados.html?ubicacion=Argentina';
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
     });
 
     // Theme toggle persistent
