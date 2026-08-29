@@ -12,6 +12,7 @@ export class ForestMap {
     this.map = null;
     this.currentLayer = null;
     this.ndviOverlayLayer = null;
+    this.userLocationMarker = null;
     this.drawPolygonPoints = [];
     this.isDrawing = false;
     this.currentFeature = null;
@@ -27,9 +28,9 @@ export class ForestMap {
     const defaultLat = -26.8756;
     const defaultLng = -54.6543;
 
-    this.map = L.map(this.containerId).setView([defaultLat, defaultLng], 9);
+    this.map = L.map(this.containerId).setView([defaultLat, defaultLng], 10);
 
-    // Capa satelital de OpenStreetMap / CartoDB Positron para contraste visual
+    // Capa base de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors | Copernicus STAC'
@@ -38,8 +39,50 @@ export class ForestMap {
     // Eventos de click para dibujo interactivo
     this.map.on('click', (e) => this.handleMapClick(e));
 
-    // Lote predeterminado inicial (Lote experimental Misiones)
+    // Lote predeterminado inicial
     this.loadDefaultSampleLot();
+  }
+
+  locateUserGPS() {
+    if (!navigator.geolocation) {
+      alert('La geolocalización no está disponible en este navegador.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        this.map.setView([latitude, longitude], 13);
+
+        if (this.userLocationMarker) {
+          this.map.removeLayer(this.userLocationMarker);
+        }
+
+        this.userLocationMarker = L.marker([latitude, longitude], {
+          title: 'Tu Ubicación Actual'
+        }).addTo(this.map).bindPopup('<b>📍 Tu Ubicación Actual</b><br>Usá el botón "✏️ Dibujar Lote" para seleccionar tu campo.').openPopup();
+      },
+      (err) => {
+        alert('No se pudo obtener tu ubicación GPS. Asegurate de activar los permisos de localización.');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }
+
+  goToRegion(regionKey) {
+    const regions = {
+      misiones: { lat: -26.8756, lng: -54.6543, zoom: 10 },
+      corrientes: { lat: -27.5830, lng: -56.6810, zoom: 10 },
+      entrerios: { lat: -31.3920, lng: -58.0170, zoom: 10 },
+      buenosaires: { lat: -37.5000, lng: -58.0000, zoom: 9 },
+      mendoza: { lat: -34.6297, lng: -68.5831, zoom: 9 },
+      patagonia: { lat: -41.1335, lng: -71.3103, zoom: 9 }
+    };
+
+    const target = regions[regionKey];
+    if (target) {
+      this.map.setView([target.lat, target.lng], target.zoom);
+    }
   }
 
   loadDefaultSampleLot() {
@@ -56,7 +99,7 @@ export class ForestMap {
         ]]
       },
       properties: {
-        name: "Lote Experimental Misiones Nordeste"
+        name: "Lote Forestal Misiones Nordeste"
       }
     };
 
@@ -79,7 +122,7 @@ export class ForestMap {
         type: "Polygon",
         coordinates: [closedCoords]
       };
-      const feature = toGeoJSONFeature(geom, { name: "Lote Dibujado" });
+      const feature = toGeoJSONFeature(geom, { name: "Lote Seleccionado" });
       this.setGeoJSON(feature);
       this.isDrawing = false;
     }

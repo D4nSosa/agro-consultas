@@ -22,14 +22,14 @@ export class ChangeReport {
     if (changes.classification === 'AUMENTO_SIGNIFICATIVO') statusBadgeColor = '#27ae60';
 
     container.innerHTML = `
-      <div id="printable-forest-report" class="card" style="padding: 25px; margin-top: 20px; border-top: 4px solid var(--verde-principal);">
+      <div id="printable-forest-report" class="card" style="padding: 25px; margin-top: 20px; border-top: 4px solid var(--verde-principal); box-sizing: border-box; overflow: hidden;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--borde-suave); padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
           <div>
-            <h2 style="margin: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 10px;">
+            <h2 style="margin: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
               <span>🌲</span> Informe Técnico de Análisis Forestal y Teledetección
             </h2>
             <div style="font-size: 0.9rem; color: var(--texto-secundario); margin-top: 5px;">
-              Agro Consultas — Módulo de Seguimiento Territorial e Información Satelital
+              Agro Consultas — Seguimiento Territorial e Información Satelital
             </div>
           </div>
           <div style="text-align: right;">
@@ -40,36 +40,36 @@ export class ChangeReport {
         </div>
 
         <!-- Metadatos del Lote -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-          <div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; overflow: hidden;">
+          <div style="word-break: break-word;">
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Nombre del Lote:</span>
-            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal Experimental'}</strong>
+            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong>
           </div>
-          <div>
+          <div style="word-break: break-word;">
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
             <strong>${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)</strong>
           </div>
-          <div>
+          <div style="word-break: break-word;">
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Coordenadas Centroide:</span>
             <strong>Lat: ${lot?.centroid?.lat?.toFixed(4)}, Lng: ${lot?.centroid?.lng?.toFixed(4)}</strong>
           </div>
-          <div>
+          <div style="word-break: break-word;">
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Período Comparado:</span>
             <strong>${dates?.dateA} ➔ ${dates?.dateB}</strong>
           </div>
         </div>
 
         <!-- Trazabilidad Satelital -->
-        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px; font-size: 1.1rem;">
           📡 Trazabilidad de Fuentes de Datos Satelitales (Copernicus)
         </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
-          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin-bottom: 20px; box-sizing: border-box;">
+          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; word-break: break-word; overflow: hidden;">
             <strong style="color: #27ae60;">🟢 Imagen Fecha A (Base)</strong>
             <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
               <li><strong>Fuente:</strong> Copernicus Sentinel-2</li>
               <li><strong>Producto:</strong> ${prodA.productType || 'Level-2A (S2MSI2A)'}</li>
-              <li><strong>Identificador:</strong> ${prodA.id || 'N/A'}</li>
+              <li style="word-break: break-all;"><strong>Identificador:</strong> ${prodA.id || 'N/A'}</li>
               <li><strong>Fecha Adquisición:</strong> ${prodA.date || dates?.dateA}</li>
               <li><strong>Cobertura Nubosa:</strong> ${prodA.cloudCover || 0}%</li>
               <li><strong>Resolución Espacial:</strong> 10 metros</li>
@@ -77,12 +77,12 @@ export class ChangeReport {
             </ul>
           </div>
 
-          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
+          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; word-break: break-word; overflow: hidden;">
             <strong style="color: #2980b9;">🔵 Imagen Fecha B (Comparación)</strong>
             <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
               <li><strong>Fuente:</strong> Copernicus Sentinel-2</li>
               <li><strong>Producto:</strong> ${prodB.productType || 'Level-2A (S2MSI2A)'}</li>
-              <li><strong>Identificador:</strong> ${prodB.id || 'N/A'}</li>
+              <li style="word-break: break-all;"><strong>Identificador:</strong> ${prodB.id || 'N/A'}</li>
               <li><strong>Fecha Adquisición:</strong> ${prodB.date || dates?.dateB}</li>
               <li><strong>Cobertura Nubosa:</strong> ${prodB.cloudCover || 0}%</li>
               <li><strong>Resolución Espacial:</strong> 10 metros</li>
@@ -92,10 +92,10 @@ export class ChangeReport {
         </div>
 
         <!-- Indicadores NDVI y Detección de Cambios -->
-        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px; font-size: 1.1rem;">
           📊 Estadísticas NDVI y Detección Preliminar de Cambios
         </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
           <div style="background: rgba(39, 174, 96, 0.08); padding: 12px; border-radius: 8px; text-align: center;">
             <div style="font-size: 0.8rem; color: var(--texto-secundario);">NDVI Promedio Fecha A</div>
             <div style="font-size: 1.6rem; font-weight: bold; color: #27ae60;">${statsA.mean || 0}</div>
@@ -127,12 +127,12 @@ export class ChangeReport {
         </div>
 
         <!-- Aptitud Territorial e Integración Agro Consultas -->
-        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px; font-size: 1.1rem;">
           🌲 Aptitud de Especies Forestales (Recommendation Engine)
         </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
           ${(aptitude?.recommendations || []).map(r => `
-            <div style="border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+            <div style="border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; word-break: break-word;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <strong style="font-size: 0.95rem;">🌲 ${r.nombre}</strong>
                 <span class="badge" style="padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; background: ${r.compatibilidad === 'ALTA' ? '#2ecc71' : r.compatibilidad === 'MEDIA' ? '#f39c12' : '#e74c3c'}; color: #fff;">${r.compatibilidad}</span>
@@ -147,7 +147,7 @@ export class ChangeReport {
         <div style="margin-top: 30px; padding: 12px; background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem; color: var(--texto-secundario); line-height: 1.5;">
           <strong>Aviso Metodológico y Limitaciones Trazables:</strong>
           <br>
-          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta de imágenes multiespectrales Sentinel-2 Level-2A provistas por Copernicus Data Space Ecosystem.
+          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado mediante la consulta de imágenes multiespectrales Sentinel-2 Level-2A provistas por Copernicus Data Space Ecosystem.
           El NDVI representa la respuesta espectral y el vigor vegetativo foliar, y no constituye por sí solo una certificación forestal ni una prueba categórica de deforestación o tala. Se requiere inspección técnica de campo para validaciones oficiales.
         </div>
       </div>

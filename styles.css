@@ -444,3 +444,31 @@ body{ font-family:'Inter', 'Roboto', sans-serif; background:var(--gris-fondo); c
   .crop-grid { grid-template-columns: 1fr; }
   .crop-grid-details { grid-template-columns: 1fr; }
 }
+
+/* ============================================================================
+   Safeguards & Responsive Overflows para Análisis Forestal
+   ============================================================================ */
+.forest-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(280px, 0.8fr);
+  gap: 20px;
+}
+
+.timeline-card {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+#printable-forest-report {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .forest-layout {
+    grid-template-columns: 1fr;
+  }
+}

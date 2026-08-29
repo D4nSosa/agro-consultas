@@ -25,70 +25,86 @@
       <img class="brand" src="dwnl.png" alt="logo" />
       <div class="brand-text">
         <div class="title">Análisis Forestal</div>
-        <div class="subtitle">Teledetección · Módulo Experimental v1.0</div>
+        <div class="subtitle">Teledetección Satelital · Plataforma GIS</div>
       </div>
     </div>
 
-    <div class="right" style="display: flex; align-items: center; gap: 10px;">
+    <div class="right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
       <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🏠 Inicio</a>
       <a class="btn outline" href="resultados.html?ubicacion=Misiones" style="font-size: 0.85rem;">🌱 Recomendador Agrícola</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
   </header>
 
-  <main class="container" style="max-width: 1280px; margin-top: 20px;">
+  <main class="container" style="max-width: 1280px; margin-top: 20px; box-sizing: border-box;">
 
     <!-- Banner Introductorio del Módulo -->
-    <div class="card" style="margin-bottom: 20px; padding: 20px; border-left: 5px solid var(--verde-principal);">
-      <h2 style="margin-top: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 10px;">
-        <span>🌲</span> Módulo Experimental: Análisis Forestal y Teledetección
+    <div class="card" style="margin-bottom: 20px; padding: 20px; border-left: 5px solid var(--verde-principal); box-sizing: border-box; overflow: hidden;">
+      <h2 style="margin-top: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 1.4rem;">
+        <span>🌲</span> Análisis Forestal y Teledetección Satelital
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
-        Herramienta de seguimiento de lotes forestales basada en el catálogo oficial de imágenes satelitales multiespectrales <strong>Sentinel-2 Level-2A (Copernicus Data Space Ecosystem)</strong>.
-        Permite delimitar lotes en GeoJSON, calcular superficie, consultar índices NDVI y realizar detección preliminar multitemporal de cambios de vegetación con trazabilidad técnica.
+        Plataforma de seguimiento e información territorial para lotes forestales basada en el catálogo oficial multiespectral <strong>Sentinel-2 Level-2A (Copernicus Data Space Ecosystem)</strong>.
+        Delimitá geometrías GeoJSON, calculá superficie exacta, consultá índices NDVI de vigor vegetativo y realizá análisis multitemporal de cambios.
       </p>
     </div>
 
     <!-- Layout Principal: Mapa y Panel del Lote -->
-    <div style="display: grid; grid-template-columns: minmax(320px, 1.3fr) minmax(300px, 0.9fr); gap: 20px; margin-bottom: 25px;" class="forest-layout">
+    <div class="forest-layout" style="margin-bottom: 25px;">
 
       <!-- Columna Izquierda: Mapa Leaflet y Herramientas -->
-      <div class="card" style="padding: 15px; display: flex; flex-direction: column; gap: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0; color: var(--verde-principal);">🗺️ Delimitación del Lote Forestal</h3>
-          <span style="font-size: 0.8rem; color: var(--texto-secundario);">Sentinel-2 L2A</span>
+      <div class="card" style="padding: 18px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <h3 style="margin: 0; color: var(--verde-principal); font-size: 1.15rem;">🗺️ Delimitación del Lote Forestal</h3>
+          <span style="font-size: 0.8rem; color: var(--texto-secundario); font-weight: 600; background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 4px;">Copernicus Sentinel-2 L2A</span>
+        </div>
+
+        <!-- Buscador Rápido de Ubicación / Provincia -->
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <label for="select-region" style="font-size: 0.85rem; font-weight: bold;">📍 Ir a Zona Forestal:</label>
+          <select id="select-region" style="flex: 1; min-width: 180px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); cursor: pointer;">
+            <option value="misiones">Misiones (Eldorado / San Pedro)</option>
+            <option value="corrientes">Corrientes (Ituzaingó / Santo Tomé)</option>
+            <option value="entrerios">Entre Ríos (Concordia / Delta)</option>
+            <option value="buenosaires">Buenos Aires Sur (Eucalyptus Globulus)</option>
+            <option value="mendoza">Mendoza (Alamos / Sauce Riego)</option>
+            <option value="patagonia">Patagonia (Pino Ponderosa / Bariloche)</option>
+          </select>
+          <button id="btn-gps-location" class="btn primary" style="font-size: 0.85rem; padding: 7px 14px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+            📍 Usar mi Ubicación GPS
+          </button>
         </div>
 
         <!-- Contenedor del Mapa -->
-        <div id="forest-map" style="height: 420px; border-radius: 8px; border: 1px solid var(--borde-suave); overflow: hidden;"></div>
+        <div id="forest-map" style="height: 420px; border-radius: 8px; border: 1px solid var(--borde-suave); overflow: hidden; width: 100%;"></div>
 
         <!-- Botonera de interacción con la geometría -->
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">✏️ Dibujar Lote en Mapa</button>
-          <button id="btn-load-sample" class="btn secondary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Lote Demo (Misiones)</button>
+          <button id="btn-load-sample" class="btn secondary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Lote Misiones</button>
           <button id="btn-toggle-ndvi" class="btn outline" style="font-size: 0.85rem; padding: 8px 14px;">🎨 Alternar Capa NDVI</button>
         </div>
       </div>
 
       <!-- Columna Derecha: Inspector GeoJSON y Datos del Lote -->
-      <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
-        <h3 style="margin-top: 0; color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 8px;">
+      <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 15px; box-sizing: border-box; overflow: hidden;">
+        <h3 style="margin-top: 0; color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 8px; font-size: 1.15rem;">
           📋 Datos del Lote y Geometría GeoJSON
         </h3>
 
         <!-- Nombre del Lote -->
         <div>
-          <label style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Nombre del Lote:</label>
-          <input id="lot-name-input" type="text" value="Lote Experimental Misiones Nordeste" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+          <label for="lot-name-input" style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Nombre del Lote / Predio:</label>
+          <input id="lot-name-input" type="text" value="Lote Forestal Misiones Nordeste" style="width: 100%; box-sizing: border-box; padding: 9px 12px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
         </div>
 
         <!-- Indicadores Rápidos -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+          <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave); word-break: break-word;">
             <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie:</span>
             <strong id="lot-area-val" style="font-size: 1.1rem; color: var(--verde-principal);">120.5 ha</strong>
           </div>
-          <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
+          <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave); word-break: break-word;">
             <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Centroide Coordenadas:</span>
             <strong id="lot-coords-val" style="font-size: 0.85rem;">-26.875, -54.650</strong>
           </div>
@@ -96,20 +112,20 @@
 
         <!-- Entrada / Edición de GeoJSON manual -->
         <div>
-          <label style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Geometría GeoJSON (Input / Output):</label>
-          <textarea id="geojson-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
+          <label for="geojson-textarea" style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Geometría GeoJSON (Input / Output):</label>
+          <textarea id="geojson-textarea" rows="6" style="width: 100%; box-sizing: border-box; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical; word-break: break-all;"></textarea>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-          <button id="btn-apply-geojson" class="btn primary" style="font-size: 0.8rem; padding: 8px 12px; flex: 1;">📥 Cargar GeoJSON</button>
-          <button id="btn-download-geojson" class="btn outline" style="font-size: 0.8rem; padding: 8px 12px; flex: 1;">💾 Descargar GeoJSON</button>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button id="btn-apply-geojson" class="btn primary" style="font-size: 0.8rem; padding: 8px 12px; flex: 1; min-width: 120px;">📥 Cargar GeoJSON</button>
+          <button id="btn-download-geojson" class="btn outline" style="font-size: 0.8rem; padding: 8px 12px; flex: 1; min-width: 120px;">💾 Descargar GeoJSON</button>
         </div>
       </div>
 
     </div>
 
     <!-- Sección de Serie Temporal de Adquisiciones Satelitales -->
-    <div id="timeline-container" class="card" style="margin-bottom: 25px; padding: 20px;">
+    <div id="timeline-container" class="card" style="margin-bottom: 25px; padding: 20px; box-sizing: border-box; overflow: hidden;">
       <!-- Cargado dinámicamente desde ForestTimeline.js -->
     </div>
 
@@ -121,14 +137,14 @@
     </div>
 
     <!-- Contenedor del Reporte Técnico Exportable -->
-    <div id="report-container">
+    <div id="report-container" style="box-sizing: border-box; overflow: hidden;">
       <!-- Cargado dinámicamente desde ChangeReport.js -->
     </div>
 
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Módulo Experimental de Análisis Forestal v1.0</small>
+    <small>Agro Consultas — Análisis Forestal v1.0</small>
   </footer>
 
   <!-- Leaflet JS -->
@@ -165,17 +181,25 @@
       // 3. Inicializar Componente de Reporte
       reportComp = new ChangeReport('report-container');
 
-      // Botones de interacción
-      document.getElementById('btn-draw-lot').addEventListener('click', () => {
+      // Botones e interacción de ubicación / GPS
+      document.getElementById('btn-gps-location')?.addEventListener('click', () => {
+        forestMap.locateUserGPS();
+      });
+
+      document.getElementById('select-region')?.addEventListener('change', (e) => {
+        forestMap.goToRegion(e.target.value);
+      });
+
+      document.getElementById('btn-draw-lot')?.addEventListener('click', () => {
         alert('Haz click en 3 o más puntos sobre el mapa para cerrar el polígono del lote.');
         forestMap.startDrawing();
       });
 
-      document.getElementById('btn-load-sample').addEventListener('click', () => {
+      document.getElementById('btn-load-sample')?.addEventListener('click', () => {
         forestMap.loadDefaultSampleLot();
       });
 
-      document.getElementById('btn-apply-geojson').addEventListener('click', () => {
+      document.getElementById('btn-apply-geojson')?.addEventListener('click', () => {
         const text = document.getElementById('geojson-textarea').value;
         try {
           const parsed = JSON.parse(text);
@@ -185,7 +209,7 @@
         }
       });
 
-      document.getElementById('btn-download-geojson').addEventListener('click', () => {
+      document.getElementById('btn-download-geojson')?.addEventListener('click', () => {
         const feat = forestMap.getCurrentFeature();
         if (!feat) return alert('No hay lote seleccionado.');
         const blob = new Blob([JSON.stringify(feat, null, 2)], { type: 'application/json' });
@@ -196,7 +220,7 @@
         a.click();
       });
 
-      document.getElementById('btn-toggle-ndvi').addEventListener('click', () => {
+      document.getElementById('btn-toggle-ndvi')?.addEventListener('click', () => {
         if (currentAnalysisData?.ndvi?.analysisA?.gridSample) {
           forestMap.renderNDVIOverlay(currentAnalysisData.ndvi.analysisA.gridSample);
         } else {
@@ -204,7 +228,7 @@
         }
       });
 
-      document.getElementById('btn-run-analysis').addEventListener('click', () => {
+      document.getElementById('btn-run-analysis')?.addEventListener('click', () => {
         ejecutarAnalisis('2025-08-15', '2026-08-15');
       });
 
@@ -218,7 +242,7 @@
       const btn = document.getElementById('btn-run-analysis');
       if (btn) {
         btn.disabled = true;
-        btn.innerText = '⏳ Consultado catálogo Copernicus STAC y procesando NDVI...';
+        btn.innerText = '⏳ Consultando catálogo Copernicus STAC y procesando NDVI...';
       }
 
       const feature = forestMap.getCurrentFeature();
