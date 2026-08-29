@@ -16,12 +16,15 @@ import { generateRecommendations } from './services/recommendationEngine.js';
 let mapInstance = null;
 let currentMarker = null;
 let subregionesLayers = [];
+let userLocationCircle = null;
+let watchPositionId = null;
 
 // Variables para el Simulador de Lote
 let simuladorValoresPersonalizados = null;
 let currentUbicacionNombre = "Argentina";
 let currentLat = -38.4161;
 let currentLng = -63.6167;
+let currentRadioKm = 15;
 
 /**
  * Inicializa el mapa interactivo de Leaflet
@@ -73,11 +76,42 @@ export async function inicializarMapa(provinciaRaw) {
     procesarSeleccionCoordenadas(lat, lng);
   });
 
-  // Inicializar geolocalización
+  // Inicializar geolocalización y selector de alcance
   const btnGeo = document.getElementById("btn-geolocalizar");
   if (btnGeo) {
     btnGeo.addEventListener("click", usarGeolocalizacion);
   }
+
+  const selectAlcance = document.getElementById("select-alcance-radio");
+  if (selectAlcance) {
+    selectAlcance.addEventListener("change", (e) => {
+      currentRadioKm = parseFloat(e.target.value) || 15;
+      if (currentLat && currentLng) {
+        dibujarCirculoAlcance(currentLat, currentLng, currentRadioKm);
+      }
+    });
+  }
+}
+
+/**
+ * Dibuja un círculo de alcance/radio alrededor de la ubicación seleccionada o del usuario
+ */
+export function dibujarCirculoAlcance(lat, lng, radioKm) {
+  if (!mapInstance) return;
+
+  if (userLocationCircle) {
+    mapInstance.removeLayer(userLocationCircle);
+    userLocationCircle = null;
+  }
+
+  userLocationCircle = L.circle([lat, lng], {
+    color: '#27ae60',
+    fillColor: '#2ecc71',
+    fillOpacity: 0.15,
+    weight: 2,
+    dashArray: '5, 5',
+    radius: radioKm * 1000
+  }).addTo(mapInstance);
 }
 
 /**
@@ -171,6 +205,8 @@ export async function procesarSeleccionCoordenadas(lat, lng) {
   currentLat = lat;
   currentLng = lng;
 
+  dibujarCirculoAlcance(lat, lng, currentRadioKm);
+
   const provinciaKey = await findProvinceByCoords(lat, lng);
   if (!provinciaKey) return;
 
@@ -219,6 +255,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng) {
       <strong>📍 Ubicación Seleccionada</strong>
       <span style="font-weight: 600; color: var(--verde-principal);">${nombreTerritorio}</span>
       <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario);">(Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})</span>
+      <span style="font-size: 0.8rem; display: block; color: var(--verde-principal); font-weight: 600; margin-top: 2px;">🎯 Alcance de Análisis: ${currentRadioKm} km alrededor</span>
     </div>
 
     <!-- Clima en Vivo (Fase B) -->
@@ -306,7 +343,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng) {
 }
 
 /**
- * Usa la geolocalización del Navegador
+ * Usa la geolocalización del Navegador en tiempo real (con seguimiento adaptativo)
  */
 export function usarGeolocalizacion() {
   if (!navigator.geolocation) {
@@ -317,31 +354,67 @@ export function usarGeolocalizacion() {
   const btnGeo = document.getElementById("btn-geolocalizar");
   if (btnGeo) {
     btnGeo.disabled = true;
-    btnGeo.innerText = "📍 Buscando ubicación...";
+    btnGeo.innerText = "📡 Obteniendo Ubicación GPS...";
   }
 
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const { latitude, longitude } = position.coords;
+  const handlePositionSuccess = (position) => {
+    const { latitude, longitude } = position.coords;
 
-      if (mapInstance) {
-        mapInstance.setView([latitude, longitude], 9);
-      }
-      procesarSeleccionCoordenadas(latitude, longitude);
+    if (mapInstance) {
+      let targetZoom = 11;
+      if (currentRadioKm <= 5) targetZoom = 13;
+      else if (currentRadioKm <= 15) targetZoom = 11;
+      else if (currentRadioKm <= 35) targetZoom = 10;
+      else targetZoom = 9;
 
-      if (btnGeo) {
-        btnGeo.disabled = false;
-        btnGeo.innerText = "📍 Usar mi Geolocalización";
+      mapInstance.setView([latitude, longitude], targetZoom);
+    }
+
+    procesarSeleccionCoordenadas(latitude, longitude);
+
+    if (btnGeo) {
+      btnGeo.disabled = false;
+      btnGeo.innerText = "🟢 Ubicación en Tiempo Real Activa";
+      btnGeo.style.background = "#27ae60";
+    }
+  };
+
+  const handlePositionError = (error) => {
+    console.warn("Geolocalización en tiempo real con error, reintentando de forma estándar:", error);
+    navigator.geolocation.getCurrentPosition(
+      handlePositionSuccess,
+      (err) => {
+        alert("No se pudo obtener la ubicación en tiempo real. Verificá los permisos GPS en tu dispositivo.");
+        if (btnGeo) {
+          btnGeo.disabled = false;
+          btnGeo.innerText = "📍 Usar Mi Ubicación en Tiempo Real";
+          btnGeo.style.background = "";
+        }
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  };
+
+  if (watchPositionId !== null) {
+    navigator.geolocation.clearWatch(watchPositionId);
+    watchPositionId = null;
+  }
+
+  navigator.geolocation.getCurrentPosition(handlePositionSuccess, handlePositionError, {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 0
+  });
+
+  watchPositionId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords;
+      if (Math.abs(latitude - currentLat) > 0.001 || Math.abs(longitude - currentLng) > 0.001) {
+        procesarSeleccionCoordenadas(latitude, longitude);
       }
     },
-    (error) => {
-      alert("No se pudo obtener la geolocalización. Asegúrate de otorgar permisos.");
-      if (btnGeo) {
-        btnGeo.disabled = false;
-        btnGeo.innerText = "📍 Usar mi Geolocalización";
-      }
-    },
-    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    (err) => console.log("Watch position update error:", err),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
   );
 }
 

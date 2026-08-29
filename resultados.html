@@ -65,7 +65,18 @@
               <p>Esperando selección de punto o geolocalización...</p>
             </div>
           </div>
-          <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 15px;">📍 Usar mi Geolocalización</button>
+          <div style="margin-top: 15px; border-top: 1px solid var(--borde-suave); padding-top: 12px;">
+            <label for="select-alcance-radio" style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 6px; color: var(--verde-principal);">
+              🎯 Alcance / Radio de Análisis:
+            </label>
+            <select id="select-alcance-radio" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); cursor: pointer; font-size: 0.85rem;">
+              <option value="5">5 km (Lote Específico / Microzona)</option>
+              <option value="15" selected>15 km (Radio Local / Zona Paraje)</option>
+              <option value="35">35 km (Subregión Departamental)</option>
+              <option value="75">75 km (Alcance Regional Amplio)</option>
+            </select>
+          </div>
+          <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 12px;">📍 Usar Mi Ubicación en Tiempo Real</button>
         </div>
       </div>
     </div>
@@ -127,9 +138,9 @@
         </div>
       </div>
 
-      <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-        <button id="btn-simular" class="btn primary" style="padding: 10px 20px;">🔄 Recalcular Compatibilidad con Simulador</button>
-        <button id="btn-restablecer-sim" class="btn secondary" style="padding: 10px 20px;">↩️ Reestablecer a Valores del Mapa</button>
+      <div style="margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px;">
+        <button id="btn-simular" class="btn primary" style="padding: 10px 16px; flex: 1; min-width: 200px;">🔄 Recalcular Compatibilidad con Simulador</button>
+        <button id="btn-restablecer-sim" class="btn secondary" style="padding: 10px 16px; flex: 1; min-width: 200px;">↩️ Reestablecer a Valores del Mapa</button>
       </div>
     </div>
 

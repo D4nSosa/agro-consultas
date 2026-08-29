@@ -56,7 +56,7 @@ export class ForestMap {
         ]]
       },
       properties: {
-        name: "Lote Experimental Misiones Nordeste"
+        name: "Lote Misiones Nordeste"
       }
     };
 

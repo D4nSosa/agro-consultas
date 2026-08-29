@@ -43,7 +43,7 @@ export class ChangeReport {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Nombre del Lote:</span>
-            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal Experimental'}</strong>
+            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal Misiones'}</strong>
           </div>
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>

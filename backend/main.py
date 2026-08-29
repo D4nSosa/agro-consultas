@@ -77,7 +77,7 @@ def get_sample_lots():
     return [
         {
             "id": "lote-misiones-01",
-            "name": "Lote Experimental Misiones Nordeste",
+            "name": "Lote Misiones Nordeste",
             "province": "Misiones",
             "areaHa": 120.5,
             "centroid": {"lat": -26.875, "lng": -54.650},
