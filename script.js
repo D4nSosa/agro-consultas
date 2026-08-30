@@ -573,6 +573,8 @@ window.renderRecomendaciones = renderRecomendaciones;
 document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const ubic = params.get("ubicacion") || "Argentina";
+  const paramLat = params.get("lat");
+  const paramLng = params.get("lng");
 
   // Inicialización del Simulador de Lote
   const simPh = document.getElementById("sim-ph");
@@ -622,6 +624,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // Inicializar mapa de forma segura
   setTimeout(async () => {
     await inicializarMapa(ubic);
+
+    // Si se pasaron coordenadas explícitas por URL
+    if (paramLat && paramLng) {
+      const latVal = parseFloat(paramLat);
+      const lngVal = parseFloat(paramLng);
+      if (!isNaN(latVal) && !isNaN(lngVal)) {
+        await procesarSeleccionCoordenadas(latVal, lngVal);
+        return;
+      }
+    }
 
     // Si hay una provincia en la URL, cargar sus datos en el panel lateral e inicializar recomendaciones
     if (ubic && ubic !== "Argentina") {

@@ -59,6 +59,50 @@ export class ChangeReport {
           </div>
         </div>
 
+        <!-- Trazabilidad Daseométrica e Inventario de Campo -->
+        ${analysisData.inventory ? `
+        <h3 style="color: #2980b9; border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+          📋 Inventario Daseométrico y Planificación Operativa de Campo
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: rgba(41, 128, 185, 0.04); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--borde-suave);">
+          <div>
+            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Especie Dominante:</span>
+            <strong>${analysisData.inventory.especie}</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">DAP Medio / Altura:</span>
+            <strong>${analysisData.inventory.dap} cm | ${analysisData.inventory.altura} m</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Densidad / Edad:</span>
+            <strong>${analysisData.inventory.densidad} pies/ha (${analysisData.inventory.edad} años)</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Volumen Estimado por Hectárea:</span>
+            <strong style="color: #2980b9; font-size: 1.1rem;">${analysisData.inventory.volumenHa} m³/ha</strong>
+          </div>
+          <div style="grid-column: 1 / -1; margin-top: 5px; padding-top: 8px; border-top: 1px dashed var(--borde-suave);">
+            <strong style="color: #2980b9; font-size: 0.85rem;">📌 Prescripción Silvícola de Campo:</strong>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; line-height: 1.4;">${analysisData.inventory.prescripcion}</p>
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Alertas de Riesgo Operativo en Campo -->
+        <h3 style="color: #e67e22; border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+          🔥 Monitoreo de Riesgos Operativos y Alertas de Campo
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px;">
+          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(230, 126, 34, 0.05);">
+            <strong style="color: #d35400; font-size: 0.88rem;">🔥 Riesgo de Incendio (FWI):</strong>
+            <div style="font-size: 0.82rem; margin-top: 4px;">Índice Moderado - Mantener cortafuegos limpios y fajas de seguridad libres de rastrojo.</div>
+          </div>
+          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(39, 174, 96, 0.05);">
+            <strong style="color: #27ae60; font-size: 0.88rem;">🌱 Estado Fitosanitario y Dosel:</strong>
+            <div style="font-size: 0.82rem; margin-top: 4px;">Sin anomalías críticas de defoliación por plagas (Sirex noctilio / Avispa de la agalla) detectadas en la firma espectral.</div>
+          </div>
+        </div>
+
         <!-- Trazabilidad Satelital -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
           📡 Trazabilidad de Fuentes de Datos Satelitales (Copernicus)

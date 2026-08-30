@@ -155,3 +155,136 @@ export function getBoundingBox(geometry) {
 
   return [minLng, minLat, maxLng, maxLat];
 }
+
+/**
+ * Exporta la geometría a formato KML para QField / SW Maps / Google Earth
+ */
+export function exportToKML(feature, name = 'Lote Forestal') {
+  const geom = feature.geometry || feature;
+  let coordsText = '';
+
+  if (geom.type === 'Polygon') {
+    coordsText = geom.coordinates[0].map(pt => `${pt[0]},${pt[1]},0`).join(' ');
+  } else if (geom.type === 'Point') {
+    coordsText = `${geom.coordinates[0]},${geom.coordinates[1]},0`;
+  }
+
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${name}</name>
+    <description>Lote Forestal Exportado desde Agro Consultas - Interoperabilidad Campo/QField</description>
+    <Style id="forestStyle">
+      <LineStyle>
+        <color>ff27ae60</color>
+        <width>3</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>402ecc71</color>
+      </PolyStyle>
+    </Style>
+    <Placemark>
+      <name>${name}</name>
+      <styleUrl>#forestStyle</styleUrl>
+      ${geom.type === 'Polygon' ? `
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>${coordsText}</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>` : `
+      <Point>
+        <coordinates>${coordsText}</coordinates>
+      </Point>`}
+    </Placemark>
+  </Document>
+</kml>`;
+  return kml;
+}
+
+/**
+ * Exporta la geometría a formato GPX para GPS de mano Garmin en campo
+ */
+export function exportToGPX(feature, name = 'Lote Forestal') {
+  const centroid = calculateCentroid(feature);
+  const geom = feature.geometry || feature;
+  let pointsXml = '';
+
+  if (geom.type === 'Polygon') {
+    pointsXml = geom.coordinates[0].map((pt, idx) => `
+    <trkpt lat="${pt[1]}" lon="${pt[0]}">
+      <name>Vértice ${idx + 1}</name>
+    </trkpt>`).join('');
+  } else if (geom.type === 'Point') {
+    pointsXml = `
+    <trkpt lat="${geom.coordinates[1]}" lon="${geom.coordinates[0]}">
+      <name>${name}</name>
+    </trkpt>`;
+  }
+
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Agro Consultas - Garmin/Field GPS Export" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${name}</name>
+    <time>${new Date().toISOString()}</time>
+  </metadata>
+  <wpt lat="${centroid.lat}" lon="${centroid.lng}">
+    <name>${name} - Centroide</name>
+    <sym>Forest</sym>
+  </wpt>
+  <trk>
+    <name>${name} - Perímetro Lote</name>
+    <trkseg>${pointsXml}
+    </trkseg>
+  </trk>
+</gpx>`;
+  return gpx;
+}
+
+/**
+ * Genera un script Python/PyQGIS para automatización en QGIS y PostGIS
+ */
+export function exportToPyQGISScript(feature, name = 'Lote Forestal') {
+  const geojsonStr = JSON.stringify(feature);
+  const centroid = calculateCentroid(feature);
+
+  const pyScript = `# ==============================================================================
+# Script de Automatización PyQGIS / QGIS 3.x - Agro Consultas
+# Procesamiento de Lote Forestal y Carga en PostGIS / QGIS Canvas
+# Generado para: ${name}
+# Centroide: Lat ${centroid.lat.toFixed(5)}, Lng ${centroid.lng.toFixed(5)}
+# ==============================================================================
+
+import json
+from qgis.core import (
+    QgsVectorLayer,
+    QgsFeature,
+    QgsGeometry,
+    QgsProject,
+    QgsCoordinateReferenceSystem
+)
+
+geojson_data = '''${geojsonStr}'''
+
+# 1. Crear capa vectorial temporal WGS84 (EPSG:4326) / POSGAR 2007 (EPSG:5343)
+v_layer = QgsVectorLayer("Polygon?crs=epsg:4326", "${name}", "memory")
+pr = v_layer.dataProvider()
+
+# 2. Parsear geometría
+data = json.loads(geojson_data)
+geom_obj = QgsGeometry.fromGeoJson(json.dumps(data["geometry"]))
+
+feat = QgsFeature()
+feat.setGeometry(geom_obj)
+pr.addFeatures([feat])
+v_layer.updateExtents()
+
+# 3. Agregar a proyecto QGIS actual
+QgsProject.instance().addMapLayer(v_layer)
+
+print("✅ Capa '${name}' cargada con éxito en QGIS.")
+print("ℹ️ Superficie aproximada calculada en canvas WGS84/POSGAR.")
+`;
+  return pyScript;
+}

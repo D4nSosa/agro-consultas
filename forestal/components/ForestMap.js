@@ -15,6 +15,7 @@ export class ForestMap {
     this.drawPolygonPoints = [];
     this.isDrawing = false;
     this.currentFeature = null;
+    this.userGpsMarker = null;
 
     this.initMap();
   }
@@ -182,6 +183,55 @@ export class ForestMap {
     }
 
     this.ndviOverlayLayer = L.layerGroup(layersGroup).addTo(this.map);
+  }
+
+  useUserGPSLocation() {
+    if (!navigator.geolocation) {
+      alert("La geolocalización no está disponible en este navegador.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        this.map.setView([latitude, longitude], 14);
+
+        if (this.userGpsMarker) {
+          this.map.removeLayer(this.userGpsMarker);
+        }
+        this.userGpsMarker = L.circleMarker([latitude, longitude], {
+          radius: 8,
+          color: '#2980b9',
+          fillColor: '#3498db',
+          fillOpacity: 0.9
+        }).addTo(this.map).bindPopup("<b>📍 Tu Ubicación GPS en Campo</b>").openPopup();
+
+        // Crear polígono de 1 ha centrado en las coordenadas del usuario (~100m x 100m)
+        const delta = 0.00045;
+        const squarePoly = {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [[
+              [longitude - delta, latitude - delta],
+              [longitude + delta, latitude - delta],
+              [longitude + delta, latitude + delta],
+              [longitude - delta, latitude + delta],
+              [longitude - delta, latitude - delta]
+            ]]
+          },
+          properties: {
+            name: `Lote Campo GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+          }
+        };
+
+        this.setGeoJSON(squarePoly);
+      },
+      (err) => {
+        alert("No se pudo obtener la ubicación GPS del dispositivo: " + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }
 
   getCurrentFeature() {

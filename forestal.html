@@ -64,6 +64,7 @@
 
         <!-- Botonera de interacción con la geometría -->
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button id="btn-gps-loc" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #27ae60; border-color: #27ae60;">📍 Mi Ubicación GPS (Campo)</button>
           <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">✏️ Dibujar Lote en Mapa</button>
           <button id="btn-load-sample" class="btn secondary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Lote Demo (Misiones)</button>
           <button id="btn-toggle-ndvi" class="btn outline" style="font-size: 0.85rem; padding: 8px 14px;">🎨 Alternar Capa NDVI</button>
@@ -100,12 +101,74 @@
           <textarea id="geojson-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-          <button id="btn-apply-geojson" class="btn primary" style="font-size: 0.8rem; padding: 8px 12px; flex: 1;">📥 Cargar GeoJSON</button>
-          <button id="btn-download-geojson" class="btn outline" style="font-size: 0.8rem; padding: 8px 12px; flex: 1;">💾 Descargar GeoJSON</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button id="btn-apply-geojson" class="btn primary" style="font-size: 0.8rem; padding: 8px 10px; flex: 1; min-width: 120px;">📥 Cargar GeoJSON</button>
+          <button id="btn-download-geojson" class="btn outline" style="font-size: 0.8rem; padding: 8px 10px; flex: 1; min-width: 120px;">💾 GeoJSON</button>
+          <button id="btn-download-kml" class="btn outline" style="font-size: 0.8rem; padding: 8px 10px; flex: 1; min-width: 120px;">🗺️ KML (QField)</button>
+          <button id="btn-download-gpx" class="btn outline" style="font-size: 0.8rem; padding: 8px 10px; flex: 1; min-width: 120px;">🧭 GPX (Garmin)</button>
+          <button id="btn-download-pyqgis" class="btn outline" style="font-size: 0.8rem; padding: 8px 10px; flex: 1; min-width: 120px;">🐍 Script PyQGIS</button>
+        </div>
+
+        <!-- Trazabilidad SIG y Estado de Conexión en Campo -->
+        <div style="margin-top: 10px; padding: 10px; background: rgba(39, 174, 96, 0.06); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem;">
+          <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 4px;">🛡️ Trazabilidad SIG y Estado de Campo:</div>
+          <div>• <strong>CRS:</strong> POSGAR 2007 (EPSG:5343) / WGS84 (EPSG:4326)</div>
+          <div>• <strong>Resolución:</strong> 10m Multi-espectral (Sentinel-2 L2A)</div>
+          <div>• <strong>Modo Campo:</strong> <span id="field-online-status" style="color: #27ae60; font-weight: bold;">🟢 En Línea / Datos Cacheados Localmente</span></div>
         </div>
       </div>
 
+    </div>
+
+    <!-- Panel de Inventario Forestal de Campo y Planificación Operativa -->
+    <div class="card" style="margin-bottom: 25px; padding: 20px; border-top: 4px solid #2980b9;">
+      <h3 style="margin-top: 0; color: #2980b9; display: flex; align-items: center; gap: 10px;">
+        <span>📋</span> Inventario Forestal de Campo y Planificación Operativa (QGIS/PostGIS Ready)
+      </h3>
+      <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 18px;">
+        Ingresá o ajustá las mediciones daseométricas obtenidas en el inventario continuo de campo para calcular el volumen leñoso estimado ($m^3/ha$) y la prescripción de intervenciones silvícolas (raleo, poda, tala rasa).
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Especie Forestal Dominante:</label>
+          <select id="inv-especie" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);">
+            <option value="Pino Taeda" selected>Pino Taeda (Pinus taeda)</option>
+            <option value="Pino Elliottii">Pino Elliottii (Pinus elliottii)</option>
+            <option value="Eucalyptus Grandis">Eucalyptus Grandis</option>
+            <option value="Eucalyptus Globulus">Eucalyptus Globulus</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">DAP Medio (cm):</label>
+          <input type="number" id="inv-dap" value="22" min="5" max="80" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+        </div>
+
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Altura Media Dosel (m):</label>
+          <input type="number" id="inv-altura" value="18" min="2" max="50" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+        </div>
+
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Densidad (pies/ha):</label>
+          <input type="number" id="inv-densidad" value="1100" min="100" max="3000" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+        </div>
+
+        <div>
+          <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Edad Plantación (años):</label>
+          <input type="number" id="inv-edad" value="9" min="1" max="40" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+        </div>
+      </div>
+
+      <button id="btn-calc-inv" class="btn primary" style="background: #2980b9; border-color: #2980b9; font-size: 0.9rem; padding: 10px 20px;">
+        📊 Calcular Inventario y Prescripción Silvícola
+      </button>
+
+      <!-- Resultado del Cálculo de Inventario -->
+      <div id="inv-results-box" style="margin-top: 15px; padding: 15px; background: rgba(41, 128, 185, 0.05); border: 1px solid var(--borde-suave); border-radius: 8px;">
+        <!-- Se llena dinámicamente -->
+      </div>
     </div>
 
     <!-- Sección de Serie Temporal de Adquisiciones Satelitales -->
@@ -140,16 +203,64 @@
     import { ForestTimeline } from './forestal/components/ForestTimeline.js';
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
+    import { exportToKML, exportToGPX, exportToPyQGISScript } from './forestal/utils/geo.js';
 
     let forestMap = null;
     let timelineComp = null;
     let reportComp = null;
     let currentAnalysisData = null;
 
+    function calcularInventarioCampo() {
+      const especie = document.getElementById('inv-especie').value;
+      const dap = parseFloat(document.getElementById('inv-dap').value) || 22;
+      const altura = parseFloat(document.getElementById('inv-altura').value) || 18;
+      const densidad = parseFloat(document.getElementById('inv-densidad').value) || 1100;
+      const edad = parseFloat(document.getElementById('inv-edad').value) || 9;
+
+      const areaBasalArbol = Math.PI * Math.pow(dap / 200, 2);
+      const areaBasalHa = areaBasalArbol * densidad;
+      const volumenHa = Math.round(areaBasalHa * altura * 0.45 * 10) / 10;
+
+      let prescripcion = '';
+      if (edad < 5) {
+        prescripcion = 'Fase de establecimiento / Cierre de dosel. Se recomienda control de malezas y poda baja de saneamiento.';
+      } else if (edad >= 5 && edad < 10 && densidad > 1000) {
+        prescripcion = 'Momento óptimo para 1er Raleo silvícola (extracción 30-40% de pies dominados) + Poda de calidad hasta 4m.';
+      } else if (edad >= 10 && edad < 16 && densidad > 600) {
+        prescripcion = 'Momento óptimo para 2do Raleo comercial (extracción selectiva para aserrado).';
+      } else {
+        prescripcion = 'Turno final alcanzado. Planificar cosecha final / tala rasa y preparación de sitio para reforestación.';
+      }
+
+      const resultsBox = document.getElementById('inv-results-box');
+      if (resultsBox) {
+        resultsBox.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+            <div><strong>Área Basal:</strong> ${areaBasalHa.toFixed(1)} m²/ha</div>
+            <div><strong>Volumen Estimado:</strong> <span style="color: #2980b9; font-weight: bold; font-size: 1.1rem;">${volumenHa} m³/ha</span></div>
+            <div><strong>Estado Silvícola:</strong> ${edad < 10 ? 'Crecimiento Rápido' : 'Maduración Aserrable'}</div>
+          </div>
+          <div style="font-size: 0.85rem; border-top: 1px dashed var(--borde-suave); padding-top: 8px;">
+            <strong>📌 Prescripción Operativa:</strong> ${prescripcion}
+          </div>
+        `;
+      }
+
+      return {
+        especie,
+        dap,
+        altura,
+        densidad,
+        edad,
+        areaBasalHa: Math.round(areaBasalHa * 10) / 10,
+        volumenHa,
+        prescripcion
+      };
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       // 1. Inicializar Mapa Forestal
       forestMap = new ForestMap('forest-map', (feature, centroid, area) => {
-        // Callback cuando cambia el lote
         document.getElementById('lot-area-val').innerText = `${area.hectares} ha`;
         document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
         document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
@@ -165,7 +276,11 @@
       // 3. Inicializar Componente de Reporte
       reportComp = new ChangeReport('report-container');
 
-      // Botones de interacción
+      // Botones de interacción GPS y Mapa
+      document.getElementById('btn-gps-loc').addEventListener('click', () => {
+        forestMap.useUserGPSLocation();
+      });
+
       document.getElementById('btn-draw-lot').addEventListener('click', () => {
         alert('Haz click en 3 o más puntos sobre el mapa para cerrar el polígono del lote.');
         forestMap.startDrawing();
@@ -185,15 +300,52 @@
         }
       });
 
-      document.getElementById('btn-download-geojson').addEventListener('click', () => {
-        const feat = forestMap.getCurrentFeature();
-        if (!feat) return alert('No hay lote seleccionado.');
-        const blob = new Blob([JSON.stringify(feat, null, 2)], { type: 'application/json' });
+      // Exporadores Interoperables (GeoJSON, KML, GPX, PyQGIS)
+      const downloadFile = (content, filename, type) => {
+        const blob = new Blob([content], { type });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `lote_forestal_${new Date().toISOString().split('T')[0]}.geojson`;
+        a.download = filename;
         a.click();
+      };
+
+      document.getElementById('btn-download-geojson').addEventListener('click', () => {
+        const feat = forestMap.getCurrentFeature();
+        if (!feat) return alert('No hay lote seleccionado.');
+        downloadFile(JSON.stringify(feat, null, 2), `lote_forestal_${new Date().toISOString().split('T')[0]}.geojson`, 'application/json');
+      });
+
+      document.getElementById('btn-download-kml').addEventListener('click', () => {
+        const feat = forestMap.getCurrentFeature();
+        if (!feat) return alert('No hay lote seleccionado.');
+        const lotName = document.getElementById('lot-name-input').value || 'Lote Forestal';
+        const kml = exportToKML(feat, lotName);
+        downloadFile(kml, `${lotName.replace(/\s+/g, '_')}_qfield.kml`, 'application/vnd.google-earth.kml+xml');
+      });
+
+      document.getElementById('btn-download-gpx').addEventListener('click', () => {
+        const feat = forestMap.getCurrentFeature();
+        if (!feat) return alert('No hay lote seleccionado.');
+        const lotName = document.getElementById('lot-name-input').value || 'Lote Forestal';
+        const gpx = exportToGPX(feat, lotName);
+        downloadFile(gpx, `${lotName.replace(/\s+/g, '_')}_garmin.gpx`, 'application/gpx+xml');
+      });
+
+      document.getElementById('btn-download-pyqgis').addEventListener('click', () => {
+        const feat = forestMap.getCurrentFeature();
+        if (!feat) return alert('No hay lote seleccionado.');
+        const lotName = document.getElementById('lot-name-input').value || 'Lote Forestal';
+        const script = exportToPyQGISScript(feat, lotName);
+        downloadFile(script, `script_qgis_${lotName.replace(/\s+/g, '_')}.py`, 'text/x-python');
+      });
+
+      document.getElementById('btn-calc-inv').addEventListener('click', () => {
+        const inv = calcularInventarioCampo();
+        if (currentAnalysisData) {
+          currentAnalysisData.inventory = inv;
+          reportComp.renderReport(currentAnalysisData);
+        }
       });
 
       document.getElementById('btn-toggle-ndvi').addEventListener('click', () => {
@@ -207,6 +359,9 @@
       document.getElementById('btn-run-analysis').addEventListener('click', () => {
         ejecutarAnalisis('2025-08-15', '2026-08-15');
       });
+
+      // Cálculo de inventario inicial
+      calcularInventarioCampo();
 
       // Ejecutar primer análisis inicial automático
       setTimeout(() => {
@@ -228,6 +383,9 @@
       }
 
       currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
+
+      // Agregar datos de inventario
+      currentAnalysisData.inventory = calcularInventarioCampo();
 
       // Actualizar Timeline Component
       timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);

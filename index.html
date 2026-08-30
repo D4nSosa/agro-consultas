@@ -39,8 +39,9 @@
         <label for="provincias">Provincia</label>
         <input id="provincias" name="provincias" type="text" placeholder="Ej: Córdoba" required autocomplete="off" />
 
-        <div class="row" style="margin-top:8px;">
+        <div class="row" style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
           <button type="submit" class="btn primary">Buscar</button>
+          <button type="button" id="gpsBtn" class="btn primary" style="background:#27ae60; border-color:#27ae60;">📍 Usar Mi Ubicación</button>
           <button type="button" id="demoBtn" class="btn outline">Demo: Buenos Aires</button>
         </div>
       </form>
@@ -88,6 +89,28 @@
 
     document.getElementById('demoBtn').addEventListener('click', () => {
       window.location.href = 'resultados.html?ubicacion=Buenos%20Aires';
+    });
+
+    document.getElementById('gpsBtn').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('La geolocalización no está soportada en tu navegador.');
+        return;
+      }
+      const btn = document.getElementById('gpsBtn');
+      btn.innerText = '📡 Buscando GPS...';
+      btn.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          window.location.href = `resultados.html?lat=${latitude.toFixed(5)}&lng=${longitude.toFixed(5)}`;
+        },
+        (err) => {
+          alert('No se pudo obtener la ubicación GPS: ' + err.message);
+          btn.innerText = '📍 Usar Mi Ubicación';
+          btn.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
     });
 
     // Theme toggle persistent
