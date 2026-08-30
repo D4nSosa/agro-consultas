@@ -1,74 +1,108 @@
 /**
  * Servicio de Clima Integrado
- * Consolida datos de clima en vivo (Open-Meteo), alertas del SMN y climatología local de respaldo.
+ * Consolida datos de clima en vivo (Open-Meteo), alertas del SMN y climatología regional.
  */
 
 import { fetchLiveWeather } from './sources/openMeteoService.js';
 import { fetchSMNAlerts } from './sources/smnService.js';
+import { DataStatus, ConfidenceLevel } from '../utils/dataModel.js';
 
 /**
  * Consolida la información climática en vivo e histórica para una ubicación.
  * @param {number} lat - Latitud.
  * @param {number} lng - Longitud.
  * @param {string} provincia - Nombre de la provincia.
- * @param {Object} subregionStaticClima - Datos climatológicos estáticos de la subregión (de regiones.json).
+ * @param {Object|null} subregionStaticClima - Datos climatológicos estáticos de la subregión.
  * @returns {Promise<Object>} Reporte climático consolidado.
  */
 export async function getClimateData(lat, lng, provincia, subregionStaticClima = null) {
-  // 1. Ejecutar las peticiones asíncronas en paralelo para optimizar tiempo de respuesta
-  const [liveWeather, smnAlerts] = await Promise.all([
+  const [liveWeatherPoint, smnAlertsPoint] = await Promise.all([
     fetchLiveWeather(lat, lng),
     fetchSMNAlerts(provincia)
   ]);
 
-  // Mapear código de clima a texto en español
-  const code = liveWeather.codigoClima;
-  let descClima = "Despejado / Estable";
-  if (code >= 1 && code <= 3) descClima = "Parcialmente nublado";
-  if (code >= 45 && code <= 48) descClima = "Niebla / Neblina";
-  if (code >= 51 && code <= 67) descClima = "Llovizna / Lluvia ligera";
-  if (code >= 71 && code <= 77) descClima = "Nieve / Escarcha";
-  if (code >= 80 && code <= 82) descClima = "Chubascos de lluvia";
-  if (code >= 95) descClima = "Tormenta eléctrica potencial";
+  const liveVal = liveWeatherPoint?.value || liveWeatherPoint || {};
+  const tempActual = liveWeatherPoint?.available && (liveVal.temperatura !== undefined || liveWeatherPoint.temperatura !== undefined)
+    ? (liveVal.temperatura ?? liveWeatherPoint.temperatura)
+    : null;
 
-  // Generar alertas automáticas basadas en temperatura en vivo
-  const alertasInternas = [];
-  if (liveWeather.temperatura <= 3) {
-    alertasInternas.push({
-      titulo: "Alerta de Helada en Vivo",
-      descripcion: `Temperatura actual extremadamente baja de ${liveWeather.temperatura}°C. Proteger cultivos sensibles a heladas tardías/tempranas.`,
-      gravedad: "Alta"
-    });
-  } else if (liveWeather.temperatura >= 38) {
-    alertasInternas.push({
-      titulo: "Alerta de Golpe de Calor",
-      descripcion: `Temperatura extrema detectada de ${liveWeather.temperatura}°C. Alto riesgo de estrés hídrico y tasas elevadas de evapotranspiración.`,
-      gravedad: "Alta"
-    });
+  const vientoActual = liveWeatherPoint?.available && (liveVal.viento !== undefined || liveWeatherPoint.viento !== undefined)
+    ? (liveVal.viento ?? liveWeatherPoint.viento)
+    : null;
+
+  const weatherCode = liveWeatherPoint?.available
+    ? (liveVal.codigoClima ?? liveWeatherPoint.codigoClima ?? null)
+    : null;
+
+  let descClima = "Datos en vivo no disponibles";
+  if (weatherCode !== null && weatherCode !== undefined) {
+    if (weatherCode === 0) descClima = "Despejado / Cielo limpio";
+    else if (weatherCode >= 1 && weatherCode <= 3) descClima = "Parcialmente nublado";
+    else if (weatherCode >= 45 && weatherCode <= 48) descClima = "Niebla / Neblina";
+    else if (weatherCode >= 51 && weatherCode <= 67) descClima = "Llovizna / Lluvia ligera";
+    else if (weatherCode >= 71 && weatherCode <= 77) descClima = "Nieve / Escarcha";
+    else if (weatherCode >= 80 && weatherCode <= 82) descClima = "Chubascos de lluvia";
+    else if (weatherCode >= 95) descClima = "Tormenta eléctrica potencial";
   }
 
-  // Combinar alertas del SMN con nuestras alertas internas por umbrales
-  const todasLasAlertas = [...(smnAlerts.alertas || []), ...alertasInternas];
+  const alertasInternas = [];
+  if (tempActual !== null) {
+    if (tempActual <= 3) {
+      alertasInternas.push({
+        titulo: "Alerta de Helada en Vivo",
+        descripcion: `Temperatura actual extremadamente baja (${tempActual}°C). Proteger cultivos sensibles.`,
+        gravedad: "Alta"
+      });
+    } else if (tempActual >= 38) {
+      alertasInternas.push({
+        titulo: "Alerta de Golpe de Calor",
+        descripcion: `Temperatura extrema detectada (${tempActual}°C). Alto riesgo de estrés hídrico.`,
+        gravedad: "Alta"
+      });
+    }
+  }
 
-  // 3. Estructurar reporte final consolidado
+  const smnAlertsList = Array.isArray(smnAlertsPoint?.value) ? smnAlertsPoint.value : (Array.isArray(smnAlertsPoint?.alertas) ? smnAlertsPoint.alertas : []);
+  const todasLasAlertas = [...smnAlertsList, ...alertasInternas];
+
+  const precipAnuales = subregionStaticClima?.precipitaciones || "600 - 1200 mm (Regional)";
+  const tempMedia = subregionStaticClima?.temperatura !== undefined ? subregionStaticClima.temperatura : 18;
+  const heladas = subregionStaticClima?.heladas || "Bajo a Moderado";
+  const deficit = subregionStaticClima?.deficit_hidrico || "Moderado";
+
+  const overallStatus = liveWeatherPoint?.available ? DataStatus.REAL : (subregionStaticClima ? DataStatus.REGIONAL : DataStatus.UNAVAILABLE);
+  const overallConfidence = liveWeatherPoint?.available ? ConfidenceLevel.HIGH : (subregionStaticClima ? ConfidenceLevel.MEDIUM : ConfidenceLevel.LOW);
+
   return {
-    temperaturaActual: liveWeather.temperatura,
-    vientoActual: liveWeather.viento,
-    codigoClima: liveWeather.codigoClima,
+    temperaturaActual: tempActual !== null ? `${tempActual}°C` : "No disponible",
+    temperaturaActualNum: tempActual,
+    vientoActual: vientoActual !== null ? `${vientoActual} km/h` : "No disponible",
+    codigoClima: weatherCode,
     condicionActualTexto: descClima,
-    fuenteClimaVivo: liveWeather.fuente,
+    fuenteClimaVivo: liveWeatherPoint?.source || "Open-Meteo",
+    liveWeatherPoint: liveWeatherPoint,
 
-    // Alertas de contingencia consolidada
     alertas: todasLasAlertas,
-    fuenteAlertas: smnAlerts.fuente,
+    fuenteAlertas: smnAlertsPoint?.source || "SMN",
+    smnAlertsPoint: smnAlertsPoint,
 
-    // Históricos climatológicos regionales (de regiones.json) o fallback
-    precipitacionesAnuales: subregionStaticClima ? subregionStaticClima.precipitaciones : "Variable (600 - 1200 mm)",
-    temperaturaMedia: subregionStaticClima ? subregionStaticClima.temperatura : "Variable",
-    heladasPeriodo: subregionStaticClima ? subregionStaticClima.heladas : "Variable",
-    deficitHidrico: subregionStaticClima ? subregionStaticClima.deficit_hidrico : "Moderado",
-    estacionalidad: subregionStaticClima ? subregionStaticClima.estacionalidad : "Templado/Subtropical",
+    precipitacionesAnuales: precipAnuales,
+    precipitacionesNum: extractNumber(precipAnuales, 800),
+    temperaturaMedia: typeof tempMedia === 'number' ? `${tempMedia}°C (Promedio Regional)` : tempMedia,
+    temperaturaMediaNum: typeof tempMedia === 'number' ? tempMedia : 18,
+    heladasPeriodo: heladas,
+    deficitHidrico: deficit,
+    estacionalidad: subregionStaticClima?.estacionalidad || "Templado/Subtropical",
 
+    status: overallStatus,
+    confidence: overallConfidence,
     fechaActualizacion: new Date().toISOString()
   };
+}
+
+function extractNumber(str, defaultVal) {
+  if (typeof str === 'number') return str;
+  if (!str) return defaultVal;
+  const matches = str.match(/\d+/g);
+  return matches ? parseInt(matches[0], 10) : defaultVal;
 }
