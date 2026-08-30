@@ -20,6 +20,9 @@ def test_search_and_results():
         # Go to home page
         page.goto("http://localhost:8000/index.html")
 
+        # Verify GPS button exists on home page
+        assert page.is_visible("#gpsBtn")
+
         # Search for Cordoba
         page.fill("#provincias", "Cordoba")
         page.click("button[type='submit']")
@@ -174,6 +177,29 @@ def test_forestal_page():
 
         # Verify Leaflet map container
         assert page.is_visible("#forest-map")
+
+        # Verify GPS field location button
+        assert page.is_visible("#btn-gps-loc")
+
+        # Verify GIS interoperability buttons (KML, GPX, PyQGIS)
+        assert page.is_visible("#btn-download-kml")
+        assert page.is_visible("#btn-download-gpx")
+        assert page.is_visible("#btn-download-pyqgis")
+
+        # Verify Field Forestry Inventory panel
+        assert page.is_visible("#inv-especie")
+        assert page.is_visible("#inv-dap")
+        assert page.is_visible("#inv-altura")
+        assert page.is_visible("#inv-densidad")
+        assert page.is_visible("#inv-edad")
+        assert page.is_visible("#btn-calc-inv")
+
+        # Test calculating field inventory
+        page.fill("#inv-dap", "26")
+        page.fill("#inv-altura", "22")
+        page.click("#btn-calc-inv")
+        page.wait_for_timeout(300)
+        assert page.is_visible("#inv-results-box")
 
         # Verify lot controls and GeoJSON text area
         assert page.is_visible("#geojson-textarea")
