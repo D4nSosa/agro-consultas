@@ -62,9 +62,12 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       reqSuelo: cropData.reqSuelo || "Suelos fértiles estándar.",
       reqClima: cropData.reqClima || "Climas templados a cálidos estándar.",
       compatibilidad: compat.categoria,
+      confiabilidad: compat.confiabilidad,
+      confidenceKey: compat.confidenceKey,
       score: compat.score,
       motivos: compat.motivos,
       riesgos: compat.riesgos,
+      evidencia: compat.evidencia,
       sostenibilidad: sostenibilidad
     };
   });

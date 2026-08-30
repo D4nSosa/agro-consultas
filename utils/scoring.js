@@ -269,13 +269,68 @@ export function calcularCompatibilidad(crop, soil, climate, customWeights = {}) 
     categoria = "MEDIA";
   }
 
-  // Limpieza final de riesgos si no hay riesgos reales identificados
+  // Determinar Nivel de Confiabilidad y Evidencia (Fase 7, 8, 9)
+  const datosFaltantes = [];
+  const fuentesSet = new Set();
+
+  if (soil.fuente) fuentesSet.add(soil.fuente);
+  if (soil.metadatos?.fuente) fuentesSet.add(soil.metadatos.fuente);
+  if (climate.metadatos?.fuente) fuentesSet.add(climate.metadatos.fuente);
+  if (climate.fuente) fuentesSet.add(climate.fuente);
+
+  // Evaluar estado de datos de suelo
+  const soilStatus = soil.metadatos?.status || (soil.isSimulated ? 'simulated' : (soil.isRegional ? 'regional' : 'real'));
+  const soilConfidence = soil.metadatos?.confidence || 'medium';
+
+  if (soilStatus === 'simulated') {
+    datosFaltantes.push("Suelo: Valores ingresados manualmente en Simulador (datos simulados).");
+  } else if (soilStatus === 'regional') {
+    datosFaltantes.push("Suelo: Cartografía edáfica subregional (sin punto WMS local verificado).");
+  } else if (soilStatus === 'unavailable') {
+    datosFaltantes.push("Suelo: Datos de perfil de suelo de punto no disponibles (se asumen valores neutros por defecto).");
+  }
+
+  // Evaluar estado de datos de clima
+  const climateStatus = climate.metadatos?.status || 'real';
+  if (climateStatus === 'regional' || climateStatus === 'estimated') {
+    datosFaltantes.push("Clima: Serie climatológica regional (no puntual).");
+  } else if (climateStatus === 'unavailable') {
+    datosFaltantes.push("Clima: Estación meteorológica no disponible (se asume promedio provincial).");
+  }
+
+  // Calcular Confiabilidad Final
+  let nivelConfiabilidad = "Media";
+  let confidenceKey = "medium";
+
+  if (soilStatus === 'real' && climateStatus === 'real' && soilConfidence === 'high') {
+    nivelConfiabilidad = "Alta";
+    confidenceKey = "high";
+  } else if (soilStatus === 'unavailable' || soilStatus === 'simulated' || climateStatus === 'unavailable') {
+    nivelConfiabilidad = "Baja";
+    confidenceKey = "low";
+  } else {
+    nivelConfiabilidad = "Media";
+    confidenceKey = "medium";
+  }
+
   const realRiesgos = riesgos.length > 0 ? riesgos : [];
+  const realMotivos = motivos.length > 0 ? motivos : ["Las condiciones generales son aptas para el cultivo."];
+
+  const evidencia = {
+    factoresPositivos: realMotivos,
+    limitantes: realRiesgos,
+    datosFaltantes: datosFaltantes,
+    fuentesUtilizadas: Array.from(fuentesSet).filter(Boolean),
+    nivelConfiabilidad: nivelConfiabilidad
+  };
 
   return {
     score: finalScore,
     categoria: categoria,
-    motivos: motivos.length > 0 ? motivos : ["Las condiciones generales son aptas para el cultivo."],
-    riesgos: realRiesgos
+    confiabilidad: nivelConfiabilidad,
+    confidenceKey: confidenceKey,
+    motivos: realMotivos,
+    riesgos: realRiesgos,
+    evidencia: evidencia
   };
 }

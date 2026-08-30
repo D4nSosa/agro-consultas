@@ -87,33 +87,34 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
   } catch (err) {
     console.log("[INTA] Consulta de mapa de suelo en tiempo real no disponible, activando adaptador estático:", err.message);
 
-    // 3. Fallback: Usar datos estáticos de la subregión provistos por Agro Consultas
-    // Si no se pasaron, creamos una aproximación segura
-    const fallbackSuelo = subregionStaticData || {
-      tipo: "Suelo de Respaldo (Molisol / Aridisol)",
-      textura: "Franca",
-      drenaje: "Moderado",
-      limitantes: "Ninguna detectada",
-      aptitud: "General agrícola",
-      ph: 6.5
+    // 3. Cuando no hay respuesta remota puntual WMS/WFS de INTA:
+    // Si contamos con datos estáticos subregionales provistos por la cartografía regional, los marcamos explícitamente como REGIONAL.
+    if (subregionStaticData) {
+      const data = {
+        tipo: subregionStaticData.tipo || "No especificado",
+        textura: subregionStaticData.textura || "No especificada",
+        drenaje: subregionStaticData.drenaje || "No especificado",
+        limitantes: subregionStaticData.limitantes || "Ninguna",
+        aptitud: subregionStaticData.aptitud || "Mixta",
+        ph: subregionStaticData.ph !== undefined ? subregionStaticData.ph : 6.5,
+        escala: "1:250.000 (Cartografía Regional)",
+        fechaActualizacion: new Date().toISOString()
+      };
+      return { ...data, fuente: 'Cartografía Regional de Suelos (INTA/Agro Consultas)', cached: false, fallback: false, isRegional: true, isUnavailable: false };
+    }
+
+    // Si tampoco hay datos regionales, indicar explícitamente indisponibilidad sin inventar pH o textura ficticios
+    return {
+      available: false,
+      isUnavailable: true,
+      tipo: "Información de suelo no disponible",
+      textura: "No disponible",
+      drenaje: "No disponible",
+      limitantes: "No disponible",
+      aptitud: "No disponible",
+      ph: null,
+      fuente: 'INTA GeoServer (Sin Cobertura Puntual)',
+      message: 'Información de suelo no disponible para esta ubicación'
     };
-
-    const data = {
-      tipo: fallbackSuelo.tipo || "Molisol",
-      textura: fallbackSuelo.textura || "Franco-arcillosa",
-      drenaje: fallbackSuelo.drenaje || "Bueno",
-      limitantes: fallbackSuelo.limitantes || "Ninguna",
-      aptitud: fallbackSuelo.aptitud || "Mixta",
-      ph: fallbackSuelo.ph || 6.5,
-      escala: "1:250.000 (Mapa Regional Agro Consultas)",
-      fechaActualizacion: new Date().toISOString()
-    };
-
-    // Almacenar el fallback en caché para evitar re-intentos fallidos en el corto plazo
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (e) {}
-
-    return { ...data, fuente: 'INTA Base Estática Adaptada (Local)', cached: false, fallback: true };
   }
 }

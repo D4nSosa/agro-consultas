@@ -526,8 +526,11 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
           </div>
 
           <div class="compatibility-report premium-report">
-            <div class="report-header">
-              <span style="font-size: 1.1rem;">📍</span> Reporte de Compatibilidad Territorial
+            <div class="report-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div><span style="font-size: 1.1rem;">📍</span> Reporte de Compatibilidad y Evidencia</div>
+              <span class="badge-confidence" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,0.06); font-weight: 600;">
+                Confiabilidad: ${c.confiabilidad || 'Media'}
+              </span>
             </div>
             <div class="report-body">
               <div class="report-block">
@@ -539,9 +542,16 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
               <div class="report-block">
                 <strong>⚠️ Limitantes / Riesgos Identificados:</strong>
                 <ul style="color: var(--texto-secundario);">
-                  ${c.riesgos.map(r => `<li>${r}</li>`).join("")}
+                  ${c.riesgos.length > 0 ? c.riesgos.map(r => `<li>${r}</li>`).join("") : '<li>Ningún riesgo crítico detectado para esta ubicación.</li>'}
                 </ul>
               </div>
+              ${c.evidencia?.datosFaltantes?.length > 0 ? `
+              <div class="report-block" style="margin-top: 8px; font-size: 0.82rem; background: rgba(0,0,0,0.02); padding: 6px; border-radius: 6px;">
+                <strong>🔍 Trazabilidad y Observaciones:</strong>
+                <ul style="margin-top: 4px; padding-left: 18px; color: #555;">
+                  ${c.evidencia.datosFaltantes.map(d => `<li>${d}</li>`).join("")}
+                </ul>
+              </div>` : ''}
             </div>
           </div>
 

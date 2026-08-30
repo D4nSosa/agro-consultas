@@ -112,20 +112,19 @@ function parseSTACItem(item) {
 }
 
 /**
- * Servicio de contingencia / fallback con simulación rigurosa basada en el catálogo Copernicus para pruebas offline
+ * Adaptador cuando el servicio remoto STAC no está disponible o requiere contingencia.
+ * Genera metadatos etiquetados explícitamente como contingencia local / sin cobertura directa.
  */
 async function fallbackSearch(geometry, startDate, endDate, maxCloudCover) {
-  console.info('[satelliteService] Generando registros STAC trazables basados en coordenadas reales para el período.');
-
   const sampleDate = endDate || new Date().toISOString().split('T')[0];
 
   const fallbackProduct = {
     id: `S2A_MSIL2A_${sampleDate.replace(/-/g, '')}_T21JUG`,
     date: sampleDate,
     datetime: `${sampleDate}T14:22:10Z`,
-    cloudCover: Math.min(maxCloudCover, 8.4),
+    cloudCover: Math.min(maxCloudCover, 5.2),
     collection: 'sentinel-2-l2a',
-    source: 'Copernicus Sentinel-2 (Servicio Estándar)',
+    source: 'Copernicus Sentinel-2 (Base de Contingencia Local)',
     productType: 'Level-2A (Reflectancia en Superficie)',
     spatialResolution: '10 metros',
     bands: [
@@ -133,21 +132,23 @@ async function fallbackSearch(geometry, startDate, endDate, maxCloudCover) {
       { name: 'B08', description: 'Near Infrared / NIR (842 nm)', resolution: '10m' }
     ],
     assets: {
-      thumbnail: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/2024/preview.jpg',
+      thumbnail: null,
       visual: null,
       b04: null,
       b08: null
     },
     bbox: getBoundingBox(geometry),
-    isFallback: true
+    isFallback: true,
+    status: 'regional'
   };
 
   return {
     success: true,
-    source: 'Copernicus Data Space Ecosystem (Acceso Directo)',
+    source: 'Copernicus Data Space Ecosystem (Contingencia)',
     catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
     productsCount: 1,
     bestProduct: fallbackProduct,
-    products: [fallbackProduct]
+    products: [fallbackProduct],
+    isFallback: true
   };
 }
