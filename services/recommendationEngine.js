@@ -54,6 +54,12 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
     // Obtener recomendaciones de manejo y rotación sostenible
     const sostenibilidad = obtenerPracticasSostenibles(key);
 
+    const isReal = soilReport && soilReport.status === 'real';
+    const isSim = soilReport && (soilReport.status === 'simulated' || soilReport.esSimulado);
+
+    const labelConfianza = isReal ? 'ALTA (INTA WMS)' : (isSim ? 'DEMO / SIMULADO' : 'ESTIMACIÓN REGIONAL');
+    const classConfianza = isReal ? 'high' : (isSim ? 'simulated' : 'medium');
+
     return {
       nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
       descripcion: cropData.descripcion,
@@ -65,6 +71,9 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       score: compat.score,
       motivos: compat.motivos,
       riesgos: compat.riesgos,
+      datosFaltantes: compat.datosFaltantes || [],
+      confianza: labelConfianza,
+      nivelConfianza: classConfianza,
       sostenibilidad: sostenibilidad
     };
   });

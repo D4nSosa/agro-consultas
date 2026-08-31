@@ -27,6 +27,8 @@ export async function getSoilReport(lat, lng, subregionStaticSuelo = null, simul
     aptitud: baseSoil.aptitud,
     ph: baseSoil.ph,
     escala: baseSoil.escala,
+    status: baseSoil.status || 'regional',
+    confidence: baseSoil.confidence || 'medium',
     fuente: baseSoil.fuente,
     esSimulado
   };
@@ -50,7 +52,8 @@ export async function getSoilReport(lat, lng, subregionStaticSuelo = null, simul
     }
 
     if (esSimulado) {
-      reporteFinal.fuente = `${baseSoil.fuente} + Simulación de Lote Manual`;
+      reporteFinal.fuente = `${baseSoil.fuente} + Simulación de Lote Manual (DEMO)`;
+      reporteFinal.status = 'simulated';
       reporteFinal.esSimulado = true;
     }
   }

@@ -25,9 +25,15 @@ export function calcularCompatibilidad(crop, soil, climate, customWeights = {}) 
 
   const motivos = [];
   const riesgos = [];
+  const datosFaltantes = [];
+
+  const isSoilAvailable = soil && soil.status !== 'unavailable' && soil.ph !== null && soil.ph !== undefined;
+  if (!isSoilAvailable) {
+    datosFaltantes.push("Cartografía puntual de suelos no disponible en INTA GeoServer (evaluación adaptada a macroclima regional)");
+  }
 
   // Variables de control del suelo
-  let phSuelo = soil.ph || 6.5; // default neutro
+  let phSuelo = isSoilAvailable ? soil.ph : 6.5;
   const texturaSuelo = (soil.textura || '').toLowerCase();
   const drenajeSuelo = (soil.drenaje || '').toLowerCase();
   const limitantesSuelo = (soil.limitantes || '').toLowerCase();
@@ -45,7 +51,7 @@ export function calcularCompatibilidad(crop, soil, climate, customWeights = {}) 
   const reqSuelo = crop.requerimientos?.suelo || {};
 
   // Evaluación de pH
-  if (reqSuelo.phMin !== undefined && reqSuelo.phMin !== null) {
+  if (reqSuelo.phMin !== undefined && reqSuelo.phMin !== null && isSoilAvailable) {
     hasSoilData = true;
     if (phSuelo >= reqSuelo.phMin && phSuelo <= reqSuelo.phMax) {
       motivos.push(`✓ pH del suelo adecuado (${phSuelo.toFixed(1)}) para los requerimientos del cultivo (${reqSuelo.phMin}-${reqSuelo.phMax}).`);
@@ -275,7 +281,8 @@ export function calcularCompatibilidad(crop, soil, climate, customWeights = {}) 
   return {
     score: finalScore,
     categoria: categoria,
-    motivos: motivos.length > 0 ? motivos : ["Las condiciones generales son aptas para el cultivo."],
-    riesgos: realRiesgos
+    motivos: motivos.length > 0 ? motivos : ["Compatible con las condiciones agroclimáticas generales de la región."],
+    riesgos: realRiesgos,
+    datosFaltantes: datosFaltantes
   };
 }

@@ -39,15 +39,20 @@ export async function inicializarMapa(provinciaRaw) {
   let defaultLng = -63.6167;
   let defaultZoom = 4;
 
-  const key = normalizeKey(provinciaRaw);
-  const coords = await getProvinceCoordinates(key);
-  if (coords) {
-    defaultLat = coords.lat;
-    defaultLng = coords.lng;
-    defaultZoom = coords.zoom;
-    currentLat = coords.lat;
-    currentLng = coords.lng;
-    currentUbicacionNombre = provinciaRaw;
+  let coords = null;
+  const isSpecificUbicacion = provinciaRaw && provinciaRaw.trim() !== "" && provinciaRaw !== "Argentina";
+
+  if (isSpecificUbicacion) {
+    const key = normalizeKey(provinciaRaw);
+    coords = await getProvinceCoordinates(key);
+    if (coords) {
+      defaultLat = coords.lat;
+      defaultLng = coords.lng;
+      defaultZoom = coords.zoom;
+      currentLat = coords.lat;
+      currentLng = coords.lng;
+      currentUbicacionNombre = provinciaRaw;
+    }
   }
 
   if (mapInstance) {
@@ -59,10 +64,13 @@ export async function inicializarMapa(provinciaRaw) {
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '© OpenStreetMap contributors'
+    attribution: '© OpenStreetMap contributors | IGN Argentina'
   }).addTo(mapInstance);
 
-  if (coords) {
+  L.control.scale({ imperial: false, metric: true }).addTo(mapInstance);
+
+  if (isSpecificUbicacion && coords) {
+    const key = normalizeKey(provinciaRaw);
     colocarMarcador(defaultLat, defaultLng, provinciaRaw);
     await dibujarSubregionesColoreadas(key);
   }
@@ -196,6 +204,10 @@ export async function dibujarSubregionesColoreadas(provinciaKey) {
 export async function procesarSeleccionCoordenadas(lat, lng) {
   currentLat = lat;
   currentLng = lng;
+
+  if (mapInstance && mapInstance.getZoom() < 9) {
+    mapInstance.setView([lat, lng], 10);
+  }
 
   dibujarCirculoAlcance(lat, lng, currentRadioKm);
 
@@ -359,68 +371,61 @@ export function usarGeolocalizacion() {
   const btnGeo = document.getElementById("btn-geolocalizar");
   if (btnGeo) {
     btnGeo.disabled = true;
-    btnGeo.innerText = "📡 Obteniendo Ubicación GPS...";
+    btnGeo.innerText = "📡 Solicitando permiso de GPS...";
   }
 
   const handlePositionSuccess = (position) => {
-    const { latitude, longitude } = position.coords;
+    const { latitude, longitude, accuracy } = position.coords;
 
     if (mapInstance) {
-      let targetZoom = 11;
-      if (currentRadioKm <= 5) targetZoom = 13;
-      else if (currentRadioKm <= 15) targetZoom = 11;
+      let targetZoom = 12;
+      if (currentRadioKm <= 5) targetZoom = 14;
+      else if (currentRadioKm <= 15) targetZoom = 12;
       else if (currentRadioKm <= 35) targetZoom = 10;
       else targetZoom = 9;
 
       mapInstance.setView([latitude, longitude], targetZoom);
     }
 
+    const label = accuracy ? `Mi Ubicación GPS (±${Math.round(accuracy)}m)` : 'Mi Ubicación GPS';
+    colocarMarcador(latitude, longitude, label);
+
     procesarSeleccionCoordenadas(latitude, longitude);
 
     if (btnGeo) {
       btnGeo.disabled = false;
-      btnGeo.innerText = "🟢 Ubicación en Tiempo Real Activa";
+      const accLabel = accuracy ? ` (±${Math.round(accuracy)}m)` : '';
+      btnGeo.innerText = `🟢 Ubicación GPS Activa${accLabel}`;
       btnGeo.style.background = "#27ae60";
     }
   };
 
   const handlePositionError = (error) => {
-    console.warn("Geolocalización en tiempo real con error, reintentando:", error);
-    navigator.geolocation.getCurrentPosition(
-      handlePositionSuccess,
-      () => {
-        alert("No se pudo obtener la ubicación GPS.");
-        if (btnGeo) {
-          btnGeo.disabled = false;
-          btnGeo.innerText = "📍 Usar Mi Ubicación en Tiempo Real";
-          btnGeo.style.background = "";
-        }
-      },
-      { enableHighAccuracy: false, timeout: 10000 }
-    );
-  };
+    console.warn("Error de geolocalización GPS:", error);
+    let msg = "No se pudo obtener la ubicación GPS.";
 
-  if (watchPositionId !== null) {
-    navigator.geolocation.clearWatch(watchPositionId);
-    watchPositionId = null;
-  }
+    if (error.code === error.PERMISSION_DENIED) {
+      msg = "Permiso de ubicación rechazado. Podés seleccionar manualmente un punto en el mapa.";
+    } else if (error.code === error.POSITION_UNAVAILABLE) {
+      msg = "La ubicación GPS no está disponible en tu dispositivo. Podés seleccionar manualmente un punto en el mapa.";
+    } else if (error.code === error.TIMEOUT) {
+      msg = "Tiempo de espera agotado al consultar GPS. Podés seleccionar manualmente un punto en el mapa.";
+    }
+
+    alert(msg);
+
+    if (btnGeo) {
+      btnGeo.disabled = false;
+      btnGeo.innerText = "📍 Usar Mi Ubicación en Tiempo Real";
+      btnGeo.style.background = "";
+    }
+  };
 
   navigator.geolocation.getCurrentPosition(handlePositionSuccess, handlePositionError, {
     enableHighAccuracy: true,
     timeout: 10000,
     maximumAge: 0
   });
-
-  watchPositionId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const { latitude, longitude } = pos.coords;
-      if (Math.abs(latitude - currentLat) > 0.001 || Math.abs(longitude - currentLng) > 0.001) {
-        procesarSeleccionCoordenadas(latitude, longitude);
-      }
-    },
-    (err) => console.log("Watch position update error:", err),
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
-  );
 }
 
 /**
@@ -559,11 +564,50 @@ window.inicializarMapa = inicializarMapa;
 window.renderRecomendaciones = renderRecomendaciones;
 window.analyzeLocation = analyzeLocation;
 
+function renderEstadoInicialLimpio() {
+  const tituloUbicacion = document.getElementById("resultado_ubicacion");
+  const detailsContainer = document.getElementById("territory-details");
+  const cropContainer = document.getElementById("crop-results");
+
+  if (tituloUbicacion) {
+    tituloUbicacion.innerText = "Ninguna ubicación seleccionada";
+  }
+
+  if (detailsContainer) {
+    detailsContainer.innerHTML = `
+      <div class="empty-state" style="padding: 20px 10px; text-align: center;">
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 8px;">📍</span>
+        <strong style="display: block; font-size: 1rem; color: var(--verde-principal); margin-bottom: 5px;">
+          Seleccioná una ubicación para comenzar el análisis.
+        </strong>
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0;">
+          Hacé click en cualquier punto del mapa, usá el botón "Usar Mi Ubicación" o realizá una búsqueda desde la página principal.
+        </p>
+      </div>
+    `;
+  }
+
+  if (cropContainer) {
+    cropContainer.innerHTML = `
+      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 40px 20px;">
+        <span style="font-size: 2.8rem; display: block; margin-bottom: 12px;">🌾</span>
+        <h3 style="margin-top: 0; color: var(--verde-principal); font-weight: 700;">Seleccioná una ubicación para comenzar el análisis</h3>
+        <p style="color: var(--texto-secundario); max-width: 500px; margin: 0 auto;">
+          Seleccioná un punto específico sobre el mapa o usá tu geolocalización para obtener la evaluación de suelos, clima en vivo y aptitud agropecuaria.
+        </p>
+      </div>
+    `;
+  }
+}
+
 function initApp() {
   const params = new URLSearchParams(window.location.search);
-  const ubic = params.get("ubicacion") || "Argentina";
+  const rawUbic = params.get("ubicacion");
   const paramLat = params.get("lat");
   const paramLng = params.get("lng");
+
+  const hasSpecificQuery = (rawUbic && rawUbic.trim() !== "" && rawUbic !== "Argentina") || (paramLat && paramLng);
+  const ubic = rawUbic || "Argentina";
 
   const simPh = document.getElementById("sim-ph");
   const valPh = document.getElementById("val-ph");
@@ -581,6 +625,10 @@ function initApp() {
 
   if (btnSimular) {
     btnSimular.addEventListener("click", async () => {
+      if (!currentLat || !currentLng || currentUbicacionNombre === "Argentina") {
+        alert("Por favor, seleccioná primero una ubicación en el mapa.");
+        return;
+      }
       simuladorValoresPersonalizados = {
         ph: parseFloat(simPh.value),
         textura: simTextura.value,
@@ -604,13 +652,15 @@ function initApp() {
       if (simDrenaje) simDrenaje.value = "bueno";
       if (simLimitantes) simLimitantes.value = "ninguna";
 
-      await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng);
-      await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng);
+      if (currentLat && currentLng && currentUbicacionNombre !== "Argentina") {
+        await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng);
+        await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng);
+      }
     });
   }
 
   setTimeout(async () => {
-    await inicializarMapa(ubic);
+    await inicializarMapa(hasSpecificQuery ? ubic : null);
 
     if (paramLat && paramLng) {
       const latVal = parseFloat(paramLat);
@@ -621,7 +671,7 @@ function initApp() {
       }
     }
 
-    if (ubic && ubic !== "Argentina") {
+    if (hasSpecificQuery && ubic && ubic !== "Argentina") {
       const key = normalizeKey(ubic);
       const coords = await getProvinceCoordinates(key);
       if (coords) {
@@ -633,6 +683,8 @@ function initApp() {
       } else {
         await renderRecomendaciones(ubic);
       }
+    } else {
+      renderEstadoInicialLimpio();
     }
   }, 100);
 }

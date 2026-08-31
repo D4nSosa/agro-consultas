@@ -205,6 +205,10 @@ def test_forestal_page():
         assert page.is_visible("#geojson-textarea")
         assert page.is_visible("#btn-run-analysis")
 
+        # Load demo lot and execute analysis
+        page.click("#btn-load-sample")
+        page.click("#btn-run-analysis")
+
         # Wait for auto analysis to load timeline and report
         page.wait_for_selector(".timeline-card")
         assert page.is_visible("#printable-forest-report")
