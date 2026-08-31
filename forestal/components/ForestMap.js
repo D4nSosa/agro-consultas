@@ -33,14 +33,15 @@ export class ForestMap {
     // Capa satelital de OpenStreetMap / CartoDB Positron para contraste visual
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap contributors | Copernicus STAC'
+      attribution: '© OpenStreetMap contributors | Copernicus STAC | IGN Argentina'
     }).addTo(this.map);
+
+    L.control.scale({ imperial: false, metric: true }).addTo(this.map);
 
     // Eventos de click para dibujo interactivo
     this.map.on('click', (e) => this.handleMapClick(e));
 
-    // Lote predeterminado inicial (Lote experimental Misiones)
-    this.loadDefaultSampleLot();
+    // Estado inicial limpio: sin lote pre-cargado
   }
 
   loadDefaultSampleLot() {
@@ -57,7 +58,8 @@ export class ForestMap {
         ]]
       },
       properties: {
-        name: "Lote Misiones Nordeste"
+        name: "Lote Demo (Misiones)",
+        isDemo: true
       }
     };
 
@@ -124,10 +126,10 @@ export class ForestMap {
       }
     }).addTo(this.map);
 
-    // Ajustar vista del mapa al lote
+    // Ajustar vista del mapa al lote con zoom coherente
     const bounds = this.currentLayer.getBounds();
     if (bounds.isValid()) {
-      this.map.fitBounds(bounds, { padding: [30, 30] });
+      this.map.fitBounds(bounds, { padding: [35, 35], maxZoom: 16 });
     }
 
     const centroid = calculateCentroid(this.currentFeature);
@@ -191,9 +193,17 @@ export class ForestMap {
       return;
     }
 
+    const btnGps = document.getElementById("btn-gps-loc");
+    if (btnGps) {
+      btnGps.disabled = true;
+      btnGps.innerText = "📡 Consultando GPS...";
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude, accuracy } = pos.coords;
+        const accText = accuracy ? ` (±${Math.round(accuracy)}m)` : '';
+
         this.map.setView([latitude, longitude], 14);
 
         if (this.userGpsMarker) {
@@ -204,7 +214,7 @@ export class ForestMap {
           color: '#2980b9',
           fillColor: '#3498db',
           fillOpacity: 0.9
-        }).addTo(this.map).bindPopup("<b>📍 Tu Ubicación GPS en Campo</b>").openPopup();
+        }).addTo(this.map).bindPopup(`<b>📍 Tu Ubicación GPS en Campo</b><br>Precisión:${accText}`).openPopup();
 
         // Crear polígono de 1 ha centrado en las coordenadas del usuario (~100m x 100m)
         const delta = 0.00045;
@@ -226,11 +236,31 @@ export class ForestMap {
         };
 
         this.setGeoJSON(squarePoly);
+
+        if (btnGps) {
+          btnGps.disabled = false;
+          btnGps.innerText = `🟢 Ubicación GPS${accText}`;
+        }
       },
       (err) => {
-        alert("No se pudo obtener la ubicación GPS del dispositivo: " + err.message);
+        console.warn("Error GPS en campo:", err);
+        let msg = "No se pudo obtener la ubicación GPS.";
+        if (err.code === err.PERMISSION_DENIED) {
+          msg = "Permiso de ubicación rechazado. Podés seleccionar manualmente un punto en el mapa.";
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          msg = "La ubicación GPS no está disponible actualmente. Podés seleccionar un punto en el mapa.";
+        } else if (err.code === err.TIMEOUT) {
+          msg = "Tiempo de espera agotado al consultar GPS. Podés seleccionar manualmente un punto en el mapa.";
+        }
+
+        alert(msg);
+
+        if (btnGps) {
+          btnGps.disabled = false;
+          btnGps.innerText = "📍 Mi Ubicación GPS (Campo)";
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }
 

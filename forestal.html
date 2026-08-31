@@ -80,25 +80,25 @@
         <!-- Nombre del Lote -->
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Nombre del Lote:</label>
-          <input id="lot-name-input" type="text" value="Lote Misiones Nordeste" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+          <input id="lot-name-input" type="text" value="" placeholder="Ej: Lote 1 - Campo Norte" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
         </div>
 
         <!-- Indicadores Rápidos -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
             <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie:</span>
-            <strong id="lot-area-val" style="font-size: 1.1rem; color: var(--verde-principal);">120.5 ha</strong>
+            <strong id="lot-area-val" style="font-size: 1.1rem; color: var(--verde-principal);">0.0 ha</strong>
           </div>
           <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
             <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Centroide Coordenadas:</span>
-            <strong id="lot-coords-val" style="font-size: 0.85rem;">-26.875, -54.650</strong>
+            <strong id="lot-coords-val" style="font-size: 0.85rem;">Sin selección</strong>
           </div>
         </div>
 
         <!-- Entrada / Edición de GeoJSON manual -->
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Geometría GeoJSON (Input / Output):</label>
-          <textarea id="geojson-textarea" rows="6" style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
+          <textarea id="geojson-textarea" rows="6" placeholder="El GeoJSON del lote delimitado aparecerá aquí..." style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -173,7 +173,11 @@
 
     <!-- Sección de Serie Temporal de Adquisiciones Satelitales -->
     <div id="timeline-container" class="card" style="margin-bottom: 25px; padding: 20px;">
-      <!-- Cargado dinámicamente desde ForestTimeline.js -->
+      <div class="empty-state" style="text-align: center; padding: 25px;">
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🛰️</span>
+        <p><strong>Ningún lote seleccionado.</strong></p>
+        <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa, usá tu GPS o hacé click en "📍 Lote Demo (Misiones)" para consultar la serie temporal de Copernicus Sentinel-2.</p>
+      </div>
     </div>
 
     <!-- Botón Ejecutar Análisis Completo -->
@@ -288,6 +292,10 @@
 
       document.getElementById('btn-load-sample').addEventListener('click', () => {
         forestMap.loadDefaultSampleLot();
+        const feat = forestMap.getCurrentFeature();
+        if (feat && feat.properties) {
+          document.getElementById('lot-name-input').value = feat.properties.name || "Lote Demo (Misiones)";
+        }
       });
 
       document.getElementById('btn-apply-geojson').addEventListener('click', () => {
@@ -362,22 +370,22 @@
 
       // Cálculo de inventario inicial
       calcularInventarioCampo();
-
-      // Ejecutar primer análisis inicial automático
-      setTimeout(() => {
-        ejecutarAnalisis('2025-08-15', '2026-08-15');
-      }, 300);
     });
 
     async function ejecutarAnalisis(dateA, dateB) {
+      const feature = forestMap.getCurrentFeature();
+      if (!feature) {
+        alert("Por favor, delimitá un lote en el mapa o seleccioná 'Lote Demo' antes de ejecutar el análisis.");
+        return;
+      }
+
       const btn = document.getElementById('btn-run-analysis');
       if (btn) {
         btn.disabled = true;
         btn.innerText = '⏳ Consultado catálogo Copernicus STAC y procesando NDVI...';
       }
 
-      const feature = forestMap.getCurrentFeature();
-      const nameInput = document.getElementById('lot-name-input').value;
+      const nameInput = document.getElementById('lot-name-input').value || "Lote Forestal";
       if (feature && feature.properties) {
         feature.properties.name = nameInput;
       }

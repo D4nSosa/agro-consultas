@@ -40,11 +40,19 @@ export class ChangeReport {
         </div>
 
         <!-- Metadatos del Lote -->
+        ${(() => {
+          const isDemo = lot?.geometry?.properties?.isDemo || (lot?.geometry?.properties?.name || '').toLowerCase().includes('demo');
+          const badgeHtml = isDemo
+            ? `<span style="font-size:0.75rem; font-weight:bold; padding:2px 8px; border-radius:4px; background:#f39c12; color:#fff; margin-left:8px;">DEMO / DATOS DE DEMOSTRACIÓN</span>`
+            : `<span style="font-size:0.75rem; font-weight:bold; padding:2px 8px; border-radius:4px; background:#27ae60; color:#fff; margin-left:8px;">REAL / LOTE DELIMITADO</span>`;
+          return `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Nombre del Lote:</span>
-            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal Misiones'}</strong>
+            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong> ${badgeHtml}
           </div>
+          `;
+        })()}
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
             <strong>${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)</strong>
