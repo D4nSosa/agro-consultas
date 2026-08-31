@@ -37,12 +37,27 @@
       Provincia: <span id="resultado_ubicacion"></span>
     </h2>
 
-    <!-- Contenedor del mapa y panel lateral -->
+    <!-- Contenedor del mapa y panel lateral profesional -->
     <div class="map-section-container card" style="margin-bottom: 30px; padding: 0; overflow: hidden;">
+      <div class="map-header-bar" style="padding: 14px 20px; border-bottom: 1px solid var(--borde-suave); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.02);">
+        <div>
+          <h3 style="margin: 0; color: var(--verde-principal); font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+            <span>📍</span> Ubicación Territorial y Análisis GIS
+          </h3>
+          <p class="text-muted" style="margin: 2px 0 0 0; font-size: 0.85rem;">
+            Hacé click en el mapa o usá tu geolocalización GPS para consultar suelo, clima y aptitud en tiempo real.
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button id="btn-geolocalizar" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Usar Mi Ubicación</button>
+          <button id="btn-limpiar-seleccion" class="btn outline" style="font-size: 0.85rem; padding: 8px 12px; display: none;">🧹 Limpiar Selección</button>
+        </div>
+      </div>
+
       <div class="map-layout">
         <div style="position: relative; flex: 1; display: flex; flex-direction: column;">
-          <div id="map" style="height: 450px; min-height: 350px;"></div>
-          <!-- Leyenda del Mapa interactiva -->
+          <div id="map" style="height: 480px; min-height: 350px;"></div>
+          <!-- Leyenda del Mapa interactiva y Fuentes -->
           <div class="map-legend">
             <h4>Aptitud Agropecuaria</h4>
             <div class="legend-items">
@@ -53,16 +68,22 @@
               <div class="legend-item"><span class="legend-color horticola"></span> Horticultura / Cinturón Verde</div>
               <div class="legend-item"><span class="legend-color multipropósito"></span> Multipropósito / General</div>
             </div>
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--borde-suave); font-size: 0.7rem; color: var(--texto-secundario);">
+              <strong>Capas Activas:</strong><br>
+              🌱 Suelos: INTA GeoServer<br>
+              🌦️ Clima: Open-Meteo / SMN<br>
+              ⛰️ Relieve: IGN Argenmap
+            </div>
           </div>
         </div>
         <div class="territory-sidebar" id="territory-info">
-          <h3>Información Territorial</h3>
-          <p class="text-muted">Hacé click en cualquier punto del mapa para obtener datos de suelo, clima y recomendaciones en tiempo real.</p>
+          <h3 style="margin-top: 0; color: var(--verde-principal); font-size: 1.1rem;">Panel de Diagnóstico</h3>
           <div id="territory-details" class="territory-details-content">
-            <!-- Cargado dinámicamente -->
+            <!-- Estado inicial limpio -->
             <div class="empty-state">
-              <span style="font-size: 2rem;">📍</span>
-              <p>Esperando selección de punto o geolocalización...</p>
+              <span style="font-size: 2.2rem;">📍</span>
+              <p style="font-weight: 600; color: var(--texto-principal); margin-bottom: 4px;">Seleccioná una ubicación para comenzar el análisis.</p>
+              <p style="font-size: 0.8rem; color: var(--texto-secundario);">Hacé click en cualquier punto del mapa o presioná <strong>"Usar Mi Ubicación"</strong>.</p>
             </div>
           </div>
           <div style="margin-top: 15px; border-top: 1px solid var(--borde-suave); padding-top: 12px;">
@@ -76,7 +97,6 @@
               <option value="75">75 km (Alcance Regional Amplio)</option>
             </select>
           </div>
-          <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 12px;">📍 Usar Mi Ubicación en Tiempo Real</button>
         </div>
       </div>
     </div>
