@@ -97,17 +97,23 @@ export class ChangeReport {
         ` : ''}
 
         <!-- Alertas de Riesgo Operativo en Campo -->
-        <h3 style="color: #e67e22; border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
           🔥 Monitoreo de Riesgos Operativos y Alertas de Campo
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px;">
-          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(230, 126, 34, 0.05);">
-            <strong style="color: #d35400; font-size: 0.88rem;">🔥 Riesgo de Incendio (FWI):</strong>
-            <div style="font-size: 0.82rem; margin-top: 4px;">Índice Moderado - Mantener cortafuegos limpios y fajas de seguridad libres de rastrojo.</div>
+          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="font-size: 0.88rem;">🔥 Riesgo de Incendio (FWI):</strong>
+              <span class="badge-origin no-disponible">NO DISPONIBLE</span>
+            </div>
+            <div style="font-size: 0.82rem; color: var(--texto-secundario);">No disponible: no se dispone de datos suficientes para calcular FWI.</div>
           </div>
-          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(39, 174, 96, 0.05);">
-            <strong style="color: #27ae60; font-size: 0.88rem;">🌱 Estado Fitosanitario y Dosel:</strong>
-            <div style="font-size: 0.82rem; margin-top: 4px;">Sin anomalías críticas de defoliación por plagas (Sirex noctilio / Avispa de la agalla) detectadas en la firma espectral.</div>
+          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <strong style="font-size: 0.88rem;">🌱 Estado Fitosanitario:</strong>
+              <span class="badge-origin no-disponible">NO DISPONIBLE</span>
+            </div>
+            <div style="font-size: 0.82rem; color: var(--texto-secundario);">Evaluación fitosanitaria: No disponible con los datos actuales.</div>
           </div>
         </div>
 

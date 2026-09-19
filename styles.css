@@ -224,6 +224,122 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   border: 1px solid #c62828;
 }
 
+/* Badges de Origen y Confiabilidad (Estandarizados) */
+.badge-origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.badge-origin.real {
+  background-color: rgba(46, 125, 50, 0.15);
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+}
+
+.badge-origin.regional {
+  background-color: rgba(2, 119, 189, 0.15);
+  color: #0277bd;
+  border: 1px solid #0277bd;
+}
+
+.badge-origin.calculado {
+  background-color: rgba(106, 27, 154, 0.15);
+  color: #6a1b9a;
+  border: 1px solid #6a1b9a;
+}
+
+.badge-origin.estimado {
+  background-color: rgba(239, 108, 0, 0.15);
+  color: #ef6c00;
+  border: 1px solid #ef6c00;
+}
+
+.badge-origin.simulado {
+  background-color: rgba(216, 27, 96, 0.15);
+  color: #d81b60;
+  border: 1px solid #d81b60;
+}
+
+.badge-origin.no-disponible,
+.badge-origin.nodisponible {
+  background-color: rgba(117, 117, 117, 0.15);
+  color: #616161;
+  border: 1px solid #757575;
+}
+
+.theme-dark .badge-origin.real {
+  background-color: rgba(129, 199, 132, 0.2);
+  color: #a5d6a7;
+  border-color: #81c784;
+}
+
+.theme-dark .badge-origin.regional {
+  background-color: rgba(79, 195, 247, 0.2);
+  color: #81d4fa;
+  border-color: #4fc3f7;
+}
+
+.theme-dark .badge-origin.calculado {
+  background-color: rgba(186, 104, 200, 0.2);
+  color: #ce93d8;
+  border-color: #ba68c8;
+}
+
+.theme-dark .badge-origin.estimado {
+  background-color: rgba(255, 183, 77, 0.2);
+  color: #ffe082;
+  border-color: #ffb74d;
+}
+
+.theme-dark .badge-origin.simulado {
+  background-color: rgba(240, 98, 146, 0.2);
+  color: #f48fb1;
+  border-color: #f06292;
+}
+
+.theme-dark .badge-origin.no-disponible,
+.theme-dark .badge-origin.nodisponible {
+  background-color: rgba(189, 189, 189, 0.2);
+  color: #e0e0e0;
+  border-color: #bdbdbd;
+}
+
+/* Tarjeta vacía "NO DISPONIBLE" */
+.unavailable-card-block {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed var(--borde-suave);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.unavailable-card-block .title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--texto-secundario);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.unavailable-card-block .explanation {
+  font-size: 0.82rem;
+  color: var(--texto-secundario);
+  margin: 0;
+  line-height: 1.4;
+}
+
 /* Dark theme specific fixes for Leaflet controls */
 .theme-dark .leaflet-bar a,
 .theme-dark .leaflet-control-zoom-in,
