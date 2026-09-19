@@ -464,6 +464,10 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
     const listadoCultivos = provDetails.nombre?.cultivos || provDetails.cultivos || [];
     const recomendaciones = await generateRecommendations(listadoCultivos, soilReport, climateReport);
 
+    const isSimulatedScenario = !!simuladorValoresPersonalizados;
+    const originBadgeType = isSimulatedScenario ? 'simulado' : (soilReport.status === DataStatus.REAL ? 'real' : 'regional');
+    const originBadgeLabel = isSimulatedScenario ? 'SIMULADO' : (soilReport.status === DataStatus.REAL ? 'REAL' : 'REGIONAL');
+
     container.innerHTML = recomendaciones.map(c => {
       let badgeClass = "badge-alta";
       if (c.compatibilidad === "MEDIA") badgeClass = "badge-media";
@@ -486,19 +490,29 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
 
       return `
         <article class="crop-card">
-          <div class="crop-card-header">
+          <!-- 1. Encabezado / Resumen -->
+          <div class="crop-card-header" style="flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span class="crop-icon">${icon}</span>
-              <h3 style="margin: 0; font-weight: 700; text-transform: capitalize;">${c.nombre}</h3>
+              <div>
+                <h3 style="margin: 0; font-weight: 700; text-transform: capitalize;">${c.nombre}</h3>
+                <span class="badge-origin ${originBadgeType}">${originBadgeLabel}</span>
+              </div>
             </div>
-            <div style="display: flex; gap: 6px; align-items: center;">
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
               <span class="compatibility-badge ${badgeClass}">Compatibilidad: ${c.compatibilidad}</span>
-              <span class="confidence-badge badge-${(c.nivelConfianza || 'medium').toLowerCase()}">Confianza: ${c.confianza || 'MEDIA'}</span>
             </div>
           </div>
 
           <p class="desc">${c.descripcion}</p>
 
+          ${isSimulatedScenario ? `
+            <div style="background: rgba(216, 27, 96, 0.08); border: 1px solid rgba(216, 27, 96, 0.3); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--texto-principal); margin-bottom: 12px;">
+              <strong style="color: #d81b60;">[ESCENARIO SIMULADO]</strong> Evaluación basada exclusivamente en parámetros ingresados por el usuario.
+            </div>
+          ` : ''}
+
+          <!-- 2. Detalle Técnico: Calendario y Requerimientos -->
           <div class="crop-grid-details">
             <div class="sub-card calendar-sub-card">
               <h4>📅 Calendario Agrícola</h4>
@@ -513,6 +527,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
             </div>
           </div>
 
+          <!-- 3. Reporte de Evidencia y Trazabilidad -->
           <div class="compatibility-report premium-report">
             <div class="report-header">
               <span style="font-size: 1.1rem;">📍</span> Reporte de Evidencia y Trazabilidad
@@ -543,13 +558,27 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
             </div>
           </div>
 
-          <div class="sustainability-report premium-sustainability">
+          <!-- 4. Manejo Sostenible -->
+          <div class="sustainability-report premium-sustainability" style="margin-bottom: 12px;">
             <div class="sustainability-header">
               <span>🔄</span> Manejo Sostenible Recomendado
             </div>
             <div style="margin-top: 6px;"><strong>🚜 Rotación Recomendada:</strong> ${c.sostenibilidad.rotacion}</div>
             <div style="margin-top: 4px;"><strong>🌍 Conservación de Suelo:</strong> ${c.sostenibilidad.manejo}</div>
           </div>
+
+          <!-- 5. Fuente, Metodología y Limitaciones (Desplegable) -->
+          <details style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 8px 12px; font-size: 0.82rem;">
+            <summary style="cursor: pointer; font-weight: bold; color: var(--verde-principal); display: flex; align-items: center; justify-content: space-between;">
+              <span>ℹ️ Fuente, Metodología y Limitaciones</span>
+            </summary>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--borde-suave); color: var(--texto-secundario); line-height: 1.4;">
+              <div><strong>Fuente de Suelo:</strong> ${soilReport.fuente || 'Base Regional Agro-Consultas'}</div>
+              <div><strong>Fuente Climática:</strong> ${climateReport.liveWeatherPoint?.available ? 'Open-Meteo API en vivo' : 'SMN / Climatología Histórica'}</div>
+              <div><strong>Metodología:</strong> Matriz de aptitud edafoclimática sin puntuaciones arbitrarias.</div>
+              <div style="margin-top: 4px;"><strong>Limitación:</strong> El análisis no sustituye el muestreo físico de laboratorio ni la inspección agronómica directa en terreno.</div>
+            </div>
+          </details>
         </article>
       `;
     }).join("");
