@@ -9,10 +9,19 @@ import { calculateArea } from '../utils/geo.js';
  * Detecta cambios temporales entre dos análisis NDVI (Fecha A y Fecha B)
  */
 export function detectChanges(analysisA, analysisB, geometry) {
-  if (!analysisA || !analysisB) {
+  if (!analysisA || !analysisB || !analysisA.available || !analysisB.available) {
     return {
       success: false,
-      error: 'Se requieren análisis NDVI para ambas fechas (A y B).'
+      available: false,
+      status: 'UNAVAILABLE',
+      primaryMessage: 'No hay suficientes datos reales para determinar cambios.',
+      description: 'Se requieren observaciones satelitales NDVI reales comparables para ambas fechas (Fecha A y Fecha B).',
+      deltaNDVI: 0,
+      breakdown: {
+        decrease: { percent: 0, hectares: 0 },
+        stable: { percent: 0, hectares: 0 },
+        increase: { percent: 0, hectares: 0 }
+      }
     };
   }
 

@@ -47,10 +47,13 @@ export async function fetchLiveWeather(lat, lng) {
         codigoClima: weather.weathercode
       },
       unit: "°C / km/h",
-      source: 'Open-Meteo (API en tiempo real)',
+      source: 'Open-Meteo (Modelo Numérico Reanalizado / Pronóstico)',
       sourceUrl: 'https://open-meteo.com/',
-      dataset: 'Forecast API v1',
+      dataset: 'Open-Meteo Global Forecast / Reanalysis Model v1',
       retrievedAt: new Date().toISOString(),
+      spatialScope: 'LOCALIDAD / PUNTO DE REFERENCIA',
+      dataType: 'MODELADO / REANALIZADO',
+      disclaimer: 'Dato obtenido mediante modelos numéricos de predicción para la latitud/longitud geocodificada. No representa la medición directa de una estación meteorológica física de superficie.',
       status: DataStatus.REAL,
       confidence: ConfidenceLevel.HIGH
     });

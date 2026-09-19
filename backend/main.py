@@ -138,113 +138,74 @@ def search_stac_catalog(req: STACSearchRequest):
                         })
                     return {
                         "success": True,
+                        "available": True,
+                        "status": "REAL",
                         "source": "Copernicus Data Space Ecosystem STAC",
                         "productsCount": len(parsed_products),
                         "bestProduct": parsed_products[0],
                         "products": parsed_products
                     }
         except Exception as stac_err:
-            pass # Usar fallback seguro
+            pass
 
-        # Fallback seguro
-        fallback_product = {
-            "id": f"S2A_MSIL2A_{req.endDate.replace('-', '')}_T21JUG",
-            "date": req.endDate,
-            "cloudCover": min(req.maxCloudCover, 6.2),
-            "collection": "sentinel-2-l2a",
-            "source": "Copernicus Sentinel-2 (Adapter Directo)",
-            "resolution": "10m",
-            "bands": ["B04 (Red)", "B08 (NIR)"]
-        }
         return {
-            "success": True,
-            "source": "Copernicus Data Space Ecosystem (Adapter Directo)",
-            "productsCount": 1,
-            "bestProduct": fallback_product,
-            "products": [fallback_product]
+            "success": False,
+            "available": False,
+            "status": "UNAVAILABLE",
+            "reason": "Datos satelitales no disponibles para esta consulta (no se encontraron capturas reales o el servicio no respondió)."
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error procesando búsqueda STAC: {str(e)}")
 
 @app.post("/api/forest/ndvi")
 def calculate_ndvi(req: NDVIAnalysisRequest):
-    """Calcula la matriz NDVI y estadísticas (min, max, mean, median, distribution) para un lote"""
+    """Calcula la matriz NDVI y estadísticas para un lote solo cuando existen bandas o píxeles reales"""
     try:
         geom_shape = shape(req.geometry.dict())
         area_sq_m = calculate_shapely_area(geom_shape)
         area_ha = round(area_sq_m / 10000.0, 2)
 
-        # Generar muestras deterministas para NDVI
-        samples = generate_ndvi_values(req.date)
-        sorted_samples = sorted(samples)
-        min_v = round(sorted_samples[0], 2)
-        max_v = round(sorted_samples[-1], 2)
-        mean_v = round(sum(sorted_samples) / len(sorted_samples), 2)
-        median_v = round(sorted_samples[len(sorted_samples) // 2], 2)
-
         return {
+            "available": False,
+            "status": "UNAVAILABLE",
             "indicator": "NDVI",
             "formula": "(NIR - RED) / (NIR + RED)",
-            "bands": {"NIR": "B08", "RED": "B04"},
             "date": req.date,
             "productId": req.productId,
             "areaHectares": area_ha,
-            "stats": {
-                "min": min_v,
-                "max": max_v,
-                "mean": mean_v,
-                "median": median_v
-            },
-            "sampleCount": len(samples)
+            "reason": "NDVI no disponible: se requieren las bandas B04 y B08 procesadas de un ráster Sentinel-2 real."
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error calculando NDVI: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error en consulta NDVI: {str(e)}")
 
 @app.post("/api/forest/changes")
 def calculate_change_detection(req: ChangeDetectionRequest):
-    """Calcula deltaNDVI = NDVI_B - NDVI_A y clasifica de manera prudente los cambios"""
+    """Ejecuta detección de cambios solo cuando existen dos observaciones NDVI reales comparables"""
     try:
         ndvi_a = calculate_ndvi(NDVIAnalysisRequest(geometry=req.geometry, date=req.dateA))
         ndvi_b = calculate_ndvi(NDVIAnalysisRequest(geometry=req.geometry, date=req.dateB))
 
+        if not ndvi_a.get("available") or not ndvi_b.get("available"):
+            return {
+                "available": False,
+                "status": "UNAVAILABLE",
+                "period": {"dateA": req.dateA, "dateB": req.dateB},
+                "reason": "No hay suficientes datos reales para determinar cambios (se requieren dos observaciones NDVI reales)."
+            }
+
         mean_a = ndvi_a["stats"]["mean"]
         mean_b = ndvi_b["stats"]["mean"]
         delta_ndvi = round(mean_b - mean_a, 2)
-        total_ha = ndvi_a["areaHectares"] or 10.0
-
-        classification = "ESTABLE"
-        msg = "Disminución significativa del índice de vegetación detectada." if delta_ndvi <= -0.15 else (
-            "Aumento significativo de vegetación detectado." if delta_ndvi >= 0.15 else "Sin cambios significativos en el índice de vegetación."
-        )
-
-        if delta_ndvi <= -0.15:
-            classification = "DISMINUCION_SIGNIFICATIVA"
-            dec_ha, dec_pct = round(total_ha * 0.35, 1), 35
-            inc_ha, inc_pct = round(total_ha * 0.05, 1), 5
-        elif delta_ndvi >= 0.15:
-            classification = "AUMENTO_SIGNIFICATIVO"
-            dec_ha, dec_pct = round(total_ha * 0.05, 1), 5
-            inc_ha, inc_pct = round(total_ha * 0.40, 1), 40
-        else:
-            dec_ha, dec_pct = round(total_ha * 0.05, 1), 5
-            inc_ha, inc_pct = round(total_ha * 0.05, 1), 5
-
-        stable_ha = round(total_ha - dec_ha - inc_ha, 1)
-        stable_pct = 100 - dec_pct - inc_pct
+        total_ha = ndvi_a.get("areaHectares", 10.0)
 
         return {
+            "available": True,
+            "status": "REAL",
             "period": {"dateA": req.dateA, "dateB": req.dateB},
             "deltaNDVI": delta_ndvi,
             "meanNDVIA": mean_a,
             "meanNDVIB": mean_b,
             "totalAreaHa": total_ha,
-            "classification": classification,
-            "message": msg,
-            "breakdown": {
-                "decrease": {"hectares": dec_ha, "percent": dec_pct},
-                "stable": {"hectares": stable_ha, "percent": stable_pct},
-                "increase": {"hectares": inc_ha, "percent": inc_pct}
-            },
             "disclaimer": "Análisis preliminar de información territorial y teledetección."
         }
     except Exception as e:
@@ -274,8 +235,3 @@ def calculate_shapely_area(geom_shape):
     # Escalar área proyectada
     return abs(geom_shape.area) * meters_per_deg_lat * meters_per_deg_lng
 
-def generate_ndvi_values(date_str: str):
-    """Genera 36 valores NDVI para una cuadrícula 6x6"""
-    year = int(date_str[:4]) if len(date_str) >= 4 else 2025
-    base = 0.65 + ((year % 3) * 0.05) - 0.05
-    return [round(max(-0.1, min(0.9, base + (math.sin(i) * 0.08))), 2) for i in range(36)]

@@ -209,8 +209,8 @@ def test_forestal_page():
         page.click("#btn-load-sample")
         page.click("#btn-run-analysis")
 
-        # Wait for auto analysis to load timeline and report
-        page.wait_for_selector(".timeline-card")
+        # Wait for auto analysis to load report
+        page.wait_for_selector("#printable-forest-report")
         assert page.is_visible("#printable-forest-report")
 
         # Verify report traceability content

@@ -20,16 +20,20 @@ export async function getSoilReport(lat, lng, subregionStaticSuelo = null, simul
   // 2. Si el usuario está simulando valores, sobrescribir los datos base
   let esSimulado = false;
   const reporteFinal = {
-    tipo: baseSoil.tipo,
-    textura: baseSoil.textura,
-    drenaje: baseSoil.drenaje,
-    limitantes: baseSoil.limitantes,
-    aptitud: baseSoil.aptitud,
-    ph: baseSoil.ph,
-    escala: baseSoil.escala,
-    status: baseSoil.status || 'regional',
+    tipo: baseSoil.tipo || 'NO DISPONIBLE',
+    textura: baseSoil.textura || 'NO DISPONIBLE',
+    drenaje: baseSoil.drenaje || 'NO DISPONIBLE',
+    limitantes: baseSoil.limitantes || 'Sin datos de limitantes a esta escala',
+    aptitud: baseSoil.aptitud || 'NO DISPONIBLE',
+    ph: baseSoil.ph || null,
+    escala: baseSoil.escala || '1:500.000 / Modelo Regional',
+    status: baseSoil.status || 'REGIONAL',
+    spatialScope: 'REGIONAL',
+    resolution: '250m - 1km (Cartografía Digital INTA / ISRIC SoilGrids)',
+    depth: '0 - 30 cm (Capa arable)',
+    disclaimer: 'Dato edáfico regional/modelado espacial. No representa un muestreo físico puntual ni un análisis de laboratorio de lote.',
     confidence: baseSoil.confidence || 'medium',
-    fuente: baseSoil.fuente,
+    fuente: baseSoil.fuente || 'INTA Cartografía Digital de Suelos / Base Regional',
     esSimulado
   };
 

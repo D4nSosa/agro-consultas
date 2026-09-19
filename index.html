@@ -35,13 +35,16 @@
       <h1>Recomendador de Cultivos</h1>
       <p class="lead">Introduce la provincia y obtené recomendaciones basadas en datos técnicos y mapas interactivos.</p>
 
-      <form id="homeForm" class="home-form" onsubmit="event.preventDefault(); enviarFormulario();">
-        <label for="provincias">Provincia</label>
-        <input id="provincias" name="provincias" type="text" placeholder="Ej: Córdoba" required autocomplete="off" />
+      <form id="homeForm" class="home-form" onsubmit="event.preventDefault(); enviarFormulario();" style="position: relative;">
+        <label for="provincias">¿Dónde querés analizar? (Localidad, Ciudad o Provincia)</label>
+        <div style="position: relative;">
+          <input id="provincias" name="provincias" type="text" placeholder="Ej: Gobernador Virasoro, Oberá, Posadas o Misiones..." required autocomplete="off" />
+          <div id="search-suggestions" style="position: absolute; top: 100%; left: 0; right: 0; background: var(--gris-card); border: 1px solid var(--borde-suave); border-radius: 0 0 10px 10px; box-shadow: 0 8px 24px var(--sombra-media); z-index: 1000; display: none; max-height: 250px; overflow-y: auto;"></div>
+        </div>
 
         <div class="row" style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button type="submit" class="btn primary">Buscar</button>
-          <button type="button" id="gpsBtn" class="btn primary" style="background:#27ae60; border-color:#27ae60;">📍 Usar Mi Ubicación</button>
+          <button type="submit" class="btn primary">🔍 Buscar Localidad</button>
+          <button type="button" id="gpsBtn" class="btn primary" style="background:#27ae60; border-color:#27ae60;">📍 Usar Mi Ubicación GPS</button>
           <button type="button" id="demoBtn" class="btn outline">Demo: Buenos Aires</button>
         </div>
       </form>
@@ -79,12 +82,72 @@
     <small>Recomendador de Cultivos — Diseño y desarrollo: Dan Sosa (Augmented Coder)</small>
   </footer>
 
-  <!-- Inline helpers -->
-  <script>
-    function enviarFormulario() {
-      const provincia = document.getElementById('provincias').value.trim();
-      if (!provincia) return alert('Ingrese una provincia.');
-      window.location.href = 'resultados.html?ubicacion=' + encodeURIComponent(provincia);
+  <script type="module">
+    import { searchLocalities } from './services/sources/geocodingService.js';
+
+    let selectedLocalityData = null;
+
+    window.enviarFormulario = function() {
+      const inputVal = document.getElementById('provincias').value.trim();
+      if (!inputVal) return alert('Ingrese una localidad o provincia.');
+
+      if (selectedLocalityData && selectedLocalityData.name.toLowerCase() === inputVal.toLowerCase()) {
+        window.location.href = `resultados.html?lat=${selectedLocalityData.lat}&lng=${selectedLocalityData.lng}&ubicacion=${encodeURIComponent(selectedLocalityData.displayName)}`;
+      } else {
+        window.location.href = 'resultados.html?ubicacion=' + encodeURIComponent(inputVal);
+      }
+    };
+
+    const searchInput = document.getElementById('provincias');
+    const suggestionsBox = document.getElementById('search-suggestions');
+    let debounceTimer = null;
+
+    if (searchInput && suggestionsBox) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        clearTimeout(debounceTimer);
+        selectedLocalityData = null;
+
+        if (query.length < 2) {
+          suggestionsBox.style.display = 'none';
+          return;
+        }
+
+        debounceTimer = setTimeout(async () => {
+          const results = await searchLocalities(query, 5);
+          if (results.length > 0) {
+            suggestionsBox.innerHTML = results.map(r => `
+              <div class="suggestion-item" style="padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--borde-suave); font-size: 0.9rem;" data-lat="${r.lat}" data-lng="${r.lng}" data-name="${r.name}" data-display="${r.displayName}">
+                <strong style="color: var(--verde-principal);">${r.name}</strong>
+                <span style="display: block; font-size: 0.78rem; color: var(--texto-secundario);">${r.displayName}</span>
+              </div>
+            `).join('');
+            suggestionsBox.style.display = 'block';
+
+            document.querySelectorAll('.suggestion-item').forEach(item => {
+              item.addEventListener('click', () => {
+                const lat = item.getAttribute('data-lat');
+                const lng = item.getAttribute('data-lng');
+                const name = item.getAttribute('data-name');
+                const display = item.getAttribute('data-display');
+
+                selectedLocalityData = { lat, lng, name, displayName: display };
+                searchInput.value = display;
+                suggestionsBox.style.display = 'none';
+                window.location.href = `resultados.html?lat=${lat}&lng=${lng}&ubicacion=${encodeURIComponent(display)}`;
+              });
+            });
+          } else {
+            suggestionsBox.style.display = 'none';
+          }
+        }, 300);
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+          suggestionsBox.style.display = 'none';
+        }
+      });
     }
 
     document.getElementById('demoBtn').addEventListener('click', () => {

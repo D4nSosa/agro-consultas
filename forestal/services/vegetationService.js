@@ -9,52 +9,45 @@ import { calculateNDVIValue, computeMatrixStats, getNDVIColor } from '../utils/r
  * Calcula el análisis de NDVI completo para un lote y producto satelital
  */
 export async function analyzeVegetation(geometry, productInfo) {
-  // Generar muestra determinista de NDVI basada en coordenadas y fecha para simulación/backend
-  const matrixValues = generateNDVISamples(geometry, productInfo?.date);
-  const stats = computeMatrixStats(matrixValues);
+  if (!productInfo || !productInfo.id || !productInfo.bands) {
+    return {
+      available: false,
+      status: 'UNAVAILABLE',
+      indicator: 'NDVI (Normalized Difference Vegetation Index)',
+      formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
+      reason: 'NDVI no disponible: se requieren bandas espectrales B04 (Red) y B08 (NIR) reales provenientes de un producto Sentinel-2 válido.'
+    };
+  }
+
+  // Si existen bandas o muestras calculadas desde un ráster real
+  if (productInfo.gridSample && Array.isArray(productInfo.gridSample) && productInfo.gridSample.length > 0) {
+    const stats = computeMatrixStats(productInfo.gridSample);
+    return {
+      available: true,
+      status: 'REAL',
+      indicator: 'NDVI (Normalized Difference Vegetation Index)',
+      formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
+      bandsUsed: {
+        red: 'B04 (Red, 665 nm)',
+        nir: 'B08 (Near Infrared, 842 nm)'
+      },
+      date: productInfo.date,
+      productId: productInfo.id,
+      stats: stats,
+      interpretation: getVegetationInterpretation(stats.mean),
+      gridSample: productInfo.gridSample
+    };
+  }
 
   return {
+    available: false,
+    status: 'UNAVAILABLE',
     indicator: 'NDVI (Normalized Difference Vegetation Index)',
     formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
-    bandsUsed: {
-      red: 'B04 (Red, 665 nm)',
-      nir: 'B08 (Near Infrared, 842 nm)'
-    },
-    date: productInfo?.date || new Date().toISOString().split('T')[0],
-    productId: productInfo?.id || 'S2A_MSIL2A_LOCAL',
-    stats: stats,
-    interpretation: getVegetationInterpretation(stats.mean),
-    gridSample: matrixValues
+    date: productInfo.date,
+    productId: productInfo.id,
+    reason: 'NDVI no disponible: el producto Sentinel-2 recuperado no incluye píxeles procesados de bandas B04/B08 para esta área.'
   };
-}
-
-/**
- * Genera una muestra de puntos NDVI para el polígono del lote
- */
-function generateNDVISamples(geometry, dateStr) {
-  const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
-  let baseValue = 0.62; // Vigor forestal moderado-alto por defecto
-
-  // Variación basada en el hash de la fecha para mantener coherencia temporal
-  if (dateStr) {
-    const year = parseInt(dateStr.substring(0, 4)) || 2024;
-    const month = parseInt(dateStr.substring(5, 7)) || 6;
-    baseValue += ((year % 5) * 0.03) + ((month % 12) * 0.01) - 0.08;
-  }
-
-  baseValue = Math.max(0.15, Math.min(0.85, baseValue));
-
-  const samples = [];
-  const sampleCount = 36; // 6x6 grid
-
-  for (let i = 0; i < sampleCount; i++) {
-    // Variación aleatoria controlada entre ±0.12 para representar heterogeneidad del lote
-    const noise = (Math.sin(i * 1.5) * 0.09) + (Math.cos(i * 2.3) * 0.05);
-    const val = Math.max(-0.1, Math.min(0.92, baseValue + noise));
-    samples.push(Math.round(val * 100) / 100);
-  }
-
-  return samples;
 }
 
 /**

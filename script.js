@@ -695,6 +695,7 @@ function initApp() {
       const latVal = parseFloat(paramLat);
       const lngVal = parseFloat(paramLng);
       if (!isNaN(latVal) && !isNaN(lngVal)) {
+        currentUbicacionNombre = ubic;
         await procesarSeleccionCoordenadas(latVal, lngVal);
         return;
       }
@@ -710,6 +711,19 @@ function initApp() {
         await renderRecomendaciones(ubic, coords.lat, coords.lng);
         await actualizarPanelTerritorialBasico(ubic, coords.lat, coords.lng);
       } else {
+        // Intentar geocodificar si la provincia/localidad no está en la lista estática
+        try {
+          const { searchLocalities } = await import('./services/sources/geocodingService.js');
+          const geoRes = await searchLocalities(ubic, 1);
+          if (geoRes && geoRes.length > 0) {
+            const loc = geoRes[0];
+            currentUbicacionNombre = loc.displayName;
+            await procesarSeleccionCoordenadas(loc.lat, loc.lng);
+            return;
+          }
+        } catch (e) {
+          console.warn("Error consultando geocodificación:", e);
+        }
         await renderRecomendaciones(ubic);
       }
     } else {

@@ -1,7 +1,7 @@
 import pytest
 import math
 from fastapi.testclient import TestClient
-from backend.main import app, calculate_shapely_area, generate_ndvi_values
+from backend.main import app, calculate_shapely_area
 from shapely.geometry import Polygon, shape
 
 client = TestClient(app)
@@ -24,10 +24,6 @@ def test_area_calculation():
     assert area_ha > 0
     assert 2000 < area_ha < 4000 # ~3000 ha para un rectángulo ~6km x 5km
 
-def test_ndvi_values_generation():
-    samples = generate_ndvi_values("2026-08-15")
-    assert len(samples) == 36
-    assert all(-1 <= v <= 1 for v in samples)
 
 def test_api_root():
     response = client.get("/")
@@ -53,9 +49,7 @@ def test_api_stac_search():
     response = client.post("/api/forest/stac", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["success"] is True
-    assert "bestProduct" in data
-    assert data["bestProduct"]["collection"] == "sentinel-2-l2a"
+    assert "status" in data
 
 def test_api_ndvi_calculation():
     payload = {
@@ -66,8 +60,7 @@ def test_api_ndvi_calculation():
     assert response.status_code == 200
     data = response.json()
     assert data["indicator"] == "NDVI"
-    assert "stats" in data
-    assert "mean" in data["stats"]
+    assert data["status"] == "UNAVAILABLE"
     assert data["areaHectares"] > 0
 
 def test_api_change_detection():
@@ -79,10 +72,8 @@ def test_api_change_detection():
     response = client.post("/api/forest/changes", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert "deltaNDVI" in data
-    assert "classification" in data
-    assert "breakdown" in data
-    assert "disclaimer" in data
+    assert data["status"] == "UNAVAILABLE"
+    assert "reason" in data
 
 def test_api_full_analysis():
     payload = {

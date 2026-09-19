@@ -25,20 +25,20 @@ export async function runFullForestAnalysis(geometry, dateA, dateB, cloudMax = 3
     searchSentinelImages(geometry, getYearStartDate(dateB), dateB, cloudMax)
   ]);
 
-  const prodA = searchResA.bestProduct;
-  const prodB = searchResB.bestProduct;
+  const prodA = searchResA.bestProduct || null;
+  const prodB = searchResB.bestProduct || null;
 
-  // 2. Calcular NDVI para ambas fechas
+  // 2. Calcular NDVI para ambas fechas solo si existen productos reales
   const [vegA, vegB] = await Promise.all([
-    analyzeVegetation(geometry, prodA),
-    analyzeVegetation(geometry, prodB)
+    prodA ? analyzeVegetation(geometry, prodA) : { available: false, status: 'UNAVAILABLE', reason: 'No hay producto satelital para la Fecha A.' },
+    prodB ? analyzeVegetation(geometry, prodB) : { available: false, status: 'UNAVAILABLE', reason: 'No hay producto satelital para la Fecha B.' }
   ]);
 
-  // 3. Detectar cambios preliminares (deltaNDVI)
+  // 3. Detectar cambios preliminares (deltaNDVI) solo si ambas observaciones NDVI son reales
   const changes = detectChanges(vegA, vegB, geometry);
 
-  // 4. Generar dataset de línea temporal (Timeline 2023 - 2026)
-  const timeline = await generateForestTimeline(geometry, dateA, dateB, vegA, vegB);
+  // 4. Generar dataset de línea temporal basada exclusivamente en observaciones reales
+  const timeline = buildRealForestTimeline(searchResA, searchResB, vegA, vegB);
 
   // 5. Integrar aptitud territorial de especies forestales mediante analyzeForestLocation
   const forestAptitude = await analyzeForestLocation({
@@ -98,11 +98,6 @@ export async function analyzeForestLocation({ geometry, soil = null, climate = n
     return {
       recommendations: recommendations,
       limitations: limitations,
-      score: {
-        soilScore: soilReport ? 85 : 70,
-        climateScore: climateReport ? 88 : 75,
-        overallForestScore: 82
-      },
       explanation: [
         `Evaluación calculada para lat: ${centroid.lat.toFixed(4)}, lng: ${centroid.lng.toFixed(4)}.`,
         `Suelo dominante: ${soilReport.tipo || "Fuente no disponible para esta zona."}`,
@@ -114,49 +109,44 @@ export async function analyzeForestLocation({ geometry, soil = null, climate = n
     return {
       recommendations: [],
       limitations: ['Fuente no disponible para esta zona.'],
-      score: { overallForestScore: 0 },
       explanation: ['No se pudieron recuperar datos territoriales para la ubicación.']
     };
   }
 }
 
 /**
- * Genera la estructura de la línea temporal para el lote (2023 - 2026)
+ * Construye la línea temporal exclusivamente con productos y observaciones NDVI reales
  */
-async function generateForestTimeline(geometry, dateA, dateB, vegA, vegB) {
-  const years = [2023, 2024, 2025, 2026];
+function buildRealForestTimeline(searchResA, searchResB, vegA, vegB) {
   const items = [];
 
-  for (const year of years) {
-    let date = `${year}-08-15`;
-    let mean = 0.58;
-    let min = 0.12;
-    let max = 0.85;
-    let cloud = 5.2;
-
-    if (dateA && dateA.startsWith(year.toString())) {
-      date = dateA;
-      mean = vegA.stats.mean;
-      min = vegA.stats.min;
-      max = vegA.stats.max;
-    } else if (dateB && dateB.startsWith(year.toString())) {
-      date = dateB;
-      mean = vegB.stats.mean;
-      min = vegB.stats.min;
-      max = vegB.stats.max;
-    } else {
-      mean = Math.round((0.50 + ((year % 3) * 0.08)) * 100) / 100;
-    }
-
+  if (searchResA?.success && searchResA.bestProduct && vegA?.available) {
+    const prod = searchResA.bestProduct;
     items.push({
-      year: year,
-      date: date,
-      product: `S2A_MSIL2A_${year}0815_T21JUG`,
-      cloudCover: cloud,
-      ndviMean: mean,
-      ndviMin: min,
-      ndviMax: max
+      year: parseInt(prod.date.substring(0, 4)),
+      date: prod.date,
+      product: prod.id,
+      cloudCover: prod.cloudCover,
+      ndviMean: vegA.stats?.mean || 'N/A',
+      ndviMin: vegA.stats?.min || 'N/A',
+      ndviMax: vegA.stats?.max || 'N/A'
     });
+  }
+
+  if (searchResB?.success && searchResB.bestProduct && vegB?.available) {
+    const prod = searchResB.bestProduct;
+    // Evitar duplicados si A y B corresponden al mismo producto
+    if (!items.find(i => i.product === prod.id)) {
+      items.push({
+        year: parseInt(prod.date.substring(0, 4)),
+        date: prod.date,
+        product: prod.id,
+        cloudCover: prod.cloudCover,
+        ndviMean: vegB.stats?.mean || 'N/A',
+        ndviMin: vegB.stats?.min || 'N/A',
+        ndviMax: vegB.stats?.max || 'N/A'
+      });
+    }
   }
 
   return items;

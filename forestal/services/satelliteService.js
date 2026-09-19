@@ -27,26 +27,40 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
       }
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     const response = await fetch(COPERNICUS_STAC_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(searchBody)
+      body: JSON.stringify(searchBody),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.warn(`[satelliteService] Copernicus STAC HTTP error: ${response.status}. Usando adaptador secundario.`);
-      return await fallbackSearch(geometry, startDate, endDate, maxCloudCover);
+      console.warn(`[satelliteService] Copernicus STAC HTTP error: ${response.status}.`);
+      return {
+        success: false,
+        available: false,
+        status: 'UNAVAILABLE',
+        reason: `Respuesta de Copernicus STAC no disponible (HTTP ${response.status}).`
+      };
     }
 
     const data = await response.json();
     const features = data.features || [];
 
     if (!features.length) {
-      // Si no hay imágenes con el filtro de nubes estricto, probar ampliar nubosidad o generar informe accesible
-      return await fallbackSearch(geometry, startDate, endDate, Math.min(maxCloudCover + 20, 80));
+      return {
+        success: false,
+        available: false,
+        status: 'UNAVAILABLE',
+        reason: 'Datos satelitales no disponibles para esta consulta (no se encontraron capturas reales con la nubosidad requerida).'
+      };
     }
 
     // Mapear características STAC a formato de producto trazable
@@ -57,6 +71,8 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
 
     return {
       success: true,
+      available: true,
+      status: 'REAL',
       source: COPERNICUS_CATALOG_NAME,
       catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
       productsCount: products.length,
@@ -66,7 +82,12 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
 
   } catch (err) {
     console.error('[satelliteService] Error al consultar catálogo STAC:', err);
-    return await fallbackSearch(geometry, startDate, endDate, maxCloudCover);
+    return {
+      success: false,
+      available: false,
+      status: 'UNAVAILABLE',
+      reason: 'No se pudo conectar con el catálogo satelital Copernicus STAC.'
+    };
   }
 }
 
@@ -111,43 +132,3 @@ function parseSTACItem(item) {
   };
 }
 
-/**
- * Servicio de contingencia / fallback con simulación rigurosa basada en el catálogo Copernicus para pruebas offline
- */
-async function fallbackSearch(geometry, startDate, endDate, maxCloudCover) {
-  console.info('[satelliteService] Generando registros STAC trazables basados en coordenadas reales para el período.');
-
-  const sampleDate = endDate || new Date().toISOString().split('T')[0];
-
-  const fallbackProduct = {
-    id: `S2A_MSIL2A_${sampleDate.replace(/-/g, '')}_T21JUG`,
-    date: sampleDate,
-    datetime: `${sampleDate}T14:22:10Z`,
-    cloudCover: Math.min(maxCloudCover, 8.4),
-    collection: 'sentinel-2-l2a',
-    source: 'Copernicus Sentinel-2 (Servicio Estándar)',
-    productType: 'Level-2A (Reflectancia en Superficie)',
-    spatialResolution: '10 metros',
-    bands: [
-      { name: 'B04', description: 'Red (665 nm)', resolution: '10m' },
-      { name: 'B08', description: 'Near Infrared / NIR (842 nm)', resolution: '10m' }
-    ],
-    assets: {
-      thumbnail: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/2024/preview.jpg',
-      visual: null,
-      b04: null,
-      b08: null
-    },
-    bbox: getBoundingBox(geometry),
-    isFallback: true
-  };
-
-  return {
-    success: true,
-    source: 'Copernicus Data Space Ecosystem (Acceso Directo)',
-    catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
-    productsCount: 1,
-    bestProduct: fallbackProduct,
-    products: [fallbackProduct]
-  };
-}
