@@ -1,6 +1,7 @@
 """
 main.py - Backend Geoespacial Python con FastAPI para el Módulo Análisis Forestal
 Servicios REST para consulta STAC Copernicus, procesamiento de geometría GeoJSON, NDVI y detección de cambios.
+Basado exclusivamente en datos reales.
 """
 
 from fastapi import FastAPI, HTTPException, Query
@@ -9,16 +10,16 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import math
 import datetime
-import requests
+import urllib.request
+import json
 from shapely.geometry import shape, Point, Polygon
 
 app = FastAPI(
     title="Agro Consultas - API Geoespacial Forestal",
     description="API REST para procesamiento de teledetección, catálogo Copernicus STAC, NDVI y detección multitemporal de cambios.",
-    version="1.0.0"
+    version="2.0.0"
 )
 
-# Permitir CORS para integración con el frontend de Agro Consultas
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +30,6 @@ app.add_middleware(
 
 COPERNICUS_STAC_URL = "https://stac.dataspace.copernicus.eu/v1/search"
 
-# Modelos Pydantic
 class GeoJSONGeometry(BaseModel):
     type: str
     coordinates: Any
@@ -48,7 +48,7 @@ class STACSearchRequest(BaseModel):
 class NDVIAnalysisRequest(BaseModel):
     geometry: GeoJSONGeometry
     date: str = "2026-08-15"
-    productId: Optional[str] = "S2A_MSIL2A_LOCAL"
+    productId: Optional[str] = None
 
 class ChangeDetectionRequest(BaseModel):
     geometry: GeoJSONGeometry
@@ -60,7 +60,7 @@ def read_root():
     return {
         "status": "online",
         "service": "Agro Consultas Geospatial Forest API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "copernicusCatalog": "https://stac.dataspace.copernicus.eu/v1/",
         "endpoints": [
             "/api/forest/lots",
@@ -73,7 +73,7 @@ def read_root():
 
 @app.get("/api/forest/lots")
 def get_sample_lots():
-    """Retorna listado de lotes forestales de ejemplo (diseño preparado para futuro PostGIS)"""
+    """Retorna respuesta informativa sobre soporte de lotes"""
     return [
         {
             "id": "lote-misiones-01",
@@ -81,23 +81,8 @@ def get_sample_lots():
             "province": "Misiones",
             "areaHa": 120.5,
             "centroid": {"lat": -26.875, "lng": -54.650},
-            "primarySpecies": "Pino Taeda"
-        },
-        {
-            "id": "lote-corrientes-02",
-            "name": "Plantación Silvopastoril Ituzaingó",
-            "province": "Corrientes",
-            "areaHa": 245.8,
-            "centroid": {"lat": -27.583, "lng": -56.681},
-            "primarySpecies": "Eucalyptus Grandis"
-        },
-        {
-            "id": "lote-entre-rios-03",
-            "name": "Macizo Forestal Concordia",
-            "province": "Entre Ríos",
-            "areaHa": 85.2,
-            "centroid": {"lat": -31.392, "lng": -58.017},
-            "primarySpecies": "Eucalyptus Globulus"
+            "primarySpecies": "Pino Taeda",
+            "status": "UNAVAILABLE"
         }
     ]
 
@@ -106,7 +91,7 @@ def search_stac_catalog(req: STACSearchRequest):
     """Consulta el catálogo oficial Copernicus STAC para Sentinel-2 L2A"""
     try:
         geom_shape = shape(req.geometry.dict())
-        bounds = geom_shape.bounds # (minx, miny, maxx, maxy)
+        bounds = geom_shape.bounds
 
         search_body = {
             "collections": ["sentinel-2-l2a"],
@@ -119,149 +104,113 @@ def search_stac_catalog(req: STACSearchRequest):
         }
 
         try:
-            resp = requests.post(COPERNICUS_STAC_URL, json=search_body, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                features = data.get("features", [])
-                if features:
-                    parsed_products = []
-                    for feat in features:
-                        props = feat.get("properties", {})
-                        parsed_products.append({
-                            "id": feat.get("id"),
-                            "date": props.get("datetime", "").split("T")[0],
-                            "cloudCover": props.get("eo:cloud_cover", 0.0),
-                            "collection": "sentinel-2-l2a",
-                            "source": "Copernicus Sentinel-2",
-                            "resolution": "10m",
-                            "bands": ["B04 (Red)", "B08 (NIR)"]
-                        })
-                    return {
-                        "success": True,
-                        "source": "Copernicus Data Space Ecosystem STAC",
-                        "productsCount": len(parsed_products),
-                        "bestProduct": parsed_products[0],
-                        "products": parsed_products
-                    }
+            req_data = json.dumps(search_body).encode('utf-8')
+            stac_req = urllib.request.Request(
+                COPERNICUS_STAC_URL,
+                data=req_data,
+                headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
+            )
+            with urllib.request.urlopen(stac_req, timeout=8) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode('utf-8'))
+                    features = data.get("features", [])
+                    if features:
+                        parsed_products = []
+                        for feat in features:
+                            props = feat.get("properties", {})
+                            parsed_products.append({
+                                "id": feat.get("id"),
+                                "date": props.get("datetime", "").split("T")[0],
+                                "cloudCover": props.get("eo:cloud_cover", 0.0),
+                                "collection": "sentinel-2-l2a",
+                                "source": "Copernicus Sentinel-2",
+                                "resolution": "10m",
+                                "bands": ["B04 (Red)", "B08 (NIR)"]
+                            })
+                        return {
+                            "success": True,
+                            "source": "Copernicus Data Space Ecosystem STAC",
+                            "productsCount": len(parsed_products),
+                            "bestProduct": parsed_products[0],
+                            "products": parsed_products
+                        }
         except Exception as stac_err:
-            pass # Usar fallback seguro
+            pass
 
-        # Fallback seguro
-        fallback_product = {
-            "id": f"S2A_MSIL2A_{req.endDate.replace('-', '')}_T21JUG",
-            "date": req.endDate,
-            "cloudCover": min(req.maxCloudCover, 6.2),
-            "collection": "sentinel-2-l2a",
-            "source": "Copernicus Sentinel-2 (Adapter Directo)",
-            "resolution": "10m",
-            "bands": ["B04 (Red)", "B08 (NIR)"]
-        }
         return {
-            "success": True,
-            "source": "Copernicus Data Space Ecosystem (Adapter Directo)",
-            "productsCount": 1,
-            "bestProduct": fallback_product,
-            "products": [fallback_product]
+            "success": False,
+            "source": "Copernicus Data Space Ecosystem STAC",
+            "productsCount": 0,
+            "bestProduct": None,
+            "products": [],
+            "message": "NO DISPONIBLE / No se encontraron escenas reales o la API no respondió"
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error procesando búsqueda STAC: {str(e)}")
 
 @app.post("/api/forest/ndvi")
 def calculate_ndvi(req: NDVIAnalysisRequest):
-    """Calcula la matriz NDVI y estadísticas (min, max, mean, median, distribution) para un lote"""
+    """Retorna la superficie del lote e indica la necesidad de credenciales S3 para cálculo ráster"""
     try:
         geom_shape = shape(req.geometry.dict())
         area_sq_m = calculate_shapely_area(geom_shape)
         area_ha = round(area_sq_m / 10000.0, 2)
-
-        # Generar muestras deterministas para NDVI
-        samples = generate_ndvi_values(req.date)
-        sorted_samples = sorted(samples)
-        min_v = round(sorted_samples[0], 2)
-        max_v = round(sorted_samples[-1], 2)
-        mean_v = round(sum(sorted_samples) / len(sorted_samples), 2)
-        median_v = round(sorted_samples[len(sorted_samples) // 2], 2)
 
         return {
             "indicator": "NDVI",
             "formula": "(NIR - RED) / (NIR + RED)",
             "bands": {"NIR": "B08", "RED": "B04"},
             "date": req.date,
-            "productId": req.productId,
+            "productId": req.productId or "NO DISPONIBLE",
             "areaHectares": area_ha,
             "stats": {
-                "min": min_v,
-                "max": max_v,
-                "mean": mean_v,
-                "median": median_v
+                "min": "NO DISPONIBLE",
+                "max": "NO DISPONIBLE",
+                "mean": "NO DISPONIBLE",
+                "median": "NO DISPONIBLE"
             },
-            "sampleCount": len(samples)
+            "status": "UNAVAILABLE",
+            "message": "NO DISPONIBLE (Se requieren credenciales Copernicus CDSE S3 para descarga y cálculo de píxeles B04/B08)"
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error calculando NDVI: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error en endpoint NDVI: {str(e)}")
 
 @app.post("/api/forest/changes")
 def calculate_change_detection(req: ChangeDetectionRequest):
-    """Calcula deltaNDVI = NDVI_B - NDVI_A y clasifica de manera prudente los cambios"""
+    """Determina la indisponibilidad de detección de cambios si faltan píxeles ráster reales"""
     try:
-        ndvi_a = calculate_ndvi(NDVIAnalysisRequest(geometry=req.geometry, date=req.dateA))
-        ndvi_b = calculate_ndvi(NDVIAnalysisRequest(geometry=req.geometry, date=req.dateB))
-
-        mean_a = ndvi_a["stats"]["mean"]
-        mean_b = ndvi_b["stats"]["mean"]
-        delta_ndvi = round(mean_b - mean_a, 2)
-        total_ha = ndvi_a["areaHectares"] or 10.0
-
-        classification = "ESTABLE"
-        msg = "Disminución significativa del índice de vegetación detectada." if delta_ndvi <= -0.15 else (
-            "Aumento significativo de vegetación detectado." if delta_ndvi >= 0.15 else "Sin cambios significativos en el índice de vegetación."
-        )
-
-        if delta_ndvi <= -0.15:
-            classification = "DISMINUCION_SIGNIFICATIVA"
-            dec_ha, dec_pct = round(total_ha * 0.35, 1), 35
-            inc_ha, inc_pct = round(total_ha * 0.05, 1), 5
-        elif delta_ndvi >= 0.15:
-            classification = "AUMENTO_SIGNIFICATIVO"
-            dec_ha, dec_pct = round(total_ha * 0.05, 1), 5
-            inc_ha, inc_pct = round(total_ha * 0.40, 1), 40
-        else:
-            dec_ha, dec_pct = round(total_ha * 0.05, 1), 5
-            inc_ha, inc_pct = round(total_ha * 0.05, 1), 5
-
-        stable_ha = round(total_ha - dec_ha - inc_ha, 1)
-        stable_pct = 100 - dec_pct - inc_pct
+        geom_shape = shape(req.geometry.dict())
+        area_sq_m = calculate_shapely_area(geom_shape)
+        area_ha = round(area_sq_m / 10000.0, 2)
 
         return {
             "period": {"dateA": req.dateA, "dateB": req.dateB},
-            "deltaNDVI": delta_ndvi,
-            "meanNDVIA": mean_a,
-            "meanNDVIB": mean_b,
-            "totalAreaHa": total_ha,
-            "classification": classification,
-            "message": msg,
+            "deltaNDVI": "NO DISPONIBLE",
+            "totalAreaHa": area_ha,
+            "classification": "NO_DISPONIBLE",
+            "message": "NO SE PUEDE DETERMINAR CON LOS DATOS DISPONIBLES",
             "breakdown": {
-                "decrease": {"hectares": dec_ha, "percent": dec_pct},
-                "stable": {"hectares": stable_ha, "percent": stable_pct},
-                "increase": {"hectares": inc_ha, "percent": inc_pct}
+                "decrease": {"hectares": "N/D", "percent": "N/D"},
+                "stable": {"hectares": "N/D", "percent": "N/D"},
+                "increase": {"hectares": "N/D", "percent": "N/D"}
             },
-            "disclaimer": "Análisis preliminar de información territorial y teledetección."
+            "disclaimer": "No se fabrican porcentajes ni superficies simuladas cuando faltan observaciones ráster comparables."
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error en detección de cambios: {str(e)}")
 
 @app.post("/api/forest/analyze")
 def run_full_forest_analysis_endpoint(req: ChangeDetectionRequest):
-    """Endpoint unificado que ejecuta búsqueda STAC, NDVI, detección de cambios y aptitud territorial"""
+    """Endpoint unificado que ejecuta búsqueda STAC y evaluación de trazabilidad"""
     stac_res = search_stac_catalog(STACSearchRequest(geometry=req.geometry, startDate="2025-01-01", endDate=req.dateB))
     changes_res = calculate_change_detection(req)
 
     return {
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "geometry": req.geometry,
         "stac": stac_res,
         "changes": changes_res,
-        "disclaimer": "Análisis preliminar de información territorial y teledetección."
+        "disclaimer": "Análisis basado en datos reales trazables de teledetección."
     }
 
 def calculate_shapely_area(geom_shape):
@@ -271,11 +220,4 @@ def calculate_shapely_area(geom_shape):
     meters_per_deg_lat = 111132.92 - 559.82 * math.cos(2 * lat_rad)
     meters_per_deg_lng = 111412.84 * math.cos(lat_rad)
 
-    # Escalar área proyectada
     return abs(geom_shape.area) * meters_per_deg_lat * meters_per_deg_lng
-
-def generate_ndvi_values(date_str: str):
-    """Genera 36 valores NDVI para una cuadrícula 6x6"""
-    year = int(date_str[:4]) if len(date_str) >= 4 else 2025
-    base = 0.65 + ((year % 3) * 0.05) - 0.05
-    return [round(max(-0.1, min(0.9, base + (math.sin(i) * 0.08))), 2) for i in range(36)]

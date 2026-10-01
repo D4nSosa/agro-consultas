@@ -17,10 +17,9 @@ import { DataStatus, ConfidenceLevel } from '../utils/dataModel.js';
  * @param {number} params.lat - Latitud.
  * @param {number} params.lng - Longitud.
  * @param {number} [params.radiusKm=15] - Radio de alcance en kilómetros.
- * @param {Object|null} [params.customSoilSimulator=null] - Valores manuales del simulador.
  * @returns {Promise<Object>} Análisis territorial completo estructurado.
  */
-export async function analyzeLocation({ lat, lng, radiusKm = 15, customSoilSimulator = null }) {
+export async function analyzeLocation({ lat, lng, radiusKm = 15 }) {
   try {
     const provinciaKey = await findProvinceByCoords(lat, lng);
     const provDetails = provinciaKey ? await getProvinceDetails(provinciaKey) : null;
@@ -28,7 +27,7 @@ export async function analyzeLocation({ lat, lng, radiusKm = 15, customSoilSimul
 
     const subregion = provinciaKey ? await findSubregion(provinciaKey, lat, lng) : null;
 
-    const soilData = await getSoilReport(lat, lng, subregion?.suelo, customSoilSimulator);
+    const soilData = await getSoilReport(lat, lng, subregion?.suelo);
     const climateData = await getClimateData(lat, lng, provinciaNombre, subregion?.clima);
 
     const cultivosProvincia = provDetails?.nombre?.cultivos || provDetails?.cultivos || [

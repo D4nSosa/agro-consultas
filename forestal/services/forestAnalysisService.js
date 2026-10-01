@@ -1,6 +1,7 @@
 /**
  * forestAnalysisService.js - Servicio orquestador del Análisis Forestal
  * Conecta satélites, NDVI, detección de cambios y el recommendationEngine existente.
+ * Basado exclusivamente en evidencia y datos reales.
  */
 
 import { searchSentinelImages } from './satelliteService.js';
@@ -34,11 +35,11 @@ export async function runFullForestAnalysis(geometry, dateA, dateB, cloudMax = 3
     analyzeVegetation(geometry, prodB)
   ]);
 
-  // 3. Detectar cambios preliminares (deltaNDVI)
+  // 3. Detectar cambios entre observaciones reales
   const changes = detectChanges(vegA, vegB, geometry);
 
-  // 4. Generar dataset de línea temporal (Timeline 2023 - 2026)
-  const timeline = await generateForestTimeline(geometry, dateA, dateB, vegA, vegB);
+  // 4. Construir dataset de línea temporal compuesto exclusivamente por datos reales
+  const timeline = buildRealForestTimeline([searchResA, searchResB]);
 
   // 5. Integrar aptitud territorial de especies forestales mediante analyzeForestLocation
   const forestAptitude = await analyzeForestLocation({
@@ -98,11 +99,6 @@ export async function analyzeForestLocation({ geometry, soil = null, climate = n
     return {
       recommendations: recommendations,
       limitations: limitations,
-      score: {
-        soilScore: soilReport ? 85 : 70,
-        climateScore: climateReport ? 88 : 75,
-        overallForestScore: 82
-      },
       explanation: [
         `Evaluación calculada para lat: ${centroid.lat.toFixed(4)}, lng: ${centroid.lng.toFixed(4)}.`,
         `Suelo dominante: ${soilReport.tipo || "Fuente no disponible para esta zona."}`,
@@ -114,49 +110,33 @@ export async function analyzeForestLocation({ geometry, soil = null, climate = n
     return {
       recommendations: [],
       limitations: ['Fuente no disponible para esta zona.'],
-      score: { overallForestScore: 0 },
       explanation: ['No se pudieron recuperar datos territoriales para la ubicación.']
     };
   }
 }
 
 /**
- * Genera la estructura de la línea temporal para el lote (2023 - 2026)
+ * Construye la línea temporal utilizando únicamente productos satelitales reales recuperados.
  */
-async function generateForestTimeline(geometry, dateA, dateB, vegA, vegB) {
-  const years = [2023, 2024, 2025, 2026];
+function buildRealForestTimeline(searchResults) {
   const items = [];
+  const addedIds = new Set();
 
-  for (const year of years) {
-    let date = `${year}-08-15`;
-    let mean = 0.58;
-    let min = 0.12;
-    let max = 0.85;
-    let cloud = 5.2;
-
-    if (dateA && dateA.startsWith(year.toString())) {
-      date = dateA;
-      mean = vegA.stats.mean;
-      min = vegA.stats.min;
-      max = vegA.stats.max;
-    } else if (dateB && dateB.startsWith(year.toString())) {
-      date = dateB;
-      mean = vegB.stats.mean;
-      min = vegB.stats.min;
-      max = vegB.stats.max;
-    } else {
-      mean = Math.round((0.50 + ((year % 3) * 0.08)) * 100) / 100;
+  for (const res of searchResults) {
+    if (res && res.products) {
+      for (const prod of res.products) {
+        if (prod && prod.id && !addedIds.has(prod.id)) {
+          addedIds.add(prod.id);
+          items.push({
+            date: prod.date,
+            product: prod.id,
+            cloudCover: prod.cloudCover,
+            source: prod.source,
+            status: 'REAL'
+          });
+        }
+      }
     }
-
-    items.push({
-      year: year,
-      date: date,
-      product: `S2A_MSIL2A_${year}0815_T21JUG`,
-      cloudCover: cloud,
-      ndviMean: mean,
-      ndviMin: min,
-      ndviMax: max
-    });
   }
 
   return items;

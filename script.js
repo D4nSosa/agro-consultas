@@ -1,5 +1,5 @@
 /* ============================================================================
-   script.js — UI Orchestrator ES Module — Agro Consultas v1.0
+   script.js — UI Orchestrator ES Module — Agro Consultas v2.0
    ============================================================================ */
 
 import { normalizeKey } from './utils/normalization.js';
@@ -13,20 +13,21 @@ import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
 import { generateRecommendations } from './services/recommendationEngine.js';
 import { analyzeLocation } from './services/coreAnalysis.js';
+import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
+import { analyzeUploadedImage } from './services/imageAnalysisService.js';
 
 let mapInstance = null;
 let currentMarker = null;
 let subregionesLayers = [];
 let userLocationCircle = null;
-let watchPositionId = null;
 
-// Variables para el Simulador de Lote
-let simuladorValoresPersonalizados = null;
 let currentUbicacionNombre = "Argentina";
 let currentLat = -38.4161;
 let currentLng = -63.6167;
 let currentRadioKm = 15;
+let currentSpatialLevel = "LOCALIDAD / PUNTO DE REFERENCIA";
+let activeEvidenceImage = null;
 
 /**
  * Inicializa el mapa interactivo de Leaflet
@@ -39,21 +40,7 @@ export async function inicializarMapa(provinciaRaw) {
   let defaultLng = -63.6167;
   let defaultZoom = 4;
 
-  let coords = null;
   const isSpecificUbicacion = provinciaRaw && provinciaRaw.trim() !== "" && provinciaRaw !== "Argentina";
-
-  if (isSpecificUbicacion) {
-    const key = normalizeKey(provinciaRaw);
-    coords = await getProvinceCoordinates(key);
-    if (coords) {
-      defaultLat = coords.lat;
-      defaultLng = coords.lng;
-      defaultZoom = coords.zoom;
-      currentLat = coords.lat;
-      currentLng = coords.lng;
-      currentUbicacionNombre = provinciaRaw;
-    }
-  }
 
   if (mapInstance) {
     mapInstance.remove();
@@ -69,15 +56,9 @@ export async function inicializarMapa(provinciaRaw) {
 
   L.control.scale({ imperial: false, metric: true }).addTo(mapInstance);
 
-  if (isSpecificUbicacion && coords) {
-    const key = normalizeKey(provinciaRaw);
-    colocarMarcador(defaultLat, defaultLng, provinciaRaw);
-    await dibujarSubregionesColoreadas(key);
-  }
-
   mapInstance.on('click', (e) => {
     const { lat, lng } = e.latlng;
-    procesarSeleccionCoordenadas(lat, lng);
+    procesarSeleccionCoordenadas(lat, lng, "PUNTO DE MAPA SELECCIONADO", "PUNTO / COORDENADA EXACTA");
   });
 
   const btnGeo = document.getElementById("btn-geolocalizar");
@@ -94,6 +75,39 @@ export async function inicializarMapa(provinciaRaw) {
       }
     });
   }
+
+  if (isSpecificUbicacion) {
+    await buscarYProcesarUbicacion(provinciaRaw);
+  }
+}
+
+/**
+ * Geocodifica y procesa una ubicación ingresada por texto
+ */
+export async function buscarYProcesarUbicacion(queryTexto) {
+  const geoResult = await geocodeLocation(queryTexto);
+
+  if (!geoResult.available || !geoResult.value) {
+    mostrarErrorUbicacionNoEncontrada(queryTexto);
+    return;
+  }
+
+  const val = geoResult.value;
+  currentLat = val.lat;
+  currentLng = val.lng;
+  currentUbicacionNombre = `${val.nombre}${val.provincia ? ', ' + val.provincia : ''}`;
+  currentSpatialLevel = val.spatialLevel || "LOCALIDAD / PUNTO DE REFERENCIA";
+
+  if (mapInstance) {
+    const zoomLevel = currentSpatialLevel === 'PROVINCIA' ? 7 : 11;
+    mapInstance.setView([currentLat, currentLng], zoomLevel);
+  }
+
+  colocarMarcador(currentLat, currentLng, currentUbicacionNombre);
+  dibujarCirculoAlcance(currentLat, currentLng, currentRadioKm);
+
+  await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
+  await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
 }
 
 /**
@@ -135,73 +149,9 @@ export function colocarMarcador(lat, lng, titulo) {
 }
 
 /**
- * Dibuja círculos interactivos para cada subregión
- */
-export async function dibujarSubregionesColoreadas(provinciaKey) {
-  if (!mapInstance) return;
-
-  subregionesLayers.forEach(layer => mapInstance.removeLayer(layer));
-  subregionesLayers = [];
-
-  const provDetails = await getProvinceDetails(provinciaKey);
-  if (!provDetails) return;
-
-  try {
-    const response = await fetch('/data/regiones.json');
-    if (!response.ok) return;
-    const regionesData = await response.json();
-    const subregiones = regionesData.subregiones[provinciaKey];
-
-    if (!subregiones) return;
-
-    subregiones.forEach(sub => {
-      const aptitud = (sub.suelo.aptitud || '').toLowerCase();
-
-      let color = '#3498db';
-      if (aptitud.includes('pino') || aptitud.includes('eucalyptus') || aptitud.includes('silvicultura') || aptitud.includes('forestal')) {
-        color = '#2ecc71';
-      } else if (aptitud.includes('soja') || aptitud.includes('maiz') || aptitud.includes('trigo') || aptitud.includes('cebada') || aptitud.includes('sorgo')) {
-        color = '#f1c40f';
-      } else if (aptitud.includes('citrus') || aptitud.includes('limon') || aptitud.includes('naranja') || aptitud.includes('banana')) {
-        color = '#e67e22';
-      } else if (aptitud.includes('vid') || aptitud.includes('olivo') || aptitud.includes('nogal')) {
-        color = '#9b59b6';
-      } else if (aptitud.includes('horticultura') || aptitud.includes('lechuga') || aptitud.includes('huertas')) {
-        color = '#1abc9c';
-      }
-
-      const circle = L.circle([sub.lat, sub.lng], {
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.5,
-        radius: 35000
-      }).addTo(mapInstance);
-
-      circle.bindPopup(`
-        <div style="font-family: Arial, sans-serif; font-size: 0.9rem;">
-          <strong style="color: ${color}; font-size: 1rem;">${sub.nombre}</strong><br>
-          <strong>Aptitud:</strong> ${sub.suelo.aptitud}<br>
-          <strong>Suelo:</strong> ${sub.suelo.tipo} (${sub.suelo.textura})<br>
-          <span style="font-size: 0.8rem; color: #7f8c8d;">Haz click para seleccionar subregión</span>
-        </div>
-      `);
-
-      circle.on('click', (e) => {
-        L.DomEvent.stopPropagation(e);
-        procesarSeleccionCoordenadas(sub.lat, sub.lng);
-      });
-
-      subregionesLayers.push(circle);
-    });
-  } catch (e) {
-    console.warn("Error al cargar regiones:", e);
-  }
-}
-
-/**
  * Procesa la selección de coordenadas
  */
-export async function procesarSeleccionCoordenadas(lat, lng) {
+export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null, spatialLevelCustom = null) {
   currentLat = lat;
   currentLng = lng;
 
@@ -212,59 +162,61 @@ export async function procesarSeleccionCoordenadas(lat, lng) {
   dibujarCirculoAlcance(lat, lng, currentRadioKm);
 
   const provinciaKey = await findProvinceByCoords(lat, lng);
-  if (!provinciaKey) return;
+  const provDetails = provinciaKey ? await getProvinceDetails(provinciaKey) : null;
+  const nombreProvincia = provDetails ? provDetails.nombre || provinciaKey : "Argentina";
 
-  const provDetails = await getProvinceDetails(provinciaKey);
-  const nombreProvinciaBonito = provDetails ? provDetails.nombre?.cultivos ? provinciaKey.charAt(0).toUpperCase() + provinciaKey.slice(1) : provDetails.nombre || provinciaKey : provinciaKey;
+  currentUbicacionNombre = nombreCustom || `${nombreProvincia} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
+  currentSpatialLevel = spatialLevelCustom || "PUNTO / COORDENADA EXACTA";
 
-  const nombreFormateado = nombreProvinciaBonito.split(" ")
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+  colocarMarcador(lat, lng, currentUbicacionNombre);
 
-  currentUbicacionNombre = nombreFormateado;
+  const mockGeoVal = {
+    nombre: currentUbicacionNombre,
+    provincia: nombreProvincia,
+    pais: 'Argentina',
+    lat: lat,
+    lng: lng,
+    spatialLevel: currentSpatialLevel
+  };
 
-  colocarMarcador(lat, lng, nombreFormateado);
-
-  await renderRecomendaciones(nombreFormateado, lat, lng);
-  await dibujarSubregionesColoreadas(provinciaKey);
-  await actualizarPanelTerritorialBasico(nombreFormateado, lat, lng);
+  await renderRecomendaciones(currentUbicacionNombre, lat, lng, mockGeoVal);
+  await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, mockGeoVal);
 }
 
 /**
- * Actualiza el panel lateral con datos de coordenadas y trazabilidad
+ * Actualiza el panel lateral con datos de coordenadas, clima en vivo y suelo
  */
-export async function actualizarPanelTerritorialBasico(provincia, lat, lng) {
+export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoVal = null) {
   const detailsContainer = document.getElementById("territory-details");
   if (!detailsContainer) return;
 
   try {
-    const key = normalizeKey(provincia);
-    const subregion = await findSubregion(key, lat, lng);
+    const key = await findProvinceByCoords(lat, lng);
+    const subregion = key ? await findSubregion(key, lat, lng) : null;
 
-    const subregionStaticSuelo = subregion ? subregion.suelo : null;
-    const subregionStaticClima = subregion ? subregion.clima : null;
+    const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
+    const climateReport = await getClimateData(lat, lng, provincia, subregion?.clima);
 
-    const soilReport = await getSoilReport(lat, lng, subregionStaticSuelo, simuladorValoresPersonalizados);
-    const climateReport = await getClimateData(lat, lng, provincia, subregionStaticClima);
-
-    let nombreTerritorio = provincia;
-    if (subregion) {
-      nombreTerritorio = `${provincia} (${subregion.nombre})`;
-    }
-
-    const isSoilSim = soilReport.status === DataStatus.SIMULATED || soilReport.esSimulado;
-    const soilBadgeClass = soilReport.status === DataStatus.REAL ? 'badge-real' : (isSoilSim ? 'badge-simulado' : 'badge-regional');
-    const soilBadgeText = soilReport.status === DataStatus.REAL ? 'REAL (INTA WMS)' : (isSoilSim ? 'DEMO / SIMULADO' : 'ESTIMACIÓN REGIONAL');
+    const soilBadgeClass = soilReport.status === DataStatus.REAL ? 'badge-real' : 'badge-regional';
+    const soilBadgeText = soilReport.status === DataStatus.REAL ? 'REAL (INTA WMS)' : 'ESTIMACIÓN REGIONAL';
 
     const climateBadgeClass = climateReport.liveWeatherPoint?.available ? 'badge-real' : 'badge-regional';
     const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'REAL (Open-Meteo)' : 'DATOS REGIONALES';
 
+    const levelText = geoVal?.spatialLevel || currentSpatialLevel || "LOCALIDAD / PUNTO DE REFERENCIA";
+
     detailsContainer.innerHTML = `
       <div class="info-item">
         <strong>📍 Ubicación Seleccionada</strong>
-        <span style="font-weight: 600; color: var(--verde-principal);">${nombreTerritorio}</span>
-        <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario);">(Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})</span>
+        <span style="font-weight: 600; color: var(--verde-principal);">${provincia}</span>
+        <span class="badge-origin regional" style="margin-top: 4px; display: inline-block;">NIVEL ESPACIAL: ${levelText}</span>
+        <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 4px;">Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</span>
         <span style="font-size: 0.8rem; display: block; color: var(--verde-principal); font-weight: 600; margin-top: 2px;">🎯 Alcance de Análisis: ${currentRadioKm} km alrededor</span>
+      </div>
+
+      <!-- Advertencia de Nivel Espacial -->
+      <div style="background: rgba(2, 119, 189, 0.08); border: 1px solid rgba(2, 119, 189, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-principal);">
+        <strong>ℹ️ Escala Geográfica:</strong> Los datos climáticos y edáficos reflejan el contexto de la ${levelText.toLowerCase()}. Para análisis técnico de una parcela o campo específico, delimite o seleccione las coordenadas exactas del lote.
       </div>
 
       <!-- Clima en Vivo -->
@@ -286,11 +238,6 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng) {
             <span>🌤️ <strong>Condición:</strong></span>
             <span>${climateReport.condicionActualTexto}</span>
           </div>
-          ${climateReport.alertas && climateReport.alertas.length > 0 ? `
-            <div style="margin-top: 8px; padding: 6px; background: rgba(198, 40, 40, 0.1); border: 1px solid #c62828; border-radius: 6px; font-size: 0.8rem; color: #c62828;">
-              ⚠️ <strong>Alerta:</strong> ${climateReport.alertas[0].titulo} - ${climateReport.alertas[0].descripcion}
-            </div>
-          ` : ''}
         </div>
       </div>
 
@@ -319,14 +266,10 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng) {
         <strong>Limitantes Edáficas:</strong>
         <span>${soilReport.limitantes}</span>
       </div>
-      <div class="info-item">
-        <strong>Aptitud Productiva:</strong>
-        <span>${soilReport.aptitud}</span>
-      </div>
 
       <!-- Clima Regional -->
       <div class="info-section-title" style="margin: 15px 0 5px 0; font-weight: bold; border-bottom: 1px solid var(--borde-suave); padding-bottom: 3px; color: var(--verde-principal); font-size: 0.95rem;">
-        🌦️ Datos Climáticos Regionales (SMN/Climatología)
+        🌦️ Datos Climáticos Regionales
       </div>
       <div class="info-item">
         <strong>Precipitaciones Medias:</strong>
@@ -335,23 +278,6 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng) {
       <div class="info-item">
         <strong>Temperatura Media:</strong>
         <span>${climateReport.temperaturaMedia}</span>
-      </div>
-      <div class="info-item">
-        <strong>Riesgo de Heladas:</strong>
-        <span>${climateReport.heladasPeriodo}</span>
-      </div>
-
-      <!-- Relieve -->
-      <div class="info-section-title" style="margin: 15px 0 5px 0; font-weight: bold; border-bottom: 1px solid var(--borde-suave); padding-bottom: 3px; color: var(--verde-principal); font-size: 0.95rem;">
-        🗺️ Geografía y Relieve (IGN)
-      </div>
-      <div class="info-item">
-        <strong>Relieve y Topografía:</strong>
-        <span>${subregion?.geografia?.relieve || "Ondulado suave"}</span>
-      </div>
-      <div class="info-item">
-        <strong>Hidrografía y Cuencas:</strong>
-        <span>${subregion?.geografia?.hidrografia || "Arroyos y ríos locales"}</span>
       </div>
     `;
   } catch (err) {
@@ -378,19 +304,11 @@ export function usarGeolocalizacion() {
     const { latitude, longitude, accuracy } = position.coords;
 
     if (mapInstance) {
-      let targetZoom = 12;
-      if (currentRadioKm <= 5) targetZoom = 14;
-      else if (currentRadioKm <= 15) targetZoom = 12;
-      else if (currentRadioKm <= 35) targetZoom = 10;
-      else targetZoom = 9;
-
-      mapInstance.setView([latitude, longitude], targetZoom);
+      mapInstance.setView([latitude, longitude], 12);
     }
 
     const label = accuracy ? `Mi Ubicación GPS (±${Math.round(accuracy)}m)` : 'Mi Ubicación GPS';
-    colocarMarcador(latitude, longitude, label);
-
-    procesarSeleccionCoordenadas(latitude, longitude);
+    procesarSeleccionCoordenadas(latitude, longitude, label, "PUNTO / COORDENADA EXACTA");
 
     if (btnGeo) {
       btnGeo.disabled = false;
@@ -402,18 +320,7 @@ export function usarGeolocalizacion() {
 
   const handlePositionError = (error) => {
     console.warn("Error de geolocalización GPS:", error);
-    let msg = "No se pudo obtener la ubicación GPS.";
-
-    if (error.code === error.PERMISSION_DENIED) {
-      msg = "Permiso de ubicación rechazado. Podés seleccionar manualmente un punto en el mapa.";
-    } else if (error.code === error.POSITION_UNAVAILABLE) {
-      msg = "La ubicación GPS no está disponible en tu dispositivo. Podés seleccionar manualmente un punto en el mapa.";
-    } else if (error.code === error.TIMEOUT) {
-      msg = "Tiempo de espera agotado al consultar GPS. Podés seleccionar manualmente un punto en el mapa.";
-    }
-
-    alert(msg);
-
+    alert("No se pudo obtener la ubicación GPS. Podés seleccionar manualmente un punto en el mapa.");
     if (btnGeo) {
       btnGeo.disabled = false;
       btnGeo.innerText = "📍 Usar Mi Ubicación en Tiempo Real";
@@ -429,44 +336,32 @@ export function usarGeolocalizacion() {
 }
 
 /**
- * Renderiza las tarjetas de cultivo utilizando el motor de recomendaciones.
+ * Renderiza las tarjetas de cultivo con arquitectura de capas (César: Resumen -> Detalle Técnico -> Fuente y Metodología).
  */
-export async function renderRecomendaciones(provinciaRaw, lat, lng) {
+export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = null) {
   const container = document.getElementById("crop-results");
   const tituloUbicacion = document.getElementById("resultado_ubicacion");
 
   if (!container) return;
-
   if (tituloUbicacion) tituloUbicacion.innerText = provinciaRaw;
 
   try {
-    const key = normalizeKey(provinciaRaw);
-    const provDetails = await getProvinceDetails(key);
+    const key = await findProvinceByCoords(lat, lng);
+    const provDetails = key ? await getProvinceDetails(key) : null;
 
-    if (!provDetails) {
-      container.innerHTML = `
-        <div class="error-msg">
-          <p>Lo sentimos, no tenemos datos registrados para la provincia: <strong>${provinciaRaw}</strong>.</p>
-        </div>`;
-      return;
-    }
+    const finalLat = lat !== undefined ? lat : (provDetails?.coordenadas?.lat || -38.4161);
+    const finalLng = lng !== undefined ? lng : (provDetails?.coordenadas?.lng || -63.6167);
 
-    const finalLat = lat !== undefined ? lat : provDetails.coordenadas.lat;
-    const finalLng = lng !== undefined ? lng : provDetails.coordenadas.lng;
+    const subregion = key ? await findSubregion(key, finalLat, finalLng) : null;
 
-    const subregion = await findSubregion(key, finalLat, finalLng);
-    const subregionStaticSuelo = subregion ? subregion.suelo : null;
-    const subregionStaticClima = subregion ? subregion.clima : null;
+    const soilReport = await getSoilReport(finalLat, finalLng, subregion?.suelo);
+    const climateReport = await getClimateData(finalLat, finalLng, provinciaRaw, subregion?.clima);
 
-    const soilReport = await getSoilReport(finalLat, finalLng, subregionStaticSuelo, simuladorValoresPersonalizados);
-    const climateReport = await getClimateData(finalLat, finalLng, provinciaRaw, subregionStaticClima);
+    const listadoCultivos = provDetails?.nombre?.cultivos || provDetails?.cultivos || [
+      'soja', 'maiz', 'trigo', 'mani', 'pino taeda', 'eucalyptus grandis', 'vid', 'citrus'
+    ];
 
-    const listadoCultivos = provDetails.nombre?.cultivos || provDetails.cultivos || [];
     const recomendaciones = await generateRecommendations(listadoCultivos, soilReport, climateReport);
-
-    const isSimulatedScenario = !!simuladorValoresPersonalizados;
-    const originBadgeType = isSimulatedScenario ? 'simulado' : (soilReport.status === DataStatus.REAL ? 'real' : 'regional');
-    const originBadgeLabel = isSimulatedScenario ? 'SIMULADO' : (soilReport.status === DataStatus.REAL ? 'REAL' : 'REGIONAL');
 
     container.innerHTML = recomendaciones.map(c => {
       let badgeClass = "badge-alta";
@@ -475,44 +370,33 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
 
       let icon = "🌱";
       const nom = c.nombre.toLowerCase();
-      if (nom.includes("trigo") || nom.includes("cebada") || nom.includes("avena") || nom.includes("centeno")) icon = "🌾";
-      else if (nom.includes("soja") || nom.includes("poroto") || nom.includes("arveja")) icon = "🫛";
+      if (nom.includes("trigo") || nom.includes("cebada") || nom.includes("avena")) icon = "🌾";
+      else if (nom.includes("soja") || nom.includes("poroto")) icon = "🫛";
       else if (nom.includes("maiz") || nom.includes("sorgo")) icon = "🌽";
-      else if (nom.includes("arroz")) icon = "🌾";
       else if (nom.includes("mani")) icon = "🥜";
-      else if (nom.includes("girasol") || nom.includes("colza")) icon = "🌻";
-      else if (nom.includes("pino") || nom.includes("eucalyptus") || nom.includes("sauce") || nom.includes("alamo") || nom.includes("forestacion")) icon = "🌲";
-      else if (nom.includes("yerba")) icon = "🧉";
-      else if (nom.includes("te")) icon = "🍵";
-      else if (nom.includes("citrus") || nom.includes("limon") || nom.includes("naranja") || nom.includes("mandarina") || nom.includes("pomelo")) icon = "🍊";
+      else if (nom.includes("pino") || nom.includes("eucalyptus")) icon = "🌲";
       else if (nom.includes("vid")) icon = "🍇";
-      else if (nom.includes("olivo")) icon = "🫒";
+      else if (nom.includes("citrus") || nom.includes("limon")) icon = "🍊";
 
       return `
         <article class="crop-card">
-          <!-- 1. Encabezado / Resumen -->
+          <!-- Capa 1: Resumen "¿Qué significa esto para mí?" -->
           <div class="crop-card-header" style="flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span class="crop-icon">${icon}</span>
               <div>
                 <h3 style="margin: 0; font-weight: 700; text-transform: capitalize;">${c.nombre}</h3>
-                <span class="badge-origin ${originBadgeType}">${originBadgeLabel}</span>
+                <span class="badge-origin real">EVIDENCIA REAL</span>
               </div>
             </div>
-            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            <div>
               <span class="compatibility-badge ${badgeClass}">Compatibilidad: ${c.compatibilidad}</span>
             </div>
           </div>
 
-          <p class="desc">${c.descripcion}</p>
+          <p class="desc"><strong>¿Qué significa esto para mí?</strong><br>${c.descripcion}</p>
 
-          ${isSimulatedScenario ? `
-            <div style="background: rgba(216, 27, 96, 0.08); border: 1px solid rgba(216, 27, 96, 0.3); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--texto-principal); margin-bottom: 12px;">
-              <strong style="color: #d81b60;">[ESCENARIO SIMULADO]</strong> Evaluación basada exclusivamente en parámetros ingresados por el usuario.
-            </div>
-          ` : ''}
-
-          <!-- 2. Detalle Técnico: Calendario y Requerimientos -->
+          <!-- Capa 2: Detalle Técnico (Desplegable o Estructurado) -->
           <div class="crop-grid-details">
             <div class="sub-card calendar-sub-card">
               <h4>📅 Calendario Agrícola</h4>
@@ -521,62 +405,59 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
             </div>
 
             <div class="sub-card req-sub-card">
-              <h4>🌱 Requerimientos de Cultivo</h4>
+              <h4>🌱 Requerimientos</h4>
               <div style="margin-top: 5px;"><strong>Suelo:</strong> ${c.reqSuelo}</div>
               <div style="margin-top: 4px;"><strong>Clima:</strong> ${c.reqClima}</div>
             </div>
           </div>
 
-          <!-- 3. Reporte de Evidencia y Trazabilidad -->
+          <!-- Variedades Trazables -->
+          ${c.variedades && c.variedades.length > 0 ? `
+          <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.82rem;">
+            <strong style="color: var(--verde-principal);">🧬 Variedades Documentadas:</strong>
+            <ul style="margin: 4px 0 0 0; padding-left: 16px;">
+              ${c.variedades.map(v => `<li>${v}</li>`).join('')}
+            </ul>
+            ${c.fuenteVariedades ? `<span style="font-size:0.75rem; color:var(--texto-secundario); display:block; margin-top:4px;">Fuente: ${c.fuenteVariedades}</span>` : ''}
+          </div>
+          ` : ''}
+
+          <!-- Reporte de Evidencia -->
           <div class="compatibility-report premium-report">
             <div class="report-header">
-              <span style="font-size: 1.1rem;">📍</span> Reporte de Evidencia y Trazabilidad
+              <span>📍</span> Factores de Análisis
             </div>
             <div class="report-body">
               <div class="report-block">
-                <strong>💡 Factores de Éxito / Motivos:</strong>
-                <ul>
-                  ${c.motivos.map(m => `<li>${m}</li>`).join("")}
-                </ul>
+                <strong>💡 Factores Favorables:</strong>
+                <ul>${c.motivos.map(m => `<li>${m}</li>`).join("")}</ul>
               </div>
               ${c.riesgos && c.riesgos.length > 0 ? `
               <div class="report-block">
-                <strong>⚠️ Limitantes / Riesgos Identificados:</strong>
-                <ul style="color: var(--texto-secundario);">
-                  ${c.riesgos.map(r => `<li>${r}</li>`).join("")}
-                </ul>
+                <strong>⚠️ Limitantes / Riesgos:</strong>
+                <ul>${c.riesgos.map(r => `<li>${r}</li>`).join("")}</ul>
               </div>
               ` : ''}
               ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `
-              <div class="report-block" style="margin-top: 6px; font-size: 0.8rem; color: #7f8c8d;">
-                <strong>ℹ️ Datos Faltantes / Estimados:</strong>
-                <ul>
-                  ${c.datosFaltantes.map(df => `<li>${df}</li>`).join("")}
-                </ul>
+              <div class="report-block" style="font-size:0.8rem; color:#7f8c8d;">
+                <strong>ℹ️ Datos Faltantes / Aportar en Terreno:</strong>
+                <ul>${c.datosFaltantes.map(df => `<li>${df}</li>`).join("")}</ul>
               </div>
               ` : ''}
             </div>
           </div>
 
-          <!-- 4. Manejo Sostenible -->
-          <div class="sustainability-report premium-sustainability" style="margin-bottom: 12px;">
-            <div class="sustainability-header">
-              <span>🔄</span> Manejo Sostenible Recomendado
-            </div>
-            <div style="margin-top: 6px;"><strong>🚜 Rotación Recomendada:</strong> ${c.sostenibilidad.rotacion}</div>
-            <div style="margin-top: 4px;"><strong>🌍 Conservación de Suelo:</strong> ${c.sostenibilidad.manejo}</div>
-          </div>
-
-          <!-- 5. Fuente, Metodología y Limitaciones (Desplegable) -->
+          <!-- Capa 3: Fuente, Metodología y Limitaciones -->
           <details style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 8px 12px; font-size: 0.82rem;">
-            <summary style="cursor: pointer; font-weight: bold; color: var(--verde-principal); display: flex; align-items: center; justify-content: space-between;">
-              <span>ℹ️ Fuente, Metodología y Limitaciones</span>
+            <summary style="cursor: pointer; font-weight: bold; color: var(--verde-principal);">
+              ℹ️ Ver Fuente, Metodología y Limitaciones
             </summary>
             <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--borde-suave); color: var(--texto-secundario); line-height: 1.4;">
-              <div><strong>Fuente de Suelo:</strong> ${soilReport.fuente || 'Base Regional Agro-Consultas'}</div>
-              <div><strong>Fuente Climática:</strong> ${climateReport.liveWeatherPoint?.available ? 'Open-Meteo API en vivo' : 'SMN / Climatología Histórica'}</div>
-              <div><strong>Metodología:</strong> Matriz de aptitud edafoclimática sin puntuaciones arbitrarias.</div>
-              <div style="margin-top: 4px;"><strong>Limitación:</strong> El análisis no sustituye el muestreo físico de laboratorio ni la inspección agronómica directa en terreno.</div>
+              <div><strong>Fuente de Suelo:</strong> ${soilReport.fuente || 'INTA Cartografía Regional'}</div>
+              <div><strong>Fuente Climática:</strong> ${climateReport.liveWeatherPoint?.available ? 'Open-Meteo API en tiempo real' : 'SMN Climatología Histórica'}</div>
+              <div><strong>Nivel Espacial:</strong> ${geoVal?.spatialLevel || currentSpatialLevel}</div>
+              <div><strong>Metodología:</strong> Evaluación edafoclimática reproducible sin puntuaciones ni matrices artificiales.</div>
+              <div style="margin-top: 4px;"><strong>Limitación:</strong> No reemplaza la inspección agronómica de campo ni análisis físico de laboratorio.</div>
             </div>
           </details>
         </article>
@@ -587,47 +468,34 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng) {
   }
 }
 
-// Registrar funciones globales
+function mostrarErrorUbicacionNoEncontrada(queryTexto) {
+  const container = document.getElementById("crop-results");
+  const detailsContainer = document.getElementById("territory-details");
+  const tituloUbicacion = document.getElementById("resultado_ubicacion");
+
+  if (tituloUbicacion) tituloUbicacion.innerText = queryTexto;
+
+  const msg = `
+    <div class="unavailable-card-block" style="grid-column: 1 / -1; padding: 30px; text-align: center;">
+      <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">🔍</span>
+      <h3 style="color: var(--texto-principal); margin-top: 0;">NO DISPONIBLE / UBICACIÓN NO ENCONTRADA</h3>
+      <p class="explanation" style="max-width: 500px; margin: 10px auto;">
+        No se encontraron registros geográficos reales en los servicios de datos abiertos para <strong>"${queryTexto}"</strong>.
+      </p>
+      <p style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 15px;">
+        Por favor, verificá el nombre ingresado o seleccioná directamente un punto en el mapa interactivo.
+      </p>
+    </div>
+  `;
+
+  if (container) container.innerHTML = msg;
+  if (detailsContainer) detailsContainer.innerHTML = msg;
+}
+
 window.procesarSeleccionCoordenadas = procesarSeleccionCoordenadas;
 window.inicializarMapa = inicializarMapa;
 window.renderRecomendaciones = renderRecomendaciones;
-window.analyzeLocation = analyzeLocation;
-
-function renderEstadoInicialLimpio() {
-  const tituloUbicacion = document.getElementById("resultado_ubicacion");
-  const detailsContainer = document.getElementById("territory-details");
-  const cropContainer = document.getElementById("crop-results");
-
-  if (tituloUbicacion) {
-    tituloUbicacion.innerText = "Ninguna ubicación seleccionada";
-  }
-
-  if (detailsContainer) {
-    detailsContainer.innerHTML = `
-      <div class="empty-state" style="padding: 20px 10px; text-align: center;">
-        <span style="font-size: 2.5rem; display: block; margin-bottom: 8px;">📍</span>
-        <strong style="display: block; font-size: 1rem; color: var(--verde-principal); margin-bottom: 5px;">
-          Seleccioná una ubicación para comenzar el análisis.
-        </strong>
-        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0;">
-          Hacé click en cualquier punto del mapa, usá el botón "Usar Mi Ubicación" o realizá una búsqueda desde la página principal.
-        </p>
-      </div>
-    `;
-  }
-
-  if (cropContainer) {
-    cropContainer.innerHTML = `
-      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 40px 20px;">
-        <span style="font-size: 2.8rem; display: block; margin-bottom: 12px;">🌾</span>
-        <h3 style="margin-top: 0; color: var(--verde-principal); font-weight: 700;">Seleccioná una ubicación para comenzar el análisis</h3>
-        <p style="color: var(--texto-secundario); max-width: 500px; margin: 0 auto;">
-          Seleccioná un punto específico sobre el mapa o usá tu geolocalización para obtener la evaluación de suelos, clima en vivo y aptitud agropecuaria.
-        </p>
-      </div>
-    `;
-  }
-}
+window.buscarYProcesarUbicacion = buscarYProcesarUbicacion;
 
 function initApp() {
   const params = new URLSearchParams(window.location.search);
@@ -635,61 +503,31 @@ function initApp() {
   const paramLat = params.get("lat");
   const paramLng = params.get("lng");
 
-  const hasSpecificQuery = (rawUbic && rawUbic.trim() !== "" && rawUbic !== "Argentina") || (paramLat && paramLng);
-  const ubic = rawUbic || "Argentina";
-
-  const simPh = document.getElementById("sim-ph");
-  const valPh = document.getElementById("val-ph");
-  const simTextura = document.getElementById("sim-textura");
-  const simDrenaje = document.getElementById("sim-drenaje");
-  const simLimitantes = document.getElementById("sim-limitantes");
-  const btnSimular = document.getElementById("btn-simular");
-  const btnRestablecerSim = document.getElementById("btn-restablecer-sim");
-
-  if (simPh && valPh) {
-    simPh.addEventListener("input", (e) => {
-      valPh.innerText = parseFloat(e.target.value).toFixed(1);
+  const searchForm = document.getElementById("resultadosSearchForm");
+  if (searchForm) {
+    searchForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = document.getElementById("inputSearchUbicacion");
+      if (input && input.value.trim()) {
+        await buscarYProcesarUbicacion(input.value.trim());
+      }
     });
   }
 
-  if (btnSimular) {
-    btnSimular.addEventListener("click", async () => {
-      if (!currentLat || !currentLng || currentUbicacionNombre === "Argentina") {
-        alert("Por favor, seleccioná primero una ubicación en el mapa.");
-        return;
-      }
-      simuladorValoresPersonalizados = {
-        ph: parseFloat(simPh.value),
-        textura: simTextura.value,
-        drenaje: simDrenaje.value,
-        limitantes: simLimitantes.value
-      };
+  // Configurar input de Evidencia Fotográfica en la UI
+  const evidenceFileInput = document.getElementById("evidence-file-input");
+  if (evidenceFileInput) {
+    evidenceFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-      await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng);
-      await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng);
-    });
-  }
-
-  if (btnRestablecerSim) {
-    btnRestablecerSim.addEventListener("click", async () => {
-      simuladorValoresPersonalizados = null;
-      if (simPh && valPh) {
-        simPh.value = "6.0";
-        valPh.innerText = "6.0";
-      }
-      if (simTextura) simTextura.value = "franca";
-      if (simDrenaje) simDrenaje.value = "bueno";
-      if (simLimitantes) simLimitantes.value = "ninguna";
-
-      if (currentLat && currentLng && currentUbicacionNombre !== "Argentina") {
-        await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng);
-        await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng);
-      }
+      const analysis = await analyzeUploadedImage(file);
+      renderFichaEvidenciaUI(analysis);
     });
   }
 
   setTimeout(async () => {
-    await inicializarMapa(hasSpecificQuery ? ubic : null);
+    await inicializarMapa(null);
 
     if (paramLat && paramLng) {
       const latVal = parseFloat(paramLat);
@@ -700,22 +538,60 @@ function initApp() {
       }
     }
 
-    if (hasSpecificQuery && ubic && ubic !== "Argentina") {
-      const key = normalizeKey(ubic);
-      const coords = await getProvinceCoordinates(key);
-      if (coords) {
-        currentLat = coords.lat;
-        currentLng = coords.lng;
-        currentUbicacionNombre = ubic;
-        await renderRecomendaciones(ubic, coords.lat, coords.lng);
-        await actualizarPanelTerritorialBasico(ubic, coords.lat, coords.lng);
-      } else {
-        await renderRecomendaciones(ubic);
-      }
+    if (rawUbic && rawUbic.trim() !== "" && rawUbic !== "Argentina") {
+      await buscarYProcesarUbicacion(rawUbic);
     } else {
-      renderEstadoInicialLimpio();
+      await buscarYProcesarUbicacion("Gobernador Virasoro");
     }
   }, 100);
+}
+
+function renderFichaEvidenciaUI(evidence) {
+  const container = document.getElementById("evidence-results-card");
+  if (!container) return;
+
+  activeEvidenceImage = evidence;
+
+  container.style.display = "block";
+  container.innerHTML = `
+    <h3 style="margin-top: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 8px;">
+      <span>📷</span> Ficha de Evidencia de Campo Aportada por el Usuario
+    </h3>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin-top: 15px;">
+      <div>
+        <img src="${evidence.previewUrl}" alt="Foto de Campo" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borde-suave);" />
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); margin-top: 6px;">
+          <strong>Archivo:</strong> ${evidence.filename} (${evidence.dimensions})
+        </div>
+      </div>
+
+      <div>
+        <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">📌 Metadatos Extraídos (EXIF)</h4>
+        <div style="font-size: 0.85rem; line-height: 1.5; color: var(--texto-principal);">
+          <div><strong>Fecha de Captura:</strong> ${evidence.exif?.date || 'NO DISPONIBLE'}</div>
+          <div><strong>GPS EXIF:</strong> ${evidence.exif?.hasGps ? `Lat: ${evidence.exif.gps.lat.toFixed(4)}, Lng: ${evidence.exif.gps.lng.toFixed(4)}` : 'NO DISPONIBLE / No contiene metadatos GPS'}</div>
+          <div><strong>Cámara / Dispositivo:</strong> ${evidence.exif?.camera || 'NO DISPONIBLE'}</div>
+        </div>
+
+        <h4 style="margin: 12px 0 6px 0; color: var(--verde-principal); font-size: 0.95rem;">👁️ Análisis de Imagen Real</h4>
+        <div style="font-size: 0.82rem; line-height: 1.4;">
+          <div style="margin-bottom: 6px;">
+            <strong style="color: #2e7d32;">OBSERVADO EN IMAGEN:</strong>
+            <p style="margin: 2px 0 0 0; color: var(--texto-secundario);">${evidence.visualAnalysis?.observado}</p>
+          </div>
+          <div style="margin-bottom: 6px;">
+            <strong style="color: #ef6c00;">INFERIDO:</strong>
+            <p style="margin: 2px 0 0 0; color: var(--texto-secundario);">${evidence.visualAnalysis?.inferido}</p>
+          </div>
+          <div>
+            <strong style="color: #c62828;">NO DETERMINABLE:</strong>
+            <p style="margin: 2px 0 0 0; color: var(--texto-secundario);">${evidence.visualAnalysis?.noDeterminable}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 if (document.readyState === "loading") {

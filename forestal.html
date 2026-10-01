@@ -25,13 +25,13 @@
       <img class="brand" src="dwnl.png" alt="logo" />
       <div class="brand-text">
         <div class="title">Análisis Forestal</div>
-        <div class="subtitle">Teledetección Satelital v1.0</div>
+        <div class="subtitle">Teledetección Satelital y Evidencia de Campo v2.0</div>
       </div>
     </div>
 
     <div class="right" style="display: flex; align-items: center; gap: 10px;">
       <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🏠 Inicio</a>
-      <a class="btn outline" href="resultados.html?ubicacion=Misiones" style="font-size: 0.85rem;">🌱 Recomendador Agrícola</a>
+      <a class="btn outline" href="resultados.html?ubicacion=Gobernador%20Virasoro" style="font-size: 0.85rem;">🌱 Recomendador Agrícola</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
   </header>
@@ -44,8 +44,8 @@
         <span>🌲</span> Módulo de Análisis Forestal y Teledetección
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
-        Herramienta de seguimiento de lotes forestales basada en el catálogo oficial de imágenes satelitales multiespectrales <strong>Sentinel-2 Level-2A (Copernicus Data Space Ecosystem)</strong>.
-        Permite delimitar lotes en GeoJSON, calcular superficie, consultar índices NDVI y realizar detección preliminar multitemporal de cambios de vegetación con trazabilidad técnica.
+        Herramienta de seguimiento de lotes forestales basada en el catálogo oficial de imágenes satelitales multiespectrales <strong>Sentinel-2 Level-2A (Copernicus Data Space Ecosystem)</strong> y evidencia fotográfica de campo.
+        Permite delimitar lotes en GeoJSON, consultar escenas reales, incorporar imágenes propias y exportar reportes técnicos.
       </p>
     </div>
 
@@ -66,8 +66,7 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button id="btn-gps-loc" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #27ae60; border-color: #27ae60;">📍 Mi Ubicación GPS (Campo)</button>
           <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">✏️ Dibujar Lote en Mapa</button>
-          <button id="btn-load-sample" class="btn secondary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Lote Demo (Misiones)</button>
-          <button id="btn-toggle-ndvi" class="btn outline" style="font-size: 0.85rem; padding: 8px 14px;">🎨 Alternar Capa NDVI</button>
+          <button id="btn-load-sample" class="btn secondary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Lote Misiones</button>
         </div>
       </div>
 
@@ -120,13 +119,31 @@
 
     </div>
 
-    <!-- Panel de Inventario Forestal de Campo y Planificación Operativa -->
+    <!-- Sección de Carga de Fotografías de Campo del Usuario -->
+    <div class="card" style="margin-bottom: 25px; padding: 20px; border-top: 4px solid var(--verde-principal);">
+      <h3 style="margin-top: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 8px;">
+        <span>📷</span> Fotografías e Imágenes del Usuario (Evidencia de Campo)
+      </h3>
+      <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 12px;">
+        Subí fotografías tomadas en el rodal (corteza, copa, suelo, fotos aéreas, drones o imágenes de afectación) para extraer metadatos EXIF reales (GPS, fecha, cámara) y asociarlas a la ficha de evidencia técnica.
+      </p>
+      <input type="file" id="forest-image-input" accept="image/jpeg,image/png,image/webp" style="display: none;" />
+      <button onclick="document.getElementById('forest-image-input').click()" class="btn primary" style="padding: 10px 18px;">
+        📤 Seleccionar / Tomar Foto Forestal de Campo
+      </button>
+
+      <div id="forest-image-results" style="display: none; margin-top: 15px; border-top: 1px solid var(--borde-suave); padding-top: 15px;">
+        <!-- Renderizado dinámico -->
+      </div>
+    </div>
+
+    <!-- Panel de Inventario Forestal de Campo -->
     <div class="card" style="margin-bottom: 25px; padding: 20px; border-top: 4px solid #2980b9;">
       <h3 style="margin-top: 0; color: #2980b9; display: flex; align-items: center; gap: 10px;">
-        <span>📋</span> Inventario Forestal de Campo y Planificación Operativa (QGIS/PostGIS Ready)
+        <span>📋</span> Inventario Forestal de Campo (DAP, Altura, Densidad, Volumen $m^3/ha$)
       </h3>
       <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 18px;">
-        Ingresá o ajustá las mediciones daseométricas obtenidas en el inventario continuo de campo para calcular el volumen leñoso estimado ($m^3/ha$) y la prescripción de intervenciones silvícolas (raleo, poda, tala rasa).
+        Mediciones daseométricas obtenidas en campo para calcular volumen leñoso estimado ($m^3/ha$) y prescripción silvícola.
       </p>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
@@ -176,7 +193,7 @@
       <div class="empty-state" style="text-align: center; padding: 25px;">
         <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🛰️</span>
         <p><strong>Ningún lote seleccionado.</strong></p>
-        <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa, usá tu GPS o hacé click en "📍 Lote Demo (Misiones)" para consultar la serie temporal de Copernicus Sentinel-2.</p>
+        <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas reales de Copernicus Sentinel-2.</p>
       </div>
     </div>
 
@@ -195,7 +212,7 @@
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Módulo de Análisis Forestal v1.0</small>
+    <small>Agro Consultas v2.0 — Módulo de Análisis Forestal</small>
   </footer>
 
   <!-- Leaflet JS -->
@@ -208,6 +225,7 @@
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
     import { exportToKML, exportToGPX, exportToPyQGISScript } from './forestal/utils/geo.js';
+    import { analyzeUploadedImage } from './services/imageAnalysisService.js';
 
     let forestMap = null;
     let timelineComp = null;
@@ -294,7 +312,7 @@
         forestMap.loadDefaultSampleLot();
         const feat = forestMap.getCurrentFeature();
         if (feat && feat.properties) {
-          document.getElementById('lot-name-input').value = feat.properties.name || "Lote Demo (Misiones)";
+          document.getElementById('lot-name-input').value = feat.properties.name || "Lote Misiones";
         }
       });
 
@@ -308,7 +326,40 @@
         }
       });
 
-      // Exporadores Interoperables (GeoJSON, KML, GPX, PyQGIS)
+      // Manejo de carga de imagen fotográfica de campo
+      const forestImageInput = document.getElementById('forest-image-input');
+      if (forestImageInput) {
+        forestImageInput.addEventListener('change', async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const analysis = await analyzeUploadedImage(file);
+          const resultsBox = document.getElementById('forest-image-results');
+          if (resultsBox) {
+            resultsBox.style.display = 'block';
+            resultsBox.innerHTML = `
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px;">
+                <div>
+                  <img src="${analysis.previewUrl}" style="width:100%; height:180px; object-fit:cover; border-radius:8px; border:1px solid var(--borde-suave);" />
+                  <div style="font-size:0.75rem; color:var(--texto-secundario); margin-top:4px;">${analysis.filename} (${analysis.dimensions})</div>
+                </div>
+                <div>
+                  <h4 style="margin:0 0 6px 0; color:var(--verde-principal); font-size:0.9rem;">📌 EXIF y Análisis Visual</h4>
+                  <div style="font-size:0.8rem; line-height:1.4;">
+                    <div><strong>Fecha EXIF:</strong> ${analysis.exif?.date || 'N/D'}</div>
+                    <div><strong>GPS EXIF:</strong> ${analysis.exif?.hasGps ? `Lat ${analysis.exif.gps.lat}, Lng ${analysis.exif.gps.lng}` : 'Sin GPS en imagen'}</div>
+                    <div style="margin-top:6px; color:#2e7d32;"><strong>OBSERVADO:</strong> ${analysis.visualAnalysis.observado}</div>
+                    <div style="margin-top:4px; color:#ef6c00;"><strong>INFERIDO:</strong> ${analysis.visualAnalysis.inferido}</div>
+                    <div style="margin-top:4px; color:#c62828;"><strong>NO DETERMINABLE:</strong> ${analysis.visualAnalysis.noDeterminable}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        });
+      }
+
+      // Exportadores Interoperables (GeoJSON, KML, GPX, PyQGIS)
       const downloadFile = (content, filename, type) => {
         const blob = new Blob([content], { type });
         const url = URL.createObjectURL(blob);
@@ -356,33 +407,31 @@
         }
       });
 
-      document.getElementById('btn-toggle-ndvi').addEventListener('click', () => {
-        if (currentAnalysisData?.ndvi?.analysisA?.gridSample) {
-          forestMap.renderNDVIOverlay(currentAnalysisData.ndvi.analysisA.gridSample);
-        } else {
-          alert('Ejecutá el análisis primero para generar la matriz NDVI.');
-        }
-      });
-
       document.getElementById('btn-run-analysis').addEventListener('click', () => {
         ejecutarAnalisis('2025-08-15', '2026-08-15');
       });
 
-      // Cálculo de inventario inicial
+      // Cargar lote inicial Misiones automáticamente
+      forestMap.loadDefaultSampleLot();
+      const feat = forestMap.getCurrentFeature();
+      if (feat && feat.properties) {
+        document.getElementById('lot-name-input').value = feat.properties.name || "Lote Misiones";
+      }
+
       calcularInventarioCampo();
     });
 
     async function ejecutarAnalisis(dateA, dateB) {
       const feature = forestMap.getCurrentFeature();
       if (!feature) {
-        alert("Por favor, delimitá un lote en el mapa o seleccioná 'Lote Demo' antes de ejecutar el análisis.");
+        alert("Por favor, delimitá un lote en el mapa antes de ejecutar el análisis.");
         return;
       }
 
       const btn = document.getElementById('btn-run-analysis');
       if (btn) {
         btn.disabled = true;
-        btn.innerText = '⏳ Consultado catálogo Copernicus STAC y procesando NDVI...';
+        btn.innerText = '⏳ Consultado catálogo Copernicus STAC real...';
       }
 
       const nameInput = document.getElementById('lot-name-input').value || "Lote Forestal";
@@ -392,18 +441,10 @@
 
       currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
 
-      // Agregar datos de inventario
       currentAnalysisData.inventory = calcularInventarioCampo();
 
-      // Actualizar Timeline Component
       timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);
 
-      // Renderizar Overlays NDVI en Mapa
-      if (currentAnalysisData.ndvi?.analysisB?.gridSample) {
-        forestMap.renderNDVIOverlay(currentAnalysisData.ndvi.analysisB.gridSample);
-      }
-
-      // Renderizar Reporte Trazable
       reportComp.renderReport(currentAnalysisData);
 
       if (btn) {
