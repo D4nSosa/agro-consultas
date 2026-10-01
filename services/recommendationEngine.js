@@ -44,7 +44,7 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       requerimientos: {}
     };
 
-    // Calcular compatibilidad
+    // Calcular compatibilidad cualitativa
     const compat = calcularCompatibilidad(
       { nombre, ...cropData },
       soilReport,
@@ -67,7 +67,6 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       reqSuelo: cropData.reqSuelo || "Suelos fértiles estándar.",
       reqClima: cropData.reqClima || "Climas templados a cálidos estándar.",
       compatibilidad: compat.categoria,
-      score: compat.score,
       motivos: compat.motivos,
       riesgos: compat.riesgos,
       datosFaltantes: compat.datosFaltantes || [],

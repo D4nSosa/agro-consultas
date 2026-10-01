@@ -20,11 +20,17 @@ export async function runFullForestAnalysis(geometry, dateA, dateB, cloudMax = 3
   const centroid = calculateCentroid(geometry);
   const areaInfo = calculateArea(geometry);
 
-  // 1. Buscar imágenes satelitales Sentinel-2 en catálogo STAC de Copernicus
-  const [searchResA, searchResB] = await Promise.all([
+  // 1. Buscar imágenes satelitales Sentinel-2 en catálogo STAC de Copernicus con timeout tolerante
+  const searchPromiseA = Promise.race([
     searchSentinelImages(geometry, getYearStartDate(dateA), dateA, cloudMax),
-    searchSentinelImages(geometry, getYearStartDate(dateB), dateB, cloudMax)
+    new Promise(res => setTimeout(() => res({ bestProduct: null, products: [], totalFound: 0 }), 5000))
   ]);
+  const searchPromiseB = Promise.race([
+    searchSentinelImages(geometry, getYearStartDate(dateB), dateB, cloudMax),
+    new Promise(res => setTimeout(() => res({ bestProduct: null, products: [], totalFound: 0 }), 5000))
+  ]);
+
+  const [searchResA, searchResB] = await Promise.all([searchPromiseA, searchPromiseB]);
 
   const prodA = searchResA.bestProduct;
   const prodB = searchResB.bestProduct;

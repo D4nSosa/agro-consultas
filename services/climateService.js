@@ -34,7 +34,7 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
     ? (liveVal.codigoClima ?? liveWeatherPoint.codigoClima ?? null)
     : null;
 
-  let descClima = "Datos en vivo no disponibles";
+  let descClima = "NO DISPONIBLE";
   if (weatherCode !== null && weatherCode !== undefined) {
     if (weatherCode === 0) descClima = "Despejado / Cielo limpio";
     else if (weatherCode >= 1 && weatherCode <= 3) descClima = "Parcialmente nublado";
@@ -65,18 +65,29 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
   const smnAlertsList = Array.isArray(smnAlertsPoint?.value) ? smnAlertsPoint.value : (Array.isArray(smnAlertsPoint?.alertas) ? smnAlertsPoint.alertas : []);
   const todasLasAlertas = [...smnAlertsList, ...alertasInternas];
 
-  const precipAnuales = subregionStaticClima?.precipitaciones || "600 - 1200 mm (Regional)";
-  const tempMedia = subregionStaticClima?.temperatura !== undefined ? subregionStaticClima.temperatura : 18;
-  const heladas = subregionStaticClima?.heladas || "Bajo a Moderado";
-  const deficit = subregionStaticClima?.deficit_hidrico || "Moderado";
+  const precipAnualesText = subregionStaticClima?.precipitaciones || "NO DISPONIBLE";
+  const tempMediaText = subregionStaticClima?.temperatura !== undefined
+    ? (typeof subregionStaticClima.temperatura === 'number' ? `${subregionStaticClima.temperatura}°C (Promedio Regional)` : subregionStaticClima.temperatura)
+    : "NO DISPONIBLE";
+  const tempMediaVal = subregionStaticClima?.temperatura !== undefined && typeof subregionStaticClima.temperatura === 'number'
+    ? subregionStaticClima.temperatura
+    : null;
+  const precipAnualesVal = extractNumber(subregionStaticClima?.precipitaciones);
 
-  const overallStatus = liveWeatherPoint?.available ? DataStatus.REAL : (subregionStaticClima ? DataStatus.REGIONAL : DataStatus.UNAVAILABLE);
-  const overallConfidence = liveWeatherPoint?.available ? ConfidenceLevel.HIGH : (subregionStaticClima ? ConfidenceLevel.MEDIUM : ConfidenceLevel.LOW);
+  const heladas = subregionStaticClima?.heladas || "NO DISPONIBLE";
+  const deficit = subregionStaticClima?.deficit_hidrico || "NO DISPONIBLE";
+
+  const overallStatus = liveWeatherPoint?.available
+    ? DataStatus.REAL
+    : (subregionStaticClima ? DataStatus.REGIONAL : DataStatus.UNAVAILABLE);
+  const overallConfidence = liveWeatherPoint?.available
+    ? ConfidenceLevel.HIGH
+    : (subregionStaticClima ? ConfidenceLevel.MEDIUM : ConfidenceLevel.NONE);
 
   return {
-    temperaturaActual: tempActual !== null ? `${tempActual}°C` : "No disponible",
+    temperaturaActual: tempActual !== null ? `${tempActual}°C` : "NO DISPONIBLE",
     temperaturaActualNum: tempActual,
-    vientoActual: vientoActual !== null ? `${vientoActual} km/h` : "No disponible",
+    vientoActual: vientoActual !== null ? `${vientoActual} km/h` : "NO DISPONIBLE",
     codigoClima: weatherCode,
     condicionActualTexto: descClima,
     fuenteClimaVivo: liveWeatherPoint?.source || "Open-Meteo",
@@ -86,13 +97,13 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
     fuenteAlertas: smnAlertsPoint?.source || "SMN",
     smnAlertsPoint: smnAlertsPoint,
 
-    precipitacionesAnuales: precipAnuales,
-    precipitacionesNum: extractNumber(precipAnuales, 800),
-    temperaturaMedia: typeof tempMedia === 'number' ? `${tempMedia}°C (Promedio Regional)` : tempMedia,
-    temperaturaMediaNum: typeof tempMedia === 'number' ? tempMedia : 18,
-    heladasPeriodo: heladas,
+    precipitacionesAnuales: precipAnualesText,
+    precipitacionesAnualesVal: precipAnualesVal,
+    temperaturaMedia: tempMediaText,
+    temperaturaMediaVal: tempMediaVal,
+    heladas: heladas,
     deficitHidrico: deficit,
-    estacionalidad: subregionStaticClima?.estacionalidad || "Templado/Subtropical",
+    estacionalidad: subregionStaticClima?.estacionalidad || "NO DISPONIBLE",
 
     status: overallStatus,
     confidence: overallConfidence,
@@ -100,9 +111,9 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
   };
 }
 
-function extractNumber(str, defaultVal) {
+function extractNumber(str) {
   if (typeof str === 'number') return str;
-  if (!str) return defaultVal;
+  if (!str) return null;
   const matches = str.match(/\d+/g);
-  return matches ? parseInt(matches[0], 10) : defaultVal;
+  return matches ? parseInt(matches[0], 10) : null;
 }
