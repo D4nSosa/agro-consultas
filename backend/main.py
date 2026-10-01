@@ -73,18 +73,8 @@ def read_root():
 
 @app.get("/api/forest/lots")
 def get_sample_lots():
-    """Retorna respuesta informativa sobre soporte de lotes"""
-    return [
-        {
-            "id": "lote-misiones-01",
-            "name": "Lote Misiones Nordeste",
-            "province": "Misiones",
-            "areaHa": 120.5,
-            "centroid": {"lat": -26.875, "lng": -54.650},
-            "primarySpecies": "Pino Taeda",
-            "status": "UNAVAILABLE"
-        }
-    ]
+    """Retorna respuesta informativa sobre soporte de lotes: no hay lotes de ejemplo predeterminados"""
+    return []
 
 @app.post("/api/forest/stac")
 def search_stac_catalog(req: STACSearchRequest):

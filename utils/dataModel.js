@@ -4,11 +4,11 @@
  */
 
 export const DataStatus = {
-  REAL: 'real',
-  ESTIMATED: 'estimated',
-  REGIONAL: 'regional',
-  CALCULATED: 'calculated',
-  UNAVAILABLE: 'unavailable'
+  REAL: 'REAL',
+  ESTIMATED: 'ESTIMATED',
+  REGIONAL: 'REGIONAL',
+  CALCULATED: 'CALCULATED',
+  UNAVAILABLE: 'UNAVAILABLE'
 };
 
 export const ConfidenceLevel = {

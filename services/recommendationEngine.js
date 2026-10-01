@@ -54,9 +54,10 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
     // Obtener recomendaciones de manejo y rotación sostenible
     const sostenibilidad = obtenerPracticasSostenibles(key);
 
-    const isReal = soilReport && soilReport.status === 'real';
-    const labelConfianza = isReal ? 'REAL (INTA WMS)' : 'ESTIMACIÓN REGIONAL';
-    const classConfianza = isReal ? 'high' : 'medium';
+    const isReal = soilReport && (soilReport.status === 'REAL' || soilReport.status === 'real');
+    const isUnavailable = soilReport && (soilReport.status === 'UNAVAILABLE' || soilReport.status === 'unavailable');
+    const labelConfianza = isUnavailable ? 'DATO NO DISPONIBLE' : (isReal ? 'REAL (INTA WMS)' : 'ESTIMACIÓN REGIONAL');
+    const classConfianza = isUnavailable ? 'none' : (isReal ? 'high' : 'medium');
 
     return {
       nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),

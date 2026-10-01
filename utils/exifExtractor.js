@@ -23,10 +23,10 @@ export async function extractExifMetadata(file) {
     const imgDimensions = await getImageDimensions(file);
     result.dimensions = `${imgDimensions.width} x ${imgDimensions.height} px`;
 
-    // Parsea fecha de modificación como fallback
+    // Parsea fecha de modificación como referencia o indica no disponible sin inventar fecha EXIF
     result.date = file.lastModified
-      ? new Date(file.lastModified).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0];
+      ? `${new Date(file.lastModified).toISOString().split('T')[0]} (Archivo)`
+      : 'NO DISPONIBLE';
 
     // Verificar si es JPEG (SOI 0xFFD8)
     if (dataView.getUint16(0) !== 0xFFD8) {
@@ -89,7 +89,7 @@ function parseIFD(dataView, tiffOffset, ifdOffset, isLittleEndian, result) {
       if (tag === 0x9003) {
         const dateStr = getStringTag(dataView, tiffOffset, entryOffset, isLittleEndian);
         if (dateStr) {
-          result.date = dateStr.split(' ')[0].replace(/:/g, '-');
+          result.date = `${dateStr.split(' ')[0].replace(/:/g, '-')} (EXIF Original)`;
         }
       }
 

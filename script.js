@@ -386,7 +386,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
               <span class="crop-icon">${icon}</span>
               <div>
                 <h3 style="margin: 0; font-weight: 700; text-transform: capitalize;">${c.nombre}</h3>
-                <span class="badge-origin real">EVIDENCIA REAL</span>
+                <span class="badge-origin ${c.nivelConfianza === 'high' ? 'real' : 'regional'}">${c.confianza}</span>
               </div>
             </div>
             <div>

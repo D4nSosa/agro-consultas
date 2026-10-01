@@ -108,6 +108,8 @@ def test_forestal_page():
         # Test calculating field inventory
         page.fill("#inv-dap", "26")
         page.fill("#inv-altura", "22")
+        page.fill("#inv-densidad", "1100")
+        page.fill("#inv-edad", "9")
         page.click("#btn-calc-inv")
         page.wait_for_timeout(300)
         assert page.is_visible("#inv-results-box")
@@ -115,6 +117,11 @@ def test_forestal_page():
         # Verify GeoJSON controls
         assert page.is_visible("#geojson-textarea")
         assert page.is_visible("#btn-run-analysis")
+
+        # Fill GeoJSON lot and apply
+        sample_geojson = '{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-54.68,-26.85],[-54.62,-26.85],[-54.62,-26.90],[-54.68,-26.90],[-54.68,-26.85]]]},"properties":{"name":"Lote Test"}}'
+        page.fill("#geojson-textarea", sample_geojson)
+        page.click("#btn-apply-geojson")
 
         # Click run analysis
         page.click("#btn-run-analysis")

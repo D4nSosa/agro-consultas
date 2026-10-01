@@ -24,7 +24,7 @@ export async function getSoilReport(lat, lng, subregionStaticSuelo = null) {
     aptitud: baseSoil.aptitud || 'NO DISPONIBLE',
     ph: baseSoil.ph !== undefined && baseSoil.ph !== null ? baseSoil.ph : 'NO DISPONIBLE',
     escala: baseSoil.escala || '1:500.000',
-    status: baseSoil.status || 'regional',
+    status: baseSoil.status || 'REGIONAL',
     confidence: baseSoil.confidence || 'medium',
     fuente: baseSoil.fuente || 'INTA / Cartografía Edáfica Regional'
   };
