@@ -8,8 +8,8 @@ export class ForestTimeline {
     this.containerId = containerId;
     this.onDatesSelected = onDatesSelectedCallback;
     this.timelineData = [];
-    this.dateA = '2025-08-15';
-    this.dateB = '2026-08-15';
+    this.dateA = null;
+    this.dateB = null;
   }
 
   setTimelineData(items, defaultDateA, defaultDateB) {
@@ -25,9 +25,10 @@ export class ForestTimeline {
 
     if (!this.timelineData.length) {
       container.innerHTML = `
-        <div class="unavailable-card-block">
-          <div class="title">🛰️ Serie Temporal de Adquisiciones Sentinel-2</div>
-          <p class="explanation">NO DISPONIBLE: No se encontraron imágenes Sentinel-2 reales en el catálogo Copernicus STAC para las fechas y filtros de nubosidad seleccionados.</p>
+        <div class="empty-state" style="text-align: center; padding: 25px;">
+          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🛰️</span>
+          <p><strong>LOTE NO DEFINIDO</strong></p>
+          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas reales de Copernicus Sentinel-2.</p>
         </div>
       `;
       return;

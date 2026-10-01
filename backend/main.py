@@ -30,6 +30,13 @@ app.add_middleware(
 
 COPERNICUS_STAC_URL = "https://stac.dataspace.copernicus.eu/v1/search"
 
+def get_default_dates():
+    now = datetime.datetime.now(datetime.timezone.utc)
+    date_b = now.strftime("%Y-%m-%d")
+    date_a = (now - datetime.timedelta(days=365)).strftime("%Y-%m-%d")
+    start_date = f"{now.year - 1}-01-01"
+    return start_date, date_a, date_b
+
 class GeoJSONGeometry(BaseModel):
     type: str
     coordinates: Any
@@ -41,19 +48,19 @@ class GeoJSONFeature(BaseModel):
 
 class STACSearchRequest(BaseModel):
     geometry: GeoJSONGeometry
-    startDate: str = "2025-01-01"
-    endDate: str = "2026-08-15"
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
     maxCloudCover: float = 30.0
 
 class NDVIAnalysisRequest(BaseModel):
     geometry: GeoJSONGeometry
-    date: str = "2026-08-15"
+    date: Optional[str] = None
     productId: Optional[str] = None
 
 class ChangeDetectionRequest(BaseModel):
     geometry: GeoJSONGeometry
-    dateA: str = "2025-08-15"
-    dateB: str = "2026-08-15"
+    dateA: Optional[str] = None
+    dateB: Optional[str] = None
 
 @app.get("/")
 def read_root():
@@ -80,13 +87,17 @@ def get_sample_lots():
 def search_stac_catalog(req: STACSearchRequest):
     """Consulta el catálogo oficial Copernicus STAC para Sentinel-2 L2A"""
     try:
+        start_def, date_a_def, date_b_def = get_default_dates()
+        s_date = req.startDate or start_def
+        e_date = req.endDate or date_b_def
+
         geom_shape = shape(req.geometry.dict())
         bounds = geom_shape.bounds
 
         search_body = {
             "collections": ["sentinel-2-l2a"],
             "bbox": [bounds[0], bounds[1], bounds[2], bounds[3]],
-            "datetime": f"{req.startDate}T00:00:00Z/{req.endDate}T23:59:59Z",
+            "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
             "limit": 10,
             "query": {
                 "eo:cloud_cover": {"lte": req.maxCloudCover}
@@ -142,6 +153,9 @@ def search_stac_catalog(req: STACSearchRequest):
 def calculate_ndvi(req: NDVIAnalysisRequest):
     """Retorna la superficie del lote e indica la necesidad de credenciales S3 para cálculo ráster"""
     try:
+        start_def, date_a_def, date_b_def = get_default_dates()
+        target_date = req.date or date_b_def
+
         geom_shape = shape(req.geometry.dict())
         area_sq_m = calculate_shapely_area(geom_shape)
         area_ha = round(area_sq_m / 10000.0, 2)
@@ -150,7 +164,7 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
             "indicator": "NDVI",
             "formula": "(NIR - RED) / (NIR + RED)",
             "bands": {"NIR": "B08", "RED": "B04"},
-            "date": req.date,
+            "date": target_date,
             "productId": req.productId or "NO DISPONIBLE",
             "areaHectares": area_ha,
             "stats": {
@@ -169,12 +183,16 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
 def calculate_change_detection(req: ChangeDetectionRequest):
     """Determina la indisponibilidad de detección de cambios si faltan píxeles ráster reales"""
     try:
+        start_def, date_a_def, date_b_def = get_default_dates()
+        dA = req.dateA or date_a_def
+        dB = req.dateB or date_b_def
+
         geom_shape = shape(req.geometry.dict())
         area_sq_m = calculate_shapely_area(geom_shape)
         area_ha = round(area_sq_m / 10000.0, 2)
 
         return {
-            "period": {"dateA": req.dateA, "dateB": req.dateB},
+            "period": {"dateA": dA, "dateB": dB},
             "deltaNDVI": "NO DISPONIBLE",
             "totalAreaHa": area_ha,
             "classification": "NO_DISPONIBLE",
@@ -192,7 +210,10 @@ def calculate_change_detection(req: ChangeDetectionRequest):
 @app.post("/api/forest/analyze")
 def run_full_forest_analysis_endpoint(req: ChangeDetectionRequest):
     """Endpoint unificado que ejecuta búsqueda STAC y evaluación de trazabilidad"""
-    stac_res = search_stac_catalog(STACSearchRequest(geometry=req.geometry, startDate="2025-01-01", endDate=req.dateB))
+    start_def, date_a_def, date_b_def = get_default_dates()
+    dB = req.dateB or date_b_def
+
+    stac_res = search_stac_catalog(STACSearchRequest(geometry=req.geometry, startDate=start_def, endDate=dB))
     changes_res = calculate_change_detection(req)
 
     return {

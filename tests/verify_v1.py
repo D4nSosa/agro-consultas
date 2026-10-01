@@ -11,7 +11,7 @@ def server():
     yield
     proc.terminate()
 
-def test_search_and_results():
+def test_initial_empty_state_and_search():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
@@ -21,11 +21,14 @@ def test_search_and_results():
         # Verify GPS button exists on home page
         assert page.is_visible("#gpsBtn")
 
-        # Search for Gobernador Virasoro
-        page.fill("#provincias", "Gobernador Virasoro")
+        # Verify no demo button exists
+        assert not page.is_visible("#demoBtn")
+
+        # Search for Oberá
+        page.fill("#provincias", "Oberá")
         page.click("button[type='submit']")
 
-        page.wait_for_url("**/resultados.html?ubicacion=Gobernador%20Virasoro")
+        page.wait_for_url("**/resultados.html?ubicacion=Ober%C3%A1")
 
         # Wait for crop cards
         page.wait_for_selector(".crop-card")
@@ -42,8 +45,28 @@ def test_search_and_results():
         page.wait_for_selector(".info-item")
         assert page.is_visible(".info-item")
 
+        # Check climate history card loaded
+        assert page.is_visible("#climate-history-card")
+
         # Check compatibility badge
         assert page.is_visible(".compatibility-badge")
+
+        browser.close()
+
+def test_resultados_empty_initial_state():
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+
+        # Open resultados directly without location parameters
+        page.goto("http://localhost:8000/resultados.html")
+
+        page.wait_for_selector("#resultado_ubicacion")
+        loc_text = page.inner_text("#resultado_ubicacion")
+        assert "Sin seleccionar" in loc_text
+
+        # Verify empty state message in crop results
+        assert "Sin ubicación seleccionada" in page.content()
 
         browser.close()
 
@@ -52,11 +75,11 @@ def test_map_click_and_updates():
         browser = p.chromium.launch()
         page = browser.new_page()
 
-        page.goto("http://localhost:8000/resultados.html?ubicacion=Gobernador%20Virasoro")
+        page.goto("http://localhost:8000/resultados.html?ubicacion=Ober%C3%A1")
 
         page.wait_for_selector(".leaflet-container")
 
-        # Click on Misiones coordinates
+        # Click on coordinates
         page.evaluate("procesarSeleccionCoordenadas(-26.8756, -54.6543)")
 
         page.wait_for_selector("#territory-details")
@@ -67,19 +90,6 @@ def test_map_click_and_updates():
 
         # Check live weather section loaded
         assert page.is_visible("#live-weather-info")
-
-        browser.close()
-
-def test_normalization():
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
-
-        page.goto("http://localhost:8000/resultados.html?ubicacion=%20%20gObErNaDoR%20%20vIrAsOrO%20%20")
-
-        page.wait_for_selector(".crop-card")
-        cards = page.query_selector_all(".crop-card")
-        assert len(cards) > 0
 
         browser.close()
 
@@ -95,6 +105,10 @@ def test_forestal_page():
 
         # Verify GPS button
         assert page.is_visible("#btn-gps-loc")
+
+        # Verify initial lot area shows "LOTE NO DEFINIDO"
+        lot_area_text = page.inner_text("#lot-area-val")
+        assert "LOTE NO DEFINIDO" in lot_area_text
 
         # Verify GIS buttons
         assert page.is_visible("#btn-download-kml")

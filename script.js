@@ -1,5 +1,5 @@
 /* ============================================================================
-   script.js — UI Orchestrator ES Module — Agro Consultas v2.0
+   script.js — UI Orchestrator ES Module — Agro Consultas
    ============================================================================ */
 
 import { normalizeKey } from './utils/normalization.js';
@@ -16,15 +16,15 @@ import { analyzeLocation } from './services/coreAnalysis.js';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
 import { analyzeUploadedImage } from './services/imageAnalysisService.js';
+import { getClimateHistory } from './services/sources/nasaPowerService.js';
 
 let mapInstance = null;
 let currentMarker = null;
-let subregionesLayers = [];
 let userLocationCircle = null;
 
-let currentUbicacionNombre = "Argentina";
-let currentLat = -38.4161;
-let currentLng = -63.6167;
+let currentUbicacionNombre = "Sin seleccionar";
+let currentLat = null;
+let currentLng = null;
 let currentRadioKm = 15;
 let currentSpatialLevel = "LOCALIDAD / PUNTO DE REFERENCIA";
 let activeEvidenceImage = null;
@@ -40,7 +40,7 @@ export async function inicializarMapa(provinciaRaw) {
   let defaultLng = -63.6167;
   let defaultZoom = 4;
 
-  const isSpecificUbicacion = provinciaRaw && provinciaRaw.trim() !== "" && provinciaRaw !== "Argentina";
+  const isSpecificUbicacion = provinciaRaw && provinciaRaw.trim() !== "" && provinciaRaw !== "Argentina" && provinciaRaw !== "Sin seleccionar";
 
   if (mapInstance) {
     mapInstance.remove();
@@ -70,7 +70,7 @@ export async function inicializarMapa(provinciaRaw) {
   if (selectAlcance) {
     selectAlcance.addEventListener("change", (e) => {
       currentRadioKm = parseFloat(e.target.value) || 15;
-      if (currentLat && currentLng) {
+      if (currentLat !== null && currentLng !== null) {
         dibujarCirculoAlcance(currentLat, currentLng, currentRadioKm);
       }
     });
@@ -85,6 +85,8 @@ export async function inicializarMapa(provinciaRaw) {
  * Geocodifica y procesa una ubicación ingresada por texto
  */
 export async function buscarYProcesarUbicacion(queryTexto) {
+  if (!queryTexto || !queryTexto.trim()) return;
+
   const geoResult = await geocodeLocation(queryTexto);
 
   if (!geoResult.available || !geoResult.value) {
@@ -108,6 +110,7 @@ export async function buscarYProcesarUbicacion(queryTexto) {
 
   await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
   await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
+  await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
 }
 
 /**
@@ -170,7 +173,7 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
 
   colocarMarcador(lat, lng, currentUbicacionNombre);
 
-  const mockGeoVal = {
+  const geoPointData = {
     nombre: currentUbicacionNombre,
     provincia: nombreProvincia,
     pais: 'Argentina',
@@ -179,8 +182,9 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
     spatialLevel: currentSpatialLevel
   };
 
-  await renderRecomendaciones(currentUbicacionNombre, lat, lng, mockGeoVal);
-  await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, mockGeoVal);
+  await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
+  await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData);
+  await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
 }
 
 /**
@@ -336,21 +340,134 @@ export function usarGeolocalizacion() {
 }
 
 /**
- * Renderiza las tarjetas de cultivo con arquitectura de capas (César: Resumen -> Detalle Técnico -> Fuente y Metodología).
+ * Renderiza la sección de Historia Climática desde NASA POWER
+ */
+export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
+  const container = document.getElementById("climate-history-content");
+  const periodSelect = document.getElementById("select-climate-period");
+  if (!container) return;
+
+  if (lat === null || lng === null) {
+    container.innerHTML = `
+      <div class="empty-state" style="text-align: center; padding: 20px;">
+        <span style="font-size: 2rem;">📊</span>
+        <p><strong>DATOS CLIMÁTICOS NO DISPONIBLES</strong></p>
+        <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la serie climática histórica de NASA POWER.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const months = periodSelect ? parseInt(periodSelect.value) || 12 : 12;
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 20px;">
+      <span style="font-size: 1.5rem; display: block; margin-bottom: 8px;">⏳</span>
+      <p style="margin: 0; color: var(--texto-secundario); font-size: 0.9rem;">Consultando API oficial de NASA POWER para Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}...</p>
+    </div>
+  `;
+
+  const climateHistory = await getClimateHistory(lat, lng, months);
+
+  if (climateHistory.status === 'UNAVAILABLE' || !climateHistory.data) {
+    container.innerHTML = `
+      <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
+        <h4 style="margin: 0 0 6px 0; color: #c0392b;">DATOS CLIMÁTICOS NO DISPONIBLES</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">${climateHistory.message || 'No se pudieron recuperar las series temporales de NASA POWER para la ubicación seleccionada.'}</p>
+        <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 10px;">
+          Fuente: NASA POWER | Ubicación: ${lat.toFixed(4)}, ${lng.toFixed(4)}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const d = climateHistory.data;
+  const trace = climateHistory.traceability;
+
+  const tempDiffBadge = d.comparison.temperaturaAnomalia > 0 ? 'badge-baja' : 'badge-alta';
+  const precDiffBadge = d.comparison.precipitacionesDiferenciaPct >= 0 ? 'badge-alta' : 'badge-media';
+
+  container.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px;">
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación Acumulada</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${d.periodMetrics.precipitacionAcumuladaMm} mm</div>
+        <div style="font-size: 0.8rem; color: var(--texto-principal);">Promedio Histórico: ${d.historicalAverages.precipitacionMediaAnualMm} mm/año</div>
+        <div style="font-size: 0.78rem; margin-top: 4px;">
+          Diferencia: <strong>${d.comparison.precipitacionesDiferenciaMm > 0 ? '+' : ''}${d.comparison.precipitacionesDiferenciaMm} mm (${d.comparison.precipitacionesDiferenciaPct > 0 ? '+' : ''}${d.comparison.precipitacionesDiferenciaPct}%)</strong>
+        </div>
+        <span class="compatibility-badge ${precDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionPrecipitacion}</span>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura Media Período</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: #e67e22; margin: 4px 0;">${d.periodMetrics.temperaturaMediaC}°C</div>
+        <div style="font-size: 0.8rem; color: var(--texto-principal);">Promedio Histórico: ${d.historicalAverages.temperaturaMediaHistoricaC}°C</div>
+        <div style="font-size: 0.78rem; margin-top: 4px;">
+          Anomalía Térmica: <strong>${d.comparison.temperaturaAnomalia > 0 ? '+' : ''}${d.comparison.temperaturaAnomalia}°C</strong>
+        </div>
+        <span class="compatibility-badge ${tempDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionTemperatura}</span>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📊 Extremos y Variables Agroclimáticas</div>
+        <div style="font-size: 0.82rem; margin-top: 6px; line-height: 1.5; color: var(--texto-principal);">
+          <div>🔥 <strong>Temp. Máxima Absoluta:</strong> ${d.periodMetrics.temperaturaMaximaAbsolutaC}°C</div>
+          <div>❄️ <strong>Temp. Mínima Absoluta:</strong> ${d.periodMetrics.temperaturaMinimaAbsolutaC}°C</div>
+          <div>💧 <strong>Humedad Relativa:</strong> ${d.periodMetrics.humedadRelativaMediaPct}%</div>
+          <div>💨 <strong>Viento Medio (10m):</strong> ${d.periodMetrics.vientoMedioKmH} km/h</div>
+          <div>☀️ <strong>Radiación Solar:</strong> ${d.periodMetrics.radiacionSolarMediaMjM2Day} MJ/m²/día</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trazabilidad y Nota Metodológica -->
+    <details style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem;">
+      <summary style="cursor: pointer; font-weight: bold; color: var(--verde-principal);">
+        🛡️ Trazabilidad y Metodología NASA POWER
+      </summary>
+      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--borde-suave); color: var(--texto-secundario); line-height: 1.4;">
+        <div><strong>Fuente Oficial:</strong> ${trace.fuente} (${trace.apiEndpoint})</div>
+        <div><strong>Ubicación Consultada:</strong> Lat ${trace.coordenadas.lat}, Lng ${trace.coordenadas.lng}</div>
+        <div><strong>Período Analizado:</strong> ${trace.periodo} (${trace.mesesAnalizados} meses consultados)</div>
+        <div><strong>Variables Recuperadas:</strong> ${trace.variablesConsultadas.join(', ')}</div>
+        <div><strong>Fecha de Consulta:</strong> ${trace.fechaConsulta}</div>
+        <div style="margin-top: 4px; color: #d35400;"><strong>Nota Trazable:</strong> ${trace.disclaimer}</div>
+      </div>
+    </details>
+  `;
+}
+
+/**
+ * Renderiza las tarjetas de cultivo
  */
 export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = null) {
   const container = document.getElementById("crop-results");
   const tituloUbicacion = document.getElementById("resultado_ubicacion");
 
   if (!container) return;
+
+  if (lat === null || lng === null || !provinciaRaw || provinciaRaw === "Sin seleccionar") {
+    if (tituloUbicacion) tituloUbicacion.innerText = "Sin seleccionar";
+    container.innerHTML = `
+      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 30px;">
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">🌱</span>
+        <h3>Sin ubicación seleccionada</h3>
+        <p class="text-muted">Ingresá una localidad, seleccioná un punto del mapa o utilizá tu ubicación GPS para comenzar.</p>
+      </div>
+    `;
+    return;
+  }
+
   if (tituloUbicacion) tituloUbicacion.innerText = provinciaRaw;
 
   try {
     const key = await findProvinceByCoords(lat, lng);
     const provDetails = key ? await getProvinceDetails(key) : null;
 
-    const finalLat = lat !== undefined ? lat : (provDetails?.coordenadas?.lat || -38.4161);
-    const finalLng = lng !== undefined ? lng : (provDetails?.coordenadas?.lng || -63.6167);
+    const finalLat = lat;
+    const finalLng = lng;
 
     const subregion = key ? await findSubregion(key, finalLat, finalLng) : null;
 
@@ -380,7 +497,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 
       return `
         <article class="crop-card">
-          <!-- Capa 1: Resumen "¿Qué significa esto para mí?" -->
+          <!-- Capa 1: Resumen -->
           <div class="crop-card-header" style="flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span class="crop-icon">${icon}</span>
@@ -396,7 +513,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 
           <p class="desc"><strong>¿Qué significa esto para mí?</strong><br>${c.descripcion}</p>
 
-          <!-- Capa 2: Detalle Técnico (Desplegable o Estructurado) -->
+          <!-- Capa 2: Detalle Técnico -->
           <div class="crop-grid-details">
             <div class="sub-card calendar-sub-card">
               <h4>📅 Calendario Agrícola</h4>
@@ -514,6 +631,15 @@ function initApp() {
     });
   }
 
+  const periodSelect = document.getElementById("select-climate-period");
+  if (periodSelect) {
+    periodSelect.addEventListener("change", async () => {
+      if (currentLat !== null && currentLng !== null) {
+        await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+      }
+    });
+  }
+
   // Configurar input de Evidencia Fotográfica en la UI
   const evidenceFileInput = document.getElementById("evidence-file-input");
   if (evidenceFileInput) {
@@ -541,7 +667,42 @@ function initApp() {
     if (rawUbic && rawUbic.trim() !== "" && rawUbic !== "Argentina") {
       await buscarYProcesarUbicacion(rawUbic);
     } else {
-      await buscarYProcesarUbicacion("Gobernador Virasoro");
+      // Estado inicial limpio sin ubicación predeterminada ni fallbacks
+      const tituloUbicacion = document.getElementById("resultado_ubicacion");
+      if (tituloUbicacion) tituloUbicacion.innerText = "Sin seleccionar";
+
+      const detailsContainer = document.getElementById("territory-details");
+      if (detailsContainer) {
+        detailsContainer.innerHTML = `
+          <div class="empty-state">
+            <span style="font-size: 2rem;">📍</span>
+            <p><strong>Sin ubicación seleccionada</strong></p>
+            <p class="text-muted" style="font-size: 0.85rem;">Ingresá una localidad, seleccioná un punto del mapa o utilizá tu ubicación GPS para comenzar.</p>
+          </div>
+        `;
+      }
+
+      const cropContainer = document.getElementById("crop-results");
+      if (cropContainer) {
+        cropContainer.innerHTML = `
+          <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 30px;">
+            <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">🌱</span>
+            <h3>Sin ubicación seleccionada</h3>
+            <p class="text-muted">Ingresá una localidad, seleccioná un punto del mapa o utilizá tu ubicación GPS para comenzar.</p>
+          </div>
+        `;
+      }
+
+      const climateContainer = document.getElementById("climate-history-content");
+      if (climateContainer) {
+        climateContainer.innerHTML = `
+          <div class="empty-state" style="text-align: center; padding: 20px;">
+            <span style="font-size: 2rem;">📊</span>
+            <p><strong>DATOS CLIMÁTICOS NO DISPONIBLES</strong></p>
+            <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la serie climática histórica de NASA POWER.</p>
+          </div>
+        `;
+      }
     }
   }, 100);
 }
