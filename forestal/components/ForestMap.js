@@ -3,7 +3,6 @@
  */
 
 import { calculateArea, calculateCentroid, validateGeoJSON, toGeoJSONFeature } from '../utils/geo.js';
-import { getNDVIColor } from '../utils/raster.js';
 
 export class ForestMap {
   constructor(mapContainerId, onLotChangedCallback) {
@@ -11,7 +10,6 @@ export class ForestMap {
     this.onLotChanged = onLotChangedCallback;
     this.map = null;
     this.currentLayer = null;
-    this.ndviOverlayLayer = null;
     this.drawPolygonPoints = [];
     this.isDrawing = false;
     this.currentFeature = null;
@@ -30,7 +28,7 @@ export class ForestMap {
 
     this.map = L.map(this.containerId).setView([defaultLat, defaultLng], 4);
 
-    // Capa satelital de OpenStreetMap / CartoDB Positron para contraste visual
+    // Capa satelital de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors | Copernicus STAC | IGN Argentina'
@@ -40,10 +38,7 @@ export class ForestMap {
 
     // Eventos de click para dibujo interactivo
     this.map.on('click', (e) => this.handleMapClick(e));
-
-    // Estado inicial limpio: sin lote pre-cargado
   }
-
 
   handleMapClick(e) {
     if (!this.isDrawing) return;
@@ -73,9 +68,6 @@ export class ForestMap {
     if (this.currentLayer) {
       this.map.removeLayer(this.currentLayer);
     }
-    if (this.ndviOverlayLayer) {
-      this.map.removeLayer(this.ndviOverlayLayer);
-    }
   }
 
   setGeoJSON(geojson) {
@@ -89,9 +81,6 @@ export class ForestMap {
 
     if (this.currentLayer) {
       this.map.removeLayer(this.currentLayer);
-    }
-    if (this.ndviOverlayLayer) {
-      this.map.removeLayer(this.ndviOverlayLayer);
     }
 
     // Estilo Leaflet para el polígono forestal
@@ -119,51 +108,6 @@ export class ForestMap {
     }
 
     return true;
-  }
-
-  renderNDVIOverlay(gridSamples) {
-    if (!this.currentFeature || !gridSamples || !gridSamples.length) return;
-
-    if (this.ndviOverlayLayer) {
-      this.map.removeLayer(this.ndviOverlayLayer);
-    }
-
-    const bounds = this.currentLayer.getBounds();
-    const southWest = bounds.getSouthWest();
-    const northEast = bounds.getNorthEast();
-
-    const rows = 6;
-    const cols = 6;
-    const dLat = (northEast.lat - southWest.lat) / rows;
-    const dLng = (northEast.lng - southWest.lng) / cols;
-
-    const layersGroup = [];
-
-    let sampleIdx = 0;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const minLat = southWest.lat + r * dLat;
-        const maxLat = minLat + dLat;
-        const minLng = southWest.lng + c * dLng;
-        const maxLng = minLng + dLng;
-
-        const val = gridSamples[sampleIdx % gridSamples.length];
-        const color = getNDVIColor(val);
-
-        const rect = L.rectangle([[minLat, minLng], [maxLat, maxLng]], {
-          color: color,
-          weight: 0.5,
-          fillColor: color,
-          fillOpacity: 0.65
-        });
-
-        rect.bindPopup(`<b>Píxel NDVI Sentinel-2</b><br>Valor: ${val}<br>Categoría: ${getNDVILabel(val)}`);
-        layersGroup.push(rect);
-        sampleIdx++;
-      }
-    }
-
-    this.ndviOverlayLayer = L.layerGroup(layersGroup).addTo(this.map);
   }
 
   useUserGPSLocation() {
@@ -236,11 +180,4 @@ export class ForestMap {
   getCurrentFeature() {
     return this.currentFeature;
   }
-}
-
-function getNDVILabel(val) {
-  if (val >= 0.7) return 'Forestal Muy Denso';
-  if (val >= 0.5) return 'Vigor Saludable';
-  if (val >= 0.3) return 'Cobertura Baja';
-  return 'Suelo Expuesto / Inerte';
 }
