@@ -60,14 +60,17 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
 
     if (geoJson && geoJson.features && geoJson.features.length > 0) {
       const props = geoJson.features[0].properties;
+      const rawPh = props.ph || props.PH;
       const data = {
-        tipo: props.tipo_suelo || props.GREATGROUP || "Molisol",
-        textura: props.textura || props.TEXTURE || "Franco-limosa",
-        drenaje: props.drenaje || props.DRAINAGE || "Bueno",
-        limitantes: props.limitantes || props.LIMITATIONS || "Ninguna",
-        aptitud: props.aptitud || props.APTITUDE || "Agrícola",
-        ph: parseFloat(props.ph || props.PH || "6.5"),
-        escala: "1:50.000",
+        tipo: props.tipo_suelo || props.GREATGROUP || "Suelo clasificado WMS",
+        textura: props.textura || props.TEXTURE || "No especificada en capa WMS",
+        drenaje: props.drenaje || props.DRAINAGE || "No especificado en capa WMS",
+        limitantes: props.limitantes || props.LIMITATIONS || "No especificadas en capa WMS",
+        aptitud: props.aptitud || props.APTITUDE || "No especificada en capa WMS",
+        ph: rawPh !== undefined && rawPh !== null && !isNaN(parseFloat(rawPh)) ? parseFloat(rawPh) : null,
+        escala: "1:50.000 (WMS INTA)",
+        status: "REAL",
+        confidence: "high",
         fechaActualizacion: new Date().toISOString()
       };
 
@@ -85,11 +88,11 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
     if (subregionStaticData) {
       const data = {
         tipo: subregionStaticData.tipo || "Información Regional de Suelos",
-        textura: subregionStaticData.textura || "Regional",
-        drenaje: subregionStaticData.drenaje || "Bueno a Moderado",
-        limitantes: subregionStaticData.limitantes || "Ninguna declarada a escala regional",
-        aptitud: subregionStaticData.aptitud || "Agrícola regional",
-        ph: subregionStaticData.ph !== undefined ? subregionStaticData.ph : 6.5,
+        textura: subregionStaticData.textura || "No disponible en cartografía regional",
+        drenaje: subregionStaticData.drenaje || "No disponible en cartografía regional",
+        limitantes: subregionStaticData.limitantes || "Sin información regional",
+        aptitud: subregionStaticData.aptitud || "No disponible en cartografía regional",
+        ph: subregionStaticData.ph !== undefined && subregionStaticData.ph !== null ? subregionStaticData.ph : null,
         escala: "1:250.000 (Cartografía Regional INTA)",
         status: "REGIONAL",
         confidence: "medium",

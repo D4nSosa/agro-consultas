@@ -174,7 +174,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
     };
   }
 
-  let categoria = "COMPATIBLE CON LAS CONDICIONES EVALUADAS";
+  let categoria = "COMPATIBLE CON EL CONTEXTO REGIONAL EVALUADO";
   if (tieneEvaluacionNegativa) {
     categoria = "PRESENTA LIMITANTES EN LA ZONA";
   } else if (!isSoilAvailable) {

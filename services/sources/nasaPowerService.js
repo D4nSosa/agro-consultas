@@ -89,49 +89,53 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
 
     let precTotalPeriodMm = 0;
     let t2mSum = 0;
-    let t2mMaxAbs = -999;
-    let t2mMinAbs = 999;
+    let t2mMaxAbs = null;
+    let t2mMinAbs = null;
     let rhSum = 0;
     let wsSum = 0;
     let radSum = 0;
-    let validCount = 0;
+
+    let precValidCount = 0;
+    let t2mValidCount = 0;
+    let rhValidCount = 0;
+    let wsValidCount = 0;
+    let radValidCount = 0;
+
+    const isVal = (v) => v !== undefined && v !== null && v !== -999 && v !== 999 && !isNaN(v);
 
     const monthlyBreakdown = selectedKeys.map(key => {
-      const dailyPrec = paramsData.PRECTOTCORR[key] ?? -999;
-      const t2m = paramsData.T2M[key] ?? -999;
-      const t2mMax = paramsData.T2M_MAX[key] ?? -999;
-      const t2mMin = paramsData.T2M_MIN[key] ?? -999;
-      const rh = paramsData.RH2M[key] ?? -999;
-      const ws = paramsData.WS2M[key] ?? -999;
-      const rad = paramsData.ALLSKY_SFC_SW_DWN[key] ?? -999;
+      const dailyPrec = isVal(paramsData.PRECTOTCORR?.[key]) ? paramsData.PRECTOTCORR[key] : null;
+      const t2m = isVal(paramsData.T2M?.[key]) ? paramsData.T2M[key] : null;
+      const t2mMax = isVal(paramsData.T2M_MAX?.[key]) ? paramsData.T2M_MAX[key] : null;
+      const t2mMin = isVal(paramsData.T2M_MIN?.[key]) ? paramsData.T2M_MIN[key] : null;
+      const rh = isVal(paramsData.RH2M?.[key]) ? paramsData.RH2M[key] : null;
+      const ws = isVal(paramsData.WS2M?.[key]) ? paramsData.WS2M[key] : null;
+      const rad = isVal(paramsData.ALLSKY_SFC_SW_DWN?.[key]) ? paramsData.ALLSKY_SFC_SW_DWN[key] : null;
 
-      if (dailyPrec !== -999 && t2m !== -999) {
-        const days = daysInMonth(key);
-        const monthlyPrec = dailyPrec * days;
-        precTotalPeriodMm += monthlyPrec;
-        t2mSum += t2m;
-        if (t2mMax > t2mMaxAbs) t2mMaxAbs = t2mMax;
-        if (t2mMin < t2mMinAbs) t2mMinAbs = t2mMin;
-        if (rh !== -999) rhSum += rh;
-        if (ws !== -999) wsSum += ws;
-        if (rad !== -999) radSum += rad;
-        validCount++;
+      const days = daysInMonth(key);
+      const monthlyPrec = dailyPrec !== null ? dailyPrec * days : null;
 
-        return {
-          monthKey: key,
-          precipitacionMm: Math.round(monthlyPrec * 10) / 10,
-          tempMediaC: Math.round(t2m * 10) / 10,
-          tempMaxC: Math.round(t2mMax * 10) / 10,
-          tempMinC: Math.round(t2mMin * 10) / 10,
-          humedadPct: Math.round(rh * 10) / 10,
-          vientoKmH: Math.round((ws * 3.6) * 10) / 10,
-          radiacionMjM2Day: Math.round(rad * 10) / 10
-        };
-      }
-      return null;
-    }).filter(Boolean);
+      if (monthlyPrec !== null) { precTotalPeriodMm += monthlyPrec; precValidCount++; }
+      if (t2m !== null) { t2mSum += t2m; t2mValidCount++; }
+      if (t2mMax !== null) { if (t2mMaxAbs === null || t2mMax > t2mMaxAbs) t2mMaxAbs = t2mMax; }
+      if (t2mMin !== null) { if (t2mMinAbs === null || t2mMin < t2mMinAbs) t2mMinAbs = t2mMin; }
+      if (rh !== null) { rhSum += rh; rhValidCount++; }
+      if (ws !== null) { wsSum += ws; wsValidCount++; }
+      if (rad !== null) { radSum += rad; radValidCount++; }
 
-    if (validCount === 0) {
+      return {
+        monthKey: key,
+        precipitacionMm: monthlyPrec !== null ? Math.round(monthlyPrec * 10) / 10 : null,
+        tempMediaC: t2m !== null ? Math.round(t2m * 10) / 10 : null,
+        tempMaxC: t2mMax !== null ? Math.round(t2mMax * 10) / 10 : null,
+        tempMinC: t2mMin !== null ? Math.round(t2mMin * 10) / 10 : null,
+        humedadPct: rh !== null ? Math.round(rh * 10) / 10 : null,
+        vientoKmH: ws !== null ? Math.round((ws * 3.6) * 10) / 10 : null,
+        radiacionMjM2Day: rad !== null ? Math.round(rad * 10) / 10 : null
+      };
+    });
+
+    if (precValidCount === 0 && t2mValidCount === 0) {
       return {
         status: "UNAVAILABLE",
         message: "NO DISPONIBLE — Los registros de la serie climática contienen valores no válidos.",
@@ -140,53 +144,70 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
     }
 
     // Promedio histórico completo disponible en la API para comparar
-    const allPrecMonthlyAvg = monthlyKeys.reduce((acc, k) => acc + ((paramsData.PRECTOTCORR[k] ?? 0) * daysInMonth(k)), 0) / (monthlyKeys.length / 12);
-    const allT2mAvg = monthlyKeys.reduce((acc, k) => acc + (paramsData.T2M[k] ?? 0), 0) / monthlyKeys.length;
+    let histPrecSum = 0;
+    let histPrecCount = 0;
+    let histT2mSum = 0;
+    let histT2mCount = 0;
 
-    const t2mMeanPeriod = t2mSum / validCount;
-    const rhMeanPeriod = rhSum / validCount;
-    const wsMeanKmH = (wsSum / validCount) * 3.6;
-    const radMeanPeriod = radSum / validCount;
+    monthlyKeys.forEach(k => {
+      const p = isVal(paramsData.PRECTOTCORR?.[k]) ? paramsData.PRECTOTCORR[k] : null;
+      const t = isVal(paramsData.T2M?.[k]) ? paramsData.T2M[k] : null;
+      if (p !== null) { histPrecSum += p * daysInMonth(k); histPrecCount++; }
+      if (t !== null) { histT2mSum += t; histT2mCount++; }
+    });
+
+    const allPrecMonthlyAvg = histPrecCount > 0 ? (histPrecSum / (histPrecCount / 12)) : null;
+    const allT2mAvg = histT2mCount > 0 ? (histT2mSum / histT2mCount) : null;
+
+    const t2mMeanPeriod = t2mValidCount > 0 ? t2mSum / t2mValidCount : null;
+    const rhMeanPeriod = rhValidCount > 0 ? rhSum / rhValidCount : null;
+    const wsMeanKmH = wsValidCount > 0 ? (wsSum / wsValidCount) * 3.6 : null;
+    const radMeanPeriod = radValidCount > 0 ? radSum / radValidCount : null;
 
     // Normalizar promedio histórico para la cantidad de meses del período seleccionado
-    const expectedHistoricalPrecForPeriod = (allPrecMonthlyAvg / 12) * validCount;
-    const precDiffMm = precTotalPeriodMm - expectedHistoricalPrecForPeriod;
-    const precDiffPct = expectedHistoricalPrecForPeriod > 0 ? (precDiffMm / expectedHistoricalPrecForPeriod) * 100 : 0;
+    let precDiffMm = null;
+    let precDiffPct = null;
+    let classPrec = "Información comparativa no disponible";
 
-    const tempAnomaly = t2mMeanPeriod - allT2mAvg;
+    if (allPrecMonthlyAvg !== null && precValidCount > 0) {
+      const expectedHistoricalPrecForPeriod = (allPrecMonthlyAvg / 12) * precValidCount;
+      precDiffMm = precTotalPeriodMm - expectedHistoricalPrecForPeriod;
+      precDiffPct = expectedHistoricalPrecForPeriod > 0 ? (precDiffMm / expectedHistoricalPrecForPeriod) * 100 : 0;
+      if (precDiffPct > 15) classPrec = "Por encima del promedio histórico (superávit hídrico)";
+      else if (precDiffPct < -15) classPrec = "Por debajo del promedio histórico (déficit hídrico)";
+      else classPrec = "Cercano al promedio histórico";
+    }
 
-    // Clasificación descriptiva documentada según criterios estadísticos explícitos:
-    // Precipitaciones: +/-15% diferencia respecto al promedio histórico
-    // Temperatura: +/-0.75°C anomalía respecto a la media histórica
-    let classPrec = "Cercano al promedio histórico";
-    if (precDiffPct > 15) classPrec = "Por encima del promedio histórico (superávit hídrico)";
-    else if (precDiffPct < -15) classPrec = "Por debajo del promedio histórico (déficit hídrico)";
-
-    let classTemp = "Cercano al promedio histórico";
-    if (tempAnomaly > 0.75) classTemp = "Anomalía cálida (por encima del promedio)";
-    else if (tempAnomaly < -0.75) classTemp = "Anomalía fría (por debajo del promedio)";
+    let tempAnomaly = null;
+    let classTemp = "Información comparativa no disponible";
+    if (t2mMeanPeriod !== null && allT2mAvg !== null) {
+      tempAnomaly = t2mMeanPeriod - allT2mAvg;
+      if (tempAnomaly > 0.75) classTemp = "Anomalía cálida (por encima del promedio)";
+      else if (tempAnomaly < -0.75) classTemp = "Anomalía fría (por debajo del promedio)";
+      else classTemp = "Cercano al promedio histórico";
+    }
 
     return {
       status: "REAL",
       data: {
         periodMetrics: {
-          precipitacionAcumuladaMm: Math.round(precTotalPeriodMm * 10) / 10,
-          temperaturaMediaC: Math.round(t2mMeanPeriod * 10) / 10,
-          temperaturaMaximaAbsolutaC: Math.round(t2mMaxAbs * 10) / 10,
-          temperaturaMinimaAbsolutaC: Math.round(t2mMinAbs * 10) / 10,
-          humedadRelativaMediaPct: Math.round(rhMeanPeriod * 10) / 10,
-          vientoMedioKmH: Math.round(wsMeanKmH * 10) / 10,
-          radiacionSolarMediaMjM2Day: Math.round(radMeanPeriod * 10) / 10
+          precipitacionAcumuladaMm: precValidCount > 0 ? Math.round(precTotalPeriodMm * 10) / 10 : "NO DISPONIBLE",
+          temperaturaMediaC: t2mMeanPeriod !== null ? Math.round(t2mMeanPeriod * 10) / 10 : "NO DISPONIBLE",
+          temperaturaMaximaAbsolutaC: t2mMaxAbs !== null ? Math.round(t2mMaxAbs * 10) / 10 : "NO DISPONIBLE",
+          temperaturaMinimaAbsolutaC: t2mMinAbs !== null ? Math.round(t2mMinAbs * 10) / 10 : "NO DISPONIBLE",
+          humedadRelativaMediaPct: rhMeanPeriod !== null ? Math.round(rhMeanPeriod * 10) / 10 : "NO DISPONIBLE",
+          vientoMedioKmH: wsMeanKmH !== null ? Math.round(wsMeanKmH * 10) / 10 : "NO DISPONIBLE",
+          radiacionSolarMediaMjM2Day: radMeanPeriod !== null ? Math.round(radMeanPeriod * 10) / 10 : "NO DISPONIBLE"
         },
         historicalAverages: {
-          precipitacionMediaAnualMm: Math.round(allPrecMonthlyAvg * 10) / 10,
-          temperaturaMediaHistoricaC: Math.round(allT2mAvg * 10) / 10
+          precipitacionMediaAnualMm: allPrecMonthlyAvg !== null ? Math.round(allPrecMonthlyAvg * 10) / 10 : "NO DISPONIBLE",
+          temperaturaMediaHistoricaC: allT2mAvg !== null ? Math.round(allT2mAvg * 10) / 10 : "NO DISPONIBLE"
         },
         comparison: {
-          precipitacionesDiferenciaMm: Math.round(precDiffMm * 10) / 10,
-          precipitacionesDiferenciaPct: Math.round(precDiffPct * 10) / 10,
+          precipitacionesDiferenciaMm: precDiffMm !== null ? Math.round(precDiffMm * 10) / 10 : "NO DISPONIBLE",
+          precipitacionesDiferenciaPct: precDiffPct !== null ? Math.round(precDiffPct * 10) / 10 : "NO DISPONIBLE",
           clasificacionPrecipitacion: classPrec,
-          temperaturaAnomalia: Math.round(tempAnomaly * 10) / 10,
+          temperaturaAnomalia: tempAnomaly !== null ? Math.round(tempAnomaly * 10) / 10 : "NO DISPONIBLE",
           clasificacionTemperatura: classTemp,
           criterioEstadistico: "Clasificación basada en desviaciones relativas (+/-15% precipitación, +/-0.75°C anomalía térmica) respecto a la media de la serie 1981-actualidad."
         },
@@ -197,7 +218,7 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
         apiEndpoint: "https://power.larc.nasa.gov/",
         coordenadas: { lat: parseFloat(lat.toFixed(4)), lng: parseFloat(lng.toFixed(4)) },
         periodo: `${startYear}–${endYear}`,
-        mesesAnalizados: validCount,
+        mesesAnalizados: selectedKeys.length,
         variablesConsultadas: ['PRECTOTCORR', 'T2M', 'T2M_MAX', 'T2M_MIN', 'RH2M', 'WS2M', 'ALLSKY_SFC_SW_DWN'],
         fechaConsulta: new Date().toISOString().split('T')[0],
         disclaimer: "Estos datos representan reanálisis espacial/modelado de NASA POWER y no sustituyen una estación meteorológica local."
