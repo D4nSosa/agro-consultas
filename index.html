@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Recomendador de Cultivos</title>
+  <title>Agro Consultas - Recomendador de Cultivos</title>
 
   <!-- Tipografía -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -19,76 +19,76 @@
     <div class="left">
       <img class="brand" src="dwnl.png" alt="logo" />
       <div class="brand-text">
-        <div class="title">Recomendador de Cultivos</div>
-        <div class="subtitle">Recomendador inteligente · </div>
+        <div class="title">Agro Consultas</div>
+        <div class="subtitle">Plataforma de Evidencia y Datos Reales v2.0</div>
       </div>
     </div>
 
     <div class="right" style="display:flex; align-items:center; gap:10px;">
-      <a class="btn outline" href="forestal.html" style="font-size:0.85rem;">🌲 Análisis Forestal</a>
+      <a class="btn outline" href="forestal.html" style="font-size:0.85rem;">🌲 Módulo Forestal</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
   </header>
 
   <main class="container">
     <section class="hero card">
-      <h1>Recomendador de Cultivos</h1>
-      <p class="lead">Introduce la provincia y obtené recomendaciones basadas en datos técnicos y mapas interactivos.</p>
+      <h1>¿Dónde querés analizar?</h1>
+      <p class="lead">Ingresá cualquier localidad o punto de interés para obtener geocodificación real, datos edafoclimáticos y aptitud agropecuaria.</p>
 
       <form id="homeForm" class="home-form" onsubmit="event.preventDefault(); enviarFormulario();">
-        <label for="provincias">Provincia</label>
-        <input id="provincias" name="provincias" type="text" placeholder="Ej: Córdoba" required autocomplete="off" />
+        <label for="provincias">Localidad o Ubicación</label>
+        <input id="provincias" name="provincias" type="text" placeholder="Ej: Gobernador Virasoro, Río Cuarto, Balcarce, Oberá..." required autocomplete="off" />
 
         <div class="row" style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button type="submit" class="btn primary">Buscar</button>
-          <button type="button" id="gpsBtn" class="btn primary" style="background:#27ae60; border-color:#27ae60;">📍 Usar Mi Ubicación</button>
-          <button type="button" id="demoBtn" class="btn outline">Demo: Buenos Aires</button>
+          <button type="submit" class="btn primary">🔎 Buscar Ubicación Real</button>
+          <button type="button" id="gpsBtn" class="btn primary" style="background:#27ae60; border-color:#27ae60;">📍 Usar Mi Ubicación en Tiempo Real</button>
+          <button type="button" id="demoBtn" class="btn outline">Gobernador Virasoro</button>
         </div>
       </form>
     </section>
 
-    <!-- Nueva Sección Explicativa: ¿Cómo funciona Agro Consultas? -->
+    <!-- Sección Explicativa: ¿Cómo funciona Agro Consultas? -->
     <section class="explanation-section" style="margin-top: 40px; margin-bottom: 40px;">
       <h2 style="text-align: center; margin-bottom: 30px; font-weight: 800; font-size: 2rem;">¿Cómo funciona Agro Consultas?</h2>
       <div class="explanation-grid">
         <div class="explanation-card card">
           <div class="icon-circle">🗺️</div>
-          <h3>Exploración Geográfica</h3>
-          <p>Navegá un mapa nacional interactivo inteligente con geolocalización precisa por coordenadas para identificar tu región.</p>
+          <h3>Geocodificación Real</h3>
+          <p>Identificación geográfica oficial mediante Open-Meteo Geocoding e IGN Georef con coordenadas y alcance territorial preciso.</p>
         </div>
         <div class="explanation-card card">
           <div class="icon-circle">🌱</div>
-          <h3>Aptitud Subregional</h3>
-          <p>Dividimos cada provincia en zonas agroambientales reales coloreadas según su aptitud de suelo dominante (Forestal, Granos, Citrus, Vid).</p>
+          <h3>Aptitud y Recomendación</h3>
+          <p>Evaluación de cultivos en base a requerimientos reales de suelo y clima regional de fuentes abiertas (INTA y SMN).</p>
         </div>
         <div class="explanation-card card">
-          <div class="icon-circle">🛠️</div>
-          <h3>Simulador de Lote</h3>
-          <p>Calibrá la acidez (pH), drenaje y textura de tu propio campo para recalcular al instante compatibilidades bajo condiciones específicas.</p>
+          <div class="icon-circle">📷</div>
+          <h3>Evidencia de Campo</h3>
+          <p>Cargá fotografías de tu campo y extraé metadatos EXIF (GPS, fecha, cámara) para consolidar tu ficha de evidencia.</p>
         </div>
         <div class="explanation-card card">
           <div class="icon-circle">⚡</div>
-          <h3>Recomendación y Clima</h3>
-          <p>Evaluá la compatibilidad en base a datos de INTA/SMN, consultá alertas climáticas en vivo de Open-Meteo y guías sostenibles.</p>
+          <h3>Clima en Vivo</h3>
+          <p>Monitoreá temperatura, viento y condiciones actuales transmitidas en directo desde la API Open-Meteo.</p>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="app-footer">
-    <small>Recomendador de Cultivos — Diseño y desarrollo: Dan Sosa (Augmented Coder)</small>
+    <small>Agro Consultas v2.0 — Plataforma de Evidencia y Datos Reales</small>
   </footer>
 
   <!-- Inline helpers -->
   <script>
     function enviarFormulario() {
       const provincia = document.getElementById('provincias').value.trim();
-      if (!provincia) return alert('Ingrese una provincia.');
+      if (!provincia) return alert('Ingrese una ubicación.');
       window.location.href = 'resultados.html?ubicacion=' + encodeURIComponent(provincia);
     }
 
     document.getElementById('demoBtn').addEventListener('click', () => {
-      window.location.href = 'resultados.html?ubicacion=Buenos%20Aires';
+      window.location.href = 'resultados.html?ubicacion=Gobernador%20Virasoro';
     });
 
     document.getElementById('gpsBtn').addEventListener('click', () => {
@@ -106,7 +106,7 @@
         },
         (err) => {
           alert('No se pudo obtener la ubicación GPS: ' + err.message);
-          btn.innerText = '📍 Usar Mi Ubicación';
+          btn.innerText = '📍 Usar Mi Ubicación en Tiempo Real';
           btn.disabled = false;
         },
         { enableHighAccuracy: true, timeout: 10000 }

@@ -1,6 +1,7 @@
 /**
  * changeDetectionService.js - Detección preliminar de cambios de cobertura/vegetación
  * Compara NDVI Fecha A vs NDVI Fecha B: deltaNDVI = NDVI_B - NDVI_A
+ * Funciona exclusivamente con observaciones comparables reales.
  */
 
 import { calculateArea } from '../utils/geo.js';
@@ -9,10 +10,22 @@ import { calculateArea } from '../utils/geo.js';
  * Detecta cambios temporales entre dos análisis NDVI (Fecha A y Fecha B)
  */
 export function detectChanges(analysisA, analysisB, geometry) {
-  if (!analysisA || !analysisB) {
+  if (!analysisA || !analysisB || analysisA.available === false || analysisB.available === false || typeof analysisA.stats?.mean !== 'number' || typeof analysisB.stats?.mean !== 'number') {
     return {
       success: false,
-      error: 'Se requieren análisis NDVI para ambas fechas (A y B).'
+      status: 'UNAVAILABLE',
+      primaryMessage: 'NO DISPONIBLE CON LOS DATOS DISPONIBLES',
+      description: 'Se requieren observaciones ráster satelitales reales e imágenes comparables en ambas fechas para ejecutar el cálculo de variación espectral (deltaNDVI) y detección de cambios.',
+      deltaNDVI: 'NO DISPONIBLE',
+      breakdown: {
+        decrease: { percent: 'N/D', hectares: 'N/D' },
+        stable: { percent: 'N/D', hectares: 'N/D' },
+        increase: { percent: 'N/D', hectares: 'N/D' }
+      },
+      limitations: [
+        'Se requieren imágenes satelitales multiespectrales procesadas para ambas fechas comparadas.',
+        'No se generan porcentajes ni superficies simuladas cuando falta evidencia directa.'
+      ]
     };
   }
 
@@ -23,9 +36,9 @@ export function detectChanges(analysisA, analysisB, geometry) {
 
   const deltaNDVI = Math.round((meanB - meanA) * 100) / 100;
   const areaInfo = calculateArea(geometry);
-  const totalAreaHa = areaInfo.hectares || 10;
+  const totalAreaHa = areaInfo.hectares || 0;
 
-  // Comparar muestras punto a punto para calcular la superficie por categoría
+  // Comparar muestras punto a punto para calcular la superficie por categoría si existen samples
   const samplesA = analysisA.gridSample || [];
   const samplesB = analysisB.gridSample || [];
   const minLen = Math.min(samplesA.length, samplesB.length);
@@ -50,23 +63,23 @@ export function detectChanges(analysisA, analysisB, geometry) {
   const increaseHa = Math.round(((increasePct / 100) * totalAreaHa) * 10) / 10;
   const stableHa = Math.round((totalAreaHa - decreaseHa - increaseHa) * 10) / 10;
 
-  // Determinar diagnóstico general con lenguaje cauto y profesional
   let classification = 'ESTABLE';
   let primaryMessage = 'Sin cambios significativos en el índice de vegetación.';
-  let detailedDescription = 'La cobertura foliar y la respuesta espectral se mantienen estables entre ambas fechas dentro de los márgenes normales de estacionalidad.';
+  let detailedDescription = 'La respuesta espectral se mantiene estable entre ambas fechas dentro de los márgenes normales de estacionalidad.';
 
   if (deltaNDVI <= -0.15 || decreasePct > 30) {
     classification = 'DISMINUCION_SIGNIFICATIVA';
     primaryMessage = 'Disminución significativa del índice de vegetación detectada.';
-    detailedDescription = 'Se observa una reducción sustancial del vigor vegetativo (deltaNDVI negativo). Esto puede deberse a raleo, cosechas forestales, fenología estacional, estrés hídrico o intervenciones en la cubierta vegetal. Se recomienda verificación en campo.';
+    detailedDescription = 'Se observa una reducción del vigor vegetativo. Puede deberse a cosecha, raleo o fenología. Se requiere verificación de campo.';
   } else if (deltaNDVI >= 0.15 || increasePct > 30) {
     classification = 'AUMENTO_SIGNIFICATIVO';
     primaryMessage = 'Aumento significativo del índice de vegetación detectado.';
-    detailedDescription = 'Se observa un incremento sustancial en la respuesta del infrarrojo cercano (deltaNDVI positivo), compatible con crecimiento foliar, rebrote vegetal, densificación de copa o regeneración.';
+    detailedDescription = 'Se observa un incremento sustancial en la respuesta del infrarrojo cercano, compatible con crecimiento foliar o regeneración.';
   }
 
   return {
     success: true,
+    status: 'REAL',
     period: {
       dateA: dateA,
       dateB: dateB,
@@ -85,11 +98,10 @@ export function detectChanges(analysisA, analysisB, geometry) {
       stable: { percent: stablePct, hectares: stableHa },
       increase: { percent: increasePct, hectares: increaseHa }
     },
-    confidence: 'Moderada (Resolución espacial Sentinel-2 10m)',
+    confidence: 'Población real de muestras',
     limitations: [
-      'La resolución de 10 metros puede promediar áreas pequeñas de vegetación heterogénea.',
-      'Factores como nubosidad, sombras de montaña, ángulo solar o humedad del suelo influyen en la reflectancia.',
-      'No debe interpretarse como certificación o diagnóstico definitivo sin inspección visual o terrestre.'
+      'Factores atmosféricos y ángulo solar influyen en la reflectancia.',
+      'Requiere validación agronómica o forestal de terreno.'
     ]
   };
 }

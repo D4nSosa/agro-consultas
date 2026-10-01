@@ -7,7 +7,7 @@ export const DataStatus = {
   REAL: 'real',
   ESTIMATED: 'estimated',
   REGIONAL: 'regional',
-  SIMULATED: 'simulated',
+  CALCULATED: 'calculated',
   UNAVAILABLE: 'unavailable'
 };
 
@@ -32,7 +32,7 @@ export const ConfidenceLevel = {
  * @param {string|null} [params.resolution=null] - Resolución espacial (ej. "10m", "1km").
  * @param {string|null} [params.scale=null] - Escala cartográfica (ej. "1:50.000").
  * @param {string|null} [params.methodology=null] - Descripción metodológica o fórmula.
- * @param {string} [params.status=DataStatus.REAL] - Estado del dato ('real'|'estimated'|'regional'|'simulated'|'unavailable').
+ * @param {string} [params.status=DataStatus.REAL] - Estado del dato ('real'|'estimated'|'regional'|'calculated'|'unavailable').
  * @param {string} [params.confidence=ConfidenceLevel.HIGH] - Nivel de confianza ('high'|'medium'|'low'|'none').
  * @param {string|null} [params.message=null] - Mensaje informativo o causa de indisponibilidad.
  * @returns {Object} DataPoint normalizado.

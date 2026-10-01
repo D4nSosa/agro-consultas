@@ -22,7 +22,7 @@ export async function loadCultivosData() {
 
 /**
  * Genera el listado de cultivos recomendados para una provincia y coordenadas dadas.
- * Combina datos locales del suelo, clima y simulación.
+ * Combina datos locales del suelo y clima de fuentes reales.
  *
  * @param {Array<string>} listadoNombres - Lista de cultivos recomendados por la provincia.
  * @param {Object} soilReport - Datos del suelo consolidado.
@@ -55,10 +55,8 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
     const sostenibilidad = obtenerPracticasSostenibles(key);
 
     const isReal = soilReport && soilReport.status === 'real';
-    const isSim = soilReport && (soilReport.status === 'simulated' || soilReport.esSimulado);
-
-    const labelConfianza = isReal ? 'ALTA (INTA WMS)' : (isSim ? 'DEMO / SIMULADO' : 'ESTIMACIÓN REGIONAL');
-    const classConfianza = isReal ? 'high' : (isSim ? 'simulated' : 'medium');
+    const labelConfianza = isReal ? 'REAL (INTA WMS)' : 'ESTIMACIÓN REGIONAL';
+    const classConfianza = isReal ? 'high' : 'medium';
 
     return {
       nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
@@ -72,6 +70,9 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       motivos: compat.motivos,
       riesgos: compat.riesgos,
       datosFaltantes: compat.datosFaltantes || [],
+      variedades: cropData.variedades || [],
+      fuenteVariedades: cropData.fuenteVariedades || null,
+      rendimientoEstimado: cropData.rendimientoEstimado || null,
       confianza: labelConfianza,
       nivelConfianza: classConfianza,
       sostenibilidad: sostenibilidad

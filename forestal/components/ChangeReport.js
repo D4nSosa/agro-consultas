@@ -12,14 +12,14 @@ export class ChangeReport {
     if (!container || !analysisData) return;
 
     const { lot, dates, products, ndvi, changes, aptitude } = analysisData;
-    const prodA = products?.productA || {};
-    const prodB = products?.productB || {};
-    const statsA = ndvi?.analysisA?.stats || {};
-    const statsB = ndvi?.analysisB?.stats || {};
+    const prodA = products?.productA || null;
+    const prodB = products?.productB || null;
+    const statsA = ndvi?.analysisA?.stats || null;
+    const statsB = ndvi?.analysisB?.stats || null;
 
-    let statusBadgeColor = '#2ecc71';
+    let statusBadgeColor = '#27ae60';
     if (changes.classification === 'DISMINUCION_SIGNIFICATIVA') statusBadgeColor = '#e74c3c';
-    if (changes.classification === 'AUMENTO_SIGNIFICATIVO') statusBadgeColor = '#27ae60';
+    if (changes.classification === 'NO_DISPONIBLE') statusBadgeColor = '#757575';
 
     container.innerHTML = `
       <div id="printable-forest-report" class="card" style="padding: 25px; margin-top: 20px; border-top: 4px solid var(--verde-principal);">
@@ -40,19 +40,12 @@ export class ChangeReport {
         </div>
 
         <!-- Metadatos del Lote -->
-        ${(() => {
-          const isDemo = lot?.geometry?.properties?.isDemo || (lot?.geometry?.properties?.name || '').toLowerCase().includes('demo');
-          const badgeHtml = isDemo
-            ? `<span style="font-size:0.75rem; font-weight:bold; padding:2px 8px; border-radius:4px; background:#f39c12; color:#fff; margin-left:8px;">DEMO / DATOS DE DEMOSTRACIÓN</span>`
-            : `<span style="font-size:0.75rem; font-weight:bold; padding:2px 8px; border-radius:4px; background:#27ae60; color:#fff; margin-left:8px;">REAL / LOTE DELIMITADO</span>`;
-          return `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Nombre del Lote:</span>
-            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong> ${badgeHtml}
+            <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong>
+            <span class="badge-origin real" style="margin-left: 5px;">REAL</span>
           </div>
-          `;
-        })()}
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
             <strong>${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)</strong>
@@ -67,10 +60,10 @@ export class ChangeReport {
           </div>
         </div>
 
-        <!-- Trazabilidad Daseométrica e Inventario de Campo -->
+        <!-- Inventario de Campo si existe -->
         ${analysisData.inventory ? `
         <h3 style="color: #2980b9; border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          📋 Inventario Daseométrico y Planificación Operativa de Campo
+          📋 Inventario Daseométrico de Campo
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: rgba(41, 128, 185, 0.04); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--borde-suave);">
           <div>
@@ -82,111 +75,60 @@ export class ChangeReport {
             <strong>${analysisData.inventory.dap} cm | ${analysisData.inventory.altura} m</strong>
           </div>
           <div>
-            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Densidad / Edad:</span>
-            <strong>${analysisData.inventory.densidad} pies/ha (${analysisData.inventory.edad} años)</strong>
-          </div>
-          <div>
-            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Volumen Estimado por Hectárea:</span>
+            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Volumen Estimado:</span>
             <strong style="color: #2980b9; font-size: 1.1rem;">${analysisData.inventory.volumenHa} m³/ha</strong>
           </div>
           <div style="grid-column: 1 / -1; margin-top: 5px; padding-top: 8px; border-top: 1px dashed var(--borde-suave);">
-            <strong style="color: #2980b9; font-size: 0.85rem;">📌 Prescripción Silvícola de Campo:</strong>
-            <p style="margin: 4px 0 0 0; font-size: 0.85rem; line-height: 1.4;">${analysisData.inventory.prescripcion}</p>
+            <strong style="color: #2980b9; font-size: 0.85rem;">📌 Prescripción Silvícola:</strong>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem;">${analysisData.inventory.prescripcion}</p>
           </div>
         </div>
         ` : ''}
 
-        <!-- Alertas de Riesgo Operativo en Campo -->
+        <!-- Trazabilidad Satelital Real -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          🔥 Monitoreo de Riesgos Operativos y Alertas de Campo
-        </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px;">
-          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.02);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <strong style="font-size: 0.88rem;">🔥 Riesgo de Incendio (FWI):</strong>
-              <span class="badge-origin no-disponible">NO DISPONIBLE</span>
-            </div>
-            <div style="font-size: 0.82rem; color: var(--texto-secundario);">No disponible: no se dispone de datos suficientes para calcular FWI.</div>
-          </div>
-          <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.02);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <strong style="font-size: 0.88rem;">🌱 Estado Fitosanitario:</strong>
-              <span class="badge-origin no-disponible">NO DISPONIBLE</span>
-            </div>
-            <div style="font-size: 0.82rem; color: var(--texto-secundario);">Evaluación fitosanitaria: No disponible con los datos actuales.</div>
-          </div>
-        </div>
-
-        <!-- Trazabilidad Satelital -->
-        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          📡 Trazabilidad de Fuentes de Datos Satelitales (Copernicus)
+          📡 Trazabilidad de Escenas Satelitales Reales (Copernicus)
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
           <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
-            <strong style="color: #27ae60;">🟢 Imagen Fecha A (Base)</strong>
-            <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
-              <li><strong>Fuente:</strong> Copernicus Sentinel-2</li>
-              <li><strong>Producto:</strong> ${prodA.productType || 'Level-2A (S2MSI2A)'}</li>
-              <li><strong>Identificador:</strong> ${prodA.id || 'N/A'}</li>
-              <li><strong>Fecha Adquisición:</strong> ${prodA.date || dates?.dateA}</li>
-              <li><strong>Cobertura Nubosa:</strong> ${prodA.cloudCover || 0}%</li>
-              <li><strong>Resolución Espacial:</strong> 10 metros</li>
-              <li><strong>Bandas Empleadas:</strong> B04 (Red 665nm), B08 (NIR 842nm)</li>
-            </ul>
+            <strong style="color: #27ae60;">🟢 Escena Fecha A</strong>
+            ${prodA ? `
+              <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
+                <li><strong>Fuente:</strong> ${prodA.source || 'Copernicus Sentinel-2'}</li>
+                <li><strong>Identificador:</strong> ${prodA.id}</li>
+                <li><strong>Fecha Adquisición:</strong> ${prodA.date}</li>
+                <li><strong>Nubosidad:</strong> ${prodA.cloudCover}%</li>
+                <li><strong>Resolución:</strong> 10 metros</li>
+              </ul>
+            ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: No se encontró escena con nubosidad aceptable.</div>`}
           </div>
 
           <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
-            <strong style="color: #2980b9;">🔵 Imagen Fecha B (Comparación)</strong>
-            <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
-              <li><strong>Fuente:</strong> Copernicus Sentinel-2</li>
-              <li><strong>Producto:</strong> ${prodB.productType || 'Level-2A (S2MSI2A)'}</li>
-              <li><strong>Identificador:</strong> ${prodB.id || 'N/A'}</li>
-              <li><strong>Fecha Adquisición:</strong> ${prodB.date || dates?.dateB}</li>
-              <li><strong>Cobertura Nubosa:</strong> ${prodB.cloudCover || 0}%</li>
-              <li><strong>Resolución Espacial:</strong> 10 metros</li>
-              <li><strong>Bandas Empleadas:</strong> B04 (Red 665nm), B08 (NIR 842nm)</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Indicadores NDVI y Detección de Cambios -->
-        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          📊 Estadísticas NDVI y Detección Preliminar de Cambios
-        </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-          <div style="background: rgba(39, 174, 96, 0.08); padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.8rem; color: var(--texto-secundario);">NDVI Promedio Fecha A</div>
-            <div style="font-size: 1.6rem; font-weight: bold; color: #27ae60;">${statsA.mean || 0}</div>
-            <div style="font-size: 0.75rem; color: var(--texto-secundario);">Mín: ${statsA.min || 0} | Máx: ${statsA.max || 0}</div>
-          </div>
-
-          <div style="background: rgba(41, 128, 185, 0.08); padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.8rem; color: var(--texto-secundario);">NDVI Promedio Fecha B</div>
-            <div style="font-size: 1.6rem; font-weight: bold; color: #2980b9;">${statsB.mean || 0}</div>
-            <div style="font-size: 0.75rem; color: var(--texto-secundario);">Mín: ${statsB.min || 0} | Máx: ${statsB.max || 0}</div>
-          </div>
-
-          <div style="background: rgba(0, 0, 0, 0.04); padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.8rem; color: var(--texto-secundario);">Variación deltaNDVI (B - A)</div>
-            <div style="font-size: 1.6rem; font-weight: bold; color: ${statusBadgeColor};">${changes.deltaNDVI > 0 ? '+' : ''}${changes.deltaNDVI}</div>
-            <div style="font-size: 0.75rem; color: var(--texto-secundario);">Umbral Configurable: ±0.15</div>
+            <strong style="color: #2980b9;">🔵 Escena Fecha B</strong>
+            ${prodB ? `
+              <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
+                <li><strong>Fuente:</strong> ${prodB.source || 'Copernicus Sentinel-2'}</li>
+                <li><strong>Identificador:</strong> ${prodB.id}</li>
+                <li><strong>Fecha Adquisición:</strong> ${prodB.date}</li>
+                <li><strong>Nubosidad:</strong> ${prodB.cloudCover}%</li>
+                <li><strong>Resolución:</strong> 10 metros</li>
+              </ul>
+            ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: No se encontró escena con nubosidad aceptable.</div>`}
           </div>
         </div>
 
         <!-- Diagnóstico de Cambios -->
+        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+          📊 Evaluación de Variación Espectral y Detección de Cambios
+        </h3>
         <div style="padding: 15px; border-radius: 8px; border-left: 5px solid ${statusBadgeColor}; background: rgba(0,0,0,0.02); margin-bottom: 20px;">
-          <strong style="font-size: 1.05rem; color: ${statusBadgeColor};">${changes.primaryMessage}</strong>
-          <p style="font-size: 0.9rem; margin: 8px 0 10px 0; line-height: 1.5;">${changes.description}</p>
-          <div style="display: flex; gap: 20px; font-size: 0.85rem; flex-wrap: wrap;">
-            <span>📉 Disminución: <strong>${changes.breakdown?.decrease?.hectares} ha (${changes.breakdown?.decrease?.percent}%)</strong></span>
-            <span>➖ Estable: <strong>${changes.breakdown?.stable?.hectares} ha (${changes.breakdown?.stable?.percent}%)</strong></span>
-            <span>📈 Aumento: <strong>${changes.breakdown?.increase?.hectares} ha (${changes.breakdown?.increase?.percent}%)</strong></span>
-          </div>
+          <strong style="font-size: 1.05rem; color: ${statusBadgeColor};">${changes.primaryMessage || 'NO DISPONIBLE'}</strong>
+          <p style="font-size: 0.9rem; margin: 8px 0 10px 0; line-height: 1.5;">${changes.description || 'No se pueden calcular variaciones sin datos ráster procesables.'}</p>
         </div>
 
-        <!-- Aptitud Territorial e Integración Agro Consultas -->
+        <!-- Aptitud Territorial -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          🌲 Aptitud de Especies Forestales (Recommendation Engine)
+          🌲 Aptitud de Especies Forestales
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
           ${(aptitude?.recommendations || []).map(r => `
@@ -196,7 +138,6 @@ export class ChangeReport {
                 <span class="badge" style="padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; background: ${r.compatibilidad === 'ALTA' ? '#2ecc71' : r.compatibilidad === 'MEDIA' ? '#f39c12' : '#e74c3c'}; color: #fff;">${r.compatibilidad}</span>
               </div>
               <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 6px 0;">${r.descripcion}</p>
-              <div style="font-size: 0.75rem;"><strong>Rotación/Manejo:</strong> ${r.sostenibilidad?.rotacion || 'Consultar guía técnica local.'}</div>
             </div>
           `).join('')}
         </div>
@@ -205,13 +146,11 @@ export class ChangeReport {
         <div style="margin-top: 30px; padding: 12px; background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem; color: var(--texto-secundario); line-height: 1.5;">
           <strong>Aviso Metodológico y Limitaciones Trazables:</strong>
           <br>
-          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta de imágenes multiespectrales Sentinel-2 Level-2A provistas por Copernicus Data Space Ecosystem.
-          El NDVI representa la respuesta espectral y el vigor vegetativo foliar, y no constituye por sí solo una certificación forestal ni una prueba categórica de deforestación o tala. Se requiere inspección técnica de campo para validaciones oficiales.
+          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta del catálogo oficial Copernicus Data Space Ecosystem. No se inventan datos cuando falta información de reflectancia.
         </div>
       </div>
     `;
 
-    // Event listener para botón de impresión
     const btnPrint = document.getElementById('btn-print-report');
     if (btnPrint) {
       btnPrint.addEventListener('click', () => {

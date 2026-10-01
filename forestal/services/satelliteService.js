@@ -9,7 +9,9 @@ const COPERNICUS_STAC_URL = 'https://stac.dataspace.copernicus.eu/v1/search';
 const COPERNICUS_CATALOG_NAME = 'Copernicus Data Space Ecosystem (Sentinel-2 L2A)';
 
 /**
- * Busca imágenes Sentinel-2 L2A en el catálogo STAC para un lote GeoJSON y rango de fechas
+ * Busca imágenes Sentinel-2 L2A en el catálogo STAC para un lote GeoJSON y rango de fechas.
+ * Retorna datos exclusivamente reales. Si no se encuentran escenas o falla la consulta,
+ * devuelve status NO DISPONIBLE sin fabricar productos ficticios.
  */
 export async function searchSentinelImages(geometry, startDate, endDate, maxCloudCover = 30) {
   try {
@@ -37,16 +39,15 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
     });
 
     if (!response.ok) {
-      console.warn(`[satelliteService] Copernicus STAC HTTP error: ${response.status}. Usando adaptador secundario.`);
-      return await fallbackSearch(geometry, startDate, endDate, maxCloudCover);
+      console.warn(`[satelliteService] Copernicus STAC HTTP error: ${response.status}.`);
+      return unavailableResult(`Error de servicio Copernicus STAC (HTTP ${response.status})`);
     }
 
     const data = await response.json();
     const features = data.features || [];
 
     if (!features.length) {
-      // Si no hay imágenes con el filtro de nubes estricto, probar ampliar nubosidad o generar informe accesible
-      return await fallbackSearch(geometry, startDate, endDate, Math.min(maxCloudCover + 20, 80));
+      return unavailableResult(`No se encontraron imágenes Sentinel-2 reales con nubosidad <= ${maxCloudCover}% para el período seleccionado.`);
     }
 
     // Mapear características STAC a formato de producto trazable
@@ -66,7 +67,7 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
 
   } catch (err) {
     console.error('[satelliteService] Error al consultar catálogo STAC:', err);
-    return await fallbackSearch(geometry, startDate, endDate, maxCloudCover);
+    return unavailableResult(`Error de conexión al consultar el catálogo satelital: ${err.message}`);
   }
 }
 
@@ -79,13 +80,13 @@ function parseSTACItem(item) {
 
   const cloudCover = typeof props['eo:cloud_cover'] === 'number'
     ? Math.round(props['eo:cloud_cover'] * 10) / 10
-    : 12.5;
+    : 0.0;
 
   const date = props.datetime
     ? props.datetime.split('T')[0]
     : new Date().toISOString().split('T')[0];
 
-  const productId = item.id || `S2A_MSIL2A_${date.replace(/-/g, '')}`;
+  const productId = item.id || 'NO DISPONIBLE';
 
   return {
     id: productId,
@@ -103,51 +104,22 @@ function parseSTACItem(item) {
     assets: {
       thumbnail: assets.thumbnail?.href || assets.preview?.href || null,
       visual: assets.visual?.href || assets.rendered_preview?.href || null,
-      b04: assets.B04?.href || assets.red?.href || null,
-      b08: assets.B08?.href || assets.nir?.href || null
+      b04: assets.B04_10m?.href || assets.B04?.href || null,
+      b08: assets.B08_10m?.href || assets.B08?.href || null
     },
     bbox: item.bbox || null,
     stacSelf: item.links?.find(l => l.rel === 'self')?.href || null
   };
 }
 
-/**
- * Servicio de contingencia / fallback con simulación rigurosa basada en el catálogo Copernicus para pruebas offline
- */
-async function fallbackSearch(geometry, startDate, endDate, maxCloudCover) {
-  console.info('[satelliteService] Generando registros STAC trazables basados en coordenadas reales para el período.');
-
-  const sampleDate = endDate || new Date().toISOString().split('T')[0];
-
-  const fallbackProduct = {
-    id: `S2A_MSIL2A_${sampleDate.replace(/-/g, '')}_T21JUG`,
-    date: sampleDate,
-    datetime: `${sampleDate}T14:22:10Z`,
-    cloudCover: Math.min(maxCloudCover, 8.4),
-    collection: 'sentinel-2-l2a',
-    source: 'Copernicus Sentinel-2 (Servicio Estándar)',
-    productType: 'Level-2A (Reflectancia en Superficie)',
-    spatialResolution: '10 metros',
-    bands: [
-      { name: 'B04', description: 'Red (665 nm)', resolution: '10m' },
-      { name: 'B08', description: 'Near Infrared / NIR (842 nm)', resolution: '10m' }
-    ],
-    assets: {
-      thumbnail: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/2024/preview.jpg',
-      visual: null,
-      b04: null,
-      b08: null
-    },
-    bbox: getBoundingBox(geometry),
-    isFallback: true
-  };
-
+function unavailableResult(message) {
   return {
-    success: true,
-    source: 'Copernicus Data Space Ecosystem (Acceso Directo)',
+    success: false,
+    source: COPERNICUS_CATALOG_NAME,
     catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
-    productsCount: 1,
-    bestProduct: fallbackProduct,
-    products: [fallbackProduct]
+    productsCount: 0,
+    bestProduct: null,
+    products: [],
+    message: message || 'NO DISPONIBLE'
   };
 }
