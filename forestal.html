@@ -24,14 +24,13 @@
     <div class="left">
       <img class="brand" src="dwnl.png" alt="logo" />
       <div class="brand-text">
-        <div class="title">Análisis Forestal</div>
-        <div class="subtitle">Teledetección Satelital y Evidencia de Campo v2.0</div>
+        <div class="title">Análisis Forestal y Teledetección</div>
       </div>
     </div>
 
     <div class="right" style="display: flex; align-items: center; gap: 10px;">
       <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🏠 Inicio</a>
-      <a class="btn outline" href="resultados.html?ubicacion=Gobernador%20Virasoro" style="font-size: 0.85rem;">🌱 Recomendador Agrícola</a>
+      <a class="btn outline" href="resultados.html" style="font-size: 0.85rem;">🌱 Recomendador Agrícola</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
   </header>
@@ -192,7 +191,7 @@
     <div id="timeline-container" class="card" style="margin-bottom: 25px; padding: 20px;">
       <div class="empty-state" style="text-align: center; padding: 25px;">
         <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🛰️</span>
-        <p><strong>Ningún lote seleccionado.</strong></p>
+        <p><strong>LOTE NO DEFINIDO</strong></p>
         <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas reales de Copernicus Sentinel-2.</p>
       </div>
     </div>
@@ -212,7 +211,7 @@
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas v2.0 — Módulo de Análisis Forestal</small>
+    <small>Agro Consultas</small>
   </footer>
 
   <!-- Leaflet JS -->
@@ -305,9 +304,9 @@
           document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
           document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
         } else {
-          document.getElementById('lot-area-val').innerText = area && area.hectares ? area.hectares : "LOTE/POLÍGONO NO DEFINIDO";
+          document.getElementById('lot-area-val').innerText = area && area.hectares ? area.hectares : "LOTE NO DEFINIDO";
           document.getElementById('lot-coords-val').innerText = centroid && centroid.lat ? `Lat: ${centroid.lat.toFixed(4)}, Lng: ${centroid.lng.toFixed(4)} (PUNTO GPS)` : "Sin lote definido";
-          document.getElementById('geojson-textarea').value = "LOTE/POLÍGONO NO DEFINIDO — La ubicación GPS capturada provee un PUNTO. Delimite un polígono o cargue un GeoJSON para análisis de lote.";
+          document.getElementById('geojson-textarea').value = "LOTE NO DEFINIDO — La ubicación GPS capturada provee un PUNTO. Delimite un polígono o cargue un GeoJSON para análisis de lote.";
         }
       });
 
@@ -423,7 +422,11 @@
       });
 
       document.getElementById('btn-run-analysis').addEventListener('click', () => {
-        ejecutarAnalisis('2025-08-15', '2026-08-15');
+        const now = new Date();
+        const yearNow = now.getFullYear();
+        const dateBStr = now.toISOString().split('T')[0];
+        const dateAStr = `${yearNow - 1}-01-01`;
+        ejecutarAnalisis(dateAStr, dateBStr);
       });
 
       // Inicialización limpia sin lote pre-cargado
@@ -432,7 +435,7 @@
     async function ejecutarAnalisis(dateA, dateB) {
       const feature = forestMap.getCurrentFeature();
       if (!feature) {
-        alert("LOTE/POLÍGONO NO DEFINIDO — La ubicación GPS o punto seleccionado proporciona un PUNTO. Delimite un polígono en el mapa o cargue un GeoJSON real para realizar análisis de lote.");
+        alert("LOTE NO DEFINIDO — La ubicación GPS o punto seleccionado proporciona un PUNTO. Delimite un polígono en el mapa o cargue un GeoJSON real para realizar análisis de lote.");
         return;
       }
 

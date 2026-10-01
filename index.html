@@ -20,7 +20,6 @@
       <img class="brand" src="dwnl.png" alt="logo" />
       <div class="brand-text">
         <div class="title">Agro Consultas</div>
-        <div class="subtitle">Plataforma de Evidencia y Datos Reales v2.0</div>
       </div>
     </div>
 
@@ -37,12 +36,11 @@
 
       <form id="homeForm" class="home-form" onsubmit="event.preventDefault(); enviarFormulario();">
         <label for="provincias">Localidad o Ubicación</label>
-        <input id="provincias" name="provincias" type="text" placeholder="Ej: Gobernador Virasoro, Río Cuarto, Balcarce, Oberá..." required autocomplete="off" />
+        <input id="provincias" name="provincias" type="text" placeholder="Ej: Río Cuarto, Balcarce, Oberá..." required autocomplete="off" />
 
         <div class="row" style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
           <button type="submit" class="btn primary">🔎 Buscar Ubicación Real</button>
           <button type="button" id="gpsBtn" class="btn primary" style="background:#27ae60; border-color:#27ae60;">📍 Usar Mi Ubicación en Tiempo Real</button>
-          <button type="button" id="demoBtn" class="btn outline">Gobernador Virasoro</button>
         </div>
       </form>
     </section>
@@ -76,7 +74,7 @@
   </main>
 
   <footer class="app-footer">
-    <small>Agro Consultas v2.0 — Plataforma de Evidencia y Datos Reales</small>
+    <small>Agro Consultas</small>
   </footer>
 
   <!-- Inline helpers -->
@@ -86,10 +84,6 @@
       if (!provincia) return alert('Ingrese una ubicación.');
       window.location.href = 'resultados.html?ubicacion=' + encodeURIComponent(provincia);
     }
-
-    document.getElementById('demoBtn').addEventListener('click', () => {
-      window.location.href = 'resultados.html?ubicacion=Gobernador%20Virasoro';
-    });
 
     document.getElementById('gpsBtn').addEventListener('click', () => {
       if (!navigator.geolocation) {

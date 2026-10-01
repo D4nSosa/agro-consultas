@@ -8,7 +8,7 @@ const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 horas de vigencia de datos de su
 
 /**
  * Obtiene la información edafológica de INTA para unas coordenadas dadas.
- * Realiza una consulta espacial simulada (o real si está disponible) a los servicios WMS/WFS de INTA.
+ * Realiza una consulta espacial a los servicios WMS/WFS de INTA o recurre a la cartografía regional si el nodo no responde.
  * @param {number} lat - Latitud.
  * @param {number} lng - Longitud.
  * @param {Object} subregionStaticData - Datos estáticos de suelo de la subregión para fallback inmediato.
@@ -32,8 +32,6 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
 
   // 2. Intentar consulta remota (ej. WMS GetFeatureInfo o servicios de la Infraestructura de Datos Espaciales del INTA)
   try {
-    // URL base de ejemplo del nodo SIG de INTA (Suelos de Argentina)
-    // En producción, esto consulta la cartografía edafológica nacional a escala 1:50.000 o 1:250.000.
     const baseUrl = 'https://geoserver.inta.gob.ar/geoserver/wms';
     const params = new URLSearchParams({
       service: 'WMS',
@@ -51,9 +49,8 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       y: '50'
     });
 
-    // Simulamos la llamada remota con un timeout corto para evitar bloqueos
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout para garantizar agilidad
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     const response = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -61,7 +58,6 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
     if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
     const geoJson = await response.json();
 
-    // Si obtenemos respuesta estructurada de INTA, la parseamos
     if (geoJson && geoJson.features && geoJson.features.length > 0) {
       const props = geoJson.features[0].properties;
       const data = {
@@ -75,7 +71,6 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
         fechaActualizacion: new Date().toISOString()
       };
 
-      // Guardar en caché
       try {
         localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
       } catch (e) {}
@@ -87,7 +82,6 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
   } catch (err) {
     console.log("[INTA] Consulta de mapa de suelo en tiempo real no disponible, activando adaptador estático:", err.message);
 
-    // 3. Fallback: Si existen datos regionales de la subregión, usarlos como INFORMACIÓN REGIONAL
     if (subregionStaticData) {
       const data = {
         tipo: subregionStaticData.tipo || "Información Regional de Suelos",
@@ -109,7 +103,6 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       return { ...data, fuente: 'INTA / Cartografía Regional Subregional', cached: false, fallback: true };
     }
 
-    // 4. Si NO existe respuesta remota WMS ni datos estáticos de subregión: indicar NO DISPONIBLE sin inventar valores
     return {
       tipo: "Información de suelo no disponible para esta ubicación",
       textura: "No disponible",
