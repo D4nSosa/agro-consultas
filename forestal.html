@@ -66,7 +66,6 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button id="btn-gps-loc" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #27ae60; border-color: #27ae60;">📍 Mi Ubicación GPS (Campo)</button>
           <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">✏️ Dibujar Lote en Mapa</button>
-          <button id="btn-load-sample" class="btn secondary" style="font-size: 0.85rem; padding: 8px 14px;">📍 Lote Misiones</button>
         </div>
       </div>
 
@@ -85,19 +84,19 @@
         <!-- Indicadores Rápidos -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
-            <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie:</span>
-            <strong id="lot-area-val" style="font-size: 1.1rem; color: var(--verde-principal);">0.0 ha</strong>
+            <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie Lote:</span>
+            <strong id="lot-area-val" style="font-size: 1.1rem; color: var(--verde-principal);">LOTE NO DEFINIDO</strong>
           </div>
           <div style="background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
             <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Centroide Coordenadas:</span>
-            <strong id="lot-coords-val" style="font-size: 0.85rem;">Sin selección</strong>
+            <strong id="lot-coords-val" style="font-size: 0.85rem;">Sin lote definido</strong>
           </div>
         </div>
 
         <!-- Entrada / Edición de GeoJSON manual -->
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Geometría GeoJSON (Input / Output):</label>
-          <textarea id="geojson-textarea" rows="6" placeholder="El GeoJSON del lote delimitado aparecerá aquí..." style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
+          <textarea id="geojson-textarea" rows="6" placeholder="LOTE NO DEFINIDO — Definí o cargá un lote real para realizar análisis específicos (dibujá en mapa o cargá GeoJSON)..." style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -159,22 +158,22 @@
 
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">DAP Medio (cm):</label>
-          <input type="number" id="inv-dap" value="22" min="5" max="80" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+          <input type="number" id="inv-dap" value="" placeholder="Ej: 22" min="5" max="80" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
         </div>
 
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Altura Media Dosel (m):</label>
-          <input type="number" id="inv-altura" value="18" min="2" max="50" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+          <input type="number" id="inv-altura" value="" placeholder="Ej: 18" min="2" max="50" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
         </div>
 
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Densidad (pies/ha):</label>
-          <input type="number" id="inv-densidad" value="1100" min="100" max="3000" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+          <input type="number" id="inv-densidad" value="" placeholder="Ej: 1100" min="100" max="3000" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
         </div>
 
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Edad Plantación (años):</label>
-          <input type="number" id="inv-edad" value="9" min="1" max="40" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
+          <input type="number" id="inv-edad" value="" placeholder="Ej: 9" min="1" max="40" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);" />
         </div>
       </div>
 
@@ -234,10 +233,28 @@
 
     function calcularInventarioCampo() {
       const especie = document.getElementById('inv-especie').value;
-      const dap = parseFloat(document.getElementById('inv-dap').value) || 22;
-      const altura = parseFloat(document.getElementById('inv-altura').value) || 18;
-      const densidad = parseFloat(document.getElementById('inv-densidad').value) || 1100;
-      const edad = parseFloat(document.getElementById('inv-edad').value) || 9;
+      const dapRaw = document.getElementById('inv-dap').value;
+      const alturaRaw = document.getElementById('inv-altura').value;
+      const densidadRaw = document.getElementById('inv-densidad').value;
+      const edadRaw = document.getElementById('inv-edad').value;
+
+      const dap = parseFloat(dapRaw);
+      const altura = parseFloat(alturaRaw);
+      const densidad = parseFloat(densidadRaw);
+      const edad = parseFloat(edadRaw);
+
+      const resultsBox = document.getElementById('inv-results-box');
+
+      if (isNaN(dap) || isNaN(altura) || isNaN(densidad) || isNaN(edad) || dap <= 0 || altura <= 0 || densidad <= 0 || edad <= 0) {
+        if (resultsBox) {
+          resultsBox.innerHTML = `
+            <div style="font-size: 0.85rem; color: var(--texto-secundario); padding: 8px; background: rgba(0,0,0,0.02); border-radius: 6px;">
+              <strong>ℹ️ INVENTARIO NO INFORMADO / NO DISPONIBLE:</strong> Ingresá los datos daseométricos del rodal (DAP, Altura, Densidad y Edad) para calcular el volumen leñoso (m³/ha) y la prescripción silvícola. El sistema no utiliza valores por defecto.
+            </div>
+          `;
+        }
+        return null;
+      }
 
       const areaBasalArbol = Math.PI * Math.pow(dap / 200, 2);
       const areaBasalHa = areaBasalArbol * densidad;
@@ -254,7 +271,6 @@
         prescripcion = 'Turno final alcanzado. Planificar cosecha final / tala rasa y preparación de sitio para reforestación.';
       }
 
-      const resultsBox = document.getElementById('inv-results-box');
       if (resultsBox) {
         resultsBox.innerHTML = `
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
@@ -283,9 +299,15 @@
     document.addEventListener('DOMContentLoaded', () => {
       // 1. Inicializar Mapa Forestal
       forestMap = new ForestMap('forest-map', (feature, centroid, area) => {
-        document.getElementById('lot-area-val').innerText = `${area.hectares} ha`;
-        document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
-        document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
+        if (feature) {
+          document.getElementById('lot-area-val').innerText = `${area.hectares} ha`;
+          document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
+          document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
+        } else {
+          document.getElementById('lot-area-val').innerText = area && area.hectares ? area.hectares : "LOTE/POLÍGONO NO DEFINIDO";
+          document.getElementById('lot-coords-val').innerText = centroid && centroid.lat ? `Lat: ${centroid.lat.toFixed(4)}, Lng: ${centroid.lng.toFixed(4)} (PUNTO GPS)` : "Sin lote definido";
+          document.getElementById('geojson-textarea').value = "LOTE/POLÍGONO NO DEFINIDO — La ubicación GPS capturada provee un PUNTO. Delimite un polígono o cargue un GeoJSON para análisis de lote.";
+        }
       });
 
       // 2. Inicializar Línea Temporal
@@ -306,14 +328,6 @@
       document.getElementById('btn-draw-lot').addEventListener('click', () => {
         alert('Haz click en 3 o más puntos sobre el mapa para cerrar el polígono del lote.');
         forestMap.startDrawing();
-      });
-
-      document.getElementById('btn-load-sample').addEventListener('click', () => {
-        forestMap.loadDefaultSampleLot();
-        const feat = forestMap.getCurrentFeature();
-        if (feat && feat.properties) {
-          document.getElementById('lot-name-input').value = feat.properties.name || "Lote Misiones";
-        }
       });
 
       document.getElementById('btn-apply-geojson').addEventListener('click', () => {
@@ -411,20 +425,13 @@
         ejecutarAnalisis('2025-08-15', '2026-08-15');
       });
 
-      // Cargar lote inicial Misiones automáticamente
-      forestMap.loadDefaultSampleLot();
-      const feat = forestMap.getCurrentFeature();
-      if (feat && feat.properties) {
-        document.getElementById('lot-name-input').value = feat.properties.name || "Lote Misiones";
-      }
-
-      calcularInventarioCampo();
+      // Inicialización limpia sin lote pre-cargado
     });
 
     async function ejecutarAnalisis(dateA, dateB) {
       const feature = forestMap.getCurrentFeature();
       if (!feature) {
-        alert("Por favor, delimitá un lote en el mapa antes de ejecutar el análisis.");
+        alert("LOTE/POLÍGONO NO DEFINIDO — La ubicación GPS o punto seleccionado proporciona un PUNTO. Delimite un polígono en el mapa o cargue un GeoJSON real para realizar análisis de lote.");
         return;
       }
 

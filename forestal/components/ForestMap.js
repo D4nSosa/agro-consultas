@@ -24,11 +24,11 @@ export class ForestMap {
     const el = document.getElementById(this.containerId);
     if (!el) return;
 
-    // Centro inicial: Misiones (Zona Forestal por excelencia en Argentina)
-    const defaultLat = -26.8756;
-    const defaultLng = -54.6543;
+    // Centro inicial: Argentina (sin lote pre-cargado)
+    const defaultLat = -38.4161;
+    const defaultLng = -63.6167;
 
-    this.map = L.map(this.containerId).setView([defaultLat, defaultLng], 9);
+    this.map = L.map(this.containerId).setView([defaultLat, defaultLng], 4);
 
     // Capa satelital de OpenStreetMap / CartoDB Positron para contraste visual
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -44,27 +44,6 @@ export class ForestMap {
     // Estado inicial limpio: sin lote pre-cargado
   }
 
-  loadDefaultSampleLot() {
-    const samplePolygon = {
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [-54.68, -26.85],
-          [-54.62, -26.85],
-          [-54.62, -26.90],
-          [-54.68, -26.90],
-          [-54.68, -26.85]
-        ]]
-      },
-      properties: {
-        name: "Lote Demo (Misiones)",
-        isDemo: true
-      }
-    };
-
-    this.setGeoJSON(samplePolygon);
-  }
 
   handleMapClick(e) {
     if (!this.isDrawing) return;
@@ -214,28 +193,18 @@ export class ForestMap {
           color: '#2980b9',
           fillColor: '#3498db',
           fillOpacity: 0.9
-        }).addTo(this.map).bindPopup(`<b>📍 Tu Ubicación GPS en Campo</b><br>Precisión:${accText}`).openPopup();
+        }).addTo(this.map).bindPopup(`<b>📍 UBICACIÓN GPS CAPTURADA</b><br>Tipo de geometría: PUNTO<br>Precisión:${accText}`).openPopup();
 
-        // Crear polígono de 1 ha centrado en las coordenadas del usuario (~100m x 100m)
-        const delta = 0.00045;
-        const squarePoly = {
-          type: "Feature",
-          geometry: {
-            type: "Polygon",
-            coordinates: [[
-              [longitude - delta, latitude - delta],
-              [longitude + delta, latitude - delta],
-              [longitude + delta, latitude + delta],
-              [longitude - delta, latitude + delta],
-              [longitude - delta, latitude - delta]
-            ]]
-          },
-          properties: {
-            name: `Lote Campo GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
-          }
-        };
+        // Un GPS proporciona un PUNTO, NO un polígono ni una superficie artificial.
+        if (this.currentLayer) {
+          this.map.removeLayer(this.currentLayer);
+          this.currentLayer = null;
+        }
+        this.currentFeature = null;
 
-        this.setGeoJSON(squarePoly);
+        if (this.onLotChanged) {
+          this.onLotChanged(null, { lat: latitude, lng: longitude }, { hectares: "LOTE/POLÍGONO NO DEFINIDO", squareMeters: "N/A" });
+        }
 
         if (btnGps) {
           btnGps.disabled = false;

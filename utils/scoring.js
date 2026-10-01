@@ -27,9 +27,9 @@ export function calcularCompatibilidad(crop, soil, climate, customWeights = {}) 
   const riesgos = [];
   const datosFaltantes = [];
 
-  const isSoilAvailable = soil && soil.status !== 'unavailable' && soil.ph !== null && soil.ph !== undefined;
+  const isSoilAvailable = soil && soil.status !== 'unavailable' && soil.status !== 'UNAVAILABLE' && soil.ph !== null && soil.ph !== undefined;
   if (!isSoilAvailable) {
-    datosFaltantes.push("Cartografía puntual de suelos no disponible en INTA GeoServer (evaluación adaptada a macroclima regional)");
+    datosFaltantes.push("Cartografía puntual de suelos no disponible en INTA GeoServer para esta coordenada.");
   }
 
   // Variables de control del suelo
@@ -144,9 +144,9 @@ export function calcularCompatibilidad(crop, soil, climate, customWeights = {}) 
     }
   }
 
-  // Si no había datos estructurados de suelo específicos, asegurar puntuación base neutra de 90
+  // Si no había datos estructurados de suelo específicos
   if (!hasSoilData && soilPoints === 100) {
-    soilPoints = 90;
+    soilPoints = 70;
   }
 
   // 2. EVALUAR CLIMA/TEMPERATURA (Peso: 30% por defecto)
@@ -261,11 +261,18 @@ export function calcularCompatibilidad(crop, soil, climate, customWeights = {}) 
      (limitantsPoints * weights.limitantes)) / totalWeight
   );
 
-  // Mapeo a categorías según especificaciones de FASE 4:
-  // 0-39 → Baja
-  // 40-69 → Media
-  // 70-84 → Alta
-  // 85-100 → Muy alta
+  // Si faltan datos clave de suelo (status unavailable), NO simular o aparentar alta precisión
+  if (!isSoilAvailable) {
+    return {
+      score: null,
+      categoria: "EVIDENCIA INSUFFICIENTE",
+      motivos: motivos.length > 0 ? motivos : ["Condiciones climáticas regionales evaluadas."],
+      riesgos: riesgos,
+      datosFaltantes: ["Cartografía puntual de suelo no disponible en INTA GeoServer."]
+    };
+  }
+
+  // Mapeo a categorías con rigor agronómico:
   let categoria = "BAJA";
   if (finalScore >= 85) {
     categoria = "MUY ALTA";

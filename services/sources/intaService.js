@@ -97,7 +97,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
         aptitud: subregionStaticData.aptitud || "Agrícola regional",
         ph: subregionStaticData.ph !== undefined ? subregionStaticData.ph : 6.5,
         escala: "1:250.000 (Cartografía Regional INTA)",
-        status: "regional",
+        status: "REGIONAL",
         confidence: "medium",
         fechaActualizacion: new Date().toISOString()
       };
@@ -118,7 +118,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       aptitud: "No disponible para esta coordenada",
       ph: null,
       escala: "Sin cobertura puntual",
-      status: "unavailable",
+      status: "UNAVAILABLE",
       confidence: "none",
       fuente: 'INTA Cartografía (Sin Cobertura Puntual / Servicio No Disponible)',
       cached: false,
