@@ -34,22 +34,26 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
 
   return listadoNombres.map(nombre => {
     const key = normalizeKey(nombre);
+    const hasFicha = Boolean(cultivosData[key]);
     const cropData = cultivosData[key] || {
       nombre: nombre,
-      descripcion: "Información técnica en proceso de actualización.",
-      siembra: "Consultar calendario regional",
-      cosecha: "Sujeta a condiciones climáticas",
-      reqSuelo: "Suelos fértiles estándar.",
-      reqClima: "Climas templados a cálidos estándar.",
-      requerimientos: {}
+      descripcion: "Información técnica no disponible.",
+      siembra: "Información técnica no disponible",
+      cosecha: "Información técnica no disponible",
+      reqSuelo: "Información técnica no disponible",
+      reqClima: "Información técnica no disponible",
+      requerimientos: null
     };
 
     // Calcular compatibilidad cualitativa
-    const compat = calcularCompatibilidad(
-      { nombre, ...cropData },
-      soilReport,
-      climateReport
-    );
+    const compat = hasFicha
+      ? calcularCompatibilidad({ nombre, ...cropData }, soilReport, climateReport)
+      : {
+          categoria: "EVIDENCIA INSUFFICIENTE",
+          motivos: ["DATOS TÉCNICOS DEL CULTIVO NO DISPONIBLES — No se puede evaluar compatibilidad sin ficha agronómica trazable."],
+          riesgos: ["Falta de ficha técnica de referencia."],
+          datosFaltantes: ["Ficha técnica agronómica del cultivo"]
+        };
 
     // Obtener recomendaciones de manejo y rotación sostenible
     const sostenibilidad = obtenerPracticasSostenibles(key);
@@ -64,8 +68,8 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       descripcion: cropData.descripcion,
       siembra: cropData.siembra,
       cosecha: cropData.cosecha,
-      reqSuelo: cropData.reqSuelo || "Suelos fértiles estándar.",
-      reqClima: cropData.reqClima || "Climas templados a cálidos estándar.",
+      reqSuelo: cropData.reqSuelo || "Información técnica no disponible.",
+      reqClima: cropData.reqClima || "Información técnica no disponible.",
       compatibilidad: compat.categoria,
       motivos: compat.motivos,
       riesgos: compat.riesgos,
