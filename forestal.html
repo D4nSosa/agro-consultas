@@ -261,22 +261,18 @@
       const volumenHa = Math.round(areaBasalHa * altura * 0.45 * 10) / 10;
 
       let prescripcion = '';
-      if (edad < 5) {
-        prescripcion = 'Fase de establecimiento / Cierre de dosel. Se recomienda control de malezas y poda baja de saneamiento.';
-      } else if (edad >= 5 && edad < 10 && densidad > 1000) {
-        prescripcion = 'Momento óptimo para 1er Raleo silvícola (extracción 30-40% de pies dominados) + Poda de calidad hasta 4m.';
-      } else if (edad >= 10 && edad < 16 && densidad > 600) {
-        prescripcion = 'Momento óptimo para 2do Raleo comercial (extracción selectiva para aserrado).';
+      if (especie && dap > 0 && altura > 0 && densidad > 0 && edad > 0) {
+        prescripcion = `Cálculo dasométrico preliminar realizado para ${especie} (${edad} años, DAP ${dap}cm, Altura ${altura}m). PRESCRIPCIÓN SILVÍCOLA ESPECÍFICA DE TALA O HARVEST: PRESCRIPCIÓN SILVÍCOLA: NO DETERMINABLE CON LOS DATOS DISPONIBLES — La determinación de turno final, raleo o tala rasa requiere inventario forestal continuo y plan de ordenación validado en terreno.`;
       } else {
-        prescripcion = 'Turno final alcanzado. Planificar cosecha final / tala rasa y preparación de sitio para reforestación.';
+        prescripcion = 'PRESCRIPCIÓN SILVÍCOLA: NO DETERMINABLE CON LOS DATOS DISPONIBLES';
       }
 
       if (resultsBox) {
         resultsBox.innerHTML = `
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
             <div><strong>Área Basal:</strong> ${areaBasalHa.toFixed(1)} m²/ha</div>
-            <div><strong>Volumen Estimado:</strong> <span style="color: #2980b9; font-weight: bold; font-size: 1.1rem;">${volumenHa} m³/ha</span></div>
-            <div><strong>Estado Silvícola:</strong> ${edad < 10 ? 'Crecimiento Rápido' : 'Maduración Aserrable'}</div>
+            <div><strong>Volumen Estimado:</strong> <span style="color: #2980b9; font-weight: bold; font-size: 1.1rem;">VOLUMEN ESTIMADO: ${volumenHa} m³/ha</span> (fórmula $V = G \\times H \\times f$, f=0.45)</div>
+            <div><strong>Estado Silvícola:</strong> Evaluación dasométrica preliminar</div>
           </div>
           <div style="font-size: 0.85rem; border-top: 1px dashed var(--borde-suave); padding-top: 8px;">
             <strong>📌 Prescripción Operativa:</strong> ${prescripcion}
@@ -445,9 +441,10 @@
         btn.innerText = '⏳ Consultado catálogo Copernicus STAC real...';
       }
 
-      const nameInput = document.getElementById('lot-name-input').value || "Lote Forestal";
+      const nameInputRaw = document.getElementById('lot-name-input').value;
+      const lotNameClean = (feature && feature.properties && feature.properties.name) || (nameInputRaw && nameInputRaw.trim() ? nameInputRaw.trim() : "LOTE SIN NOMBRE");
       if (feature && feature.properties) {
-        feature.properties.name = nameInput;
+        feature.properties.name = lotNameClean;
       }
 
       currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);

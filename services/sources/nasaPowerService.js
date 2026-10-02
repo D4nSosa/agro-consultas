@@ -10,6 +10,28 @@
  */
 
 const NASA_POWER_MONTHLY_URL = "https://power.larc.nasa.gov/api/temporal/monthly/point";
+const NASA_POWER_CLIMATOLOGY_URL = "https://power.larc.nasa.gov/api/temporal/climatology/point";
+
+/**
+ * Consulta la Climatología de Referencia de NASA POWER (período base normado 2001-2020)
+ */
+async function fetchClimatologyReference(lat, lng) {
+  try {
+    const url = `${NASA_POWER_CLIMATOLOGY_URL}?parameters=PRECTOTCORR,T2M&community=AG&longitude=${lng.toFixed(4)}&latitude=${lat.toFixed(4)}&format=JSON`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const params = json?.properties?.parameter;
+    if (!params || !params.PRECTOTCORR || !params.T2M) return null;
+    return {
+      precip: params.PRECTOTCORR, // Objeto con 'JAN', 'FEB', ..., 'ANN' en mm/día
+      t2m: params.T2M // Objeto con 'JAN', 'FEB', ..., 'ANN' en °C
+    };
+  } catch (err) {
+    console.warn("[NASA POWER] Climatology API indisponible:", err.message);
+    return null;
+  }
+}
 
 /**
  * Obtiene la serie histórica climática de NASA POWER para un par de coordenadas (lat, lng) y un período en meses.
@@ -143,48 +165,56 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
       };
     }
 
-    // Promedio histórico completo disponible en la API para comparar
-    let histPrecSum = 0;
-    let histPrecCount = 0;
-    let histT2mSum = 0;
-    let histT2mCount = 0;
+    // Obtener la climatología de referencia independiente
+    const climatology = await fetchClimatologyReference(lat, lng);
 
-    monthlyKeys.forEach(k => {
-      const p = isVal(paramsData.PRECTOTCORR?.[k]) ? paramsData.PRECTOTCORR[k] : null;
-      const t = isVal(paramsData.T2M?.[k]) ? paramsData.T2M[k] : null;
-      if (p !== null) { histPrecSum += p * daysInMonth(k); histPrecCount++; }
-      if (t !== null) { histT2mSum += t; histT2mCount++; }
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+    let expectedClimPrecPeriodMm = 0;
+    let climT2mSum = 0;
+    let climCount = 0;
+
+    selectedKeys.forEach(key => {
+      const monthIdx = parseInt(key.substring(4, 6)) - 1;
+      const mCode = monthNames[monthIdx];
+      const days = daysInMonth(key);
+
+      if (climatology && climatology.precip && isVal(climatology.precip[mCode])) {
+        expectedClimPrecPeriodMm += climatology.precip[mCode] * days;
+      }
+      if (climatology && climatology.t2m && isVal(climatology.t2m[mCode])) {
+        climT2mSum += climatology.t2m[mCode];
+        climCount++;
+      }
     });
-
-    const allPrecMonthlyAvg = histPrecCount > 0 ? (histPrecSum / (histPrecCount / 12)) : null;
-    const allT2mAvg = histT2mCount > 0 ? (histT2mSum / histT2mCount) : null;
 
     const t2mMeanPeriod = t2mValidCount > 0 ? t2mSum / t2mValidCount : null;
     const rhMeanPeriod = rhValidCount > 0 ? rhSum / rhValidCount : null;
     const wsMeanKmH = wsValidCount > 0 ? (wsSum / wsValidCount) * 3.6 : null;
     const radMeanPeriod = radValidCount > 0 ? radSum / radValidCount : null;
 
-    // Normalizar promedio histórico para la cantidad de meses del período seleccionado
+    const refClimT2mAvg = climCount > 0 ? climT2mSum / climCount : (climatology?.t2m?.ANN ?? null);
+    const refClimAnnualPrec = climatology?.precip?.ANN !== undefined ? climatology.precip.ANN * 365.25 : null;
+
     let precDiffMm = null;
     let precDiffPct = null;
-    let classPrec = "Información comparativa no disponible";
+    let classPrec = "ANOMALÍA: NO DISPONIBLE";
 
-    if (allPrecMonthlyAvg !== null && precValidCount > 0) {
-      const expectedHistoricalPrecForPeriod = (allPrecMonthlyAvg / 12) * precValidCount;
-      precDiffMm = precTotalPeriodMm - expectedHistoricalPrecForPeriod;
-      precDiffPct = expectedHistoricalPrecForPeriod > 0 ? (precDiffMm / expectedHistoricalPrecForPeriod) * 100 : 0;
-      if (precDiffPct > 15) classPrec = "Por encima del promedio histórico (superávit hídrico)";
-      else if (precDiffPct < -15) classPrec = "Por debajo del promedio histórico (déficit hídrico)";
-      else classPrec = "Cercano al promedio histórico";
+    if (expectedClimPrecPeriodMm > 0 && precValidCount > 0) {
+      precDiffMm = precTotalPeriodMm - expectedClimPrecPeriodMm;
+      precDiffPct = (precDiffMm / expectedClimPrecPeriodMm) * 100;
+      if (precDiffPct > 15) classPrec = "Por encima de la referencia climatológica (superávit hídrico)";
+      else if (precDiffPct < -15) classPrec = "Por debajo de la referencia climatológica (déficit hídrico)";
+      else classPrec = "Cercano a la referencia climatológica";
     }
 
     let tempAnomaly = null;
-    let classTemp = "Información comparativa no disponible";
-    if (t2mMeanPeriod !== null && allT2mAvg !== null) {
-      tempAnomaly = t2mMeanPeriod - allT2mAvg;
-      if (tempAnomaly > 0.75) classTemp = "Anomalía cálida (por encima del promedio)";
-      else if (tempAnomaly < -0.75) classTemp = "Anomalía fría (por debajo del promedio)";
-      else classTemp = "Cercano al promedio histórico";
+    let classTemp = "ANOMALÍA: NO DISPONIBLE";
+    if (t2mMeanPeriod !== null && refClimT2mAvg !== null) {
+      tempAnomaly = t2mMeanPeriod - refClimT2mAvg;
+      if (tempAnomaly > 0.75) classTemp = "Anomalía cálida (por encima de la referencia)";
+      else if (tempAnomaly < -0.75) classTemp = "Anomalía fría (por debajo de la referencia)";
+      else classTemp = "Cercano a la referencia climatológica";
     }
 
     return {
@@ -200,16 +230,16 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
           radiacionSolarMediaMjM2Day: radMeanPeriod !== null ? Math.round(radMeanPeriod * 10) / 10 : "NO DISPONIBLE"
         },
         historicalAverages: {
-          precipitacionMediaAnualMm: allPrecMonthlyAvg !== null ? Math.round(allPrecMonthlyAvg * 10) / 10 : "NO DISPONIBLE",
-          temperaturaMediaHistoricaC: allT2mAvg !== null ? Math.round(allT2mAvg * 10) / 10 : "NO DISPONIBLE"
+          precipitacionMediaAnualMm: refClimAnnualPrec !== null ? Math.round(refClimAnnualPrec * 10) / 10 : "NO DISPONIBLE",
+          temperaturaMediaHistoricaC: refClimT2mAvg !== null ? Math.round(refClimT2mAvg * 10) / 10 : "NO DISPONIBLE"
         },
         comparison: {
-          precipitacionesDiferenciaMm: precDiffMm !== null ? Math.round(precDiffMm * 10) / 10 : "NO DISPONIBLE",
-          precipitacionesDiferenciaPct: precDiffPct !== null ? Math.round(precDiffPct * 10) / 10 : "NO DISPONIBLE",
+          precipitacionesDiferenciaMm: precDiffMm !== null ? Math.round(precDiffMm * 10) / 10 : "ANOMALÍA: NO DISPONIBLE",
+          precipitacionesDiferenciaPct: precDiffPct !== null ? Math.round(precDiffPct * 10) / 10 : "ANOMALÍA: NO DISPONIBLE",
           clasificacionPrecipitacion: classPrec,
-          temperaturaAnomalia: tempAnomaly !== null ? Math.round(tempAnomaly * 10) / 10 : "NO DISPONIBLE",
+          temperaturaAnomalia: tempAnomaly !== null ? Math.round(tempAnomaly * 10) / 10 : "ANOMALÍA: NO DISPONIBLE",
           clasificacionTemperatura: classTemp,
-          criterioEstadistico: "Clasificación basada en desviaciones relativas (+/-15% precipitación, +/-0.75°C anomalía térmica) respecto a la media de la serie 1981-actualidad."
+          criterioEstadistico: "Clasificación basada en desviaciones relativas respecto a la referencia climatológica normada de NASA POWER (Climatology 2001-2020)."
         },
         monthlyBreakdown
       },

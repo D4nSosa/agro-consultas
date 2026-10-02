@@ -177,13 +177,13 @@ export function calcularCompatibilidad(crop, soil, climate) {
   let categoria = "COMPATIBLE CON EL CONTEXTO REGIONAL EVALUADO";
   if (tieneEvaluacionNegativa) {
     categoria = "PRESENTA LIMITANTES EN LA ZONA";
-  } else if (!isSoilAvailable) {
-    categoria = "EVIDENCIA INSUFFICIENTE (SUELO NO DISPONIBLE)";
+  } else if (!isSoilAvailable || !isClimateAvailable) {
+    categoria = "EVIDENCIA INSUFFICIENTE";
   }
 
   return {
     categoria: categoria,
-    motivos: motivos.length > 0 ? motivos : ["Alineado con el contexto regional general."],
+    motivos: motivos.length > 0 ? motivos : ["Factores evaluados compatibles con el contexto."],
     riesgos: riesgos,
     datosFaltantes: datosFaltantes
   };
