@@ -8,7 +8,8 @@ export async function extractExifMetadata(file) {
   const result = {
     hasGps: false,
     gps: null,
-    date: null,
+    date: 'Fecha EXIF: NO DISPONIBLE',
+    fileDate: file.lastModified ? new Date(file.lastModified).toISOString().split('T')[0] : 'NO DISPONIBLE',
     camera: null,
     dimensions: null,
     fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
@@ -22,11 +23,6 @@ export async function extractExifMetadata(file) {
     // Obtener dimensiones básicas vía Image Object
     const imgDimensions = await getImageDimensions(file);
     result.dimensions = `${imgDimensions.width} x ${imgDimensions.height} px`;
-
-    // Parsea fecha de modificación como referencia o indica no disponible sin inventar fecha EXIF
-    result.date = file.lastModified
-      ? `${new Date(file.lastModified).toISOString().split('T')[0]} (Archivo)`
-      : 'NO DISPONIBLE';
 
     // Verificar si es JPEG (SOI 0xFFD8)
     if (dataView.getUint16(0) !== 0xFFD8) {

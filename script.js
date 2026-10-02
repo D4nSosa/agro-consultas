@@ -108,6 +108,9 @@ export async function buscarYProcesarUbicacion(queryTexto) {
   colocarMarcador(currentLat, currentLng, currentUbicacionNombre);
   dibujarCirculoAlcance(currentLat, currentLng, currentRadioKm);
 
+  // Reiniciar la vista del panel antes de renderizar los nuevos datos de la ubicación actual
+  limpiarEstadoConsultasAnteriores();
+
   await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
   await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
   await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
@@ -181,6 +184,9 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
     lng: lng,
     spatialLevel: currentSpatialLevel
   };
+
+  // Reiniciar la vista del panel antes de renderizar los nuevos datos de la ubicación actual
+  limpiarEstadoConsultasAnteriores();
 
   await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
   await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData);
@@ -474,9 +480,20 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
     const soilReport = await getSoilReport(finalLat, finalLng, subregion?.suelo);
     const climateReport = await getClimateData(finalLat, finalLng, provinciaRaw, subregion?.clima);
 
-    const listadoCultivos = provDetails?.nombre?.cultivos || provDetails?.cultivos || [
-      'soja', 'maiz', 'trigo', 'mani', 'pino taeda', 'eucalyptus grandis', 'vid', 'citrus'
-    ];
+    const listadoCultivos = provDetails?.nombre?.cultivos || provDetails?.cultivos || null;
+
+    if (!listadoCultivos || !Array.isArray(listadoCultivos) || listadoCultivos.length === 0) {
+      container.innerHTML = `
+        <div class="unavailable-card-block" style="grid-column: 1 / -1; padding: 25px; text-align: center;">
+          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌾</span>
+          <h3>CULTIVOS DISPONIBLES: NO DISPONIBLE</h3>
+          <p class="explanation" style="max-width: 500px; margin: 8px auto; font-size: 0.9rem;">
+            No se dispone de un listado oficial o registrado de cultivos para la provincia o jurisdicción correspondiente a las coordenadas seleccionadas.
+          </p>
+        </div>
+      `;
+      return;
+    }
 
     const recomendaciones = await generateRecommendations(listadoCultivos, soilReport, climateReport);
 
@@ -609,6 +626,30 @@ function mostrarErrorUbicacionNoEncontrada(queryTexto) {
   if (detailsContainer) detailsContainer.innerHTML = msg;
 }
 
+/**
+ * Limpia el estado de la UI y evidencias previas para garantizar una consulta estricta y limpia
+ */
+export function limpiarEstadoConsultasAnteriores() {
+  activeEvidenceImage = null;
+
+  const evidenceCard = document.getElementById("evidence-results-card");
+  if (evidenceCard) {
+    evidenceCard.style.display = "none";
+    evidenceCard.innerHTML = "";
+  }
+
+  const cropContainer = document.getElementById("crop-results");
+  if (cropContainer) {
+    cropContainer.innerHTML = `
+      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 30px;">
+        <span style="font-size: 1.5rem; display: block; margin-bottom: 8px;">⏳</span>
+        <p>Cargando datos para la nueva consulta...</p>
+      </div>
+    `;
+  }
+}
+
+window.limpiarEstadoConsultasAnteriores = limpiarEstadoConsultasAnteriores;
 window.procesarSeleccionCoordenadas = procesarSeleccionCoordenadas;
 window.inicializarMapa = inicializarMapa;
 window.renderRecomendaciones = renderRecomendaciones;

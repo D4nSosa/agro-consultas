@@ -89,10 +89,7 @@ export async function analyzeForestLocation({ geometry, soil = null, climate = n
       'Pino Taeda',
       'Pino Elliottii',
       'Eucalyptus Grandis',
-      'Eucalyptus Globulus',
-      'Forestacion',
-      'Sauce',
-      'Alamo'
+      'Eucalyptus Globulus'
     ];
 
     const recommendations = await generateRecommendations(especiesForestales, soilReport, climateReport);
