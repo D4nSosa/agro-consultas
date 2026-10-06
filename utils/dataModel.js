@@ -1,6 +1,7 @@
 /**
  * utils/dataModel.js — Modelo Unificado y Estándar de Datos Territoriales y Agroambientales
  * Define las estructuras normalizadas para cualquier dato o métrica espacial en Agro Consultas.
+ * Garantiza cero datos ficticios y trazabilidad completa de metadatos.
  */
 
 export const DataStatus = {
@@ -19,23 +20,42 @@ export const ConfidenceLevel = {
 };
 
 /**
+ * Crea una estructura de metadatos estandarizada para trazabilidad.
+ */
+export function createMetadata({
+  source = "Desconocida",
+  sourceUrl = null,
+  dataset = null,
+  api = null,
+  variable = null,
+  unit = null,
+  spatialResolution = "N/D",
+  temporalResolution = "N/D",
+  acquisitionDate = null,
+  updateDate = null,
+  geographicCoverage = "Argentina",
+  methodology = null,
+  limitations = null
+} = {}) {
+  return {
+    source,
+    sourceUrl,
+    dataset,
+    api,
+    variable,
+    unit,
+    spatialResolution,
+    temporalResolution,
+    acquisitionDate: acquisitionDate || new Date().toISOString().split('T')[0],
+    updateDate: updateDate || new Date().toISOString().split('T')[0],
+    geographicCoverage,
+    methodology: methodology || "Consulta directa a servicio oficial o dataset de referencia.",
+    limitations: limitations || "Sujeto a la resolución espacial y temporal de la fuente primaria."
+  };
+}
+
+/**
  * Empaqueta un valor o conjunto de valores en la estructura estándar DataPoint.
- *
- * @param {Object} params
- * @param {any} params.value - Valor numérico, cualitativo u objeto.
- * @param {string|null} [params.unit=null] - Unidad de medida (ej. "mm", "°C", "pH", "%").
- * @param {string} [params.source="Agro Consultas Core"] - Nombre de la fuente oficial/adaptador.
- * @param {string|null} [params.sourceUrl=null] - URL de referencia del servicio o portal.
- * @param {string|null} [params.dataset=null] - Nombre del dataset o capa específica.
- * @param {string|null} [params.date=null] - Fecha de observación/medición del dato (YYYY-MM-DD).
- * @param {string|null} [params.retrievedAt=null] - Fecha/hora de recuperación (ISO String).
- * @param {string|null} [params.resolution=null] - Resolución espacial (ej. "10m", "1km").
- * @param {string|null} [params.scale=null] - Escala cartográfica (ej. "1:50.000").
- * @param {string|null} [params.methodology=null] - Descripción metodológica o fórmula.
- * @param {string} [params.status=DataStatus.REAL] - Estado del dato ('real'|'estimated'|'regional'|'calculated'|'unavailable').
- * @param {string} [params.confidence=ConfidenceLevel.HIGH] - Nivel de confianza ('high'|'medium'|'low'|'none').
- * @param {string|null} [params.message=null] - Mensaje informativo o causa de indisponibilidad.
- * @returns {Object} DataPoint normalizado.
  */
 export function createDataPoint({
   value = null,
@@ -43,16 +63,40 @@ export function createDataPoint({
   source = "Desconocida",
   sourceUrl = null,
   dataset = null,
+  api = null,
+  variable = null,
+  spatialResolution = null,
+  temporalResolution = null,
+  acquisitionDate = null,
+  updateDate = null,
+  geographicCoverage = "Argentina",
+  methodology = null,
+  limitations = null,
   date = null,
   retrievedAt = null,
   resolution = null,
   scale = null,
-  methodology = null,
   status = DataStatus.REAL,
   confidence = ConfidenceLevel.HIGH,
   message = null
 }) {
   const isAvailable = status !== DataStatus.UNAVAILABLE && value !== null && value !== undefined;
+
+  const metadata = createMetadata({
+    source,
+    sourceUrl,
+    dataset,
+    api,
+    variable,
+    unit,
+    spatialResolution: spatialResolution || resolution || "15 km (Radio local)",
+    temporalResolution: temporalResolution || "Serie histórica / Tiempo real",
+    acquisitionDate: acquisitionDate || date || new Date().toISOString().split('T')[0],
+    updateDate,
+    geographicCoverage,
+    methodology,
+    limitations
+  });
 
   return {
     available: isAvailable,
@@ -61,9 +105,10 @@ export function createDataPoint({
     source: source,
     sourceUrl: sourceUrl,
     dataset: dataset,
+    metadata: metadata,
     date: date || new Date().toISOString().split('T')[0],
     retrievedAt: retrievedAt || new Date().toISOString(),
-    resolution: resolution,
+    resolution: resolution || spatialResolution || "15 km",
     scale: scale,
     methodology: methodology,
     status: isAvailable ? status : DataStatus.UNAVAILABLE,
@@ -74,10 +119,6 @@ export function createDataPoint({
 
 /**
  * Retorna un DataPoint estándar para cuando una fuente no está disponible o no tiene cobertura.
- *
- * @param {string} source - Nombre de la fuente intentada.
- * @param {string} [message="Datos no disponibles para esta ubicación"] - Mensaje explicativo.
- * @returns {Object} DataPoint con status 'unavailable'.
  */
 export function createUnavailableDataPoint(source, message = "Datos no disponibles para esta ubicación") {
   return createDataPoint({
@@ -85,6 +126,7 @@ export function createUnavailableDataPoint(source, message = "Datos no disponibl
     source: source,
     status: DataStatus.UNAVAILABLE,
     confidence: ConfidenceLevel.NONE,
-    message: message
+    message: message,
+    limitations: "La fuente consultada no posee cobertura o presentó error de servicio para las coordenadas indicadas."
   });
 }

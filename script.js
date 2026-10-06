@@ -6,16 +6,19 @@ import { normalizeKey } from './utils/normalization.js';
 import {
   findProvinceByCoords,
   findSubregion,
-  getProvinceDetails,
-  getProvinceCoordinates
+  getProvinceDetails
 } from './services/territoryService.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
 import { generateRecommendations } from './services/recommendationEngine.js';
-import { analyzeLocation } from './services/coreAnalysis.js';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
-import { analyzeUploadedImage } from './services/imageAnalysisService.js';
+import {
+  analyzeUploadedImages,
+  getCurrentBatch,
+  removeImageFromBatch,
+  clearBatch
+} from './services/imageAnalysisService.js';
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
 
 let mapInstance = null;
@@ -27,7 +30,10 @@ let currentLat = null;
 let currentLng = null;
 let currentRadioKm = 15;
 let currentSpatialLevel = "LOCALIDAD / PUNTO DE REFERENCIA";
-let activeEvidenceImage = null;
+let currentViewMode = "simple"; // 'simple' | 'technical'
+let lastRecommendationsCache = [];
+let lastSoilReportCache = null;
+let lastClimateReportCache = null;
 
 /**
  * Inicializa el mapa interactivo de Leaflet
@@ -108,7 +114,6 @@ export async function buscarYProcesarUbicacion(queryTexto) {
   colocarMarcador(currentLat, currentLng, currentUbicacionNombre);
   dibujarCirculoAlcance(currentLat, currentLng, currentRadioKm);
 
-  // Reiniciar la vista del panel antes de renderizar los nuevos datos de la ubicación actual
   limpiarEstadoConsultasAnteriores();
 
   await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
@@ -185,7 +190,6 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
     spatialLevel: currentSpatialLevel
   };
 
-  // Reiniciar la vista del panel antes de renderizar los nuevos datos de la ubicación actual
   limpiarEstadoConsultasAnteriores();
 
   await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
@@ -207,6 +211,9 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
     const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
     const climateReport = await getClimateData(lat, lng, provincia, subregion?.clima);
 
+    lastSoilReportCache = soilReport;
+    lastClimateReportCache = climateReport;
+
     const soilBadgeClass = soilReport.status === DataStatus.REAL ? 'badge-real' : 'badge-regional';
     const soilBadgeText = soilReport.status === DataStatus.REAL ? 'REAL (INTA WMS)' : 'ESTIMACIÓN REGIONAL';
 
@@ -224,9 +231,8 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <span style="font-size: 0.8rem; display: block; color: var(--verde-principal); font-weight: 600; margin-top: 2px;">🎯 Alcance de Análisis: ${currentRadioKm} km alrededor</span>
       </div>
 
-      <!-- Advertencia de Nivel Espacial -->
       <div style="background: rgba(2, 119, 189, 0.08); border: 1px solid rgba(2, 119, 189, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-principal);">
-        <strong>ℹ️ Escala Geográfica:</strong> Los datos climáticos y edáficos reflejan el contexto de la ${levelText.toLowerCase()}. Para análisis técnico de una parcela o campo específico, delimite o seleccione las coordenadas exactas del lote.
+        <strong>ℹ️ Escala Geográfica:</strong> Los datos climáticos y edáficos reflejan el contexto de la ${levelText.toLowerCase()}.
       </div>
 
       <!-- Clima en Vivo -->
@@ -380,9 +386,6 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
       <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
         <h4 style="margin: 0 0 6px 0; color: #c0392b;">DATOS CLIMÁTICOS NO DISPONIBLES</h4>
         <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">${climateHistory.message || 'No se pudieron recuperar las series temporales de NASA POWER para la ubicación seleccionada.'}</p>
-        <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 10px;">
-          Fuente: NASA POWER | Ubicación: ${lat.toFixed(4)}, ${lng.toFixed(4)}
-        </div>
       </div>
     `;
     return;
@@ -400,9 +403,6 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
         <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación Acumulada</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${d.periodMetrics.precipitacionAcumuladaMm} mm</div>
         <div style="font-size: 0.8rem; color: var(--texto-principal);">Promedio Histórico: ${d.historicalAverages.precipitacionMediaAnualMm} mm/año</div>
-        <div style="font-size: 0.78rem; margin-top: 4px;">
-          Diferencia: <strong>${d.comparison.precipitacionesDiferenciaMm > 0 ? '+' : ''}${d.comparison.precipitacionesDiferenciaMm} mm (${d.comparison.precipitacionesDiferenciaPct > 0 ? '+' : ''}${d.comparison.precipitacionesDiferenciaPct}%)</strong>
-        </div>
         <span class="compatibility-badge ${precDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionPrecipitacion}</span>
       </div>
 
@@ -410,9 +410,6 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
         <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura Media Período</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: #e67e22; margin: 4px 0;">${d.periodMetrics.temperaturaMediaC}°C</div>
         <div style="font-size: 0.8rem; color: var(--texto-principal);">Promedio Histórico: ${d.historicalAverages.temperaturaMediaHistoricaC}°C</div>
-        <div style="font-size: 0.78rem; margin-top: 4px;">
-          Anomalía Térmica: <strong>${d.comparison.temperaturaAnomalia > 0 ? '+' : ''}${d.comparison.temperaturaAnomalia}°C</strong>
-        </div>
         <span class="compatibility-badge ${tempDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionTemperatura}</span>
       </div>
 
@@ -422,31 +419,14 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
           <div>🔥 <strong>Temp. Máxima Absoluta:</strong> ${d.periodMetrics.temperaturaMaximaAbsolutaC}°C</div>
           <div>❄️ <strong>Temp. Mínima Absoluta:</strong> ${d.periodMetrics.temperaturaMinimaAbsolutaC}°C</div>
           <div>💧 <strong>Humedad Relativa:</strong> ${d.periodMetrics.humedadRelativaMediaPct}%</div>
-          <div>💨 <strong>Viento Medio (10m):</strong> ${d.periodMetrics.vientoMedioKmH} km/h</div>
-          <div>☀️ <strong>Radiación Solar:</strong> ${d.periodMetrics.radiacionSolarMediaMjM2Day} MJ/m²/día</div>
         </div>
       </div>
     </div>
-
-    <!-- Trazabilidad y Nota Metodológica -->
-    <details style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem;">
-      <summary style="cursor: pointer; font-weight: bold; color: var(--verde-principal);">
-        🛡️ Trazabilidad y Metodología NASA POWER
-      </summary>
-      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--borde-suave); color: var(--texto-secundario); line-height: 1.4;">
-        <div><strong>Fuente Oficial:</strong> ${trace.fuente} (${trace.apiEndpoint})</div>
-        <div><strong>Ubicación Consultada:</strong> Lat ${trace.coordenadas.lat}, Lng ${trace.coordenadas.lng}</div>
-        <div><strong>Período Analizado:</strong> ${trace.periodo} (${trace.mesesAnalizados} meses consultados)</div>
-        <div><strong>Variables Recuperadas:</strong> ${trace.variablesConsultadas.join(', ')}</div>
-        <div><strong>Fecha de Consulta:</strong> ${trace.fechaConsulta}</div>
-        <div style="margin-top: 4px; color: #d35400;"><strong>Nota Trazable:</strong> ${trace.disclaimer}</div>
-      </div>
-    </details>
   `;
 }
 
 /**
- * Renderiza las tarjetas de cultivo
+ * Renderiza las tarjetas de cultivo según la Vista Dual seleccionada ('simple' o 'technical')
  */
 export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = null) {
   const container = document.getElementById("crop-results");
@@ -472,13 +452,10 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
     const key = await findProvinceByCoords(lat, lng);
     const provDetails = key ? await getProvinceDetails(key) : null;
 
-    const finalLat = lat;
-    const finalLng = lng;
+    const subregion = key ? await findSubregion(key, lat, lng) : null;
 
-    const subregion = key ? await findSubregion(key, finalLat, finalLng) : null;
-
-    const soilReport = await getSoilReport(finalLat, finalLng, subregion?.suelo);
-    const climateReport = await getClimateData(finalLat, finalLng, provinciaRaw, subregion?.clima);
+    const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
+    const climateReport = await getClimateData(lat, lng, provinciaRaw, subregion?.clima);
 
     const listadoCultivos = provDetails?.nombre?.cultivos || provDetails?.cultivos || null;
 
@@ -488,7 +465,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
           <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌾</span>
           <h3>CULTIVOS DISPONIBLES: NO DISPONIBLE</h3>
           <p class="explanation" style="max-width: 500px; margin: 8px auto; font-size: 0.9rem;">
-            No se dispone de un listado oficial o registrado de cultivos para la provincia o jurisdicción correspondiente a las coordenadas seleccionadas.
+            No se dispone de un listado oficial de cultivos registrados para la provincia correspondiente.
           </p>
         </div>
       `;
@@ -496,110 +473,148 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
     }
 
     const recomendaciones = await generateRecommendations(listadoCultivos, soilReport, climateReport);
+    lastRecommendationsCache = recomendaciones;
 
-    container.innerHTML = recomendaciones.map(c => {
-      let badgeClass = "badge-alta";
-      if (c.compatibilidad === "MEDIA") badgeClass = "badge-media";
-      if (c.compatibilidad === "BAJA") badgeClass = "badge-baja";
+    renderRecommendationsCards(recomendaciones, soilReport, climateReport, geoVal);
 
-      let icon = "🌱";
-      const nom = c.nombre.toLowerCase();
-      if (nom.includes("trigo") || nom.includes("cebada") || nom.includes("avena")) icon = "🌾";
-      else if (nom.includes("soja") || nom.includes("poroto")) icon = "🫛";
-      else if (nom.includes("maiz") || nom.includes("sorgo")) icon = "🌽";
-      else if (nom.includes("mani")) icon = "🥜";
-      else if (nom.includes("pino") || nom.includes("eucalyptus")) icon = "🌲";
-      else if (nom.includes("vid")) icon = "🍇";
-      else if (nom.includes("citrus") || nom.includes("limon")) icon = "🍊";
+  } catch (err) {
+    console.error("ERROR in renderRecomendaciones:", err);
+  }
+}
 
+function renderRecommendationsCards(recomendaciones, soilReport, climateReport, geoVal) {
+  const container = document.getElementById("crop-results");
+  if (!container) return;
+
+  container.innerHTML = recomendaciones.map(c => {
+    let semaforoIcon = "🟢";
+    let semaforoText = "Condiciones Favorables";
+    let badgeClass = "badge-alta";
+
+    if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
+      semaforoIcon = "🟡";
+      semaforoText = "Limitaciones Moderadas";
+      badgeClass = "badge-media";
+    } else if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
+      semaforoIcon = "🔴";
+      semaforoText = "Atención / Restricciones";
+      badgeClass = "badge-baja";
+    } else if (c.compatibilidad.includes("INSUFFICIENT")) {
+      semaforoIcon = "⚪";
+      semaforoText = "Evidencia Insuficiente";
+      badgeClass = "badge-media";
+    }
+
+    let icon = "🌱";
+    const nom = c.nombre.toLowerCase();
+    if (nom.includes("trigo") || nom.includes("cebada") || nom.includes("avena")) icon = "🌾";
+    else if (nom.includes("soja") || nom.includes("poroto")) icon = "🫛";
+    else if (nom.includes("maiz") || nom.includes("sorgo")) icon = "🌽";
+    else if (nom.includes("mani")) icon = "🥜";
+    else if (nom.includes("pino") || nom.includes("eucalyptus")) icon = "🌲";
+    else if (nom.includes("vid")) icon = "🍇";
+    else if (nom.includes("citrus") || nom.includes("limon") || nom.includes("naranja")) icon = "🍊";
+
+    if (currentViewMode === 'simple') {
+      // VISTA SIMPLE / RESUMEN DE DECISIÓN
       return `
-        <article class="crop-card">
-          <!-- Capa 1: Resumen -->
+        <article class="crop-card card" style="padding: 20px; border-left: 5px solid ${semaforoIcon === '🟢' ? '#27ae60' : (semaforoIcon === '🟡' ? '#f39c12' : '#e74c3c')};">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 2rem;">${icon}</span>
+              <div>
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800;">${c.nombre}</h3>
+                <span style="font-size: 0.8rem; color: var(--texto-secundario);">${c.confianza}</span>
+              </div>
+            </div>
+            <span class="compatibility-badge ${badgeClass}" style="font-size: 0.85rem; padding: 6px 12px;">
+              ${semaforoIcon} ${semaforoText}
+            </span>
+          </div>
+
+          <p style="font-size: 0.9rem; line-height: 1.4; color: var(--texto-principal); margin-bottom: 12px;">
+            ${c.descripcion}
+          </p>
+
+          <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 12px; font-size: 0.85rem; margin-bottom: 12px;">
+            <strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Factores compatibles con el contexto regional.'}
+            ${c.riesgos && c.riesgos.length > 0 ? `<div style="margin-top: 6px; color: #c0392b;"><strong>⚠️ Principal Limitante:</strong> ${c.riesgos[0]}</div>` : ''}
+          </div>
+
+          <div style="font-size: 0.82rem; color: var(--texto-secundario); display: flex; justify-content: space-between;">
+            <span>📅 Siembra: <strong>${c.siembra}</strong></span>
+            <span>🌾 Cosecha: <strong>${c.cosecha}</strong></span>
+          </div>
+        </article>
+      `;
+    } else {
+      // VISTA TÉCNICA / DETALLE Y METODOLOGÍA
+      return `
+        <article class="crop-card card" style="padding: 20px;">
           <div class="crop-card-header" style="flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span class="crop-icon">${icon}</span>
+              <span class="crop-icon" style="font-size: 1.8rem;">${icon}</span>
               <div>
-                <h3 style="margin: 0; font-weight: 700; text-transform: capitalize;">${c.nombre}</h3>
+                <h3 style="margin: 0; font-weight: 700;">${c.nombre}</h3>
                 <span class="badge-origin ${c.nivelConfianza === 'high' ? 'real' : 'regional'}">${c.confianza}</span>
               </div>
             </div>
             <div>
-              <span class="compatibility-badge ${badgeClass}">Compatibilidad: ${c.compatibilidad}</span>
+              <span class="compatibility-badge ${badgeClass}">${c.compatibilidad}</span>
             </div>
           </div>
 
-          <p class="desc"><strong>¿Qué significa esto para mí?</strong><br>${c.descripcion}</p>
+          <p class="desc" style="font-size: 0.88rem; margin: 10px 0;">${c.descripcion}</p>
 
-          <!-- Capa 2: Detalle Técnico -->
-          <div class="crop-grid-details">
-            <div class="sub-card calendar-sub-card">
-              <h4>📅 Calendario Agrícola</h4>
-              <div style="margin-top: 5px;"><strong>Siembra:</strong> ${c.siembra}</div>
-              <div><strong>Cosecha:</strong> ${c.cosecha}</div>
+          <div class="crop-grid-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; font-size: 0.82rem;">
+            <div style="background: rgba(0,0,0,0.02); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
+              <strong>📅 Calendario Agrícola</strong>
+              <div>Siembra: ${c.siembra}</div>
+              <div>Cosecha: ${c.cosecha}</div>
             </div>
-
-            <div class="sub-card req-sub-card">
-              <h4>🌱 Requerimientos</h4>
-              <div style="margin-top: 5px;"><strong>Suelo:</strong> ${c.reqSuelo}</div>
-              <div style="margin-top: 4px;"><strong>Clima:</strong> ${c.reqClima}</div>
+            <div style="background: rgba(0,0,0,0.02); padding: 10px; border-radius: 6px; border: 1px solid var(--borde-suave);">
+              <strong>🌱 Requerimientos Trazables</strong>
+              <div>Suelo: ${c.reqSuelo}</div>
+              <div>Clima: ${c.reqClima}</div>
             </div>
           </div>
 
-          <!-- Variedades Trazables -->
-          ${c.variedades && c.variedades.length > 0 ? `
-          <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.82rem;">
-            <strong style="color: var(--verde-principal);">🧬 Variedades Documentadas:</strong>
-            <ul style="margin: 4px 0 0 0; padding-left: 16px;">
-              ${c.variedades.map(v => `<li>${v}</li>`).join('')}
-            </ul>
-            ${c.fuenteVariedades ? `<span style="font-size:0.75rem; color:var(--texto-secundario); display:block; margin-top:4px;">Fuente: ${c.fuenteVariedades}</span>` : ''}
-          </div>
-          ` : ''}
-
-          <!-- Reporte de Evidencia -->
-          <div class="compatibility-report premium-report">
-            <div class="report-header">
-              <span>📍</span> Factores de Análisis
-            </div>
-            <div class="report-body">
+          <!-- Factores y Riesgos -->
+          <div class="compatibility-report premium-report" style="margin-bottom: 10px;">
+            <div class="report-body" style="font-size: 0.82rem;">
               <div class="report-block">
                 <strong>💡 Factores Favorables:</strong>
                 <ul>${c.motivos.map(m => `<li>${m}</li>`).join("")}</ul>
               </div>
               ${c.riesgos && c.riesgos.length > 0 ? `
-              <div class="report-block">
+              <div class="report-block" style="color: #c0392b;">
                 <strong>⚠️ Limitantes / Riesgos:</strong>
                 <ul>${c.riesgos.map(r => `<li>${r}</li>`).join("")}</ul>
               </div>
               ` : ''}
               ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `
-              <div class="report-block" style="font-size:0.8rem; color:#7f8c8d;">
-                <strong>ℹ️ Datos Faltantes / Aportar en Terreno:</strong>
+              <div class="report-block" style="color:#7f8c8d;">
+                <strong>ℹ️ Datos Faltantes:</strong>
                 <ul>${c.datosFaltantes.map(df => `<li>${df}</li>`).join("")}</ul>
               </div>
               ` : ''}
             </div>
           </div>
 
-          <!-- Capa 3: Fuente, Metodología y Limitaciones -->
-          <details style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 8px 12px; font-size: 0.82rem;">
+          <details style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem;">
             <summary style="cursor: pointer; font-weight: bold; color: var(--verde-principal);">
-              ℹ️ Ver Fuente, Metodología y Limitaciones
+              ℹ️ Ver Fuentes y Metodología Agronómica
             </summary>
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--borde-suave); color: var(--texto-secundario); line-height: 1.4;">
+            <div style="margin-top: 6px; line-height: 1.4; color: var(--texto-secundario);">
               <div><strong>Fuente de Suelo:</strong> ${soilReport.fuente || 'INTA Cartografía Regional'}</div>
-              <div><strong>Fuente Climática:</strong> ${climateReport.liveWeatherPoint?.available ? 'Open-Meteo API en tiempo real' : 'SMN Climatología Histórica'}</div>
-              <div><strong>Nivel Espacial:</strong> ${geoVal?.spatialLevel || currentSpatialLevel}</div>
-              <div><strong>Metodología:</strong> Evaluación edafoclimática reproducible sin puntuaciones ni matrices artificiales.</div>
-              <div style="margin-top: 4px;"><strong>Limitación:</strong> No reemplaza la inspección agronómica de campo ni análisis físico de laboratorio.</div>
+              <div><strong>Fuente Climática:</strong> ${climateReport.liveWeatherPoint?.available ? 'Open-Meteo API' : 'SMN Climatología Histórica'}</div>
+              <div><strong>Metodología:</strong> Evaluación multicriterio transparente sin puntuaciones simuladas.</div>
             </div>
           </details>
         </article>
       `;
-    }).join("");
-  } catch (err) {
-    console.error("ERROR in renderRecomendaciones:", err);
-  }
+    }
+  }).join("");
 }
 
 function mostrarErrorUbicacionNoEncontrada(queryTexto) {
@@ -616,9 +631,6 @@ function mostrarErrorUbicacionNoEncontrada(queryTexto) {
       <p class="explanation" style="max-width: 500px; margin: 10px auto;">
         No se encontraron registros geográficos reales en los servicios de datos abiertos para <strong>"${queryTexto}"</strong>.
       </p>
-      <p style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 15px;">
-        Por favor, verificá el nombre ingresado o seleccioná directamente un punto en el mapa interactivo.
-      </p>
     </div>
   `;
 
@@ -627,16 +639,19 @@ function mostrarErrorUbicacionNoEncontrada(queryTexto) {
 }
 
 /**
- * Limpia el estado de la UI y evidencias previas para garantizar una consulta estricta y limpia
+ * Limpia el estado de la UI
  */
 export function limpiarEstadoConsultasAnteriores() {
-  activeEvidenceImage = null;
+  clearBatch();
 
   const evidenceCard = document.getElementById("evidence-results-card");
   if (evidenceCard) {
     evidenceCard.style.display = "none";
     evidenceCard.innerHTML = "";
   }
+
+  const btnClear = document.getElementById("btnClearBatch");
+  if (btnClear) btnClear.style.display = "none";
 
   const cropContainer = document.getElementById("crop-results");
   if (cropContainer) {
@@ -648,12 +663,6 @@ export function limpiarEstadoConsultasAnteriores() {
     `;
   }
 }
-
-window.limpiarEstadoConsultasAnteriores = limpiarEstadoConsultasAnteriores;
-window.procesarSeleccionCoordenadas = procesarSeleccionCoordenadas;
-window.inicializarMapa = inicializarMapa;
-window.renderRecomendaciones = renderRecomendaciones;
-window.buscarYProcesarUbicacion = buscarYProcesarUbicacion;
 
 function initApp() {
   const params = new URLSearchParams(window.location.search);
@@ -672,24 +681,62 @@ function initApp() {
     });
   }
 
-  const periodSelect = document.getElementById("select-climate-period");
-  if (periodSelect) {
-    periodSelect.addEventListener("change", async () => {
-      if (currentLat !== null && currentLng !== null) {
-        await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+  // Controles de Vista Dual
+  const btnSimple = document.getElementById("btnViewSimple");
+  const btnTechnical = document.getElementById("btnViewTechnical");
+
+  if (btnSimple && btnTechnical) {
+    btnSimple.addEventListener("click", () => {
+      currentViewMode = "simple";
+      btnSimple.className = "btn primary";
+      btnTechnical.className = "btn outline";
+      if (lastRecommendationsCache.length > 0) {
+        renderRecommendationsCards(lastRecommendationsCache, lastSoilReportCache, lastClimateReportCache, null);
+      }
+    });
+
+    btnTechnical.addEventListener("click", () => {
+      currentViewMode = "technical";
+      btnTechnical.className = "btn primary";
+      btnSimple.className = "btn outline";
+      if (lastRecommendationsCache.length > 0) {
+        renderRecommendationsCards(lastRecommendationsCache, lastSoilReportCache, lastClimateReportCache, null);
       }
     });
   }
 
-  // Configurar input de Evidencia Fotográfica en la UI
+  // Botón Exportar PDF
+  const btnPDF = document.getElementById("btnExportPDF");
+  if (btnPDF) {
+    btnPDF.addEventListener("click", () => {
+      window.print();
+    });
+  }
+
+  // Multi-Image Upload Handler
   const evidenceFileInput = document.getElementById("evidence-file-input");
+  const btnClearBatch = document.getElementById("btnClearBatch");
+
   if (evidenceFileInput) {
     evidenceFileInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
 
-      const analysis = await analyzeUploadedImage(file);
-      renderFichaEvidenciaUI(analysis);
+      const newAnalyzed = await analyzeUploadedImages(files);
+      renderBatchEvidenceUI();
+      if (btnClearBatch) btnClearBatch.style.display = "inline-block";
+    });
+  }
+
+  if (btnClearBatch) {
+    btnClearBatch.addEventListener("click", () => {
+      clearBatch();
+      const evidenceCard = document.getElementById("evidence-results-card");
+      if (evidenceCard) {
+        evidenceCard.style.display = "none";
+        evidenceCard.innerHTML = "";
+      }
+      btnClearBatch.style.display = "none";
     });
   }
 
@@ -708,90 +755,46 @@ function initApp() {
     if (rawUbic && rawUbic.trim() !== "" && rawUbic !== "Argentina") {
       await buscarYProcesarUbicacion(rawUbic);
     } else {
-      // Estado inicial limpio sin ubicación predeterminada ni fallbacks
       const tituloUbicacion = document.getElementById("resultado_ubicacion");
       if (tituloUbicacion) tituloUbicacion.innerText = "Sin seleccionar";
-
-      const detailsContainer = document.getElementById("territory-details");
-      if (detailsContainer) {
-        detailsContainer.innerHTML = `
-          <div class="empty-state">
-            <span style="font-size: 2rem;">📍</span>
-            <p><strong>Sin ubicación seleccionada</strong></p>
-            <p class="text-muted" style="font-size: 0.85rem;">Ingresá una localidad, seleccioná un punto del mapa o utilizá tu ubicación GPS para comenzar.</p>
-          </div>
-        `;
-      }
-
-      const cropContainer = document.getElementById("crop-results");
-      if (cropContainer) {
-        cropContainer.innerHTML = `
-          <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 30px;">
-            <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">🌱</span>
-            <h3>Sin ubicación seleccionada</h3>
-            <p class="text-muted">Ingresá una localidad, seleccioná un punto del mapa o utilizá tu ubicación GPS para comenzar.</p>
-          </div>
-        `;
-      }
-
-      const climateContainer = document.getElementById("climate-history-content");
-      if (climateContainer) {
-        climateContainer.innerHTML = `
-          <div class="empty-state" style="text-align: center; padding: 20px;">
-            <span style="font-size: 2rem;">📊</span>
-            <p><strong>DATOS CLIMÁTICOS NO DISPONIBLES</strong></p>
-            <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la serie climática histórica de NASA POWER.</p>
-          </div>
-        `;
-      }
     }
   }, 100);
 }
 
-function renderFichaEvidenciaUI(evidence) {
+function renderBatchEvidenceUI() {
   const container = document.getElementById("evidence-results-card");
   if (!container) return;
 
-  activeEvidenceImage = evidence;
+  const batch = getCurrentBatch();
+  if (!batch || batch.length === 0) {
+    container.style.display = "none";
+    return;
+  }
 
   container.style.display = "block";
   container.innerHTML = `
-    <h3 style="margin-top: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 8px;">
-      <span>📷</span> Ficha de Evidencia de Campo Aportada por el Usuario
+    <h3 style="margin-top: 0; color: var(--verde-principal); font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+      <span>📷 Evidencia Fotográfica de Campo (${batch.length} ${batch.length === 1 ? 'imagen' : 'imágenes'})</span>
     </h3>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin-top: 15px;">
-      <div>
-        <img src="${evidence.previewUrl}" alt="Foto de Campo" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borde-suave);" />
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); margin-top: 6px;">
-          <strong>Archivo:</strong> ${evidence.filename} (${evidence.dimensions})
-        </div>
-      </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 15px;">
+      ${batch.map((imgItem, idx) => `
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; position: relative;">
+          <img src="${imgItem.previewUrl}" alt="Foto de Campo" style="width: 100%; height: 160px; object-fit: cover; border-radius: 6px; border: 1px solid var(--borde-suave);" />
 
-      <div>
-        <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">📌 Metadatos Extraídos (EXIF)</h4>
-        <div style="font-size: 0.85rem; line-height: 1.5; color: var(--texto-principal);">
-          <div><strong>Fecha de Captura:</strong> ${evidence.exif?.date || 'NO DISPONIBLE'}</div>
-          <div><strong>GPS EXIF:</strong> ${evidence.exif?.hasGps ? `Lat: ${evidence.exif.gps.lat.toFixed(4)}, Lng: ${evidence.exif.gps.lng.toFixed(4)}` : 'NO DISPONIBLE / No contiene metadatos GPS'}</div>
-          <div><strong>Cámara / Dispositivo:</strong> ${evidence.exif?.camera || 'NO DISPONIBLE'}</div>
-        </div>
-
-        <h4 style="margin: 12px 0 6px 0; color: var(--verde-principal); font-size: 0.95rem;">👁️ Análisis de Imagen Real</h4>
-        <div style="font-size: 0.82rem; line-height: 1.4;">
-          <div style="margin-bottom: 6px;">
-            <strong style="color: #2e7d32;">OBSERVADO EN IMAGEN:</strong>
-            <p style="margin: 2px 0 0 0; color: var(--texto-secundario);">${evidence.visualAnalysis?.observado}</p>
-          </div>
-          <div style="margin-bottom: 6px;">
-            <strong style="color: #ef6c00;">INFERIDO:</strong>
-            <p style="margin: 2px 0 0 0; color: var(--texto-secundario);">${evidence.visualAnalysis?.inferido}</p>
-          </div>
-          <div>
-            <strong style="color: #c62828;">NO DETERMINABLE:</strong>
-            <p style="margin: 2px 0 0 0; color: var(--texto-secundario);">${evidence.visualAnalysis?.noDeterminable}</p>
+          <div style="font-size: 0.8rem; margin-top: 8px;">
+            <strong>${imgItem.filename}</strong> (${imgItem.dimensions})
+            <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 2px;">
+              <div>📅 EXIF Fecha: ${imgItem.exif?.date || 'NO DISPONIBLE'}</div>
+              <div>📍 EXIF GPS: ${imgItem.exif?.hasGps ? `Lat ${imgItem.exif.gps.lat.toFixed(4)}, Lng ${imgItem.exif.gps.lng.toFixed(4)}` : 'NO DISPONIBLE'}</div>
+            </div>
+            <div style="margin-top: 6px; font-size: 0.78rem; color: var(--texto-principal); line-height: 1.3;">
+              <strong>👁️ Análisis Visual:</strong>
+              <div style="color: #27ae60;">${imgItem.visualAnalysis?.inferido}</div>
+            </div>
           </div>
         </div>
-      </div>
+      `).join('')}
     </div>
   `;
 }

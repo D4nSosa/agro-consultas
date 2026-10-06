@@ -5,9 +5,14 @@
         "trigo",
         "soja",
         "maiz",
-        "cebada",
         "girasol",
-        "sorgo"
+        "cebada",
+        "papa",
+        "cebolla",
+        "tomate",
+        "batata",
+        "arandano",
+        "eucalyptus globulus"
       ],
       "suelo": "Molisoles; alta fertilidad",
       "clima": "Templado húmedo"
@@ -42,9 +47,10 @@
   "ciudad autonoma de buenos aires": {
     "nombre": {
       "cultivos": [
-        "lechuga",
         "tomate",
-        "espinaca"
+        "cebolla",
+        "pimiento",
+        "zapallo"
       ],
       "suelo": "Urbano/Hidroponia",
       "clima": "Templado"
@@ -79,9 +85,12 @@
   "catamarca": {
     "nombre": {
       "cultivos": [
-        "olivo",
-        "nogal",
-        "maiz"
+        "vid",
+        "pimiento",
+        "tabaco",
+        "zapallo",
+        "tomate",
+        "papa"
       ],
       "suelo": "Aridisoles",
       "clima": "Árido/semiárido"
@@ -116,10 +125,13 @@
   "chaco": {
     "nombre": {
       "cultivos": [
-        "algodon",
         "soja",
         "maiz",
-        "girasol"
+        "girasol",
+        "sorgo",
+        "arroz",
+        "mandioca",
+        "zapallo"
       ],
       "suelo": "Vertisoles",
       "clima": "Subtropical"
@@ -155,8 +167,9 @@
     "nombre": {
       "cultivos": [
         "papa",
-        "frutilla",
-        "manzana"
+        "cebolla",
+        "tomate",
+        "pimiento"
       ],
       "suelo": "Aluviales",
       "clima": "Frío templado"
@@ -191,10 +204,15 @@
   "cordoba": {
     "nombre": {
       "cultivos": [
-        "soja",
         "maiz",
+        "soja",
+        "mani",
         "trigo",
-        "mani"
+        "sorgo",
+        "girasol",
+        "papa",
+        "zapallo",
+        "cebolla"
       ],
       "suelo": "Molisoles",
       "clima": "Templado subhúmedo"
@@ -230,9 +248,13 @@
     "nombre": {
       "cultivos": [
         "arroz",
+        "naranja",
+        "mandarina",
         "yerba mate",
-        "citrus",
-        "te"
+        "mandioca",
+        "pino taeda",
+        "pino elliottii",
+        "eucalyptus grandis"
       ],
       "suelo": "Hidromorfos",
       "clima": "Subtropical húmedo"
@@ -268,9 +290,13 @@
     "nombre": {
       "cultivos": [
         "arroz",
+        "naranja",
+        "mandarina",
+        "eucalyptus grandis",
         "soja",
         "maiz",
-        "trigo"
+        "trigo",
+        "arandano"
       ],
       "suelo": "Vertisoles",
       "clima": "Templado húmedo"
@@ -305,9 +331,12 @@
   "formosa": {
     "nombre": {
       "cultivos": [
-        "soja",
-        "maiz",
-        "mandioca"
+        "pomelo",
+        "mandioca",
+        "arroz",
+        "sorgo",
+        "zapallo",
+        "batata"
       ],
       "suelo": "Arcillosos",
       "clima": "Subtropical"
@@ -342,10 +371,13 @@
   "jujuy": {
     "nombre": {
       "cultivos": [
-        "maiz",
-        "quinoa",
-        "papa",
-        "cana de azucar"
+        "tabaco",
+        "naranja",
+        "limon",
+        "pomelo",
+        "pimiento",
+        "tomate",
+        "mandioca"
       ],
       "suelo": "Aluviales",
       "clima": "Andino/subtropical"
@@ -381,9 +413,11 @@
     "nombre": {
       "cultivos": [
         "trigo",
+        "girasol",
         "maiz",
-        "soja",
-        "girasol"
+        "cebada",
+        "sorgo",
+        "soja"
       ],
       "suelo": "Molisoles",
       "clima": "Semiárido"
@@ -419,7 +453,10 @@
     "nombre": {
       "cultivos": [
         "vid",
-        "olivo"
+        "pimiento",
+        "cebolla",
+        "zapallo",
+        "tomate"
       ],
       "suelo": "Aridisoles",
       "clima": "Seco continental"
@@ -455,10 +492,11 @@
     "nombre": {
       "cultivos": [
         "vid",
-        "olivo",
-        "ajo",
-        "pera",
-        "manzana"
+        "tomate",
+        "papa",
+        "zapallo",
+        "cebolla",
+        "pimiento"
       ],
       "suelo": "Aridisoles",
       "clima": "Desértico continental"
@@ -495,8 +533,12 @@
       "cultivos": [
         "yerba mate",
         "te",
-        "citrus",
-        "mandioca"
+        "mandioca",
+        "tabaco",
+        "pino taeda",
+        "pino elliottii",
+        "eucalyptus grandis",
+        "limon"
       ],
       "suelo": "Lateríticos (rojos)",
       "clima": "Tropical húmedo"
@@ -531,9 +573,10 @@
   "neuquen": {
     "nombre": {
       "cultivos": [
-        "manzana",
-        "pera",
-        "vid"
+        "vid",
+        "papa",
+        "tomate",
+        "zapallo"
       ],
       "suelo": "Aluviales",
       "clima": "Semiárido frío"
@@ -568,9 +611,11 @@
   "rio negro": {
     "nombre": {
       "cultivos": [
-        "manzana",
-        "pera",
-        "frutilla"
+        "cebolla",
+        "papa",
+        "tomate",
+        "vid",
+        "zapallo"
       ],
       "suelo": "Aluviales",
       "clima": "Árido-frío"
@@ -605,11 +650,13 @@
   "salta": {
     "nombre": {
       "cultivos": [
+        "tabaco",
+        "pimiento",
         "soja",
         "maiz",
-        "porotos",
-        "citrus",
-        "tabaco"
+        "limon",
+        "pomelo",
+        "poroto"
       ],
       "suelo": "Aluviales",
       "clima": "Subtropical"
@@ -645,8 +692,9 @@
     "nombre": {
       "cultivos": [
         "vid",
-        "olivo",
-        "cebolla"
+        "tomate",
+        "cebolla",
+        "pimiento"
       ],
       "suelo": "Aridisoles",
       "clima": "Desértico"
@@ -681,10 +729,12 @@
   "san luis": {
     "nombre": {
       "cultivos": [
-        "trigo",
         "maiz",
         "soja",
-        "girasol"
+        "girasol",
+        "sorgo",
+        "trigo",
+        "zapallo"
       ],
       "suelo": "Arenosos",
       "clima": "Semiárido"
@@ -719,8 +769,8 @@
   "santa cruz": {
     "nombre": {
       "cultivos": [
-        "forrajeras",
-        "hortalizas en invernadero"
+        "papa",
+        "cebolla"
       ],
       "suelo": "Patagónico",
       "clima": "Frío extremo"
@@ -758,8 +808,11 @@
         "soja",
         "maiz",
         "trigo",
+        "sorgo",
+        "girasol",
         "arroz",
-        "girasol"
+        "tomate",
+        "papa"
       ],
       "suelo": "Argiudoles",
       "clima": "Templado húmedo"
@@ -796,8 +849,10 @@
       "cultivos": [
         "soja",
         "maiz",
-        "girasol",
-        "algodon"
+        "sorgo",
+        "cebolla",
+        "zapallo",
+        "batata"
       ],
       "suelo": "Arenosos",
       "clima": "Muy seco"
@@ -832,9 +887,8 @@
   "tierra del fuego": {
     "nombre": {
       "cultivos": [
-        "lechuga",
-        "espinaca",
-        "frutilla"
+        "papa",
+        "cebolla"
       ],
       "suelo": "Turba/Fríos",
       "clima": "Frío húmedo"
@@ -869,9 +923,14 @@
   "tucuman": {
     "nombre": {
       "cultivos": [
-        "cana de azucar",
         "limon",
-        "arandano"
+        "tabaco",
+        "maiz",
+        "soja",
+        "pimiento",
+        "zapallo",
+        "papa",
+        "batata"
       ],
       "suelo": "Aluviales",
       "clima": "Subtropical húmedo"

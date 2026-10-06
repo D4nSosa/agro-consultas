@@ -37,6 +37,11 @@ def get_default_dates():
     start_date = f"{now.year - 1}-01-01"
     return start_date, date_a, date_b
 
+def get_geom_dict(pydantic_obj):
+    if hasattr(pydantic_obj, "model_dump"):
+        return pydantic_obj.model_dump()
+    return pydantic_obj.dict()
+
 class GeoJSONGeometry(BaseModel):
     type: str
     coordinates: Any
@@ -91,7 +96,7 @@ def search_stac_catalog(req: STACSearchRequest):
         s_date = req.startDate or start_def
         e_date = req.endDate or date_b_def
 
-        geom_shape = shape(req.geometry.dict())
+        geom_shape = shape(get_geom_dict(req.geometry))
         bounds = geom_shape.bounds
 
         search_body = {
@@ -156,7 +161,7 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
         start_def, date_a_def, date_b_def = get_default_dates()
         target_date = req.date or date_b_def
 
-        geom_shape = shape(req.geometry.dict())
+        geom_shape = shape(get_geom_dict(req.geometry))
         area_sq_m = calculate_shapely_area(geom_shape)
         area_ha = round(area_sq_m / 10000.0, 2)
 
@@ -187,7 +192,7 @@ def calculate_change_detection(req: ChangeDetectionRequest):
         dA = req.dateA or date_a_def
         dB = req.dateB or date_b_def
 
-        geom_shape = shape(req.geometry.dict())
+        geom_shape = shape(get_geom_dict(req.geometry))
         area_sq_m = calculate_shapely_area(geom_shape)
         area_ha = round(area_sq_m / 10000.0, 2)
 

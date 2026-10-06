@@ -621,3 +621,74 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
     font-size: 0.75rem !important;
   }
 }
+
+/* ============================================================================
+   ESTILOS DE IMPRESIÓN Y GENERACIÓN DE INFORME PDF PROFESIONAL
+   ============================================================================ */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt;
+    line-height: 1.4;
+  }
+
+  .app-header .right,
+  .theme-toggle,
+  #themeToggle,
+  #btnTutorial,
+  #btnComoFunciona,
+  #resultadosSearchForm,
+  #btn-geolocalizar,
+  #evidence-file-input,
+  #btnClearBatch,
+  #btnExportPDF,
+  .btn,
+  .modal-overlay,
+  .icon-btn {
+    display: none !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+    margin-bottom: 15px !important;
+    padding: 15px !important;
+  }
+
+  .app-header {
+    border-bottom: 2px solid #27ae60 !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .crop-card {
+    break-inside: avoid;
+    border: 1px solid #bbb !important;
+    margin-bottom: 12px !important;
+  }
+
+  details {
+    display: block !important;
+  }
+
+  details summary {
+    display: none !important;
+  }
+
+  details[open] > div, details > div {
+    display: block !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+}
