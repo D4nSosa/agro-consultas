@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Agro Consultas - Recomendador de Cultivos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</title>
 
-  <!-- Tipografía -->
+  <!-- Tipografía Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Styles -->
+  <!-- Estilos base -->
   <link rel="stylesheet" href="styles.css">
 
   <link rel="icon" href="dwnl.png" type="image/png">
@@ -17,67 +17,217 @@
 
   <header class="app-header">
     <div class="left">
-      <img class="brand" src="dwnl.png" alt="logo" />
+      <img class="brand" src="dwnl.png" alt="Agro Consultas Logo" />
       <div class="brand-text">
         <div class="title">Agro Consultas</div>
+        <div style="font-size: 0.72rem; color: var(--texto-secundario);">Inteligencia Territorial Agropecuaria y Forestal</div>
       </div>
     </div>
 
-    <div class="right" style="display:flex; align-items:center; gap:10px;">
-      <a class="btn outline" href="forestal.html" style="font-size:0.85rem;">🌲 Módulo Forestal</a>
+    <div class="right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <button id="btnTutorial" class="btn outline" style="font-size: 0.85rem;">📖 Tutorial Interactivo</button>
+      <button id="btnComoFunciona" class="btn outline" style="font-size: 0.85rem;">ℹ️ ¿Cómo Funciona?</button>
+      <a class="btn outline" href="forestal.html" style="font-size: 0.85rem;">🌲 Módulo Forestal</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
   </header>
 
-  <main class="container">
-    <section class="hero card">
-      <h1>¿Dónde querés analizar?</h1>
-      <p class="lead">Ingresá cualquier localidad o punto de interés para obtener geocodificación real, datos edafoclimáticos y aptitud agropecuaria.</p>
+  <main class="container" style="max-width: 1200px; margin-top: 20px;">
 
-      <form id="homeForm" class="home-form" onsubmit="event.preventDefault(); enviarFormulario();">
-        <label for="provincias">Localidad o Ubicación</label>
-        <input id="provincias" name="provincias" type="text" placeholder="Ej: Río Cuarto, Balcarce, Oberá..." required autocomplete="off" />
+    <!-- Banner Hero Principal: ¿Qué querés analizar? -->
+    <section class="card" style="padding: 30px; border-top: 5px solid var(--verde-principal); margin-bottom: 25px;">
+      <h1 style="margin-top: 0; font-size: 2.1rem; color: var(--verde-principal); font-weight: 800;">
+        ¿Qué querés analizar hoy?
+      </h1>
+      <p class="lead" style="font-size: 1.05rem; color: var(--texto-secundario); max-width: 850px; margin-bottom: 20px;">
+        Plataforma de inteligencia territorial que integra datos geoespaciales, climáticos, edáficos, satelitales (Copernicus Sentinel-2, NASA POWER, Open-Meteo, INTA, IGN) y evidencia de campo para evaluar aptitudes, detectar limitantes y apoyar decisiones agropecuarias y forestales.
+      </p>
 
-        <div class="row" style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button type="submit" class="btn primary">🔎 Buscar Ubicación Real</button>
-          <button type="button" id="gpsBtn" class="btn primary" style="background:#27ae60; border-color:#27ae60;">📍 Usar Mi Ubicación en Tiempo Real</button>
+      <!-- Selector de Método de Inicio -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 20px;">
+
+        <!-- Opción 1: Buscar Ubicación -->
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
+          <h3 style="margin-top: 0; font-size: 1rem; color: var(--verde-principal);">🔎 1. Buscar una Ubicación</h3>
+          <p style="font-size: 0.82rem; color: var(--texto-secundario); margin-bottom: 10px;">
+            Ingresá cualquier municipio, paraje o localidad real de Argentina.
+          </p>
+          <form onsubmit="event.preventDefault(); enviarFormulario();" style="display: flex; gap: 6px;">
+            <input id="provincias" name="provincias" type="text" placeholder="Ej: Río Cuarto, Balcarce, Oberá..." required autocomplete="off" style="flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); font-size: 0.85rem;" />
+            <button type="submit" class="btn primary" style="padding: 8px 12px; font-size: 0.85rem;">Ir</button>
+          </form>
         </div>
-      </form>
+
+        <!-- Opción 2: Usar GPS -->
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <h3 style="margin-top: 0; font-size: 1rem; color: #27ae60;">📍 2. Utilizar GPS en Campo</h3>
+            <p style="font-size: 0.82rem; color: var(--texto-secundario); margin-bottom: 10px;">
+              Obtené coordenadas reales desde tu dispositivo en terreno con margen de precisión.
+            </p>
+          </div>
+          <button type="button" id="gpsBtn" class="btn primary" style="background: #27ae60; border-color: #27ae60; width: 100%; font-size: 0.85rem;">📍 Usar Mi Ubicación GPS</button>
+        </div>
+
+        <!-- Opción 3: Dibujar Área o Cargar GeoJSON/KML -->
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <h3 style="margin-top: 0; font-size: 1rem; color: #2980b9;">✏️ 3. Dibujar o Cargar Polígono</h3>
+            <p style="font-size: 0.82rem; color: var(--texto-secundario); margin-bottom: 10px;">
+              Delimitá tu lote en mapa o cargá tu archivo GeoJSON / KML / GPX en el Módulo Forestal.
+            </p>
+          </div>
+          <a href="forestal.html" class="btn outline" style="width: 100%; text-align: center; font-size: 0.85rem;">🌲 Ir a Análisis por Polígono</a>
+        </div>
+
+      </div>
+
+      <div style="font-size: 0.78rem; color: var(--texto-secundario); border-top: 1px dashed var(--borde-suave); padding-top: 10px;">
+        🛡️ <strong>Política Estricta de Integridad:</strong> Agro Consultas opera exclusivamente con datos reales y fuentes públicas oficiales. No se utilizan ubicaciones predeterminadas de ejemplo ni datos inventados.
+      </div>
     </section>
 
-    <!-- Sección Explicativa: ¿Cómo funciona Agro Consultas? -->
-    <section class="explanation-section" style="margin-top: 40px; margin-bottom: 40px;">
-      <h2 style="text-align: center; margin-bottom: 30px; font-weight: 800; font-size: 2rem;">¿Cómo funciona Agro Consultas?</h2>
-      <div class="explanation-grid">
-        <div class="explanation-card card">
-          <div class="icon-circle">🗺️</div>
-          <h3>Geocodificación Real</h3>
-          <p>Identificación geográfica oficial mediante Open-Meteo Geocoding e IGN Georef con coordenadas y alcance territorial preciso.</p>
+    <!-- Recorrido Visual en 7 Pasos -->
+    <section class="card" style="padding: 25px; margin-bottom: 25px;">
+      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.5rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px;">
+        🔄 Recorrido Metodológico en 7 Pasos
+      </h2>
+      <p style="font-size: 0.9rem; color: var(--texto-secundario); margin-bottom: 20px;">
+        Flujo de trabajo transparente para el análisis territorial y la toma de decisiones:
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+          <span style="font-weight: 800; color: var(--verde-principal); font-size: 1.1rem; display: block;">1. Elegí Ubicación / Área</span>
+          <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 4px 0 0 0;">Ingresá un punto, ciudad, GPS o cargá la geometría GeoJSON/KML de tu campo.</p>
         </div>
-        <div class="explanation-card card">
-          <div class="icon-circle">🌱</div>
-          <h3>Aptitud y Recomendación</h3>
-          <p>Evaluación de cultivos en base a requerimientos reales de suelo y clima regional de fuentes abiertas (INTA y SMN).</p>
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+          <span style="font-weight: 800; color: var(--verde-principal); font-size: 1.1rem; display: block;">2. Reunimos Datos Reales</span>
+          <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 4px 0 0 0;">Consultamos APIs oficiales de INTA, Open-Meteo, NASA POWER, SMN e IGN en tiempo real.</p>
         </div>
-        <div class="explanation-card card">
-          <div class="icon-circle">📷</div>
-          <h3>Evidencia de Campo</h3>
-          <p>Cargá fotografías de tu campo y extraé metadatos EXIF (GPS, fecha, cámara) para consolidar tu ficha de evidencia.</p>
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+          <span style="font-weight: 800; color: var(--verde-principal); font-size: 1.1rem; display: block;">3. Análisis Multicriterio</span>
+          <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 4px 0 0 0;">Evaluamos clima histórico, temperatura actual, suelos (pH, textura, drenaje) y topografía.</p>
         </div>
-        <div class="explanation-card card">
-          <div class="icon-circle">⚡</div>
-          <h3>Clima en Vivo</h3>
-          <p>Monitoreá temperatura, viento y condiciones actuales transmitidas en directo desde la API Open-Meteo.</p>
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+          <span style="font-weight: 800; color: var(--verde-principal); font-size: 1.1rem; display: block;">4. Aptitud y Limitantes</span>
+          <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 4px 0 0 0;">Calculamos compatibilidad explicable (Aptitud Alta, Media, Baja, No Evaluable) con riesgos explícitos.</p>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+          <span style="font-weight: 800; color: var(--verde-principal); font-size: 1.1rem; display: block;">5. Evidencia de Campo</span>
+          <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 4px 0 0 0;">Cargá fotografías de terreno para extraer metadatos EXIF reales e identificar síntomas visuales.</p>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+          <span style="font-weight: 800; color: var(--verde-principal); font-size: 1.1rem; display: block;">6. Informe Profesional</span>
+          <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 4px 0 0 0;">Generá y descargá un informe técnico en PDF para presentar ante productores, empresas o municipios.</p>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+          <span style="font-weight: 800; color: var(--verde-principal); font-size: 1.1rem; display: block;">7. Monitoreo Satelital</span>
+          <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 4px 0 0 0;">Consultá el catálogo de Copernicus Sentinel-2 para analizar cambios de vegetación en el tiempo.</p>
         </div>
       </div>
     </section>
+
+    <!-- Preguntas Frecuentes y Perfil de Usuario -->
+    <section class="card" style="padding: 25px; margin-bottom: 25px;">
+      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem; margin-bottom: 15px;">
+        💡 Respuestas Clave sobre Agro Consultas
+      </h2>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px;">
+        <div>
+          <h4 style="margin: 0 0 4px 0; color: var(--texto-principal);">¿Para quién sirve la plataforma?</h4>
+          <p style="font-size: 0.85rem; color: var(--texto-secundario); margin: 0; line-height: 1.4;">
+            Productores agropecuarios, ingenieros agrónomos y forestales, consultores técnicos, empresas agrícolas, inversores, municipios y usuarios en general que necesiten entender el potencial y las limitantes de un territorio.
+          </p>
+        </div>
+
+        <div>
+          <h4 style="margin: 0 0 4px 0; color: var(--texto-principal);">¿Qué fuentes de datos se utilizan?</h4>
+          <p style="font-size: 0.85rem; color: var(--texto-secundario); margin: 0; line-height: 1.4;">
+            IGN Argentina (cartografía oficial), INTA (cartografía de suelos), NASA POWER (series climáticas históricas), Open-Meteo (pronóstico y clima en vivo), SMN (alertas meteorológicas) y Copernicus Data Space Ecosystem (imágenes Sentinel-2 L2A).
+          </p>
+        </div>
+
+        <div>
+          <h4 style="margin: 0 0 4px 0; color: var(--texto-principal);">¿Qué puedo obtener como resultado?</h4>
+          <p style="font-size: 0.85rem; color: var(--texto-secundario); margin: 0; line-height: 1.4;">
+            Informes de aptitud edafoclimática para más de 25 cultivos y especies forestales, mapas de decisión, metadatos EXIF de fotos de campo, series históricas climáticas y reportes técnicos descargables en PDF.
+          </p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
-  <footer class="app-footer">
-    <small>Agro Consultas</small>
+  <!-- Modal Tutorial Interactivo -->
+  <div id="tutorialModal" class="modal-overlay" style="display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+    <div class="card" style="max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; position: relative; padding: 25px;">
+      <button onclick="document.getElementById('tutorialModal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--texto-principal);">✕</button>
+
+      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem;">📖 Tutorial Interactivo de Uso</h2>
+      <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 15px;">
+        Bienvenido a Agro Consultas. Seguí estos 4 sencillos pasos para analizar cualquier campo o ubicación:
+      </p>
+
+      <ol style="font-size: 0.85rem; line-height: 1.6; color: var(--texto-principal); padding-left: 20px; margin-bottom: 20px;">
+        <li style="margin-bottom: 8px;">
+          <strong>Paso 1: Definí la Ubicación</strong> — Usá el buscador de localidades, tu GPS o dibujá un polígono en el mapa.
+        </li>
+        <li style="margin-bottom: 8px;">
+          <strong>Paso 2: Consultá los Datos Territorial e Históricos</strong> — Revisá las métricas de suelo INTA y las series climáticas de NASA POWER.
+        </li>
+        <li style="margin-bottom: 8px;">
+          <strong>Paso 3: Evaluá la Aptitud de Cultivos</strong> — Cambiá entre la <em>Vista Simple (Semáforo)</em> y la <em>Vista Técnica (Detalles y Metodología)</em>.
+        </li>
+        <li style="margin-bottom: 8px;">
+          <strong>Paso 4: Subí Evidencia y Generá un Informe</strong> — Aportá fotos de campo y descargá tu reporte en PDF para compartir.
+        </li>
+      </ol>
+
+      <div style="text-align: right;">
+        <button onclick="document.getElementById('tutorialModal').style.display='none'" class="btn primary" style="font-size: 0.85rem; padding: 8px 18px;">Comenzar Análisis</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ¿Cómo Funciona? -->
+  <div id="comoFuncionaModal" class="modal-overlay" style="display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+    <div class="card" style="max-width: 650px; width: 100%; max-height: 85vh; overflow-y: auto; position: relative; padding: 25px;">
+      <button onclick="document.getElementById('comoFuncionaModal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--texto-principal);">✕</button>
+
+      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem;">ℹ️ Metodología y Arquitectura de Datos</h2>
+
+      <div style="font-size: 0.85rem; line-height: 1.5; color: var(--texto-principal); margin-bottom: 15px;">
+        <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+          <strong>FUENTES PRIMARIAS DE DATOS ➔ NORMALIZACIÓN ➔ MOTOR MULTICRITERIO ➔ VISTA DE DECISIÓN</strong>
+        </div>
+
+        <p>Agro Consultas recopila de forma directa datos de APIs oficiales sin utilizar puntuaciones ni porcentajes inventados:</p>
+
+        <ul>
+          <li><strong>Suelo:</strong> WMS Cartografía Digital INTA (Textura, Drenaje, pH, Limitantes).</li>
+          <li><strong>Clima Histórico:</strong> NASA POWER Climatology API (Series mensuales de precipitación, temperatura, humedad y radiación).</li>
+          <li><strong>Clima en Vivo:</strong> Open-Meteo Forecast API.</li>
+          <li><strong>Teledetección:</strong> Copernicus Data Space Ecosystem (Sentinel-2 Level-2A STAC).</li>
+        </ul>
+
+        <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 10px; margin-top: 15px; font-size: 0.8rem; color: #c0392b;">
+          <strong>📌 Descargo de Responsabilidad Profesional:</strong> Agro Consultas es una plataforma de apoyo a las decisiones territoriales y no reemplaza la inspección agronómica/forestal directa en terreno ni el análisis físico de laboratorio de suelos.
+        </div>
+      </div>
+
+      <div style="text-align: right;">
+        <button onclick="document.getElementById('comoFuncionaModal').style.display='none'" class="btn primary" style="font-size: 0.85rem; padding: 8px 18px;">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer" style="margin-top: 40px;">
+    <small>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</small>
   </footer>
 
-  <!-- Inline helpers -->
+  <!-- Script Helpers -->
   <script>
     function enviarFormulario() {
       const provincia = document.getElementById('provincias').value.trim();
@@ -100,11 +250,20 @@
         },
         (err) => {
           alert('No se pudo obtener la ubicación GPS: ' + err.message);
-          btn.innerText = '📍 Usar Mi Ubicación en Tiempo Real';
+          btn.innerText = '📍 Usar Mi Ubicación GPS';
           btn.disabled = false;
         },
         { enableHighAccuracy: true, timeout: 10000 }
       );
+    });
+
+    // Modales tutorial y cómo funciona
+    document.getElementById('btnTutorial').addEventListener('click', () => {
+      document.getElementById('tutorialModal').style.display = 'flex';
+    });
+
+    document.getElementById('btnComoFunciona').addEventListener('click', () => {
+      document.getElementById('comoFuncionaModal').style.display = 'flex';
     });
 
     // Theme toggle persistent

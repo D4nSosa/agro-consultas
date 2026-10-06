@@ -1,6 +1,8 @@
 {
   "trigo": {
-    "descripcion": "Cereal de invierno fundamental para la rotación de cultivos.",
+    "nombre": "Trigo",
+    "categoria": "Extensivo",
+    "descripcion": "Cereal de invierno fundamental para la rotación agrícola y aporte de rastrojo.",
     "siembra": "Mayo a Julio",
     "cosecha": "Noviembre a Enero",
     "reqSuelo": "Suelos profundos, texturas francas, buena fertilidad y drenaje sin encharcamientos.",
@@ -14,7 +16,7 @@
     "pino_eucalyptus": false,
     "requerimientos": {
       "suelo": {
-        "phMin": 6,
+        "phMin": 6.0,
         "phMax": 7.5,
         "drenaje": [
           "bueno",
@@ -34,11 +36,13 @@
     }
   },
   "soja": {
-    "descripcion": "Principal cultivo de exportación, leguminosa de verano.",
+    "nombre": "Soja",
+    "categoria": "Extensivo",
+    "descripcion": "Principal cultivo de verano y leguminosa clave en esquemas agrícolas.",
     "siembra": "Octubre a Diciembre",
     "cosecha": "Marzo a Mayo",
     "reqSuelo": "Suelos fértiles, pH neutro, buena capacidad de retención de agua.",
-    "reqClima": "Templado-cálido, lluvias estivales abundantes.",
+    "reqClima": "Templado-cálido, lluvias estivales suficientes.",
     "variedades": [
       "Grupo de Madurez IV Corto / Largo",
       "Grupo de Madurez V (Zona Central / Norte)"
@@ -48,7 +52,7 @@
     "pino_eucalyptus": false,
     "requerimientos": {
       "suelo": {
-        "phMin": 6,
+        "phMin": 6.0,
         "phMax": 7.5,
         "drenaje": [
           "bueno",
@@ -68,7 +72,9 @@
     }
   },
   "maiz": {
-    "descripcion": "Cereal versátil con altos requerimientos nutricionales.",
+    "nombre": "Maíz",
+    "categoria": "Extensivo",
+    "descripcion": "Cereal estival estructurante de la rotación con alta demanda de nitrógeno.",
     "siembra": "Septiembre a Diciembre",
     "cosecha": "Marzo a Agosto",
     "reqSuelo": "Suelos profundos, ricos en materia orgánica y nitrógeno, buen drenaje.",
@@ -82,7 +88,7 @@
     "pino_eucalyptus": false,
     "requerimientos": {
       "suelo": {
-        "phMin": 6,
+        "phMin": 6.0,
         "phMax": 7.5,
         "drenaje": [
           "bueno",
@@ -101,21 +107,95 @@
       }
     }
   },
+  "girasol": {
+    "nombre": "Girasol",
+    "categoria": "Extensivo",
+    "descripcion": "Oleaginosa estival de alta tolerancia a estrés hídrico moderado.",
+    "siembra": "Agosto a Noviembre",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos profundos, franco-arenosos a francos, tolera salinidad moderada.",
+    "reqClima": "Cálido y templado, alta radiación solar.",
+    "variedades": [
+      "Híbridos Alto Oleico",
+      "Híbridos Convencionales"
+    ],
+    "fuenteVariedades": "INTA Manfredi / ASAGIR",
+    "rendimientoEstimado": "ESTIMADO: 1.8 - 3.2 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 8.0,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa",
+          "arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 450,
+        "temperaturaMin": 12,
+        "temperaturaMax": 32
+      }
+    }
+  },
+  "sorgo": {
+    "nombre": "Sorgo",
+    "categoria": "Extensivo",
+    "descripcion": "Cereal de verano rústico y altamente eficiente en uso del agua.",
+    "siembra": "Octubre a Diciembre",
+    "cosecha": "Marzo a Junio",
+    "reqSuelo": "Adaptable a suelos pesados o marginales, tolera cierta salinidad.",
+    "reqClima": "Cálido, excelente comportamiento frente a sequías temporales.",
+    "variedades": [
+      "Sorgo Granífero Bajo Tanino",
+      "Sorgo Forrajero / Silero"
+    ],
+    "fuenteVariedades": "INTA Manfredi / Red Sorgo",
+    "rendimientoEstimado": "ESTIMADO: 4.0 - 7.5 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 8.2,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arcillosa",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 400,
+        "temperaturaMin": 15,
+        "temperaturaMax": 35
+      }
+    }
+  },
   "cebada": {
-    "descripcion": "Cereal de invierno, muy utilizado en la industria cervecera.",
+    "nombre": "Cebada",
+    "categoria": "Extensivo",
+    "descripcion": "Cereal de invierno para producción cervecera y forrajera.",
     "siembra": "Junio a Julio",
     "cosecha": "Noviembre a Diciembre",
-    "reqSuelo": "Suelos fértiles y bien drenados, tolera salinidad moderada.",
+    "reqSuelo": "Suelos fértiles, bien drenados, con buena tolerancia a salinidad.",
     "reqClima": "Templado-frío, moderada humedad.",
     "variedades": [
       "Variedades Cerveceras Certificadas"
     ],
     "fuenteVariedades": "INTA Bordenave / Cámara Cervecera",
-    "rendimientoEstimado": "ESTIMADO: 3.5 - 5.0 tn/ha",
+    "rendimientoEstimado": "ESTIMADO: 3.5 - 5.5 tn/ha",
     "pino_eucalyptus": false,
     "requerimientos": {
       "suelo": {
-        "phMin": 6,
+        "phMin": 6.0,
         "phMax": 8.2,
         "drenaje": [
           "bueno",
@@ -125,9 +205,6 @@
           "franca",
           "franco-limosa",
           "franco-arcillosa"
-        ],
-        "tolerancias": [
-          "salinidad"
         ]
       },
       "clima": {
@@ -137,11 +214,575 @@
       }
     }
   },
+  "arroz": {
+    "nombre": "Arroz",
+    "categoria": "Extensivo",
+    "descripcion": "Cereal estival cultivado bajo riego por inundación sobre suelos pesados.",
+    "siembra": "Septiembre a Noviembre",
+    "cosecha": "Febrero a Abril",
+    "reqSuelo": "Suelos arcillosos con horizonte B muy poco permeable para retener lámina de agua.",
+    "reqClima": "Subtropical / templado-cálido, alta radiación solar y disponibilidad hídrica continua.",
+    "variedades": [
+      "Gurí INTA CL",
+      "Cambá INTA"
+    ],
+    "fuenteVariedades": "INTA Concepción del Uruguay / Corrientes",
+    "rendimientoEstimado": "ESTIMADO: 6.0 - 8.5 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7.5,
+        "drenaje": [
+          "lento",
+          "pobre",
+          "imperfecto"
+        ],
+        "texturas": [
+          "arcillosa",
+          "franco-arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1000,
+        "temperaturaMin": 18,
+        "temperaturaMax": 32
+      }
+    }
+  },
+  "papa": {
+    "nombre": "Papa",
+    "categoria": "Hortícola",
+    "descripcion": "Hortaliza de tubérculo de alto valor comercial.",
+    "siembra": "Agosto a Febrero (según zona)",
+    "cosecha": "Diciembre a Junio",
+    "reqSuelo": "Suelos sueltos, francos a franco-arenosos, profundos, sin pedregosidad ni salinidad.",
+    "reqClima": "Templado con noches frescas, sensible a heladas fuertes y golpes de calor.",
+    "variedades": [
+      "Spunta (Consumo fresco)",
+      "Innovator / Asterix (Industria)"
+    ],
+    "fuenteVariedades": "INTA Balcarce",
+    "rendimientoEstimado": "ESTIMADO: 30 - 45 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.2,
+        "phMax": 6.8,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franco-arenosa",
+          "franca"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 500,
+        "temperaturaMin": 10,
+        "temperaturaMax": 24
+      }
+    }
+  },
+  "cebolla": {
+    "nombre": "Cebolla",
+    "categoria": "Hortícola",
+    "descripcion": "Hortaliza de bulbo de ciclo invernal / primaveral.",
+    "siembra": "Mayo a Julio",
+    "cosecha": "Noviembre a Febrero",
+    "reqSuelo": "Suelos francos a franco-arenosos, bien estructurados y sin encharcamiento.",
+    "reqClima": "Templado, sensible a fotoperíodo para el bulbado.",
+    "variedades": [
+      "Valcatorce INTA",
+      "Sintética 14"
+    ],
+    "fuenteVariedades": "INTA La Consulta / Hilario Ascasubi",
+    "rendimientoEstimado": "ESTIMADO: 35 - 55 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 400,
+        "temperaturaMin": 8,
+        "temperaturaMax": 26
+      }
+    }
+  },
+  "tomate": {
+    "nombre": "Tomate",
+    "categoria": "Hortícola",
+    "descripcion": "Hortaliza de fruto cultivada para consumo fresco o industria de concentrados.",
+    "siembra": "Agosto a Octubre",
+    "cosecha": "Diciembre a Abril",
+    "reqSuelo": "Suelos francos a franco-arenosos, ricos en materia orgánica, bien drenados.",
+    "reqClima": "Templado-cálido, muy sensible a heladas y humedad relativa extrema.",
+    "variedades": [
+      "Perita Industria (Uspallata / Don José)",
+      "Redondo Platense / Híbridos Larga Vida"
+    ],
+    "fuenteVariedades": "INTA La Consulta / San Juan",
+    "rendimientoEstimado": "ESTIMADO: 60 - 110 tn/ha (Industria)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.2,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 450,
+        "temperaturaMin": 15,
+        "temperaturaMax": 30
+      }
+    }
+  },
+  "pimiento": {
+    "nombre": "Pimiento",
+    "categoria": "Hortícola",
+    "descripcion": "Cultivo hortícola de verano para consumo en fresco o pimentón.",
+    "siembra": "Agosto a Octubre",
+    "cosecha": "Diciembre a Mayo",
+    "reqSuelo": "Suelos francos, fértiles, con óptimo drenaje.",
+    "reqClima": "Cálido, alta temperatura diurna y protegido de heladas.",
+    "variedades": [
+      "Pimiento Calahorra",
+      "Variedades Pimentoneras (NOA)"
+    ],
+    "fuenteVariedades": "INTA Salta / Bella Vista",
+    "rendimientoEstimado": "ESTIMADO: 25 - 45 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.2,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 500,
+        "temperaturaMin": 16,
+        "temperaturaMax": 32
+      }
+    }
+  },
+  "zapallo": {
+    "nombre": "Zapallo",
+    "categoria": "Hortícola",
+    "descripcion": "Cucurbitácea rústica de verano de amplia adaptación.",
+    "siembra": "Octubre a Noviembre",
+    "cosecha": "Febrero a Abril",
+    "reqSuelo": "Suelos francos, profundos, con buen contenido de materia orgánica.",
+    "reqClima": "Templado-cálido, sensible a heladas tempranas.",
+    "variedades": [
+      "Anco / Anco Coreano",
+      "Cabutiá / Cuyo"
+    ],
+    "fuenteVariedades": "INTA La Consulta",
+    "rendimientoEstimado": "ESTIMADO: 20 - 35 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa",
+          "franco-limosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 450,
+        "temperaturaMin": 14,
+        "temperaturaMax": 32
+      }
+    }
+  },
+  "mandioca": {
+    "nombre": "Mandioca",
+    "categoria": "Hortícola / Regional",
+    "descripcion": "Raíz reservante de clima subtropical y gran relevancia alimentaria.",
+    "siembra": "Agosto a Octubre",
+    "cosecha": "Mayo a Agosto (siguiente año)",
+    "reqSuelo": "Suelos francos a franco-arenosos, sueltos y bien drenados.",
+    "reqClima": "Subtropical húmedo, libre de heladas severas.",
+    "variedades": [
+      "Mandioca Rocha",
+      "Palomita / Amarilla"
+    ],
+    "fuenteVariedades": "INTA Cerro Azul / Misiones",
+    "rendimientoEstimado": "ESTIMADO: 15 - 28 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.0,
+        "phMax": 6.8,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franco-arenosa",
+          "franca"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1000,
+        "temperaturaMin": 18,
+        "temperaturaMax": 32
+      }
+    }
+  },
+  "batata": {
+    "nombre": "Batata",
+    "categoria": "Hortícola",
+    "descripcion": "Raíz tuberosa estival de alta adaptabilidad a suelos sueltos.",
+    "siembra": "Octubre a Noviembre",
+    "cosecha": "Marzo a Mayo",
+    "reqSuelo": "Suelos francos a arenosos, aireados, sin encharcamientos.",
+    "reqClima": "Cálido con buena radiación y libre de heladas.",
+    "variedades": [
+      "Arapey INTA",
+      "BoniINTA"
+    ],
+    "fuenteVariedades": "INTA San Pedro",
+    "rendimientoEstimado": "ESTIMADO: 20 - 35 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7.0,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franco-arenosa",
+          "franca"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 500,
+        "temperaturaMin": 16,
+        "temperaturaMax": 30
+      }
+    }
+  },
+  "limon": {
+    "nombre": "Limón",
+    "categoria": "Frutícola",
+    "descripcion": "Cítrico de exportación de gran relevancia en piedemontes subtropicales.",
+    "siembra": "Primavera (plantación)",
+    "cosecha": "Marzo a Septiembre",
+    "reqSuelo": "Suelos francos a franco-arenosos, muy profundos, sin napas altas ni sales.",
+    "reqClima": "Subtropical / templado-cálido, extremadamente sensible a heladas rigurosas.",
+    "variedades": [
+      "Eureka",
+      "Lisbon / Santa Teresa"
+    ],
+    "fuenteVariedades": "INTA Famaillá / Estación Experimental Agroindustrial Obispo Colombres (EEAOC)",
+    "rendimientoEstimado": "ESTIMADO: 35 - 55 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7.0,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 900,
+        "temperaturaMin": 15,
+        "temperaturaMax": 30
+      }
+    }
+  },
+  "naranja": {
+    "nombre": "Naranja",
+    "categoria": "Frutícola",
+    "descripcion": "Frutal cítrico dulce dulce clave en la cuenca del Río Uruguay y NOA.",
+    "siembra": "Primavera u Otoño",
+    "cosecha": "Mayo a Noviembre",
+    "reqSuelo": "Suelos francos a franco-arenosos, bien drenados, pH ligeramente ácido.",
+    "reqClima": "Subtropical a templado cálido, sensible a heladas prolongadas.",
+    "variedades": [
+      "Valencia Late",
+      "Navel / Salustiana"
+    ],
+    "fuenteVariedades": "INTA Concordia / Bella Vista",
+    "rendimientoEstimado": "ESTIMADO: 25 - 40 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7.0,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1000,
+        "temperaturaMin": 14,
+        "temperaturaMax": 28
+      }
+    }
+  },
+  "mandarina": {
+    "nombre": "Mandarina",
+    "categoria": "Frutícola",
+    "descripcion": "Cítrico de mesa de alto consumo fresco en cuencas de Entre Ríos y Corrientes.",
+    "siembra": "Primavera (plantación)",
+    "cosecha": "Marzo a Agosto",
+    "reqSuelo": "Suelos francos, profundos, aireados.",
+    "reqClima": "Subtropical húmedo a templado suave.",
+    "variedades": [
+      "Satsuma Okitsu",
+      "Clementina / Criolla"
+    ],
+    "fuenteVariedades": "INTA Concordia",
+    "rendimientoEstimado": "ESTIMADO: 20 - 35 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7.0,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 950,
+        "temperaturaMin": 13,
+        "temperaturaMax": 28
+      }
+    }
+  },
+  "pomelo": {
+    "nombre": "Pomelo",
+    "categoria": "Frutícola",
+    "descripcion": "Cítrico de zonas cálidas subtropicales (Formosa, Salta, Jujuy).",
+    "siembra": "Primavera",
+    "cosecha": "Abril a Julio",
+    "reqSuelo": "Suelos sueltos, francos, profundos.",
+    "reqClima": "Subtropical cálido con mínimas heladas.",
+    "variedades": [
+      "Star Ruby",
+      "Flame / Redblush"
+    ],
+    "fuenteVariedades": "INTA Yuto / Formosa",
+    "rendimientoEstimado": "ESTIMADO: 30 - 50 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7.2,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 850,
+        "temperaturaMin": 16,
+        "temperaturaMax": 32
+      }
+    }
+  },
+  "arandano": {
+    "nombre": "Arándano",
+    "categoria": "Frutícola",
+    "descripcion": "Arbusto frutal de alto valor especializado en suelos ácidos y bien drenados.",
+    "siembra": "Otoño / Primavera",
+    "cosecha": "Septiembre a Diciembre",
+    "reqSuelo": "Suelos fuertemente ácidos (pH 4.5-5.2), muy ricos en materia orgánica y excelente drenaje.",
+    "reqClima": "Templado / subtropical templado con horas de frío invernal.",
+    "variedades": [
+      "Emerald",
+      "Jewel / Star"
+    ],
+    "fuenteVariedades": "INTA San Pedro / Concordia",
+    "rendimientoEstimado": "ESTIMADO: 10 - 18 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 5.2,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franco-arenosa",
+          "arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 800,
+        "temperaturaMin": 10,
+        "temperaturaMax": 26
+      }
+    }
+  },
+  "yerba mate": {
+    "nombre": "Yerba Mate",
+    "categoria": "Regional",
+    "descripcion": "Cultivo perenne emblemático de Misiones y Corrientes.",
+    "siembra": "Marzo a Junio (plantación)",
+    "cosecha": "Abril a Septiembre",
+    "reqSuelo": "Suelos rojos lateríticos profundos, excelente drenaje, ácidos (pH 4.5-6.0).",
+    "reqClima": "Subtropical húmedo, lluvias abundantes (>1500mm), tolerante a heladas muy suaves.",
+    "variedades": [
+      "Clones Seleccionados INTA (Obtentores Registrados)",
+      "Poblacional Misiones / Corrientes Norte"
+    ],
+    "fuenteVariedades": "INTA EEA Cerro Azul / INYM",
+    "rendimientoEstimado": "ESTIMADO: 8.0 - 12.0 tn/ha (hoja verde)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 6.0,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1500,
+        "temperaturaMin": 18,
+        "temperaturaMax": 28
+      }
+    }
+  },
+  "te": {
+    "nombre": "Té",
+    "categoria": "Regional",
+    "descripcion": "Arbusto perenne industrializado en la provincia de Misiones.",
+    "siembra": "Otoño (plantación)",
+    "cosecha": "Octubre a Abril",
+    "reqSuelo": "Suelos rojos profundos, bien drenados y fuertemente ácidos (pH 4.5-5.5).",
+    "reqClima": "Subtropical húmedo continuo sin estación seca marcada.",
+    "variedades": [
+      "Clones INTA Selectos",
+      "CH-14 INTA"
+    ],
+    "fuenteVariedades": "INTA EEA Cerro Azul",
+    "rendimientoEstimado": "ESTIMADO: 10 - 16 tn/ha (brote verde)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 5.5,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1500,
+        "temperaturaMin": 16,
+        "temperaturaMax": 28
+      }
+    }
+  },
+  "tabaco": {
+    "nombre": "Tabaco",
+    "categoria": "Regional",
+    "descripcion": "Cultivo de hoja intensivo con importante impacto socioeconómico en NOA y NEA.",
+    "siembra": "Septiembre a Octubre",
+    "cosecha": "Diciembre a Marzo",
+    "reqSuelo": "Suelos francos a franco-arenosos, fértiles, bien drenados y sin sales.",
+    "reqClima": "Subtropical a templado cálido, sin riesgo de heladas en el ciclo.",
+    "variedades": [
+      "Virginia (Curado al aire caliente)",
+      "Burley (Curado al aire libre)"
+    ],
+    "fuenteVariedades": "INTA Salta / Jujuy / Misiones",
+    "rendimientoEstimado": "ESTIMADO: 1.8 - 2.8 tn/ha (hoja seca)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 6.8,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 650,
+        "temperaturaMin": 18,
+        "temperaturaMax": 32
+      }
+    }
+  },
   "mani": {
-    "descripcion": "Leguminosa regional de alto valor agregado.",
+    "nombre": "Maní",
+    "categoria": "Regional / Extensivo",
+    "descripcion": "Leguminosa regional de alto valor agroindustrial.",
     "siembra": "Octubre a Noviembre",
     "cosecha": "Abril a Mayo",
-    "reqSuelo": "Suelos sueltos, arenosos, sin piedras para permitir el 'clavado' del fruto.",
+    "reqSuelo": "Suelos sueltos, arenosos, sin piedras para permitir el clavado del fruto.",
     "reqClima": "Templado-cálido, libre de heladas en ciclo de cultivo.",
     "variedades": [
       "Variedades Tipo Runner Alto Oleico"
@@ -169,43 +810,14 @@
       }
     }
   },
-  "yerba mate": {
-    "descripcion": "Cultivo perenne emblemático de la región mesopotámica.",
-    "siembra": "Marzo a Junio (plantación)",
-    "cosecha": "Abril a Septiembre",
-    "reqSuelo": "Suelos rojos lateríticos profundos, excelente drenaje, ácidos (pH 4.5 - 6.0).",
-    "reqClima": "Subtropical húmedo, lluvias abundantes (>1500mm), tolerante a heladas muy suaves.",
-    "variedades": [
-      "Clones Seleccionados INTA (Obtentores Registrados)",
-      "Poblacional Misiones / Corrientes Norte"
-    ],
-    "fuenteVariedades": "INTA EEA Cerro Azul / Instituto Nacional de la Yerba Mate (INYM)",
-    "rendimientoEstimado": "ESTIMADO: 8.0 - 12.0 tn/ha (hoja verde)",
-    "pino_eucalyptus": false,
-    "requerimientos": {
-      "suelo": {
-        "phMin": 4.5,
-        "phMax": 6,
-        "drenaje": [
-          "bueno",
-          "moderado"
-        ],
-        "texturas": [
-          "franca",
-          "arcillosa"
-        ]
-      },
-      "clima": {
-        "precipitacionMin": 1500,
-        "temperaturaMin": 18,
-        "temperaturaMax": 28
-      }
-    }
-  },
   "vid": {
-    "descripcion": "Cultivo base de la industria vitivinícola en zonas áridas con riego.",
+    "nombre": "Vid",
+    "categoria": "Regional / Vitivinícola",
+    "descripcion": "Cultivo perenne base de la industria vitivinícola en zonas áridas bajo riego.",
     "siembra": "Agosto a Octubre (plantación)",
     "cosecha": "Febrero a Abril",
+    "reqSuelo": "Suelos franco-arenosos a pedregosos, muy profundos y con excelente drenaje.",
+    "reqClima": "Árido a semiárido con alta amplitud térmica y riego sistematizado.",
     "variedades": [
       "Malbec",
       "Cabernet Sauvignon",
@@ -218,13 +830,197 @@
       "suelo": {
         "phMin": 6.0,
         "phMax": 8.0,
-        "drenaje": ["bueno", "excelente"],
-        "texturas": ["franca", "arenosa", "pedregosa"]
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "pedregosa"
+        ]
       },
       "clima": {
         "precipitacionMin": 200,
         "temperaturaMin": 12,
         "temperaturaMax": 34
+      }
+    }
+  },
+  "pino taeda": {
+    "nombre": "Pino Taeda",
+    "categoria": "Forestal",
+    "descripcion": "Especie forestal de rápido crecimiento del género Pinus, dominante en el NEA maderero.",
+    "siembra": "Otoño a Invierno",
+    "cosecha": "Raleos intermedios; corte final a los 15-18 años",
+    "reqSuelo": "Suelos profundos, texturas franco-arcillosas a arcillosas ácidas (pH 4.5-5.5).",
+    "reqClima": "Subtropical templado-cálido, lluvias superiores a 1200mm anuales.",
+    "variedades": [
+      "Familias Mejoradas INTA EEA Montecarlo",
+      "Huertos Semilleros Clonales (HSC)"
+    ],
+    "fuenteVariedades": "INTA EEA Montecarlo / Dirección de Desarrollo Forestal",
+    "rendimientoEstimado": "ESTIMADO: 25 - 35 m³/ha/año (IMA)",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 6.0,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1200,
+        "temperaturaMin": 12,
+        "temperaturaMax": 26
+      }
+    }
+  },
+  "pino elliottii": {
+    "nombre": "Pino Elliottii",
+    "categoria": "Forestal",
+    "descripcion": "Especie de Pinus muy resistente a heladas y suelos con peor drenaje.",
+    "siembra": "Otoño a Invierno",
+    "cosecha": "Turno final de 15-18 años",
+    "reqSuelo": "Suelos arenosos pobres o arcillosos con drenaje deficiente o moderado.",
+    "reqClima": "Subtropical húmedo a templado, alta tolerancia al frío invernal.",
+    "variedades": [
+      "Procedencias Seleccionadas INTA Bella Vista"
+    ],
+    "fuenteVariedades": "INTA EEA Bella Vista",
+    "rendimientoEstimado": "ESTIMADO: 20 - 28 m³/ha/año (IMA)",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.5,
+        "phMax": 6.2,
+        "drenaje": [
+          "bueno",
+          "moderado",
+          "pobre"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1000,
+        "temperaturaMin": 10,
+        "temperaturaMax": 26
+      }
+    }
+  },
+  "eucalyptus grandis": {
+    "nombre": "Eucalyptus Grandis",
+    "categoria": "Forestal",
+    "descripcion": "Especie de Eucalyptus de máxima velocidad de crecimiento para pasta y sólida.",
+    "siembra": "Primavera u Otoño",
+    "cosecha": "Turno de corte corto de 8-12 años",
+    "reqSuelo": "Suelos muy profundos, bien drenados, texturas francas a franco-arenosas.",
+    "reqClima": "Subtropical húmedo continuo, heliofilia extrema, muy sensible a heladas severas.",
+    "variedades": [
+      "Clones INTA Concordia (GC109, INTA-27)",
+      "Material Híbrido Grandis x Urophylla"
+    ],
+    "fuenteVariedades": "INTA EEA Concordia",
+    "rendimientoEstimado": "ESTIMADO: 30 - 45 m³/ha/año (IMA)",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.0,
+        "phMax": 6.5,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 1100,
+        "temperaturaMin": 14,
+        "temperaturaMax": 28
+      }
+    }
+  },
+  "eucalyptus globulus": {
+    "nombre": "Eucalyptus Globulus",
+    "categoria": "Forestal",
+    "descripcion": "Especie de Eucalyptus ideal para zonas templadas y costeras.",
+    "siembra": "Otoño",
+    "cosecha": "Turno de corte a los 10-12 años",
+    "reqSuelo": "Suelos franco-arcillosos moderados, profundos, tolera cierta tosca.",
+    "reqClima": "Templado húmedo, excelente tolerancia a heladas moderadas.",
+    "variedades": [
+      "Procedencias Australianas Seleccionadas"
+    ],
+    "fuenteVariedades": "INTA Balcarce / Tandil",
+    "rendimientoEstimado": "ESTIMADO: 20 - 30 m³/ha/año (IMA)",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.5,
+        "phMax": 7.0,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 800,
+        "temperaturaMin": 10,
+        "temperaturaMax": 22
+      }
+    }
+  },
+  "poroto": {
+    "nombre": "Poroto",
+    "categoria": "Extensivo / Regional",
+    "descripcion": "Leguminosa estival clave en las rotaciones agrícolas del NOA (Salta, Jujuy, Tucumán).",
+    "siembra": "Diciembre a Febrero",
+    "cosecha": "Mayo a Julio",
+    "reqSuelo": "Suelos francos a franco-arenosos, profundos, fértiles, neutros a ligeramente ácidos.",
+    "reqClima": "Templado-cálido a cálido, libre de heladas en período vegetativo.",
+    "variedades": [
+      "Poroto Negro (Leales 15 INTA)",
+      "Poroto Alubia Blanco (Cerrillos INTA)"
+    ],
+    "fuenteVariedades": "INTA EEA Salta / EEAOC Tucumán",
+    "rendimientoEstimado": "ESTIMADO: 1.2 - 2.2 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.2,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 500,
+        "temperaturaMin": 18,
+        "temperaturaMax": 32
       }
     }
   }
