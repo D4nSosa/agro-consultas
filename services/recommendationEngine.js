@@ -16,8 +16,27 @@ export async function loadCultivosData() {
       fetch('/data/cultivos.json').then(r => r.ok ? r.json() : {}),
       fetch('/data/forestales.json').then(r => r.ok ? r.json() : {})
     ]);
-    cultivosData = { ...resCultivos, ...resForestales };
+    const merged = {};
+    for (const [k, v] of Object.entries(resCultivos)) {
+      merged[k] = { id: k, ...v };
+    }
+    for (const [k, v] of Object.entries(resForestales)) {
+      if (merged[k]) {
+        merged[k] = { ...merged[k], ...v };
+      } else {
+        merged[k] = { id: k, ...v };
+      }
+    }
+    cultivosData = merged;
   }
+  return cultivosData;
+}
+
+/**
+ * Retorna el catálogo normalizado completo.
+ */
+export async function getNormalizedCatalog() {
+  return await loadCultivosData();
 }
 
 /**

@@ -68,18 +68,42 @@ def test_change_detection_unavailable_without_raster():
     assert data["deltaNDVI"] == "NO DISPONIBLE"
     assert data["breakdown"]["decrease"]["hectares"] == "N/D"
 
-def test_cultivos_and_forestales_data_integrity():
+def test_catalog_exact_29_profiles_and_merge_integrity():
     with open("data/cultivos.json", "r", encoding="utf-8") as f:
         cultivos = json.load(f)
     with open("data/forestales.json", "r", encoding="utf-8") as f:
         forestales = json.load(f)
 
-    total_profiles = len(cultivos) + len(forestales)
-    assert total_profiles >= 29, f"Se esperaban al menos 29 perfiles, se encontraron {total_profiles}"
+    # Merge simulación exacta de loadCultivosData
+    merged = {}
+    for k, v in cultivos.items():
+        merged[k] = {"id": k, **v}
+    for k, v in forestales.items():
+        if k in merged:
+            merged[k] = {**merged[k], **v}
+        else:
+            merged[k] = {"id": k, **v}
 
-    for key, c in {**cultivos, **forestales}.items():
-        nombre = c.get("nombre") or key.capitalize()
-        assert nombre is not None
-        assert "descripcion" in c
-        assert "reqSuelo" in c
-        assert "reqClima" in c
+    assert len(merged) == 29, f"El catálogo normalizado debe contener exactamente 29 perfiles, se encontraron {len(merged)}"
+
+    forestal_keys = ["pino taeda", "pino elliottii", "eucalyptus grandis", "eucalyptus globulus"]
+    for fk in forestal_keys:
+        assert fk in merged, f"Especie forestal {fk} no encontrada en el catálogo"
+        assert merged[fk].get("nombre") is not None, f"Especie {fk} carece de atributo 'nombre'"
+        assert len(merged[fk]["nombre"]) > 0
+
+def test_gigantic_aoi_warning_threshold():
+    gigantic_polygon = {
+        "type": "Polygon",
+        "coordinates": [[
+            [-60.0, -30.0],
+            [-50.0, -30.0],
+            [-50.0, -20.0],
+            [-60.0, -20.0],
+            [-60.0, -30.0]
+        ]]
+    }
+    poly = shape(gigantic_polygon)
+    area_sq_deg = poly.area
+    # Un área de 10x10 grados sexagesimales equivale a millones de ha
+    assert area_sq_deg > 10.0

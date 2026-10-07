@@ -37,17 +37,22 @@ export async function analyzeVegetation(geometry, productInfo) {
       red: 'B04 (Red, 665 nm)',
       nir: 'B08 (Near Infrared, 842 nm)'
     },
-    date: productInfo.date || 'NO DISPONIBLE',
+    targetDate: productInfo.targetDate || 'NO DISPONIBLE',
+    acquisitionDate: productInfo.date || 'NO DISPONIBLE',
+    daysFromTarget: productInfo.daysFromTarget !== undefined ? productInfo.daysFromTarget : 'NO DISPONIBLE',
+    cloudCover: productInfo.cloudCover !== undefined ? `${productInfo.cloudCover}%` : 'NO DISPONIBLE',
     productId: productInfo.id,
+    source: productInfo.source || 'Copernicus Sentinel-2',
     stats: {
       mean: 'NO DISPONIBLE',
       min: 'NO DISPONIBLE',
       max: 'NO DISPONIBLE',
-      median: 'NO DISPONIBLE'
+      median: 'NO DISPONIBLE',
+      validPixelsCount: 'NO DISPONIBLE'
     },
-    interpretation: `Escena Sentinel-2 identificada (${productInfo.id}). El cálculo de matriz de píxeles ráster requiere token de autenticación Copernicus CDSE S3 para procesamiento de bandas B04/B08.`,
+    interpretation: `NDVI NO DISPONIBLE. La escena Sentinel-2 fue identificada correctamente (${productInfo.id}, adquisición: ${productInfo.date}), pero no existe acceso a los datos ráster necesarios para calcular B04/B08 en este entorno.`,
     gridSample: [],
-    message: 'NO DISPONIBLE (Requiere credenciales Copernicus CDSE S3 para descarga y cálculo ráster)'
+    message: 'NDVI NO DISPONIBLE (Sin acceso a bandas ráster B04/B08)'
   };
 }
 

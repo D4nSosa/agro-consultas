@@ -87,7 +87,12 @@ export function calculateArea(geometry) {
   const squareMeters = Math.round(area * 100) / 100;
   const hectares = Math.round((squareMeters / 10000) * 100) / 100;
 
-  return { hectares, squareMeters };
+  let warning = null;
+  if (hectares > 10000) {
+    warning = `⚠️ AOI MUY GRANDE: La geometría ingresada tiene ${hectares.toLocaleString('es-AR')} ha (${squareMeters.toLocaleString('es-AR')} m²). Esto excede el tamaño normal de un lote forestal individual. Revisá los vértices antes de ejecutar el análisis.`;
+  }
+
+  return { hectares, squareMeters, isPoint: false, warning };
 }
 
 /**

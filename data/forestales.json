@@ -1,5 +1,8 @@
 {
   "pino taeda": {
+    "id": "pino taeda",
+    "nombre": "Pino Taeda",
+    "categoria": "Forestal",
     "descripcion": "Variedad forestal de rápido crecimiento del género Pinus, ideal para NEA maderero.",
     "siembra": "Otoño a Invierno",
     "cosecha": "Raleos intermedios; corte final a los 15 años",
@@ -33,6 +36,9 @@
     }
   },
   "pino elliottii": {
+    "id": "pino elliottii",
+    "nombre": "Pino Elliottii",
+    "categoria": "Forestal",
     "descripcion": "Variedad forestal de Pinus muy resistente a heladas y suelos con peor drenaje.",
     "siembra": "Otoño a Invierno",
     "cosecha": "Turno final de 15-18 años",
@@ -67,6 +73,9 @@
     }
   },
   "eucalyptus grandis": {
+    "id": "eucalyptus grandis",
+    "nombre": "Eucalyptus Grandis",
+    "categoria": "Forestal",
     "descripcion": "Variedad de Eucalyptus de máxima velocidad de crecimiento para pasta y madera en NEA.",
     "siembra": "Primavera u Otoño",
     "cosecha": "Turno de corte corto de 8-10 años",
@@ -100,6 +109,9 @@
     }
   },
   "eucalyptus globulus": {
+    "id": "eucalyptus globulus",
+    "nombre": "Eucalyptus Globulus",
+    "categoria": "Forestal",
     "descripcion": "Variedad de Eucalyptus ideal para zonas templadas y costeras (Buenos Aires Sur).",
     "siembra": "Otoño",
     "cosecha": "Turno de corte a los 10-12 años",
