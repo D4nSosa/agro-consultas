@@ -97,39 +97,31 @@ export async function inicializarSelectorCultivos() {
   const select = document.getElementById("selectCropFilter");
   if (!select) return;
 
-  await loadCultivosData();
+  const catalogo = await loadCultivosData();
 
-  const [resCultivos, resForestales] = await Promise.all([
-    fetch('/data/cultivos.json').then(r => r.ok ? r.json() : {}),
-    fetch('/data/forestales.json').then(r => r.ok ? r.json() : {})
-  ]);
-
-  const todos = { ...resCultivos, ...resForestales };
-
-  let html = `<option value="todos">🌾 Todos los cultivos/especies sugeridos</option>`;
-  const keys = Object.keys(todos).sort((a, b) => (todos[a].nombre || a).localeCompare(todos[b].nombre || b));
+  let html = `<option value="todos">🌾 Todos los cultivos/especies (${Object.keys(catalogo).length} perfiles)</option>`;
+  const keys = Object.keys(catalogo).sort((a, b) => (catalogo[a].nombre || a).localeCompare(catalogo[b].nombre || b));
 
   keys.forEach(k => {
-    const item = todos[k];
+    const item = catalogo[k];
     const cat = item.categoria ? ` (${item.categoria})` : '';
     html += `<option value="${k}">${item.nombre}${cat}</option>`;
   });
 
   select.innerHTML = html;
 
-  select.addEventListener("change", (e) => {
+  select.addEventListener("change", async (e) => {
     selectedCropKey = e.target.value;
-    if (lastRecommendationsCache.length > 0) {
-      const filtradas = filtrarRecomendacionesPorCultivo(lastRecommendationsCache, selectedCropKey);
-      renderRecommendationsCards(filtradas, lastSoilReportCache, lastClimateReportCache, null);
-      actualizarCapaAptitudMapa(filtradas, currentLat, currentLng);
+    if (currentLat !== null && currentLng !== null) {
+      await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng);
     }
   });
 }
 
 function filtrarRecomendacionesPorCultivo(recs, key) {
   if (!key || key === "todos") return recs;
-  return recs.filter(c => normalizeKey(c.nombre) === key || (c.nombre || '').toLowerCase().includes(key));
+  const targetKey = normalizeKey(key);
+  return recs.filter(c => normalizeKey(c.nombre) === targetKey || normalizeKey(c.id || '') === targetKey);
 }
 
 /**
@@ -552,22 +544,22 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
     const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
     const climateReport = await getClimateData(lat, lng, provinciaRaw, subregion?.clima);
 
-    const listadoCultivos = provDetails?.nombre?.cultivos || provDetails?.cultivos || null;
+    const catalogo = await loadCultivosData();
+    let cultivosAEvaluar = [];
 
-    if (!listadoCultivos || !Array.isArray(listadoCultivos) || listadoCultivos.length === 0) {
-      container.innerHTML = `
-        <div class="unavailable-card-block" style="grid-column: 1 / -1; padding: 25px; text-align: center;">
-          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌾</span>
-          <h3>CULTIVOS DISPONIBLES: NO DISPONIBLE</h3>
-          <p class="explanation" style="max-width: 500px; margin: 8px auto; font-size: 0.9rem;">
-            No se dispone de un listado oficial de cultivos registrados para la provincia correspondiente.
-          </p>
-        </div>
-      `;
-      return;
+    if (selectedCropKey && selectedCropKey !== "todos") {
+      const item = catalogo[selectedCropKey];
+      if (item) {
+        cultivosAEvaluar = [item.nombre];
+      } else {
+        cultivosAEvaluar = [selectedCropKey];
+      }
+    } else {
+      // Evaluar los 29 perfiles completos del catálogo
+      cultivosAEvaluar = Object.values(catalogo).map(item => item.nombre || item.id);
     }
 
-    const recomendaciones = await generateRecommendations(listadoCultivos, soilReport, climateReport);
+    const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateReport);
     lastRecommendationsCache = recomendaciones;
 
     const filtradas = filtrarRecomendacionesPorCultivo(recomendaciones, selectedCropKey);

@@ -111,7 +111,7 @@
           <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 4px;">🛡️ Trazabilidad SIG y Estado de Campo:</div>
           <div>• <strong>CRS:</strong> POSGAR 2007 (EPSG:5343) / WGS84 (EPSG:4326)</div>
           <div>• <strong>Resolución:</strong> 10m Multi-espectral (Sentinel-2 L2A)</div>
-          <div>• <strong>Modo Campo:</strong> <span id="field-online-status" style="color: #27ae60; font-weight: bold;">🟢 En Línea / Datos Cacheados Localmente</span></div>
+          <div>• <strong>Modo Campo:</strong> <span id="field-online-status" style="color: #27ae60; font-weight: bold;">🟢 En Línea</span></div>
         </div>
       </div>
 
@@ -148,11 +148,7 @@
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 4px;">Especie Forestal Dominante:</label>
           <select id="inv-especie" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal);">
-            <option value="" selected>ESPECIE NO ESPECIFICADA</option>
-            <option value="Pino Taeda">Pino Taeda (Pinus taeda)</option>
-            <option value="Pino Elliottii">Pino Elliottii (Pinus elliottii)</option>
-            <option value="Eucalyptus Grandis">Eucalyptus Grandis</option>
-            <option value="Eucalyptus Globulus">Eucalyptus Globulus</option>
+            <option value="" selected>Cargando especies forestales del catálogo...</option>
           </select>
         </div>
 
@@ -225,6 +221,44 @@
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
     import { exportToKML, exportToGPX, exportToPyQGISScript } from './forestal/utils/geo.js';
     import { analyzeUploadedImage } from './services/imageAnalysisService.js';
+    import { loadCultivosData } from './services/recommendationEngine.js';
+
+    async function cargarSelectorEspeciesForestales() {
+      const select = document.getElementById('inv-especie');
+      if (!select) return;
+      try {
+        const catalogo = await loadCultivosData();
+        const forestales = Object.values(catalogo).filter(item => item.categoria === 'Forestal' || item.pino_eucalyptus);
+        let html = '<option value="" selected>ESPECIE NO ESPECIFICADA</option>';
+        forestales.forEach(f => {
+          html += `<option value="${f.nombre}">${f.nombre}</option>`;
+        });
+        select.innerHTML = html;
+      } catch (err) {
+        select.innerHTML = '<option value="" selected>ESPECIE NO ESPECIFICADA</option>';
+      }
+    }
+
+    function actualizarEstadoConexionOnline() {
+      const el = document.getElementById('field-online-status');
+      if (!el) return;
+      const isOnline = navigator.onLine;
+      const hasCache = Boolean(localStorage.getItem('agro_cache_data') || localStorage.getItem('agro_soil_cache'));
+
+      if (isOnline) {
+        el.style.color = '#27ae60';
+        el.innerText = '🟢 En Línea';
+      } else if (hasCache) {
+        el.style.color = '#f39c12';
+        el.innerText = '🟡 Sin conexión / caché disponible';
+      } else {
+        el.style.color = '#e74c3c';
+        el.innerText = '🔴 Sin conexión / sin datos disponibles';
+      }
+    }
+
+    window.addEventListener('online', actualizarEstadoConexionOnline);
+    window.addEventListener('offline', actualizarEstadoConexionOnline);
 
     let forestMap = null;
     let timelineComp = null;
@@ -294,6 +328,9 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      actualizarEstadoConexionOnline();
+      cargarSelectorEspeciesForestales();
+
       // 1. Inicializar Mapa Forestal
       forestMap = new ForestMap('forest-map', (feature, centroid, area) => {
         if (feature) {

@@ -68,6 +68,7 @@ export class ForestMap {
     if (this.currentLayer) {
       this.map.removeLayer(this.currentLayer);
     }
+    alert("✏️ MODO DIBUJO ACTIVO:\n1. Hacé clic en cada uno de los vértices del lote.\n2. Al hacer clic en el 3er punto, el polígono se cerrará y validará automáticamente.");
   }
 
   setGeoJSON(geojson) {
@@ -102,6 +103,10 @@ export class ForestMap {
 
     const centroid = calculateCentroid(this.currentFeature);
     const area = calculateArea(this.currentFeature);
+
+    if (area.warning) {
+      alert(area.warning);
+    }
 
     if (this.onLotChanged) {
       this.onLotChanged(this.currentFeature, centroid, area);
