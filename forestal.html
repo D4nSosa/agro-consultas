@@ -138,10 +138,10 @@
     <!-- Panel de Inventario Forestal de Campo -->
     <div class="card" style="margin-bottom: 25px; padding: 20px; border-top: 4px solid #2980b9;">
       <h3 style="margin-top: 0; color: #2980b9; display: flex; align-items: center; gap: 10px;">
-        <span>📋</span> Inventario Forestal de Campo (DAP, Altura, Densidad, Volumen $m^3/ha$)
+        <span>📋</span> Inventario Forestal de Campo (Estimación Dasométrica)
       </h3>
       <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 18px;">
-        Mediciones daseométricas obtenidas en campo para calcular volumen leñoso estimado ($m^3/ha$) y prescripción silvícola.
+        Separación transparente entre <strong>Datos Ingresados por Usuario</strong>, <strong>Observaciones Remotas</strong> y <strong>Estimaciones Derivadas</strong> ($V = G \times H \times f$, $f=0.45$).
       </p>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
@@ -178,7 +178,7 @@
       </div>
 
       <button id="btn-calc-inv" class="btn primary" style="background: #2980b9; border-color: #2980b9; font-size: 0.9rem; padding: 10px 20px;">
-        📊 Calcular Inventario y Prescripción Silvícola
+        📊 Calcular Estimación Dasométrica y Evaluación Silvícola Preliminar
       </button>
 
       <!-- Resultado del Cálculo de Inventario -->
@@ -260,22 +260,22 @@
       const areaBasalHa = areaBasalArbol * densidad;
       const volumenHa = Math.round(areaBasalHa * altura * 0.45 * 10) / 10;
 
-      let prescripcion = '';
+      let evalSilvicola = '';
       if (especie && dap > 0 && altura > 0 && densidad > 0 && edad > 0) {
-        prescripcion = `Cálculo dasométrico preliminar realizado para ${especie} (${edad} años, DAP ${dap}cm, Altura ${altura}m). PRESCRIPCIÓN SILVÍCOLA ESPECÍFICA DE TALA O HARVEST: PRESCRIPCIÓN SILVÍCOLA: NO DETERMINABLE CON LOS DATOS DISPONIBLES — La determinación de turno final, raleo o tala rasa requiere inventario forestal continuo y plan de ordenación validado en terreno.`;
+        evalSilvicola = `Estimación dasométrica para ${especie} (${edad} años, DAP ${dap}cm, Altura ${altura}m). EVALUACIÓN SILVÍCOLA PRELIMINAR: NO DETERMINABLE CON LOS DATOS DISPONIBLES — La determinación de intervenciones (raleo, raleo sistemático, turno o cosecha) requiere inventario de campo detallado y plan de ordenación profesional.`;
       } else {
-        prescripcion = 'PRESCRIPCIÓN SILVÍCOLA: NO DETERMINABLE CON LOS DATOS DISPONIBLES';
+        evalSilvicola = 'EVALUACIÓN SILVÍCOLA PRELIMINAR: NO DETERMINABLE CON LOS DATOS DISPONIBLES';
       }
 
       if (resultsBox) {
         resultsBox.innerHTML = `
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
-            <div><strong>Área Basal:</strong> ${areaBasalHa.toFixed(1)} m²/ha</div>
-            <div><strong>Volumen Estimado:</strong> <span style="color: #2980b9; font-weight: bold; font-size: 1.1rem;">VOLUMEN ESTIMADO: ${volumenHa} m³/ha</span> (fórmula $V = G \\times H \\times f$, f=0.45)</div>
-            <div><strong>Estado Silvícola:</strong> Evaluación dasométrica preliminar</div>
+            <div><strong>👤 Datos Ingresados:</strong> DAP ${dap} cm, Altura ${altura} m, ${densidad} p/ha</div>
+            <div><strong>📐 Estimación Derivada:</strong> Área Basal ${areaBasalHa.toFixed(1)} m²/ha, <span style="color: #2980b9; font-weight: bold;">Volumen: ${volumenHa} m³/ha</span></div>
+            <div><strong>ℹ️ Factor de Forma Supuesto:</strong> f = 0.45 (Cilíndrico ajustado)</div>
           </div>
           <div style="font-size: 0.85rem; border-top: 1px dashed var(--borde-suave); padding-top: 8px;">
-            <strong>📌 Prescripción Operativa:</strong> ${prescripcion}
+            <strong>📌 Evaluación Silvícola Preliminar:</strong> ${evalSilvicola}
           </div>
         `;
       }

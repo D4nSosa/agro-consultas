@@ -10,7 +10,7 @@ import {
 } from './services/territoryService.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
-import { generateRecommendations } from './services/recommendationEngine.js';
+import { generateRecommendations, loadCultivosData } from './services/recommendationEngine.js';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
 import {
@@ -20,10 +20,13 @@ import {
   clearBatch
 } from './services/imageAnalysisService.js';
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
+import { MapViewer } from './services/mapViewer.js';
 
-let mapInstance = null;
+let mapViewerInstance = null;
 let currentMarker = null;
 let userLocationCircle = null;
+let drawnPolygonLayer = null;
+let suitabilityOverlayLayer = null;
 
 let currentUbicacionNombre = "Sin seleccionar";
 let currentLat = null;
@@ -31,12 +34,15 @@ let currentLng = null;
 let currentRadioKm = 15;
 let currentSpatialLevel = "LOCALIDAD / PUNTO DE REFERENCIA";
 let currentViewMode = "simple"; // 'simple' | 'technical'
+let selectedCropKey = "todos"; // 'todos' | clave especifica de cultivo
+let currentAOIPolygon = null; // GeoJSON geometry
+
 let lastRecommendationsCache = [];
 let lastSoilReportCache = null;
 let lastClimateReportCache = null;
 
 /**
- * Inicializa el mapa interactivo de Leaflet
+ * Inicializa el mapa interactivo usando el MapViewer reutilizable
  */
 export async function inicializarMapa(provinciaRaw) {
   const mapElement = document.getElementById("map");
@@ -48,24 +54,21 @@ export async function inicializarMapa(provinciaRaw) {
 
   const isSpecificUbicacion = provinciaRaw && provinciaRaw.trim() !== "" && provinciaRaw !== "Argentina" && provinciaRaw !== "Sin seleccionar";
 
-  if (mapInstance) {
-    mapInstance.remove();
-    mapInstance = null;
-  }
+  mapViewerInstance = new MapViewer('map');
+  const leafletMap = mapViewerInstance.init([defaultLat, defaultLng], defaultZoom);
 
-  mapInstance = L.map('map').setView([defaultLat, defaultLng], defaultZoom);
+  if (!leafletMap) return;
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap contributors | IGN Argentina'
-  }).addTo(mapInstance);
-
-  L.control.scale({ imperial: false, metric: true }).addTo(mapInstance);
-
-  mapInstance.on('click', (e) => {
+  leafletMap.on('click', (e) => {
     const { lat, lng } = e.latlng;
     procesarSeleccionCoordenadas(lat, lng, "PUNTO DE MAPA SELECCIONADO", "PUNTO / COORDENADA EXACTA");
   });
+
+  // Renderizar panel de control de capas en el contenedor
+  const layerContainer = document.getElementById("map-layer-controls-container");
+  if (layerContainer) {
+    mapViewerInstance.renderControlPanel("map-layer-controls-container");
+  }
 
   const btnGeo = document.getElementById("btn-geolocalizar");
   if (btnGeo) {
@@ -88,6 +91,48 @@ export async function inicializarMapa(provinciaRaw) {
 }
 
 /**
+ * Poblar el selector con los 29 cultivos/especies reales
+ */
+export async function inicializarSelectorCultivos() {
+  const select = document.getElementById("selectCropFilter");
+  if (!select) return;
+
+  await loadCultivosData();
+
+  const [resCultivos, resForestales] = await Promise.all([
+    fetch('/data/cultivos.json').then(r => r.ok ? r.json() : {}),
+    fetch('/data/forestales.json').then(r => r.ok ? r.json() : {})
+  ]);
+
+  const todos = { ...resCultivos, ...resForestales };
+
+  let html = `<option value="todos">🌾 Todos los cultivos/especies sugeridos</option>`;
+  const keys = Object.keys(todos).sort((a, b) => (todos[a].nombre || a).localeCompare(todos[b].nombre || b));
+
+  keys.forEach(k => {
+    const item = todos[k];
+    const cat = item.categoria ? ` (${item.categoria})` : '';
+    html += `<option value="${k}">${item.nombre}${cat}</option>`;
+  });
+
+  select.innerHTML = html;
+
+  select.addEventListener("change", (e) => {
+    selectedCropKey = e.target.value;
+    if (lastRecommendationsCache.length > 0) {
+      const filtradas = filtrarRecomendacionesPorCultivo(lastRecommendationsCache, selectedCropKey);
+      renderRecommendationsCards(filtradas, lastSoilReportCache, lastClimateReportCache, null);
+      actualizarCapaAptitudMapa(filtradas, currentLat, currentLng);
+    }
+  });
+}
+
+function filtrarRecomendacionesPorCultivo(recs, key) {
+  if (!key || key === "todos") return recs;
+  return recs.filter(c => normalizeKey(c.nombre) === key || (c.nombre || '').toLowerCase().includes(key));
+}
+
+/**
  * Geocodifica y procesa una ubicación ingresada por texto
  */
 export async function buscarYProcesarUbicacion(queryTexto) {
@@ -106,9 +151,9 @@ export async function buscarYProcesarUbicacion(queryTexto) {
   currentUbicacionNombre = `${val.nombre}${val.provincia ? ', ' + val.provincia : ''}`;
   currentSpatialLevel = val.spatialLevel || "LOCALIDAD / PUNTO DE REFERENCIA";
 
-  if (mapInstance) {
+  if (mapViewerInstance && mapViewerInstance.map) {
     const zoomLevel = currentSpatialLevel === 'PROVINCIA' ? 7 : 11;
-    mapInstance.setView([currentLat, currentLng], zoomLevel);
+    mapViewerInstance.map.setView([currentLat, currentLng], zoomLevel);
   }
 
   colocarMarcador(currentLat, currentLng, currentUbicacionNombre);
@@ -125,10 +170,10 @@ export async function buscarYProcesarUbicacion(queryTexto) {
  * Dibuja un círculo de alcance/radio alrededor de la ubicación seleccionada
  */
 export function dibujarCirculoAlcance(lat, lng, radioKm) {
-  if (!mapInstance) return;
+  if (!mapViewerInstance || !mapViewerInstance.map) return;
 
   if (userLocationCircle) {
-    mapInstance.removeLayer(userLocationCircle);
+    mapViewerInstance.map.removeLayer(userLocationCircle);
     userLocationCircle = null;
   }
 
@@ -139,19 +184,19 @@ export function dibujarCirculoAlcance(lat, lng, radioKm) {
     weight: 2,
     dashArray: '5, 5',
     radius: radioKm * 1000
-  }).addTo(mapInstance);
+  }).addTo(mapViewerInstance.map);
 }
 
 /**
  * Coloca o mueve el marcador en el mapa
  */
 export function colocarMarcador(lat, lng, titulo) {
-  if (!mapInstance) return;
+  if (!mapViewerInstance || !mapViewerInstance.map) return;
 
   if (currentMarker) {
     currentMarker.setLatLng([lat, lng]);
   } else {
-    currentMarker = L.marker([lat, lng], { draggable: false }).addTo(mapInstance);
+    currentMarker = L.marker([lat, lng], { draggable: false }).addTo(mapViewerInstance.map);
   }
 
   if (titulo) {
@@ -166,8 +211,8 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
   currentLat = lat;
   currentLng = lng;
 
-  if (mapInstance && mapInstance.getZoom() < 9) {
-    mapInstance.setView([lat, lng], 10);
+  if (mapViewerInstance && mapViewerInstance.map && mapViewerInstance.map.getZoom() < 9) {
+    mapViewerInstance.map.setView([lat, lng], 10);
   }
 
   dibujarCirculoAlcance(lat, lng, currentRadioKm);
@@ -319,8 +364,8 @@ export function usarGeolocalizacion() {
   const handlePositionSuccess = (position) => {
     const { latitude, longitude, accuracy } = position.coords;
 
-    if (mapInstance) {
-      mapInstance.setView([latitude, longitude], 12);
+    if (mapViewerInstance && mapViewerInstance.map) {
+      mapViewerInstance.map.setView([latitude, longitude], 12);
     }
 
     const label = accuracy ? `Mi Ubicación GPS (±${Math.round(accuracy)}m)` : 'Mi Ubicación GPS';
@@ -392,8 +437,6 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   }
 
   const d = climateHistory.data;
-  const trace = climateHistory.traceability;
-
   const tempDiffBadge = d.comparison.temperaturaAnomalia > 0 ? 'badge-baja' : 'badge-alta';
   const precDiffBadge = d.comparison.precipitacionesDiferenciaPct >= 0 ? 'badge-alta' : 'badge-media';
 
@@ -426,6 +469,59 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
 }
 
 /**
+ * Renderiza la capa visual de aptitud del cultivo seleccionado en el mapa
+ */
+
+function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
+  if (!mapViewerInstance || !mapViewerInstance.map || lat === null || lng === null) return;
+
+  if (suitabilityOverlayLayer) {
+    mapViewerInstance.map.removeLayer(suitabilityOverlayLayer);
+    suitabilityOverlayLayer = null;
+  }
+
+  if (!recomendaciones || recomendaciones.length === 0) return;
+
+  const firstRec = recomendaciones[0];
+  let color = '#27ae60'; // verde por defecto
+  let textLabel = '🟢 Aptitud Alta / Favorable';
+
+  if (firstRec.compatibilidad.includes('MEDIA') || firstRec.compatibilidad.includes('PRESENTA LIMITANTES')) {
+    color = '#f39c12';
+    textLabel = '🟡 Aptitud Media / Condicionada';
+  } else if (firstRec.compatibilidad.includes('BAJA') || firstRec.compatibilidad.includes('LIMITACIONES SEVERAS')) {
+    color = '#e74c3c';
+    textLabel = '🔴 Aptitud Baja / Desfavorable';
+  } else if (firstRec.compatibilidad.includes('EVIDENCIA INSUFFICIENT') || firstRec.compatibilidad.includes('NO EVALUABLE')) {
+    color = '#7f8c8d';
+    textLabel = '⚪ No evaluble / Evidencia insuficiente';
+  }
+
+  const suitabilityCircle = L.circle([lat, lng], {
+    color: color,
+    fillColor: color,
+    fillOpacity: 0.25,
+    weight: 3,
+    radius: currentRadioKm * 1000
+  });
+
+  suitabilityCircle.bindPopup(`
+    <div style="font-size:0.85rem;">
+      <strong>Aptitud Territorial: ${firstRec.nombre}</strong><br>
+      <span>${textLabel}</span><br>
+      <small style="color:#666;">Factores: ${firstRec.motivos[0] || 'Trazables'}</small>
+    </div>
+  `);
+
+  suitabilityOverlayLayer = suitabilityCircle;
+
+  // Registrar en MapViewer para control de capas
+  mapViewerInstance.registerOverlayLayer('aptitud_cultivo', suitabilityOverlayLayer, `🌾 Aptitud Territorial para ${firstRec.nombre}`, true, 'Análisis');
+  mapViewerInstance.toggleOverlayLayer('aptitud_cultivo', true);
+  mapViewerInstance.renderControlPanel("map-layer-controls-container");
+}
+
+/**
  * Renderiza las tarjetas de cultivo según la Vista Dual seleccionada ('simple' o 'technical')
  */
 export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = null) {
@@ -451,7 +547,6 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
   try {
     const key = await findProvinceByCoords(lat, lng);
     const provDetails = key ? await getProvinceDetails(key) : null;
-
     const subregion = key ? await findSubregion(key, lat, lng) : null;
 
     const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
@@ -475,7 +570,9 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
     const recomendaciones = await generateRecommendations(listadoCultivos, soilReport, climateReport);
     lastRecommendationsCache = recomendaciones;
 
-    renderRecommendationsCards(recomendaciones, soilReport, climateReport, geoVal);
+    const filtradas = filtrarRecomendacionesPorCultivo(recomendaciones, selectedCropKey);
+    renderRecommendationsCards(filtradas, soilReport, climateReport, geoVal);
+    actualizarCapaAptitudMapa(filtradas, lat, lng);
 
   } catch (err) {
     console.error("ERROR in renderRecomendaciones:", err);
@@ -485,6 +582,17 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 function renderRecommendationsCards(recomendaciones, soilReport, climateReport, geoVal) {
   const container = document.getElementById("crop-results");
   if (!container) return;
+
+  if (recomendaciones.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🔍</span>
+        <h3>No se encontraron resultados para el cultivo seleccionado</h3>
+        <p class="text-muted">Elegí "Todos los cultivos" en el selector para ver la aptitud general de la zona.</p>
+      </div>
+    `;
+    return;
+  }
 
   container.innerHTML = recomendaciones.map(c => {
     let semaforoIcon = "🟢";
@@ -499,7 +607,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       semaforoIcon = "🔴";
       semaforoText = "Atención / Restricciones";
       badgeClass = "badge-baja";
-    } else if (c.compatibilidad.includes("INSUFFICIENT")) {
+    } else if (c.compatibilidad.includes("INSUFFICIENT") || c.compatibilidad.includes("NO EVALUABLE")) {
       semaforoIcon = "⚪";
       semaforoText = "Evidencia Insuficiente";
       badgeClass = "badge-media";
@@ -518,7 +626,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     if (currentViewMode === 'simple') {
       // VISTA SIMPLE / RESUMEN DE DECISIÓN
       return `
-        <article class="crop-card card" style="padding: 20px; border-left: 5px solid ${semaforoIcon === '🟢' ? '#27ae60' : (semaforoIcon === '🟡' ? '#f39c12' : '#e74c3c')};">
+        <article class="crop-card card" style="padding: 20px; border-left: 5px solid ${semaforoIcon === '🟢' ? '#27ae60' : (semaforoIcon === '🟡' ? '#f39c12' : (semaforoIcon === '🔴' ? '#e74c3c' : '#7f8c8d'))};">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-size: 2rem;">${icon}</span>
@@ -691,7 +799,8 @@ function initApp() {
       btnSimple.className = "btn primary";
       btnTechnical.className = "btn outline";
       if (lastRecommendationsCache.length > 0) {
-        renderRecommendationsCards(lastRecommendationsCache, lastSoilReportCache, lastClimateReportCache, null);
+        const filtradas = filtrarRecomendacionesPorCultivo(lastRecommendationsCache, selectedCropKey);
+        renderRecommendationsCards(filtradas, lastSoilReportCache, lastClimateReportCache, null);
       }
     });
 
@@ -700,7 +809,8 @@ function initApp() {
       btnTechnical.className = "btn primary";
       btnSimple.className = "btn outline";
       if (lastRecommendationsCache.length > 0) {
-        renderRecommendationsCards(lastRecommendationsCache, lastSoilReportCache, lastClimateReportCache, null);
+        const filtradas = filtrarRecomendacionesPorCultivo(lastRecommendationsCache, selectedCropKey);
+        renderRecommendationsCards(filtradas, lastSoilReportCache, lastClimateReportCache, null);
       }
     });
   }
@@ -741,6 +851,7 @@ function initApp() {
   }
 
   setTimeout(async () => {
+    await inicializarSelectorCultivos();
     await inicializarMapa(null);
 
     if (paramLat && paramLng) {
@@ -789,7 +900,7 @@ function renderBatchEvidenceUI() {
               <div>📍 EXIF GPS: ${imgItem.exif?.hasGps ? `Lat ${imgItem.exif.gps.lat.toFixed(4)}, Lng ${imgItem.exif.gps.lng.toFixed(4)}` : 'NO DISPONIBLE'}</div>
             </div>
             <div style="margin-top: 6px; font-size: 0.78rem; color: var(--texto-principal); line-height: 1.3;">
-              <strong>👁️ Análisis Visual:</strong>
+              <strong>👁️ Análisis Visual Preliminar:</strong>
               <div style="color: #27ae60;">${imgItem.visualAnalysis?.inferido}</div>
             </div>
           </div>

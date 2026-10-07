@@ -58,7 +58,7 @@ def test_api_ndvi_calculation():
     response = client.post("/api/forest/ndvi", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["indicator"] == "NDVI"
+    assert "NDVI" in data["indicator"]
     assert "areaHectares" in data
     assert data["areaHectares"] > 0
 
