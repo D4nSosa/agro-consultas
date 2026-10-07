@@ -40,6 +40,34 @@ export async function getNormalizedCatalog() {
 }
 
 /**
+ * Retorna exclusivamente el catálogo de cultivos agrícolas/hortícolas/frutícolas/regionales.
+ */
+export async function getCropCatalog() {
+  const catalog = await loadCultivosData();
+  const res = {};
+  for (const [k, v] of Object.entries(catalog)) {
+    if (v.categoria !== 'Forestal' && !v.pino_eucalyptus) {
+      res[k] = v;
+    }
+  }
+  return res;
+}
+
+/**
+ * Retorna exclusivamente el catálogo de especies forestales.
+ */
+export async function getForestCatalog() {
+  const catalog = await loadCultivosData();
+  const res = {};
+  for (const [k, v] of Object.entries(catalog)) {
+    if (v.categoria === 'Forestal' || v.pino_eucalyptus) {
+      res[k] = v;
+    }
+  }
+  return res;
+}
+
+/**
  * Genera el listado de cultivos recomendados para una provincia y coordenadas dadas.
  * Combina datos locales del suelo y clima de fuentes reales.
  *
@@ -79,7 +107,7 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
 
     const isReal = soilReport && (soilReport.status === 'REAL' || soilReport.status === 'real');
     const isUnavailable = soilReport && (soilReport.status === 'UNAVAILABLE' || soilReport.status === 'unavailable');
-    const labelConfianza = isUnavailable ? 'DATO NO DISPONIBLE' : (isReal ? 'REAL (INTA WMS)' : 'ESTIMACIÓN REGIONAL');
+    const labelConfianza = isUnavailable ? 'Información de campo pendiente' : (isReal ? 'Datos locales verificados' : 'Estimación del contexto regional');
     const classConfianza = isUnavailable ? 'none' : (isReal ? 'high' : 'medium');
 
     return {

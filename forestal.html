@@ -221,14 +221,14 @@
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
     import { exportToKML, exportToGPX, exportToPyQGISScript } from './forestal/utils/geo.js';
     import { analyzeUploadedImage } from './services/imageAnalysisService.js';
-    import { loadCultivosData } from './services/recommendationEngine.js';
+    import { getForestCatalog } from './services/recommendationEngine.js';
 
     async function cargarSelectorEspeciesForestales() {
       const select = document.getElementById('inv-especie');
       if (!select) return;
       try {
-        const catalogo = await loadCultivosData();
-        const forestales = Object.values(catalogo).filter(item => item.categoria === 'Forestal' || item.pino_eucalyptus);
+        const forestCatalog = await getForestCatalog();
+        const forestales = Object.values(forestCatalog);
         let html = '<option value="" selected>ESPECIE NO ESPECIFICADA</option>';
         forestales.forEach(f => {
           html += `<option value="${f.nombre}">${f.nombre}</option>`;
