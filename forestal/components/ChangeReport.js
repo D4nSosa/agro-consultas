@@ -35,7 +35,7 @@ export class ChangeReport {
           <div style="text-align: right;">
             <div style="font-size: 0.85rem; font-weight: bold;">Fecha de Emisión:</div>
             <div style="font-size: 0.85rem; color: var(--texto-secundario);">${new Date().toLocaleDateString('es-AR')}</div>
-            <button id="btn-print-report" class="btn primary" style="margin-top: 8px; font-size: 0.85rem; padding: 6px 14px;">🖨️ Imprimir / Exportar Reporte</button>
+            <button id="btn-print-report" class="btn primary" style="margin-top: 8px; font-size: 0.85rem; padding: 6px 14px;">🖨️ Reporte imprimible / Guardar como PDF</button>
           </div>
         </div>
 
@@ -79,8 +79,8 @@ export class ChangeReport {
             <strong style="color: #2980b9; font-size: 1.1rem;">${analysisData.inventory.volumenHa} m³/ha</strong>
           </div>
           <div style="grid-column: 1 / -1; margin-top: 5px; padding-top: 8px; border-top: 1px dashed var(--borde-suave);">
-            <strong style="color: #2980b9; font-size: 0.85rem;">📌 Prescripción Silvícola:</strong>
-            <p style="margin: 4px 0 0 0; font-size: 0.85rem;">${analysisData.inventory.prescripcion}</p>
+            <strong style="color: #2980b9; font-size: 0.85rem;">📌 Estimación dasométrica y evaluación silvícola preliminar:</strong>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem;">${analysisData.inventory.evalSilvicola || analysisData.inventory.prescripcion || 'NO DISPONIBLE'}</p>
           </div>
         </div>
         ` : ''}

@@ -98,12 +98,13 @@ export async function fetchIGNProvincialBoundaries(provinciaName) {
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quitar acentos
       .replace(/\s+/g, '_');
 
-    const centroide = fallbackCentroides[provKey] || { lat: -38.4161, lng: -63.6167 }; // Centro de Argentina
+    const centroide = fallbackCentroides[provKey] || null;
 
     const data = {
-      id: "fallback_ign",
+      id: "ign_boundary",
       nombre: provinciaName,
       centroide,
+      status: centroide ? 'REGIONAL' : 'UNAVAILABLE',
       fechaActualizacion: new Date().toISOString()
     };
 

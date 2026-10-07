@@ -84,13 +84,23 @@ export async function analyzeForestLocation({ geometry, soil = null, climate = n
     const soilReport = soil || await getSoilReport(centroid.lat, centroid.lng);
     const climateReport = climate || await getClimateData(centroid.lat, centroid.lng, nombreProvincia);
 
-    // Lista de especies forestales a evaluar
-    const especiesForestales = [
-      'Pino Taeda',
-      'Pino Elliottii',
-      'Eucalyptus Grandis',
-      'Eucalyptus Globulus'
-    ];
+    // Cargar y evaluar todas las especies/perfiles disponibles (los 29 cultivos/especies)
+    let especiesForestales = [];
+    try {
+      const [resC, resF] = await Promise.all([
+        fetch('/data/cultivos.json').then(r => r.ok ? r.json() : {}),
+        fetch('/data/forestales.json').then(r => r.ok ? r.json() : {})
+      ]);
+      const merged = { ...resC, ...resF };
+      especiesForestales = Object.values(merged).map(item => item.nombre || item.id).filter(Boolean);
+    } catch (e) {
+      especiesForestales = [
+        'Pino Taeda',
+        'Pino Elliottii',
+        'Eucalyptus Grandis',
+        'Eucalyptus Globulus'
+      ];
+    }
 
     const recommendations = await generateRecommendations(especiesForestales, soilReport, climateReport);
 

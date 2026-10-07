@@ -51,11 +51,11 @@ export function toGeoJSONFeature(geometry, properties = {}) {
  * Calcula el área en hectáreas y metros cuadrados de una geometría Polygon/MultiPolygon
  */
 export function calculateArea(geometry) {
-  if (!geometry) return { hectares: 0, squareMeters: 0 };
+  if (!geometry) return { hectares: 0, squareMeters: 0, isPoint: false };
 
   const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
   if (geom.type === 'Point') {
-    return { hectares: 0.1, squareMeters: 1000 }; // Área nominal para punto
+    return { hectares: 0, squareMeters: 0, isPoint: true, message: 'Un punto de consulta no posee superficie definida.' };
   }
 
   let coords = [];
@@ -94,10 +94,15 @@ export function calculateArea(geometry) {
  * Calcula el centroide [lat, lng] de una geometría
  */
 export function calculateCentroid(geometry) {
+  if (!geometry) return null;
   const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
+  if (!geom) return null;
 
   if (geom.type === 'Point') {
-    return { lat: geom.coordinates[1], lng: geom.coordinates[0] };
+    if (Array.isArray(geom.coordinates) && geom.coordinates.length >= 2) {
+      return { lat: geom.coordinates[1], lng: geom.coordinates[0] };
+    }
+    return null;
   }
 
   let points = [];
@@ -107,7 +112,7 @@ export function calculateCentroid(geometry) {
     points = geom.coordinates.flatMap(p => p[0]);
   }
 
-  if (!points.length) return { lat: -38.4161, lng: -63.6167 };
+  if (!points || !points.length) return null;
 
   let sumLat = 0;
   let sumLng = 0;
