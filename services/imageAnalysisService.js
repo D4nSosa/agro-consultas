@@ -70,11 +70,29 @@ export async function analyzeUploadedImage(imageFile) {
 
   const id = `img_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
+  if (!visualStats) {
+    return {
+      id: id,
+      filename: imageFile.name,
+      fileSize: exif.fileSize,
+      dimensions: exif.dimensions,
+      previewUrl: previewUrl,
+      exif: exif,
+      visualMetrics: null,
+      visualAnalysis: {
+        observado: 'NO DISPONIBLE (Fallo al procesar matriz de píxeles Canvas en navegador).',
+        inferido: 'NO DISPONIBLE',
+        sintomasList: [],
+        noDeterminable: 'No fue posible realizar el análisis visual preliminar de píxeles.'
+      },
+      analyzedAt: new Date().toISOString()
+    };
+  }
+
   // Métricas
   const exg = visualStats.exg;
   const avgR = visualStats.avgR;
   const avgG = visualStats.avgG;
-  const avgB = visualStats.avgB;
 
   const greenPct = Math.min(100, Math.max(0, Math.round(((exg + 20) / 60) * 100)));
 
@@ -98,7 +116,7 @@ export async function analyzeUploadedImage(imageFile) {
   }
 
   const observado = [
-    `Dimensiones reales: ${exif.dimensions || '300x300'}.`,
+    `Dimensiones reales: ${exif.dimensions || 'Dimensiones no detectadas'}.`,
     `Brillo medio RGB: ${visualStats.brightness}/255.`,
     `Índice ExG (Excess Green): ${exg.toFixed(2)}.`,
     `Fracción vegetativa estimada: ${greenPct}%.`,
@@ -183,13 +201,13 @@ function analyzeCanvasVisualMetrics(file) {
         });
       } catch (err) {
         URL.revokeObjectURL(url);
-        resolve({ avgR: 120, avgG: 120, avgB: 120, brightness: 120, exg: 0 });
+        resolve(null);
       }
     };
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      resolve({ avgR: 120, avgG: 120, avgB: 120, brightness: 120, exg: 0 });
+      resolve(null);
     };
 
     img.src = url;

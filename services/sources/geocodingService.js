@@ -52,7 +52,7 @@ export async function geocodeLocation(queryTexto) {
 
       if (results.length > 0) {
         // Priorizar resultados en Argentina si existen
-        const argResult = results.find(r => r.country_code === 'AR') || results[0];
+        const argResult = results.find(r => r.country_code === 'AR' || (r.country || '').toLowerCase().includes('argentina')) || results[0];
 
         const spatialLevel = determineSpatialLevel(argResult);
 
