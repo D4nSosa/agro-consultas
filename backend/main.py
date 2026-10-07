@@ -17,7 +17,7 @@ from shapely.geometry import shape, Point, Polygon
 app = FastAPI(
     title="Agro Consultas - API Geoespacial Forestal",
     description="API REST para procesamiento de teledetección, catálogo Copernicus STAC, NDVI y detección multitemporal de cambios.",
-    version="2.0.0"
+    version="2.1.0"
 )
 
 app.add_middleware(
@@ -72,7 +72,7 @@ def read_root():
     return {
         "status": "online",
         "service": "Agro Consultas Geospatial Forest API",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "copernicusCatalog": "https://stac.dataspace.copernicus.eu/v1/",
         "endpoints": [
             "/api/forest/lots",
@@ -129,9 +129,10 @@ def search_stac_catalog(req: STACSearchRequest):
                                 "date": props.get("datetime", "").split("T")[0],
                                 "cloudCover": props.get("eo:cloud_cover", 0.0),
                                 "collection": "sentinel-2-l2a",
-                                "source": "Copernicus Sentinel-2",
+                                "source": "Copernicus Sentinel-2 L2A",
                                 "resolution": "10m",
-                                "bands": ["B04 (Red)", "B08 (NIR)"]
+                                "bands": ["B04 (Red)", "B08 (NIR)"],
+                                "assets": feat.get("assets", {})
                             })
                         return {
                             "success": True,
@@ -156,7 +157,7 @@ def search_stac_catalog(req: STACSearchRequest):
 
 @app.post("/api/forest/ndvi")
 def calculate_ndvi(req: NDVIAnalysisRequest):
-    """Retorna la superficie del lote e indica la necesidad de credenciales S3 para cálculo ráster"""
+    """Retorna la superficie del lote y las métricas NDVI reales procesadas si están disponibles o marca UNAVAILABLE"""
     try:
         start_def, date_a_def, date_b_def = get_default_dates()
         target_date = req.date or date_b_def
@@ -166,9 +167,10 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
         area_ha = round(area_sq_m / 10000.0, 2)
 
         return {
-            "indicator": "NDVI",
+            "indicator": "NDVI (Normalized Difference Vegetation Index)",
             "formula": "(NIR - RED) / (NIR + RED)",
-            "bands": {"NIR": "B08", "RED": "B04"},
+            "bands": {"NIR": "B08 (842 nm)", "RED": "B04 (665 nm)"},
+            "spatialResolution": "10 metros",
             "date": target_date,
             "productId": req.productId or "NO DISPONIBLE",
             "areaHectares": area_ha,
@@ -176,7 +178,14 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                 "min": "NO DISPONIBLE",
                 "max": "NO DISPONIBLE",
                 "mean": "NO DISPONIBLE",
-                "median": "NO DISPONIBLE"
+                "median": "NO DISPONIBLE",
+                "stdDev": "NO DISPONIBLE",
+                "validPixelsPercent": "NO DISPONIBLE"
+            },
+            "decisionVigor": {
+                "clasificacionSimple": "NO DISPONIBLE",
+                "icono": "⚪",
+                "detalleTecnico": "Se requieren credenciales S3 Copernicus CDSE o token Sentinel Hub Process API para descargar y procesar los píxeles ráster B04/B08."
             },
             "status": "UNAVAILABLE",
             "message": "NO DISPONIBLE (Se requieren credenciales Copernicus CDSE S3 para descarga y cálculo de píxeles B04/B08)"
@@ -201,7 +210,7 @@ def calculate_change_detection(req: ChangeDetectionRequest):
             "deltaNDVI": "NO DISPONIBLE",
             "totalAreaHa": area_ha,
             "classification": "NO_DISPONIBLE",
-            "message": "NO SE PUEDE DETERMINAR CON LOS DATOS DISPONIBLES",
+            "primaryMessage": "NO DISPONIBLE CON LOS DATOS DISPONIBLES",
             "breakdown": {
                 "decrease": {"hectares": "N/D", "percent": "N/D"},
                 "stable": {"hectares": "N/D", "percent": "N/D"},
