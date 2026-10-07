@@ -11,7 +11,7 @@ import { calculateCentroid, calculateArea } from '../utils/geo.js';
 import { findProvinceByCoords, getProvinceDetails } from '../../services/territoryService.js';
 import { getSoilReport } from '../../services/soilService.js';
 import { getClimateData } from '../../services/climateService.js';
-import { generateRecommendations, loadCultivosData } from '../../services/recommendationEngine.js';
+import { generateRecommendations, getForestCatalog } from '../../services/recommendationEngine.js';
 
 /**
  * Ejecuta un análisis forestal integral para un lote GeoJSON
@@ -93,15 +93,15 @@ export async function analyzeForestLocation({ geometry, soil = null, climate = n
     const soilReport = soil || await getSoilReport(centroid.lat, centroid.lng);
     const climateReport = climate || await getClimateData(centroid.lat, centroid.lng, nombreProvincia);
 
-    // Cargar catálogo normalizado dinámicamente sin fallbacks estáticos de 4 especies
+    // Cargar catálogo de especies estrictamente forestales
     let especiesForestales = [];
     try {
-      const catalogo = await loadCultivosData();
-      especiesForestales = Object.values(catalogo).map(item => item.nombre || item.id).filter(Boolean);
+      const forestCatalog = await getForestCatalog();
+      especiesForestales = Object.values(forestCatalog).map(item => item.nombre || item.id).filter(Boolean);
     } catch (e) {
       return {
         recommendations: [],
-        limitations: ['CATÁLOGO NO DISPONIBLE — Error al cargar los perfiles agronómicos/forestales.'],
+        limitations: ['CATÁLOGO NO DISPONIBLE — Error al cargar los perfiles forestales.'],
         explanation: ['No se pudo evaluar aptitud porque el catálogo técnico no está accesible.']
       };
     }

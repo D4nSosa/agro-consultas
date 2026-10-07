@@ -22,11 +22,23 @@ app = FastAPI(
     version="2.1.0"
 )
 
+allowed_origins_env = os.environ.get("CORS_ALLOWED_ORIGINS")
+if allowed_origins_env:
+    origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    origins = [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -43,6 +55,33 @@ def get_geom_dict(pydantic_obj):
     if hasattr(pydantic_obj, "model_dump"):
         return pydantic_obj.model_dump()
     return pydantic_obj.dict()
+
+def validate_geometry_shape(geom_dict):
+    """Valida la geometría Shapely, límites WGS84 y rango de superficie."""
+    try:
+        geom_shape = shape(geom_dict)
+    except Exception as err:
+        raise HTTPException(status_code=400, detail=f"Estructura GeoJSON inválida: {str(err)}")
+
+    if not geom_shape.is_valid:
+        geom_shape = geom_shape.buffer(0)
+        if not geom_shape.is_valid:
+            raise HTTPException(status_code=400, detail="Geometría GeoJSON autointersecada o topológicamente inválida.")
+
+    bounds = geom_shape.bounds # minx, miny, maxx, maxy
+    if bounds[0] < -180.0 or bounds[2] > 180.0 or bounds[1] < -90.0 or bounds[3] > 90.0:
+        raise HTTPException(status_code=400, detail="Coordenadas fuera del rango válido WGS84 (longitud: -180 a 180, latitud: -90 a 90).")
+
+    if geom_shape.geom_type != 'Point':
+        area_m2 = calculate_shapely_area(geom_shape)
+        area_ha = area_m2 / 10000.0
+        if area_ha > 1000000.0: # > 1,000,000 ha
+            raise HTTPException(
+                status_code=400,
+                detail=f"Superficie excesiva ({round(area_ha):,} ha). El análisis está limitado a lotes y establecimientos individuales (máx. 1.000.000 ha)."
+            )
+
+    return geom_shape
 
 class GeoJSONGeometry(BaseModel):
     type: str
@@ -98,7 +137,7 @@ def search_stac_catalog(req: STACSearchRequest):
         s_date = req.startDate or start_def
         e_date = req.endDate or date_b_def
 
-        geom_shape = shape(get_geom_dict(req.geometry))
+        geom_shape = validate_geometry_shape(get_geom_dict(req.geometry))
         bounds = geom_shape.bounds
 
         search_body = {
@@ -165,7 +204,7 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
         target_date = req.date or date_b_def
 
         geom_dict = get_geom_dict(req.geometry)
-        geom_shape = shape(geom_dict)
+        geom_shape = validate_geometry_shape(geom_dict)
         if geom_shape.geom_type == 'Point':
             area_ha = 0.0
             is_point = True
@@ -321,11 +360,13 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
             "message": "NO DISPONIBLE: No se encontraron datos ráster válidos sin nubes en la fecha seleccionada."
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "indicator": "NDVI (Normalized Difference Vegetation Index)",
             "date": target_date,
-            "areaHectares": area_ha,
+            "areaHectares": area_ha if 'area_ha' in locals() else 0.0,
             "stats": None,
             "status": "UNAVAILABLE",
             "message": f"NO DISPONIBLE: Error en procesamiento ráster Sentinel Hub ({str(e)})"
@@ -339,7 +380,7 @@ def calculate_change_detection(req: ChangeDetectionRequest):
         dA = req.dateA or date_a_def
         dB = req.dateB or date_b_def
 
-        geom_shape = shape(get_geom_dict(req.geometry))
+        geom_shape = validate_geometry_shape(get_geom_dict(req.geometry))
         area_sq_m = calculate_shapely_area(geom_shape)
         area_ha = round(area_sq_m / 10000.0, 2)
 

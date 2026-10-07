@@ -211,7 +211,7 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
 
   const provinciaKey = await findProvinceByCoords(lat, lng);
   const provDetails = provinciaKey ? await getProvinceDetails(provinciaKey) : null;
-  const nombreProvincia = provDetails ? provDetails.nombre || provinciaKey : "Argentina";
+  const nombreProvincia = provDetails ? (typeof provDetails.nombre === 'string' ? provDetails.nombre : provinciaKey) : "Argentina";
 
   currentUbicacionNombre = nombreCustom || `${nombreProvincia} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
   currentSpatialLevel = spatialLevelCustom || "PUNTO / COORDENADA EXACTA";

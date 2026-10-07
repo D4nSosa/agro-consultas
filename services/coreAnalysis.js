@@ -6,7 +6,7 @@
 import { findProvinceByCoords, findSubregion, getProvinceDetails } from './territoryService.js';
 import { getSoilReport } from './soilService.js';
 import { getClimateData } from './climateService.js';
-import { generateRecommendations } from './recommendationEngine.js';
+import { generateRecommendations, loadCultivosData } from './recommendationEngine.js';
 import { analyzeForestLocation } from '../forestal/services/forestAnalysisService.js';
 import { DataStatus, ConfidenceLevel } from '../utils/dataModel.js';
 
@@ -30,11 +30,10 @@ export async function analyzeLocation({ lat, lng, radiusKm = 15 }) {
     const soilData = await getSoilReport(lat, lng, subregion?.suelo);
     const climateData = await getClimateData(lat, lng, provinciaNombre, subregion?.clima);
 
-    const cultivosProvincia = provDetails?.nombre?.cultivos || provDetails?.cultivos || [
-      'soja', 'maiz', 'trigo', 'pino taeda', 'eucalyptus grandis'
-    ];
+    const allCropsCatalog = await loadCultivosData();
+    const todosCultivosNombres = Object.values(allCropsCatalog).map(item => item.nombre || item.id);
 
-    const cropRecommendations = await generateRecommendations(cultivosProvincia, soilData, climateData);
+    const cropRecommendations = await generateRecommendations(todosCultivosNombres, soilData, climateData);
     const forestRecommendations = await analyzeForestLocation({
       geometry: { type: 'Point', coordinates: [lng, lat] },
       soil: soilData,

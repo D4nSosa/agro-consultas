@@ -107,3 +107,35 @@ def test_gigantic_aoi_warning_threshold():
     area_sq_deg = poly.area
     # Un área de 10x10 grados sexagesimales equivale a millones de ha
     assert area_sq_deg > 10.0
+
+def test_api_validation_gigantic_geometry():
+    gigantic_polygon = {
+        "type": "Polygon",
+        "coordinates": [[
+            [-60.0, -30.0],
+            [-50.0, -30.0],
+            [-50.0, -20.0],
+            [-60.0, -20.0],
+            [-60.0, -30.0]
+        ]]
+    }
+    payload = {"geometry": gigantic_polygon, "date": "2024-05-15"}
+    response = client.post("/api/forest/ndvi", json=payload)
+    assert response.status_code == 400
+    assert "Superficie excesiva" in response.json()["detail"]
+
+def test_api_validation_invalid_coords_range():
+    out_of_bounds_polygon = {
+        "type": "Polygon",
+        "coordinates": [[
+            [-200.0, -30.0],
+            [-50.0, -30.0],
+            [-50.0, -20.0],
+            [-200.0, -20.0],
+            [-200.0, -30.0]
+        ]]
+    }
+    payload = {"geometry": out_of_bounds_polygon, "date": "2024-05-15"}
+    response = client.post("/api/forest/ndvi", json=payload)
+    assert response.status_code == 400
+    assert "Coordenadas fuera del rango válido WGS84" in response.json()["detail"]
