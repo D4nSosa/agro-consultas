@@ -34,7 +34,18 @@
         "temperaturaMax": 25
       }
     },
-    "id": "trigo"
+    "id": "trigo",
+    "nombreCientifico": "Triticum aestivum",
+    "subcategoria": "Cereal de Invierno",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "soja": {
     "nombre": "Soja",
@@ -71,7 +82,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "soja"
+    "id": "soja",
+    "nombreCientifico": "Glycine max",
+    "subcategoria": "Oleaginosa",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "maiz": {
     "nombre": "Maíz",
@@ -108,7 +130,18 @@
         "temperaturaMax": 30
       }
     },
-    "id": "maiz"
+    "id": "maiz",
+    "nombreCientifico": "Zea mays",
+    "subcategoria": "Cereal de Verano",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "girasol": {
     "nombre": "Girasol",
@@ -145,7 +178,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "girasol"
+    "id": "girasol",
+    "nombreCientifico": "Helianthus annuus",
+    "subcategoria": "Oleaginosa",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "sorgo": {
     "nombre": "Sorgo",
@@ -182,7 +226,18 @@
         "temperaturaMax": 35
       }
     },
-    "id": "sorgo"
+    "id": "sorgo",
+    "nombreCientifico": "Sorghum bicolor",
+    "subcategoria": "Cereal de Verano",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "cebada": {
     "nombre": "Cebada",
@@ -218,7 +273,18 @@
         "temperaturaMax": 24
       }
     },
-    "id": "cebada"
+    "id": "cebada",
+    "nombreCientifico": "Hordeum vulgare",
+    "subcategoria": "Cereal de Invierno",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "arroz": {
     "nombre": "Arroz",
@@ -255,7 +321,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "arroz"
+    "id": "arroz",
+    "nombreCientifico": "Oryza sativa",
+    "subcategoria": "Cereal de Verano / Inundado",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "papa": {
     "nombre": "Papa",
@@ -291,7 +368,18 @@
         "temperaturaMax": 24
       }
     },
-    "id": "papa"
+    "id": "papa",
+    "nombreCientifico": "Solanum tuberosum",
+    "subcategoria": "Hortícola de Tubérculo",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "cebolla": {
     "nombre": "Cebolla",
@@ -327,7 +415,18 @@
         "temperaturaMax": 26
       }
     },
-    "id": "cebolla"
+    "id": "cebolla",
+    "nombreCientifico": "Allium cepa",
+    "subcategoria": "Hortícola de Bulbo",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "tomate": {
     "nombre": "Tomate",
@@ -363,7 +462,18 @@
         "temperaturaMax": 30
       }
     },
-    "id": "tomate"
+    "id": "tomate",
+    "nombreCientifico": "Solanum lycopersicum",
+    "subcategoria": "Hortícola de Fruto",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "pimiento": {
     "nombre": "Pimiento",
@@ -399,7 +509,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "pimiento"
+    "id": "pimiento",
+    "nombreCientifico": "Capsicum annuum",
+    "subcategoria": "Hortícola de Fruto",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "zapallo": {
     "nombre": "Zapallo",
@@ -436,7 +557,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "zapallo"
+    "id": "zapallo",
+    "nombreCientifico": "Cucurbita maxima",
+    "subcategoria": "Hortícola de Fruto",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "mandioca": {
     "nombre": "Mandioca",
@@ -472,7 +604,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "mandioca"
+    "id": "mandioca",
+    "nombreCientifico": "Manihot esculenta",
+    "subcategoria": "Hortícola / Raíz Subtropical",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "batata": {
     "nombre": "Batata",
@@ -508,7 +651,18 @@
         "temperaturaMax": 30
       }
     },
-    "id": "batata"
+    "id": "batata",
+    "nombreCientifico": "Ipomoea batatas",
+    "subcategoria": "Hortícola de Raíz Tubercular",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "limon": {
     "nombre": "Limón",
@@ -544,7 +698,18 @@
         "temperaturaMax": 30
       }
     },
-    "id": "limon"
+    "id": "limon",
+    "nombreCientifico": "Citrus limon",
+    "subcategoria": "Frutícola / Cítrico",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "naranja": {
     "nombre": "Naranja",
@@ -580,7 +745,18 @@
         "temperaturaMax": 28
       }
     },
-    "id": "naranja"
+    "id": "naranja",
+    "nombreCientifico": "Citrus sinensis",
+    "subcategoria": "Frutícola / Cítrico",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "mandarina": {
     "nombre": "Mandarina",
@@ -616,7 +792,18 @@
         "temperaturaMax": 28
       }
     },
-    "id": "mandarina"
+    "id": "mandarina",
+    "nombreCientifico": "Citrus reticulata",
+    "subcategoria": "Frutícola / Cítrico",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "pomelo": {
     "nombre": "Pomelo",
@@ -652,7 +839,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "pomelo"
+    "id": "pomelo",
+    "nombreCientifico": "Citrus paradisi",
+    "subcategoria": "Frutícola / Cítrico",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "arandano": {
     "nombre": "Arándano",
@@ -688,7 +886,18 @@
         "temperaturaMax": 26
       }
     },
-    "id": "arandano"
+    "id": "arandano",
+    "nombreCientifico": "Vaccinium corymbosum",
+    "subcategoria": "Frutícola / Berries",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "yerba mate": {
     "nombre": "Yerba Mate",
@@ -724,7 +933,18 @@
         "temperaturaMax": 28
       }
     },
-    "id": "yerba mate"
+    "id": "yerba mate",
+    "nombreCientifico": "Ilex paraguariensis",
+    "subcategoria": "Cultivo Industrial Regional",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "te": {
     "nombre": "Té",
@@ -760,7 +980,18 @@
         "temperaturaMax": 28
       }
     },
-    "id": "te"
+    "id": "te",
+    "nombreCientifico": "Camellia sinensis",
+    "subcategoria": "Cultivo Industrial Regional",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "tabaco": {
     "nombre": "Tabaco",
@@ -796,7 +1027,18 @@
         "temperaturaMax": 32
       }
     },
-    "id": "tabaco"
+    "id": "tabaco",
+    "nombreCientifico": "Nicotiana tabacum",
+    "subcategoria": "Cultivo Industrial Regional",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "mani": {
     "nombre": "Maní",
@@ -831,7 +1073,18 @@
         "temperaturaMax": 30
       }
     },
-    "id": "mani"
+    "id": "mani",
+    "nombreCientifico": "Arachis hypogaea",
+    "subcategoria": "Oleaginosa / Leguminosa",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "vid": {
     "nombre": "Vid",
@@ -869,7 +1122,18 @@
         "temperaturaMax": 34
       }
     },
-    "id": "vid"
+    "id": "vid",
+    "nombreCientifico": "Vitis vinifera",
+    "subcategoria": "Frutícola / Vitivinícola",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "pino taeda": {
     "nombre": "Pino Taeda",
@@ -906,7 +1170,20 @@
         "temperaturaMax": 26
       }
     },
-    "id": "pino taeda"
+    "id": "pino taeda",
+    "nombreCientifico": "Pinus taeda",
+    "subcategoria": "Conífera Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "pino elliottii": {
     "nombre": "Pino Elliottii",
@@ -943,7 +1220,20 @@
         "temperaturaMax": 26
       }
     },
-    "id": "pino elliottii"
+    "id": "pino elliottii",
+    "nombreCientifico": "Pinus elliottii",
+    "subcategoria": "Conífera Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "eucalyptus grandis": {
     "nombre": "Eucalyptus Grandis",
@@ -979,7 +1269,20 @@
         "temperaturaMax": 28
       }
     },
-    "id": "eucalyptus grandis"
+    "id": "eucalyptus grandis",
+    "nombreCientifico": "Eucalyptus grandis",
+    "subcategoria": "Latifoliada Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "eucalyptus globulus": {
     "nombre": "Eucalyptus Globulus",
@@ -1015,7 +1318,20 @@
         "temperaturaMax": 22
       }
     },
-    "id": "eucalyptus globulus"
+    "id": "eucalyptus globulus",
+    "nombreCientifico": "Eucalyptus globulus",
+    "subcategoria": "Latifoliada Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "poroto": {
     "nombre": "Poroto",
@@ -1051,6 +1367,17 @@
         "temperaturaMax": 32
       }
     },
-    "id": "poroto"
+    "id": "poroto",
+    "nombreCientifico": "Phaseolus vulgaris",
+    "subcategoria": "Leguminosa de Grano",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   }
 }

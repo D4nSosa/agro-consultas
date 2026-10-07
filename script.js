@@ -251,31 +251,27 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
     lastSoilReportCache = soilReport;
     lastClimateReportCache = climateReport;
 
-    const soilBadgeClass = soilReport.status === DataStatus.REAL ? 'badge-real' : 'badge-regional';
-    const soilBadgeText = soilReport.status === DataStatus.REAL ? 'REAL (INTA WMS)' : 'ESTIMACIÓN REGIONAL';
+    const soilBadgeText = soilReport.status === DataStatus.REAL ? 'Datos locales verificados (INTA)' : 'Promedio regional (INTA)';
+    const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'Medición en vivo (Open-Meteo)' : 'Promedio regional';
 
-    const climateBadgeClass = climateReport.liveWeatherPoint?.available ? 'badge-real' : 'badge-regional';
-    const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'REAL (Open-Meteo)' : 'DATOS REGIONALES';
-
-    const levelText = geoVal?.spatialLevel || currentSpatialLevel || "LOCALIDAD / PUNTO DE REFERENCIA";
+    const levelText = geoVal?.spatialLevel || currentSpatialLevel || "PUNTO DE REFERENCIA";
 
     detailsContainer.innerHTML = `
       <div class="info-item">
-        <strong>📍 Ubicación Seleccionada</strong>
+        <strong>📍 Contexto Territorial de Ubicación (PUNTO)</strong>
         <span style="font-weight: 600; color: var(--verde-principal);">${provincia}</span>
-        <span class="badge-origin regional" style="margin-top: 4px; display: inline-block;">NIVEL ESPACIAL: ${levelText}</span>
         <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 4px;">Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</span>
         <span style="font-size: 0.8rem; display: block; color: var(--verde-principal); font-weight: 600; margin-top: 2px;">🎯 Alcance de Análisis: ${currentRadioKm} km alrededor</span>
       </div>
 
       <div style="background: rgba(2, 119, 189, 0.08); border: 1px solid rgba(2, 119, 189, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-principal);">
-        <strong>ℹ️ Escala Geográfica:</strong> Los datos climáticos y edáficos reflejan el contexto de la ${levelText.toLowerCase()}.
+        <strong>ℹ️ Escala Geográfica:</strong> Esta consulta analiza el contexto agroclimático del punto seleccionado. Para delimitar y evaluar la superficie exacta de un lote por polígono, utilice el Módulo Forestal.
       </div>
 
       <!-- Clima en Vivo -->
       <div class="info-section-title" style="margin: 12px 0 5px 0; font-weight: bold; border-bottom: 1px solid var(--borde-suave); padding-bottom: 3px; color: var(--verde-principal); font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;">
         <span>⚡ Clima en Vivo</span>
-        <span class="data-status-badge ${climateBadgeClass}">${climateBadgeText}</span>
+        <span style="font-size: 0.75rem; color: var(--texto-secundario); font-weight: 600;">${climateBadgeText}</span>
       </div>
       <div id="live-weather-info">
         <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 10px; margin-top: 5px;">
@@ -297,7 +293,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
       <!-- Suelo -->
       <div class="info-section-title" style="margin: 15px 0 5px 0; font-weight: bold; border-bottom: 1px solid var(--borde-suave); padding-bottom: 3px; color: var(--verde-principal); font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;">
         <span>🌱 Propiedades del Suelo</span>
-        <span class="data-status-badge ${soilBadgeClass}">${soilBadgeText}</span>
+        <span style="font-size: 0.75rem; color: var(--texto-secundario); font-weight: 600;">${soilBadgeText}</span>
       </div>
       <div class="info-item">
         <strong>Fuente:</strong>

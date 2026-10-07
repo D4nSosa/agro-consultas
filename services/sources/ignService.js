@@ -83,35 +83,14 @@ export async function fetchIGNProvincialBoundaries(provinciaName) {
       }
     } catch (e) {}
 
-    // Coordenadas aproximadas de respaldo (centroides provinciales típicos)
-    const fallbackCentroides = {
-      misiones: { lat: -26.8756, lng: -54.6543 },
-      corrientes: { lat: -28.5, lng: -57.8 },
-      chaco: { lat: -26.3, lng: -60.5 },
-      formosa: { lat: -25.0, lng: -60.0 },
-      buenos_aires: { lat: -36.0, lng: -60.0 },
-      cordoba: { lat: -32.13, lng: -63.7 },
-      mendoza: { lat: -34.6, lng: -68.5 }
-    };
-
-    const provKey = provinciaName.toLowerCase().trim()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quitar acentos
-      .replace(/\s+/g, '_');
-
-    const centroide = fallbackCentroides[provKey] || null;
-
     const data = {
       id: "ign_boundary",
       nombre: provinciaName,
-      centroide,
-      status: centroide ? 'REGIONAL' : 'UNAVAILABLE',
+      centroide: null,
+      status: 'UNAVAILABLE',
       fechaActualizacion: new Date().toISOString()
     };
 
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (e) {}
-
-    return { ...data, fuente: 'IGN Georef (Base Estática Adaptada Local)', cached: false, fallback: true };
+    return { ...data, fuente: 'IGN Georef (Servicio No Disponible)', cached: false, fallback: false };
   }
 }

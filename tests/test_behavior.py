@@ -139,3 +139,12 @@ def test_api_validation_invalid_coords_range():
     response = client.post("/api/forest/ndvi", json=payload)
     assert response.status_code == 400
     assert "Coordenadas fuera del rango válido WGS84" in response.json()["detail"]
+
+def test_no_fake_ign_centroides_and_stac_no_date_fallback():
+    with open("services/sources/ignService.js", "r", encoding="utf-8") as f:
+        ign_code = f.read()
+    assert "fallbackCentroides" not in ign_code
+
+    with open("forestal/services/satelliteService.js", "r", encoding="utf-8") as f:
+        sat_code = f.read()
+    assert "new Date().toISOString().split('T')[0]" not in sat_code
