@@ -138,63 +138,52 @@ export class MapViewer {
     const baseModes = [
       { key: 'normal', name: '🗺️ Mapa Normal' },
       { key: 'satellite', name: '🛰️ Satelital' },
-      { key: 'relief', name: '⛰️ Relieve' },
-      { key: '3d_topo', name: '🏔️ Topografía 3D' },
-      { key: 'hybrid', name: '🏙️ Híbrido' }
+      { key: 'relief', name: '⛰️ Relieve' }
     ];
 
-    const overlayDefinitions = [
-      { key: 'aptitud_cultivo', name: '🌾 Aptitud del Cultivo Seleccionado', cat: 'Análisis' },
-      { key: 'vigor_vegetal', name: '🌿 Vigor Vegetal (Sentinel-2 L2A)', cat: 'Teledetección' },
-      { key: 'ndvi_real', name: '📊 NDVI Real (10m)', cat: 'Teledetección' },
-      { key: 'cambio_temporal', name: '⏱️ Cambio Temporal Multitemporal', cat: 'Teledetección' },
-      { key: 'suelo_inta', name: '🌱 Suelo y Cartografía (INTA WMS)', cat: 'Edáfico' },
-      { key: 'ph_suelo', name: '🧪 pH del Suelo', cat: 'Edáfico' },
-      { key: 'textura_suelo', name: '🧱 Textura del Suelo', cat: 'Edáfico' },
-      { key: 'precipitaciones', name: '🌧️ Precipitaciones (SMN / NASA)', cat: 'Clima' },
-      { key: 'temperatura', name: '🌡️ Temperatura Media', cat: 'Clima' },
-      { key: 'deficit_hidrico', name: '💧 Déficit Hídrico', cat: 'Clima' },
-      { key: 'elevacion', name: '📐 Elevación (DEM MDE-Ar)', cat: 'Topografía' },
-      { key: 'pendiente', name: '📉 Pendiente %', cat: 'Topografía' },
-      { key: 'cobertura_uso', name: '🌳 Cobertura y Uso del Suelo', cat: 'Territorio' },
-      { key: 'hidrografia', name: '💧 Hidrografía y Cuencas', cat: 'Territorio' },
-      { key: 'limites_admin', name: '🏛️ Límites Administrativos (IGN)', cat: 'Territorio' },
-      { key: 'accesibilidad', name: '🛣️ Accesibilidad / Rutas', cat: 'Territorio' }
-    ];
+    const activeOrAvailableOverlays = Object.values(this.overlayLayers).filter(l => l && l.available);
+
+    let overlaysHtml = '';
+    if (activeOrAvailableOverlays.length === 0) {
+      overlaysHtml = `
+        <div style="font-size: 0.8rem; color: var(--texto-secundario, #666); padding: 4px 0;">
+          Las capas temáticas (ej. Aptitud del cultivo) se activan automáticamente al seleccionar una ubicación y ejecutar una consulta.
+        </div>
+      `;
+    } else {
+      overlaysHtml = activeOrAvailableOverlays.map(o => {
+        const isChecked = this.map && o.layer && this.map.hasLayer(o.layer);
+        return `
+          <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; padding: 4px 0; border-bottom: 1px dashed #eee; cursor: pointer;">
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" class="chk-overlay-layer" data-layer="${o.key}" ${isChecked ? 'checked' : ''} />
+              <span>${o.name}</span>
+            </span>
+            <span style="font-size: 0.72rem; color: #27ae60; font-weight: 600;">ACTIVA</span>
+          </label>
+        `;
+      }).join('');
+    }
 
     let html = `
       <div class="map-layer-control-panel" style="background: var(--color-tarjeta, #ffffff); border: 1px solid var(--borde-suave, #e0e0e0); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
         <div style="font-weight: bold; margin-bottom: 8px; color: var(--verde-principal, #2c3e50); border-bottom: 1px solid var(--borde-suave); padding-bottom: 4px;">
           🗺️ Modos de Mapa Base
         </div>
-        <div class="base-map-buttons" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
+        <div class="base-map-buttons" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
           ${baseModes.map(m => `
             <button type="button" class="btn-base-map ${m.key === this.currentBaseMode ? 'active' : ''}" data-mode="${m.key}"
-              style="padding: 4px 8px; font-size: 0.78rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: ${m.key === this.currentBaseMode ? 'var(--verde-principal, #27ae60)' : '#f8f9fa'}; color: ${m.key === this.currentBaseMode ? '#fff' : '#333'};">
+              style="padding: 4px 10px; font-size: 0.78rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: ${m.key === this.currentBaseMode ? 'var(--verde-principal, #27ae60)' : '#f8f9fa'}; color: ${m.key === this.currentBaseMode ? '#fff' : '#333'};">
               ${m.name}
             </button>
           `).join('')}
         </div>
 
-        <div style="font-weight: bold; margin-bottom: 8px; color: var(--verde-principal, #2c3e50); border-bottom: 1px solid var(--borde-suave); padding-bottom: 4px;">
-          🥞 Capas Temáticas e Indicadores Reales
+        <div style="font-weight: bold; margin-bottom: 6px; color: var(--verde-principal, #2c3e50); border-bottom: 1px solid var(--borde-suave); padding-bottom: 4px;">
+          🥞 Capas Temáticas de la Consulta Actual
         </div>
-        <div class="overlay-layers-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto;">
-          ${overlayDefinitions.map(o => {
-            const registered = this.overlayLayers[o.key];
-            const isAvailable = registered ? registered.available : false;
-            const isChecked = registered && this.map && registered.layer && this.map.hasLayer(registered.layer);
-
-            return `
-              <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; padding: 3px 0; border-bottom: 1px dashed #eee; cursor: ${isAvailable ? 'pointer' : 'not-allowed'}; opacity: ${isAvailable ? '1' : '0.65'};">
-                <span style="display: flex; align-items: center; gap: 6px;">
-                  <input type="checkbox" class="chk-overlay-layer" data-layer="${o.key}" ${isChecked ? 'checked' : ''} ${!isAvailable ? 'disabled' : ''} />
-                  <span>${o.name}</span>
-                </span>
-                ${!isAvailable ? '<span class="badge-nodata" style="font-size: 0.7rem; color: #7f8c8d; background: #eee; padding: 1px 5px; border-radius: 3px;">Sin datos disponibles</span>' : '<span style="font-size: 0.7rem; color: #27ae60; font-weight: 600;">ACTIVA</span>'}
-              </label>
-            `;
-          }).join('')}
+        <div class="overlay-layers-list" style="display: flex; flex-direction: column; gap: 4px;">
+          ${overlaysHtml}
         </div>
       </div>
     `;

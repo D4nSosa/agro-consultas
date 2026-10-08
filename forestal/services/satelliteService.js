@@ -143,14 +143,14 @@ function parseSTACItem(item) {
 
   const date = props.datetime
     ? props.datetime.split('T')[0]
-    : new Date().toISOString().split('T')[0];
+    : 'NO DISPONIBLE';
 
   const productId = item.id || 'NO DISPONIBLE';
 
   return {
     id: productId,
     date: date,
-    datetime: props.datetime || `${date}T12:00:00Z`,
+    datetime: props.datetime || null,
     cloudCover: cloudCover,
     collection: 'sentinel-2-l2a',
     source: 'Copernicus Sentinel-2',

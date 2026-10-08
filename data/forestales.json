@@ -33,7 +33,20 @@
         "temperaturaMin": 12,
         "temperaturaMax": 26
       }
-    }
+    },
+    "nombreCientifico": "Pinus taeda",
+    "subcategoria": "Conífera Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "pino elliottii": {
     "id": "pino elliottii",
@@ -70,7 +83,20 @@
         "temperaturaMin": 10,
         "temperaturaMax": 26
       }
-    }
+    },
+    "nombreCientifico": "Pinus elliottii",
+    "subcategoria": "Conífera Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "eucalyptus grandis": {
     "id": "eucalyptus grandis",
@@ -106,7 +132,20 @@
         "temperaturaMin": 14,
         "temperaturaMax": 28
       }
-    }
+    },
+    "nombreCientifico": "Eucalyptus grandis",
+    "subcategoria": "Latifoliada Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   },
   "eucalyptus globulus": {
     "id": "eucalyptus globulus",
@@ -142,6 +181,19 @@
         "temperaturaMin": 10,
         "temperaturaMax": 22
       }
-    }
+    },
+    "nombreCientifico": "Eucalyptus globulus",
+    "subcategoria": "Latifoliada Forestal",
+    "regiones": [
+      "NEA",
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.1.0",
+    "updatedAt": "2025-01-01"
   }
 }

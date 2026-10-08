@@ -25,19 +25,20 @@ app = FastAPI(
 allowed_origins_env = os.environ.get("CORS_ALLOWED_ORIGINS")
 if allowed_origins_env:
     origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+    allow_credentials = False if "*" in origins else True
 else:
     origins = [
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "*"
+        "http://127.0.0.1:3000"
     ]
+    allow_credentials = True
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
@@ -341,7 +342,7 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                         "min": round(ndvi_stats.get("min", 0), 4),
                         "max": round(ndvi_stats.get("max", 0), 4),
                         "mean": round(ndvi_stats.get("mean", 0), 4),
-                        "median": round(ndvi_stats.get("mean", 0), 4),
+                        "median": round(ndvi_stats["p50"], 4) if "p50" in ndvi_stats else (round(ndvi_stats["median"], 4) if "median" in ndvi_stats else "NO DISPONIBLE"),
                         "stdDev": round(ndvi_stats.get("stDev", 0), 4),
                         "validPixelsPercent": round((ndvi_stats.get("sampleCount", 0) - ndvi_stats.get("noDataCount", 0)) / max(1, ndvi_stats.get("sampleCount", 1)) * 100, 1)
                     },
