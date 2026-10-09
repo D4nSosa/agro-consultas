@@ -17,7 +17,8 @@ import {
   analyzeUploadedImages,
   getCurrentBatch,
   removeImageFromBatch,
-  clearBatch
+  clearBatch,
+  buildPolygonFromBatchGps
 } from './services/imageAnalysisService.js';
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
 import { MapViewer } from './services/mapViewer.js';
@@ -283,10 +284,16 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
             <span>💨 <strong>Viento:</strong></span>
             <span>${climateReport.vientoActual}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
             <span>🌤️ <strong>Condición:</strong></span>
             <span>${climateReport.condicionActualTexto}</span>
           </div>
+          ${climateReport.peligroIncendio ? `
+          <div style="border-top: 1px dashed var(--borde-suave); padding-top: 6px; margin-top: 4px; font-size: 0.82rem;">
+            <strong>🔥 Peligro de Incendios:</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}" style="font-size:0.75rem; padding: 2px 6px;">${climateReport.peligroIncendio.nivel}</span>
+            <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 2px;">${climateReport.peligroIncendio.descripcion}</div>
+          </div>
+          ` : ''}
         </div>
       </div>
 
@@ -870,11 +877,48 @@ function renderBatchEvidenceUI() {
     return;
   }
 
+  const polygonBuild = buildPolygonFromBatchGps();
+
+  // Plot Marcadores de Fotos con GPS en el Mapa
+  if (mapViewerInstance && mapViewerInstance.map) {
+    batch.forEach(img => {
+      if (img.exif && img.exif.hasGps && img.exif.gps) {
+        const pMarker = L.circleMarker([img.exif.gps.lat, img.exif.gps.lng], {
+          radius: 7,
+          color: '#e67e22',
+          fillColor: '#f39c12',
+          fillOpacity: 0.9
+        }).addTo(mapViewerInstance.map);
+
+        pMarker.bindPopup(`
+          <div style="font-size:0.8rem; max-width: 180px;">
+            <img src="${img.previewUrl}" style="width:100%; height:80px; object-fit:cover; border-radius:4px;" />
+            <strong>📷 ${img.filename}</strong><br>
+            <span>Lat ${img.exif.gps.lat.toFixed(4)}, Lng ${img.exif.gps.lng.toFixed(4)}</span>
+          </div>
+        `);
+      }
+    });
+  }
+
   container.style.display = "block";
   container.innerHTML = `
-    <h3 style="margin-top: 0; color: var(--verde-principal); font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
-      <span>📷 Evidencia Fotográfica de Campo (${batch.length} ${batch.length === 1 ? 'imagen' : 'imágenes'})</span>
-    </h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <h3 style="margin: 0; color: var(--verde-principal); font-size: 1.1rem;">
+        📷 Evidencia Fotográfica de Campo (${batch.length} ${batch.length === 1 ? 'imagen' : 'imágenes'})
+      </h3>
+      ${polygonBuild.success ? `
+        <button type="button" id="btn-reconstruct-lot-photos" class="btn primary" style="padding: 6px 14px; font-size: 0.82rem; background: var(--verde-principal);">
+          📐 Reconstruir Polígono de Lote a partir de Fotos GPS (${polygonBuild.pointsCount} puntos)
+        </button>
+      ` : ''}
+    </div>
+
+    ${polygonBuild.success ? `
+      <div style="background: rgba(39, 174, 96, 0.08); border: 1px solid rgba(39, 174, 96, 0.3); border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 0.82rem;">
+        <strong>✅ Detección de Geometría de Lote:</strong> Se detectaron ${polygonBuild.pointsCount} fotografías con coordenadas GPS georreferenciadas. Podés presionar el botón de arriba para trazar el perímetro del lote en el mapa.
+      </div>
+    ` : ''}
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 15px;">
       ${batch.map((imgItem, idx) => `
@@ -896,6 +940,29 @@ function renderBatchEvidenceUI() {
       `).join('')}
     </div>
   `;
+
+  const btnReconstruct = document.getElementById("btn-reconstruct-lot-photos");
+  if (btnReconstruct && polygonBuild.success) {
+    btnReconstruct.addEventListener("click", () => {
+      if (mapViewerInstance && mapViewerInstance.map) {
+        if (drawnPolygonLayer) mapViewerInstance.map.removeLayer(drawnPolygonLayer);
+
+        drawnPolygonLayer = L.geoJSON(polygonBuild.feature, {
+          style: {
+            color: '#e67e22',
+            weight: 3,
+            fillColor: '#f39c12',
+            fillOpacity: 0.3
+          }
+        }).addTo(mapViewerInstance.map);
+
+        mapViewerInstance.map.fitBounds(drawnPolygonLayer.getBounds(), { padding: [30, 30] });
+
+        const firstPt = polygonBuild.points[0];
+        procesarSeleccionCoordenadas(firstPt.lat, firstPt.lng, `Lote Reconstruido por Fotos GPS (${polygonBuild.pointsCount} Puntos)`);
+      }
+    });
+  }
 }
 
 if (document.readyState === "loading") {

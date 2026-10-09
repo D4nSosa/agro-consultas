@@ -5,15 +5,19 @@ class TestScoringAndDataModel(unittest.TestCase):
     def test_crop_dataset_structure(self):
         with open("data/cultivos.json", "r", encoding="utf-8") as f:
             cultivos = json.load(f)
+        with open("data/forestales.json", "r", encoding="utf-8") as f:
+            forestales = json.load(f)
 
-        self.assertIn("trigo", cultivos)
-        self.assertIn("soja", cultivos)
-        self.assertIn("maiz", cultivos)
-        self.assertIn("yerba mate", cultivos)
-        self.assertIn("limon", cultivos)
-        self.assertIn("pino taeda", cultivos)
+        merged = {**cultivos, **forestales}
 
-        for name, data in cultivos.items():
+        self.assertIn("trigo", merged)
+        self.assertIn("soja", merged)
+        self.assertIn("maiz", merged)
+        self.assertIn("yerba mate", merged)
+        self.assertIn("limon", merged)
+        self.assertIn("pino taeda", merged)
+
+        for name, data in merged.items():
             self.assertIn("requerimientos", data)
             self.assertIn("suelo", data["requerimientos"])
             self.assertIn("clima", data["requerimientos"])

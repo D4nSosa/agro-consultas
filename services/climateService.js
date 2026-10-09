@@ -77,6 +77,9 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
   const heladas = subregionStaticClima?.heladas || "NO DISPONIBLE";
   const deficit = subregionStaticClima?.deficit_hidrico || "NO DISPONIBLE";
 
+  // Cálculo del Índice de Peligro de Incendios Agro-Forestales
+  const peligroIncendio = calcularIndicePeligroIncendio(tempActual, vientoActual, weatherCode);
+
   const overallStatus = liveWeatherPoint?.available
     ? DataStatus.REAL
     : (subregionStaticClima ? DataStatus.REGIONAL : DataStatus.UNAVAILABLE);
@@ -86,6 +89,7 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
 
   return {
     temperaturaActual: tempActual !== null ? `${tempActual}°C` : "NO DISPONIBLE",
+    peligroIncendio: peligroIncendio,
     temperaturaActualNum: tempActual,
     vientoActual: vientoActual !== null ? `${vientoActual} km/h` : "NO DISPONIBLE",
     codigoClima: weatherCode,
@@ -108,6 +112,71 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
     status: overallStatus,
     confidence: overallConfidence,
     fechaActualizacion: new Date().toISOString()
+  };
+}
+
+/**
+ * Calcula el nivel de peligro de incendios agro-forestales en vivo basado en meteorología real
+ */
+export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
+  if (temp === null || temp === undefined || viento === null || viento === undefined) {
+    return {
+      nivel: "NO DISPONIBLE",
+      icono: "⚪",
+      clase: "badge-media",
+      descripcion: "Faltan variables climáticas en vivo para calcular el riesgo."
+    };
+  }
+
+  const isRain = weatherCode !== null && (weatherCode >= 51 && weatherCode <= 82);
+  if (isRain) {
+    return {
+      nivel: "BAJO (Lluvia activa)",
+      icono: "🟢",
+      clase: "badge-alta",
+      descripcion: "Ocurrencia de precipitaciones en vivo mitigando riesgo de fuego."
+    };
+  }
+
+  let score = 0;
+  if (temp > 35) score += 3;
+  else if (temp > 28) score += 2;
+  else if (temp > 22) score += 1;
+
+  if (viento > 35) score += 3;
+  else if (viento > 22) score += 2;
+  else if (viento > 12) score += 1;
+
+  if (weatherCode === 0) score += 1; // Despejado / seco
+
+  if (score >= 6) {
+    return {
+      nivel: "MUY ALTO / EXTREMO",
+      icono: "🔴",
+      clase: "badge-baja",
+      descripcion: "Condiciones críticas: Alta temperatura y vientos fuertes. Prohibido realizar quemas."
+    };
+  } else if (score >= 4) {
+    return {
+      nivel: "ALTO",
+      icono: "🟠",
+      clase: "badge-media",
+      descripcion: "Elevada probabilidad de propagación de incendios en cobertura vegetal."
+    };
+  } else if (score >= 2) {
+    return {
+      nivel: "MODERADO",
+      icono: "🟡",
+      clase: "badge-media",
+      descripcion: "Riesgo moderado de incendio. Mantener precauciones de campo."
+    };
+  }
+
+  return {
+    nivel: "BAJO",
+    icono: "🟢",
+    clase: "badge-alta",
+    descripcion: "Condiciones meteorológicas estables con bajo riesgo de propagación."
   };
 }
 

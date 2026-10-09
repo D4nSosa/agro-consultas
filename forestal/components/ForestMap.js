@@ -14,8 +14,86 @@ export class ForestMap {
     this.isDrawing = false;
     this.currentFeature = null;
     this.userGpsMarker = null;
+    this.watchGpsTrackingId = null;
+    this.gpsTrackPoints = [];
+    this.gpsTrackPolyline = null;
 
     this.initMap();
+  }
+
+  startGpsTracking() {
+    if (!navigator.geolocation) {
+      alert("La geolocalización no está disponible en este navegador.");
+      return;
+    }
+
+    this.gpsTrackPoints = [];
+    if (this.gpsTrackPolyline) {
+      this.map.removeLayer(this.gpsTrackPolyline);
+      this.gpsTrackPolyline = null;
+    }
+
+    alert("🚶 MODO CAMINATA GPS ACTIVO:\n1. Comenzá a caminar alrededor del perímetro de tu lote.\n2. La app irá trazando tu recorrido en tiempo real en el mapa.\n3. Al dar la vuelta completa, presioná '🔴 Finalizar y Cerrar Lote' para calcular la superficie exacta.");
+
+    this.watchGpsTrackingId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        const pt = [longitude, latitude];
+        const latLng = [latitude, longitude];
+
+        this.gpsTrackPoints.push(pt);
+
+        if (!this.gpsTrackPolyline) {
+          this.gpsTrackPolyline = L.polyline([latLng], { color: '#e67e22', weight: 4, dashArray: '5, 10' }).addTo(this.map);
+        } else {
+          this.gpsTrackPolyline.addLatLng(latLng);
+        }
+
+        if (this.userGpsMarker) {
+          this.userGpsMarker.setLatLng(latLng);
+        } else {
+          this.userGpsMarker = L.circleMarker(latLng, {
+            radius: 8,
+            color: '#d35400',
+            fillColor: '#e67e22',
+            fillOpacity: 1
+          }).addTo(this.map);
+        }
+
+        this.map.setView(latLng, 17);
+      },
+      (err) => {
+        console.warn("Error en tracking GPS:", err);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  stopGpsTrackingAndCloseLot() {
+    if (this.watchGpsTrackingId !== null) {
+      navigator.geolocation.clearWatch(this.watchGpsTrackingId);
+      this.watchGpsTrackingId = null;
+    }
+
+    if (this.gpsTrackPolyline) {
+      this.map.removeLayer(this.gpsTrackPolyline);
+      this.gpsTrackPolyline = null;
+    }
+
+    if (this.gpsTrackPoints.length < 3) {
+      alert(`⚠️ Puntos insuficientes (${this.gpsTrackPoints.length}). Se necesitan al menos 3 puntos registrados para cerrar la superficie del lote.`);
+      return false;
+    }
+
+    // Cerrar el polígono
+    const closedCoords = [...this.gpsTrackPoints, this.gpsTrackPoints[0]];
+    const geom = {
+      type: "Polygon",
+      coordinates: [closedCoords]
+    };
+
+    const feature = toGeoJSONFeature(geom, { name: `Lote Caminado por GPS (${this.gpsTrackPoints.length} Puntos)` });
+    return this.setGeoJSON(feature);
   }
 
   initMap() {

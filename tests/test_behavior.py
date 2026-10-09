@@ -84,7 +84,7 @@ def test_catalog_exact_29_profiles_and_merge_integrity():
         else:
             merged[k] = {"id": k, **v}
 
-    assert len(merged) == 29, f"El catálogo normalizado debe contener exactamente 29 perfiles, se encontraron {len(merged)}"
+    assert len(merged) == 44, f"El catálogo normalizado debe contener exactamente 44 perfiles, se encontraron {len(merged)}"
 
     forestal_keys = ["pino taeda", "pino elliottii", "eucalyptus grandis", "eucalyptus globulus"]
     for fk in forestal_keys:

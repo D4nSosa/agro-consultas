@@ -31,8 +31,9 @@
 
     <div class="right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
       <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🏠 Inicio</a>
-      <a class="btn outline" href="resultados.html" style="font-size: 0.85rem;">📍 Análisis Territorial</a>
+      <a class="btn outline" href="resultados.html" style="font-size: 0.85rem;">🌾 Aptitud de Cultivos</a>
       <a class="btn primary" href="forestal.html" style="font-size: 0.85rem;">🌲 Módulo Forestal</a>
+      <a class="btn outline" href="tracking.html" style="font-size: 0.85rem;">🚶 Tracking GPS</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
   </header>
@@ -67,6 +68,8 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button id="btn-gps-loc" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #27ae60; border-color: #27ae60;">📍 Mi Ubicación GPS (Campo)</button>
           <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">✏️ Dibujar Lote en Mapa</button>
+          <button id="btn-start-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #e67e22; border-color: #e67e22;">🚶 Iniciar Caminata GPS de Lote</button>
+          <button id="btn-stop-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #c0392b; border-color: #c0392b; display: none;">🔴 Finalizar y Cerrar Lote</button>
         </div>
       </div>
 
@@ -364,6 +367,21 @@
       document.getElementById('btn-draw-lot').addEventListener('click', () => {
         alert('Haz click en 3 o más puntos sobre el mapa para cerrar el polígono del lote.');
         forestMap.startDrawing();
+      });
+
+      const btnStartWalk = document.getElementById('btn-start-gps-walk');
+      const btnStopWalk = document.getElementById('btn-stop-gps-walk');
+
+      btnStartWalk?.addEventListener('click', () => {
+        forestMap.startGpsTracking();
+        btnStartWalk.style.display = 'none';
+        btnStopWalk.style.display = 'inline-block';
+      });
+
+      btnStopWalk?.addEventListener('click', () => {
+        const ok = forestMap.stopGpsTrackingAndCloseLot();
+        btnStopWalk.style.display = 'none';
+        btnStartWalk.style.display = 'inline-block';
       });
 
       document.getElementById('btn-apply-geojson').addEventListener('click', () => {
