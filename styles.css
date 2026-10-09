@@ -580,14 +580,14 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
     padding: 8px 12px;
   }
   .brand {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
   }
   .brand-text .title {
     font-size: 15px;
   }
   .brand-text .subtitle {
-    font-size: 10px;
+    display: none;
   }
   .container {
     padding: 10px;
@@ -619,6 +619,20 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   .app-header .btn {
     padding: 6px 8px;
     font-size: 0.75rem !important;
+  }
+}
+
+/* Fix tracking horizontal overflow on mobile */
+.tracking-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 850px) {
+  .tracking-layout-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

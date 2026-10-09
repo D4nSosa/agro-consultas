@@ -51,7 +51,7 @@
     </div>
 
     <!-- Panel de Control y Mapa -->
-    <div style="display: grid; grid-template-columns: minmax(300px, 1.3fr) minmax(280px, 0.9fr); gap: 20px; margin-bottom: 25px;" class="tracking-layout">
+    <div class="tracking-layout-grid" style="margin-bottom: 25px;">
 
       <!-- Columna Izquierda: Mapa Interactivo -->
       <div class="card" style="padding: 15px; display: flex; flex-direction: column; gap: 12px;">
@@ -107,16 +107,19 @@
 
         <!-- Acciones Directas con el Lote Creado -->
         <div id="lot-actions-box" style="display: none; flex-direction: column; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--borde-suave);">
-          <div style="font-weight: bold; font-size: 0.85rem; color: var(--verde-principal);">🚀 Analizar este Lote en los Módulos:</div>
+          <div style="font-weight: bold; font-size: 0.85rem; color: var(--verde-principal);">🚀 Analizar este Lote Caminado:</div>
 
           <button type="button" id="btn-analyze-crops" class="btn primary" style="font-size: 0.85rem; padding: 10px;">
-            🌾 Evaluar Aptitud de Cultivos para este Lote
+            🌾 Evaluar Aptitud Agrícola (44 Cultivos)
           </button>
           <button type="button" id="btn-analyze-forest" class="btn outline" style="font-size: 0.85rem; padding: 10px;">
-            🌲 Analizar en Módulo Forestal y Satelital (Copernicus)
+            🌲 Analizar Forestal y Satelital (Copernicus)
+          </button>
+          <button type="button" id="btn-print-report" class="btn outline" style="font-size: 0.85rem; padding: 10px; border-color: #e67e22; color: #e67e22;">
+            🖨️ Generar Reporte Término / Imprimir PDF
           </button>
 
-          <div style="font-weight: bold; font-size: 0.85rem; color: var(--texto-principal); margin-top: 8px;">💾 Exportar Geometría del Lote:</div>
+          <div style="font-weight: bold; font-size: 0.85rem; color: var(--texto-principal); margin-top: 8px;">💾 Exportar Archivos para GIS / GPS de Campo:</div>
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <button id="btn-export-geojson" class="btn outline" style="font-size: 0.78rem; padding: 6px 10px; flex: 1;">GeoJSON</button>
             <button id="btn-export-kml" class="btn outline" style="font-size: 0.78rem; padding: 6px 10px; flex: 1;">KML (QField)</button>
@@ -350,6 +353,10 @@
         if (!currentFeature) return;
         sessionStorage.setItem('agro_current_polygon', JSON.stringify(currentFeature));
         window.location.href = 'forestal.html';
+      });
+
+      document.getElementById('btn-print-report').addEventListener('click', () => {
+        window.print();
       });
 
       // Exportadores
