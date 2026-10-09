@@ -59,6 +59,9 @@ export async function inicializarMapa(provinciaRaw) {
 
   if (!leafletMap) return;
 
+  // Registrar capas WMS oficiales reales (INTA GeoServer, IGN, OTBN)
+  mapViewerInstance.registerOfficialGISLayers();
+
   leafletMap.on('click', (e) => {
     const { lat, lng } = e.latlng;
     procesarSeleccionCoordenadas(lat, lng, "PUNTO DE MAPA SELECCIONADO", "PUNTO / COORDENADA EXACTA");

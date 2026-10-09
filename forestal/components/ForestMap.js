@@ -28,12 +28,56 @@ export class ForestMap {
 
     this.map = L.map(this.containerId).setView([defaultLat, defaultLng], 4);
 
-    // Capa satelital de OpenStreetMap
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Capa base predeterminada
+    const baseOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors | Copernicus STAC | IGN Argentina'
-    }).addTo(this.map);
+    });
 
+    const baseSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 18,
+      attribution: 'Esri World Imagery | Copernicus STAC | IGN Argentina'
+    });
+
+    baseOsm.addTo(this.map);
+
+    // Capas WMS Oficiales IDE
+    const wmsSuelos = L.tileLayer.wms('https://geoserver.inta.gob.ar/geoserver/wms', {
+      layers: 'suelos:cartografia_nacional',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.65,
+      attribution: 'INTA Cartografía Oficial de Suelos'
+    });
+
+    const wmsIGN = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/wms', {
+      layers: 'ign:departamento',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.75,
+      attribution: 'IGN Instituto Geográfico Nacional'
+    });
+
+    const wmsOTBN = L.tileLayer.wms('https://geoserver.inta.gob.ar/geoserver/wms', {
+      layers: 'bosques:otbn_nacional',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.60,
+      attribution: 'Ministerio de Ambiente / INTA - Ley 26.331'
+    });
+
+    const baseMaps = {
+      "🗺️ Mapa Normal": baseOsm,
+      "🛰️ Satelital Esri": baseSatellite
+    };
+
+    const overlayMaps = {
+      "🌱 Suelos INTA 1:50.000": wmsSuelos,
+      "🏛️ Límites IGN": wmsIGN,
+      "🌳 Bosques Nativos OTBN (Ley 26.331)": wmsOTBN
+    };
+
+    L.control.layers(baseMaps, overlayMaps, { collapsed: true }).addTo(this.map);
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);
 
     // Eventos de click para dibujo interactivo
