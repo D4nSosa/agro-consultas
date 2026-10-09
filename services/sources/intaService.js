@@ -14,50 +14,6 @@ const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 horas de vigencia de datos de su
  * @param {Object} subregionStaticData - Datos estáticos de suelo de la subregión para fallback inmediato.
  * @returns {Promise<Object>} Datos de suelo del territorio.
  */
-/**
- * Realiza una consulta WMS GetFeatureInfo directa a la Infraestructura de Datos Espaciales de INTA
- * @param {number} lat - Latitud
- * @param {number} lng - Longitud
- * @returns {Promise<Object|null>} Propiedades edafológicas crudas de INTA GeoServer
- */
-export async function queryINTAGetFeatureInfo(lat, lng) {
-  try {
-    const baseUrl = 'https://geoserver.inta.gob.ar/geoserver/wms';
-    const params = new URLSearchParams({
-      service: 'WMS',
-      version: '1.1.1',
-      request: 'GetFeatureInfo',
-      layers: 'suelos:cartografia_nacional',
-      bbox: `${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}`,
-      width: '101',
-      height: '101',
-      srs: 'EPSG:4326',
-      format: 'image/png',
-      query_layers: 'suelos:cartografia_nacional',
-      info_format: 'application/json',
-      x: '50',
-      y: '50'
-    });
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-    const response = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) return null;
-    const geoJson = await response.json();
-
-    if (geoJson && geoJson.features && geoJson.features.length > 0) {
-      return geoJson.features[0].properties;
-    }
-    return null;
-  } catch (err) {
-    console.warn("[INTA WMS] Consulta GetFeatureInfo no respondió:", err.message);
-    return null;
-  }
-}
-
 export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
   const cacheKey = `${CACHE_PREFIX}${lat.toFixed(4)}_${lng.toFixed(4)}`;
 

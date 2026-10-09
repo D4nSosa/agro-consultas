@@ -109,24 +109,3 @@ export async function getProvinceCoordinates(provinciaKey) {
   const prov = provinciasData[key];
   return prov ? prov.coordenadas : null;
 }
-
-/**
- * Retorna el contexto territorial consolidado combinando subregión, provincia y datos oficiales.
- * @param {number} lat - Latitud.
- * @param {number} lng - Longitud.
- * @returns {Promise<Object>} Objeto consolidado del territorio.
- */
-export async function getTerritorialFullContext(lat, lng) {
-  const provKey = await findProvinceByCoords(lat, lng);
-  const provDetails = provKey ? await getProvinceDetails(provKey) : null;
-  const subregion = provKey ? await findSubregion(provKey, lat, lng) : null;
-
-  return {
-    lat: lat,
-    lng: lng,
-    provinciaKey: provKey,
-    provinciaNombre: provDetails ? provDetails.nombre : "Argentina",
-    subregion: subregion,
-    fuente: "IDE Argentina (INTA / IGN / SAGyP)"
-  };
-}

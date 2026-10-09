@@ -18,14 +18,15 @@
     "requerimientos": {
       "suelo": {
         "phMin": 4.5,
-        "phMax": 6,
+        "phMax": 6.0,
         "drenaje": [
           "bueno",
           "moderado"
         ],
         "texturas": [
           "franca",
-          "arenosa"
+          "arenosa",
+          "arcillosa"
         ]
       },
       "clima": {
@@ -45,7 +46,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "pino elliottii": {
@@ -95,7 +96,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "eucalyptus grandis": {
@@ -116,7 +117,7 @@
     "pino_eucalyptus": true,
     "requerimientos": {
       "suelo": {
-        "phMin": 5,
+        "phMin": 5.0,
         "phMax": 6.5,
         "drenaje": [
           "bueno",
@@ -144,7 +145,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "eucalyptus globulus": {
@@ -165,7 +166,7 @@
     "requerimientos": {
       "suelo": {
         "phMin": 5.5,
-        "phMax": 7,
+        "phMax": 7.0,
         "drenaje": [
           "bueno",
           "moderado"
@@ -193,7 +194,204 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "eucalyptus dunnii": {
+    "id": "eucalyptus dunnii",
+    "nombre": "Eucalyptus Dunnii",
+    "categoria": "Forestal",
+    "descripcion": "Especie de Eucalyptus con excelente tolerancia a heladas, clave en Corrientes, Entre Ríos y Pampeana Norte.",
+    "siembra": "Otoño o Primavera",
+    "cosecha": "Turno de corte de 10-12 años",
+    "reqSuelo": "Suelos profundos, francos a franco-clay, tolera cierta humedad edáfica.",
+    "reqClima": "Subtropical-templado, tolera heladas de hasta -6°C a -8°C.",
+    "variedades": [
+      "Orígenes Seleccionados INTA Concordia"
+    ],
+    "fuenteVariedades": "INTA EEA Concordia / Corrientes",
+    "rendimientoEstimado": "ESTIMADO: 25 - 38 m³/ha/año (IMA)",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.2,
+        "phMax": 7.0,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arcillosa",
+          "arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 950,
+        "temperaturaMin": 10,
+        "temperaturaMax": 26
+      }
+    },
+    "nombreCientifico": "Eucalyptus dunnii",
+    "subcategoria": "Latifoliada Forestal",
+    "regiones": [
+      "NEA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "eucalyptus benthamii": {
+    "id": "eucalyptus benthamii",
+    "nombre": "Eucalyptus Benthamii",
+    "categoria": "Forestal",
+    "descripcion": "Especie latifoliada de alta plasticidad y máxima resistencia al frío helador en cuencas del NEA y Sur.",
+    "siembra": "Otoño",
+    "cosecha": "Turno de 10-12 años",
+    "reqSuelo": "Adaptable a suelos pesados o con drenaje moderado.",
+    "reqClima": "Subtropical-templado con heladas invernales frecuentes.",
+    "variedades": [
+      "Clones INTA Seleccionados por Frío"
+    ],
+    "fuenteVariedades": "INTA EEA Bella Vista",
+    "rendimientoEstimado": "ESTIMADO: 22 - 32 m³/ha/año (IMA)",
+    "pino_eucalyptus": true,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.0,
+        "phMax": 6.8,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arcillosa",
+          "arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 900,
+        "temperaturaMin": 8,
+        "temperaturaMax": 25
+      }
+    },
+    "nombreCientifico": "Eucalyptus benthamii",
+    "subcategoria": "Latifoliada Forestal",
+    "regiones": [
+      "NEA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "alamo": {
+    "id": "alamo",
+    "nombre": "Álamo",
+    "categoria": "Forestal",
+    "descripcion": "Especie de salicácea maderera clave en valles irrigados de Cuyo, Delta del Paraná y Patagonia norte.",
+    "siembra": "Invierno (guías)",
+    "cosecha": "Turno final a los 10-14 años",
+    "reqSuelo": "Suelos aluviales profundos, francos, fértiles con nivel freático accesible.",
+    "reqClima": "Templado a semiárido con riego de valles.",
+    "variedades": [
+      "Populus deltoides 'Australia 106/60'",
+      "Populus x canadensis 'Conti 12'"
+    ],
+    "fuenteVariedades": "INTA Delta del Paraná / Mendoza",
+    "rendimientoEstimado": "ESTIMADO: 18 - 30 m³/ha/año (IMA)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.8,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa",
+          "franco-limosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 500,
+        "temperaturaMin": 8,
+        "temperaturaMax": 28
+      }
+    },
+    "nombreCientifico": "Populus deltoides",
+    "subcategoria": "Salicácea Forestal",
+    "regiones": [
+      "Cuyo",
+      "Patagonia",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "sauce": {
+    "id": "sauce",
+    "nombre": "Sauce",
+    "categoria": "Forestal",
+    "descripcion": "Salicácea resistente a anegamientos, fundamental en el Delta del Paraná y valles de Río Negro.",
+    "siembra": "Invierno",
+    "cosecha": "Turno de 8-12 años",
+    "reqSuelo": "Suelos húmedos, aluviales, tolerante a capas de agua freática alta.",
+    "reqClima": "Templado húmedo a templado árido bajo riego.",
+    "variedades": [
+      "Salix alba 'Agronómico INTA'",
+      "Salix matsudana x alba"
+    ],
+    "fuenteVariedades": "INTA Delta del Paraná",
+    "rendimientoEstimado": "ESTIMADO: 15 - 25 m³/ha/año (IMA)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.8,
+        "phMax": 7.8,
+        "drenaje": [
+          "moderado",
+          "pobre",
+          "imperfecto"
+        ],
+        "texturas": [
+          "franco-limosa",
+          "arcillosa",
+          "franca"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 600,
+        "temperaturaMin": 8,
+        "temperaturaMax": 26
+      }
+    },
+    "nombreCientifico": "Salix alba",
+    "subcategoria": "Salicácea Forestal",
+    "regiones": [
+      "Pampeana",
+      "Patagonia",
+      "Cuyo"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   }
 }

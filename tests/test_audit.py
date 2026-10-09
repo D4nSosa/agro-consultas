@@ -6,8 +6,11 @@ class TestComprehensiveAudit(unittest.TestCase):
     def test_cultivos_all_categories_present(self):
         with open("data/cultivos.json", "r", encoding="utf-8") as f:
             cultivos = json.load(f)
+        with open("data/forestales.json", "r", encoding="utf-8") as f:
+            forestales = json.load(f)
 
-        categories = set(c.get("categoria", "") for c in cultivos.values())
+        merged = {**cultivos, **forestales}
+        categories = set(c.get("categoria", "") for c in merged.values())
         self.assertTrue(any("Extensivo" in cat for cat in categories))
         self.assertTrue(any("Hortícola" in cat for cat in categories))
         self.assertTrue(any("Frutícola" in cat for cat in categories))

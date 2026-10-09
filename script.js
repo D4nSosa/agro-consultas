@@ -59,9 +59,6 @@ export async function inicializarMapa(provinciaRaw) {
 
   if (!leafletMap) return;
 
-  // Registrar capas WMS oficiales reales (INTA GeoServer, IGN, OTBN)
-  mapViewerInstance.registerOfficialGISLayers();
-
   leafletMap.on('click', (e) => {
     const { lat, lng } = e.latlng;
     procesarSeleccionCoordenadas(lat, lng, "PUNTO DE MAPA SELECCIONADO", "PUNTO / COORDENADA EXACTA");
@@ -286,10 +283,16 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
             <span>💨 <strong>Viento:</strong></span>
             <span>${climateReport.vientoActual}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
             <span>🌤️ <strong>Condición:</strong></span>
             <span>${climateReport.condicionActualTexto}</span>
           </div>
+          ${climateReport.peligroIncendio ? `
+          <div style="border-top: 1px dashed var(--borde-suave); padding-top: 6px; margin-top: 4px; font-size: 0.82rem;">
+            <strong>🔥 Peligro de Incendios:</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}" style="font-size:0.75rem; padding: 2px 6px;">${climateReport.peligroIncendio.nivel}</span>
+            <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 2px;">${climateReport.peligroIncendio.descripcion}</div>
+          </div>
+          ` : ''}
         </div>
       </div>
 

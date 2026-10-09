@@ -44,7 +44,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "soja": {
@@ -92,7 +92,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "maiz": {
@@ -140,7 +140,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "girasol": {
@@ -188,7 +188,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "sorgo": {
@@ -236,7 +236,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "cebada": {
@@ -283,7 +283,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "arroz": {
@@ -331,7 +331,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "papa": {
@@ -378,7 +378,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "cebolla": {
@@ -425,7 +425,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "tomate": {
@@ -472,7 +472,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "pimiento": {
@@ -519,7 +519,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "zapallo": {
@@ -567,7 +567,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "mandioca": {
@@ -614,7 +614,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "batata": {
@@ -661,7 +661,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "limon": {
@@ -708,7 +708,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "naranja": {
@@ -755,7 +755,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "mandarina": {
@@ -802,7 +802,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "pomelo": {
@@ -849,7 +849,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "arandano": {
@@ -896,7 +896,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "yerba mate": {
@@ -943,7 +943,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "te": {
@@ -990,7 +990,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "tabaco": {
@@ -1037,7 +1037,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "mani": {
@@ -1083,7 +1083,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "vid": {
@@ -1132,205 +1132,7 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
-    "updatedAt": "2025-01-01"
-  },
-  "pino taeda": {
-    "nombre": "Pino Taeda",
-    "categoria": "Forestal",
-    "descripcion": "Especie forestal de rápido crecimiento del género Pinus, dominante en el NEA maderero.",
-    "siembra": "Otoño a Invierno",
-    "cosecha": "Raleos intermedios; corte final a los 15-18 años",
-    "reqSuelo": "Suelos profundos, texturas franco-arcillosas a arcillosas ácidas (pH 4.5-5.5).",
-    "reqClima": "Subtropical templado-cálido, lluvias superiores a 1200mm anuales.",
-    "variedades": [
-      "Familias Mejoradas INTA EEA Montecarlo",
-      "Huertos Semilleros Clonales (HSC)"
-    ],
-    "fuenteVariedades": "INTA EEA Montecarlo / Dirección de Desarrollo Forestal",
-    "rendimientoEstimado": "ESTIMADO: 25 - 35 m³/ha/año (IMA)",
-    "pino_eucalyptus": true,
-    "requerimientos": {
-      "suelo": {
-        "phMin": 4.5,
-        "phMax": 6.0,
-        "drenaje": [
-          "bueno",
-          "moderado"
-        ],
-        "texturas": [
-          "franca",
-          "arenosa",
-          "arcillosa"
-        ]
-      },
-      "clima": {
-        "precipitacionMin": 1200,
-        "temperaturaMin": 12,
-        "temperaturaMax": 26
-      }
-    },
-    "id": "pino taeda",
-    "nombreCientifico": "Pinus taeda",
-    "subcategoria": "Conífera Forestal",
-    "regiones": [
-      "NEA",
-      "NOA",
-      "Pampeana"
-    ],
-    "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
-    ],
-    "version": "2.1.0",
-    "updatedAt": "2025-01-01"
-  },
-  "pino elliottii": {
-    "nombre": "Pino Elliottii",
-    "categoria": "Forestal",
-    "descripcion": "Especie de Pinus muy resistente a heladas y suelos con peor drenaje.",
-    "siembra": "Otoño a Invierno",
-    "cosecha": "Turno final de 15-18 años",
-    "reqSuelo": "Suelos arenosos pobres o arcillosos con drenaje deficiente o moderado.",
-    "reqClima": "Subtropical húmedo a templado, alta tolerancia al frío invernal.",
-    "variedades": [
-      "Procedencias Seleccionadas INTA Bella Vista"
-    ],
-    "fuenteVariedades": "INTA EEA Bella Vista",
-    "rendimientoEstimado": "ESTIMADO: 20 - 28 m³/ha/año (IMA)",
-    "pino_eucalyptus": true,
-    "requerimientos": {
-      "suelo": {
-        "phMin": 4.5,
-        "phMax": 6.2,
-        "drenaje": [
-          "bueno",
-          "moderado",
-          "pobre"
-        ],
-        "texturas": [
-          "franca",
-          "arenosa",
-          "arcillosa"
-        ]
-      },
-      "clima": {
-        "precipitacionMin": 1000,
-        "temperaturaMin": 10,
-        "temperaturaMax": 26
-      }
-    },
-    "id": "pino elliottii",
-    "nombreCientifico": "Pinus elliottii",
-    "subcategoria": "Conífera Forestal",
-    "regiones": [
-      "NEA",
-      "NOA",
-      "Pampeana"
-    ],
-    "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
-    ],
-    "version": "2.1.0",
-    "updatedAt": "2025-01-01"
-  },
-  "eucalyptus grandis": {
-    "nombre": "Eucalyptus Grandis",
-    "categoria": "Forestal",
-    "descripcion": "Especie de Eucalyptus de máxima velocidad de crecimiento para pasta y sólida.",
-    "siembra": "Primavera u Otoño",
-    "cosecha": "Turno de corte corto de 8-12 años",
-    "reqSuelo": "Suelos muy profundos, bien drenados, texturas francas a franco-arenosas.",
-    "reqClima": "Subtropical húmedo continuo, heliofilia extrema, muy sensible a heladas severas.",
-    "variedades": [
-      "Clones INTA Concordia (GC109, INTA-27)",
-      "Material Híbrido Grandis x Urophylla"
-    ],
-    "fuenteVariedades": "INTA EEA Concordia",
-    "rendimientoEstimado": "ESTIMADO: 30 - 45 m³/ha/año (IMA)",
-    "pino_eucalyptus": true,
-    "requerimientos": {
-      "suelo": {
-        "phMin": 5.0,
-        "phMax": 6.5,
-        "drenaje": [
-          "bueno",
-          "moderado"
-        ],
-        "texturas": [
-          "franca",
-          "arenosa"
-        ]
-      },
-      "clima": {
-        "precipitacionMin": 1100,
-        "temperaturaMin": 14,
-        "temperaturaMax": 28
-      }
-    },
-    "id": "eucalyptus grandis",
-    "nombreCientifico": "Eucalyptus grandis",
-    "subcategoria": "Latifoliada Forestal",
-    "regiones": [
-      "NEA",
-      "NOA",
-      "Pampeana"
-    ],
-    "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
-    ],
-    "version": "2.1.0",
-    "updatedAt": "2025-01-01"
-  },
-  "eucalyptus globulus": {
-    "nombre": "Eucalyptus Globulus",
-    "categoria": "Forestal",
-    "descripcion": "Especie de Eucalyptus ideal para zonas templadas y costeras.",
-    "siembra": "Otoño",
-    "cosecha": "Turno de corte a los 10-12 años",
-    "reqSuelo": "Suelos franco-arcillosos moderados, profundos, tolera cierta tosca.",
-    "reqClima": "Templado húmedo, excelente tolerancia a heladas moderadas.",
-    "variedades": [
-      "Procedencias Australianas Seleccionadas"
-    ],
-    "fuenteVariedades": "INTA Balcarce / Tandil",
-    "rendimientoEstimado": "ESTIMADO: 20 - 30 m³/ha/año (IMA)",
-    "pino_eucalyptus": true,
-    "requerimientos": {
-      "suelo": {
-        "phMin": 5.5,
-        "phMax": 7.0,
-        "drenaje": [
-          "bueno",
-          "moderado"
-        ],
-        "texturas": [
-          "franca",
-          "arenosa",
-          "arcillosa"
-        ]
-      },
-      "clima": {
-        "precipitacionMin": 800,
-        "temperaturaMin": 10,
-        "temperaturaMax": 22
-      }
-    },
-    "id": "eucalyptus globulus",
-    "nombreCientifico": "Eucalyptus globulus",
-    "subcategoria": "Latifoliada Forestal",
-    "regiones": [
-      "NEA",
-      "NOA",
-      "Pampeana"
-    ],
-    "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
-    ],
-    "version": "2.1.0",
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   },
   "poroto": {
@@ -1377,7 +1179,532 @@
       "INTA Catálogo Agronómico",
       "Ministerio de Economía - Bioeconomía Argentina"
     ],
-    "version": "2.1.0",
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "alfalfa": {
+    "nombre": "Alfalfa",
+    "categoria": "Forrajera",
+    "descripcion": "Reina de las forrajeras, leguminosa perenne fundamental para la producción de carne y leche.",
+    "siembra": "Marzo a Mayo",
+    "cosecha": "Cortes periódicos de Octubre a Mayo",
+    "reqSuelo": "Suelos profundos, sin tosca ni capas duras, bien drenados, pH neutro a levemente alcalino.",
+    "reqClima": "Templado a semiárido con riego, alta radiación solar.",
+    "variedades": [
+      "Grupo con Reposo Invernal (Sin Latencia - Grado 8-10)",
+      "Grupo con Latencia (Grado 5-7)"
+    ],
+    "fuenteVariedades": "INTA Manfredi / Red de Evaluación de Alfalfa",
+    "rendimientoEstimado": "ESTIMADO: 12 - 22 tn MS/ha/año",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.2,
+        "phMax": 7.8,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa",
+          "franco-limosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 600,
+        "temperaturaMin": 8,
+        "temperaturaMax": 32
+      }
+    },
+    "id": "alfalfa",
+    "nombreCientifico": "Medicago sativa",
+    "subcategoria": "Leguminosa Forrajera",
+    "regiones": [
+      "Nacional"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "pasturas megatermicas": {
+    "nombre": "Pasturas Megatérmicas",
+    "categoria": "Forrajera / Silvopastoril",
+    "descripcion": "Gramíneas estivales perennes clave para ganadería y Sistemas Silvopastoriles (SSP) en NEA y NOA.",
+    "siembra": "Octubre a Enero",
+    "cosecha": "Pastoreo rotativo / Heno de Verano",
+    "reqSuelo": "Adaptables a suelos ácidos o de menor fertilidad, requieren buen drenaje.",
+    "reqClima": "Subtropical / C4, alta eficiencia en el uso del agua y temperatura elevada.",
+    "variedades": [
+      "Brachiaria brizantha (Marandú / Toledo)",
+      "Setaria kasungula / Paspalum notatum"
+    ],
+    "fuenteVariedades": "INTA Corrientes / Cerro Azul / Salta",
+    "rendimientoEstimado": "ESTIMADO: 8 - 16 tn MS/ha/año",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 4.8,
+        "phMax": 7.2,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "arenosa",
+          "arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 800,
+        "temperaturaMin": 16,
+        "temperaturaMax": 35
+      }
+    },
+    "id": "pasturas megatermicas",
+    "nombreCientifico": "Brachiaria brizantha / Setaria spp.",
+    "subcategoria": "Gramínea Forrajera Megatérmica",
+    "regiones": [
+      "NEA",
+      "NOA"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "algodon": {
+    "nombre": "Algodón",
+    "categoria": "Extensivo / Agroindustrial",
+    "descripcion": "Cultivo textil estival fundamental en la economía del Chaco, Formosa, Santiago del Estero y Santa Fe Norte.",
+    "siembra": "Octubre a Diciembre",
+    "cosecha": "Marzo a Junio",
+    "reqSuelo": "Suelos profundos, francos a franco-arcillosos, fértiles, bien estructurados.",
+    "reqClima": "Cálido subtropical, alta radiación y libre de heladas tempranas.",
+    "variedades": [
+      "Guazuncho 4 INTA",
+      "Porá INTA / Pitu INTA"
+    ],
+    "fuenteVariedades": "INTA EEA Sáenz Peña (Chaco)",
+    "rendimientoEstimado": "ESTIMADO: 2.2 - 3.8 tn/ha (algodón en capullo)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 8.0,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arcillosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 600,
+        "temperaturaMin": 18,
+        "temperaturaMax": 36
+      }
+    },
+    "id": "algodon",
+    "nombreCientifico": "Gossypium hirsutum",
+    "subcategoria": "Cultivo Textil Industrial",
+    "regiones": [
+      "NEA",
+      "NOA"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "cana de azucar": {
+    "nombre": "Caña de Azúcar",
+    "categoria": "Regional / Industrial",
+    "descripcion": "Cultivo perenne agroindustrial clave para la producción de azúcar y bioetanol en NOA (Tucumán, Salta, Jujuy).",
+    "siembra": "Mayo a Diciembre (plantación de cepa)",
+    "cosecha": "Mayo a Noviembre (Zafra)",
+    "reqSuelo": "Suelos francos, profundos, fértiles, ricos en materia orgánica.",
+    "reqClima": "Subtropical cálido con alta radiación solar y buena humedad.",
+    "variedades": [
+      "LCP 85-384",
+      "TUC 95-10 / TUC 03-12"
+    ],
+    "fuenteVariedades": "EEAOC Tucumán / INTA Famaillá",
+    "rendimientoEstimado": "ESTIMADO: 60 - 95 tn/ha (caña moliable)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 5.8,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "moderado"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 900,
+        "temperaturaMin": 18,
+        "temperaturaMax": 34
+      }
+    },
+    "id": "cana de azucar",
+    "nombreCientifico": "Saccharum officinarum",
+    "subcategoria": "Cultivo Industrial Azucarero",
+    "regiones": [
+      "NOA"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "garbanzo": {
+    "nombre": "Garbanzo",
+    "categoria": "Extensivo / Leguminosa",
+    "descripcion": "Leguminosa invernal de alto valor de exportación en NOA y Región Centro.",
+    "siembra": "Mayo a Junio",
+    "cosecha": "Octubre a Noviembre",
+    "reqSuelo": "Suelos francos a franco-arenosos, bien drenados, neutros.",
+    "reqClima": "Templado-seco invernal, muy sensible al exceso de humedad en floración.",
+    "variedades": [
+      "Tipo Kabuli (Chañaritos S-15 / Norteño)",
+      "Kiara INTA"
+    ],
+    "fuenteVariedades": "INTA Salta / Córdoba",
+    "rendimientoEstimado": "ESTIMADO: 1.5 - 2.8 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.2,
+        "phMax": 7.8,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 400,
+        "temperaturaMin": 10,
+        "temperaturaMax": 26
+      }
+    },
+    "id": "garbanzo",
+    "nombreCientifico": "Cicer arietinum",
+    "subcategoria": "Leguminosa de Grano Invernal",
+    "regiones": [
+      "NOA",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "arveja": {
+    "nombre": "Arveja",
+    "categoria": "Extensivo / Leguminosa",
+    "descripcion": "Leguminosa invernal alternativa excelente antecesora de cultivos de verano.",
+    "siembra": "Junio a Julio",
+    "cosecha": "Octubre a Noviembre",
+    "reqSuelo": "Suelos francos a franco-limosos, neutros, de buen drenaje.",
+    "reqClima": "Templado-frío invernal.",
+    "variedades": [
+      "Arveja Verde (Viper / Astronaute)",
+      "Arveja Amarilla (Navarro)"
+    ],
+    "fuenteVariedades": "INTA Oliveros / San Pedro",
+    "rendimientoEstimado": "ESTIMADO: 2.0 - 3.5 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 450,
+        "temperaturaMin": 6,
+        "temperaturaMax": 24
+      }
+    },
+    "id": "arveja",
+    "nombreCientifico": "Pisum sativum",
+    "subcategoria": "Leguminosa de Grano Invernal",
+    "regiones": [
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "canola": {
+    "nombre": "Canola / Colza",
+    "categoria": "Extensivo / Oleaginosa",
+    "descripcion": "Oleaginosa invernal con aceite de altísima calidad y excelente raíz pivotante para el suelo.",
+    "siembra": "Abril a Mayo",
+    "cosecha": "Octubre a Noviembre",
+    "reqSuelo": "Suelos francos, profundos, fértiles.",
+    "reqClima": "Templado-frío, resistente a heladas invernales.",
+    "variedades": [
+      "Híbridos Primaverales de Canola"
+    ],
+    "fuenteVariedades": "INTA Paraná / Bordenave",
+    "rendimientoEstimado": "ESTIMADO: 1.8 - 3.0 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-limosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 450,
+        "temperaturaMin": 5,
+        "temperaturaMax": 22
+      }
+    },
+    "id": "canola",
+    "nombreCientifico": "Brassica napus",
+    "subcategoria": "Oleaginosa Invernal",
+    "regiones": [
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "manzana": {
+    "nombre": "Manzana",
+    "categoria": "Frutícola",
+    "descripcion": "Frutal de pepita insignia del Alto Valle de Río Negro, Neuquén y valles mendocinos.",
+    "siembra": "Invierno (plantación de barbechos)",
+    "cosecha": "Febrero a Abril",
+    "reqSuelo": "Suelos aluviales profundos, francos a franco-arenosos, sin salinidad.",
+    "reqClima": "Templado-frío con acumulación de horas de frío invernal (>800 hs frío) y verano seco.",
+    "variedades": [
+      "Red Delicious / Royal Gala",
+      "Granny Smith / Cripps Pink"
+    ],
+    "fuenteVariedades": "INTA Alto Valle (Río Negro)",
+    "rendimientoEstimado": "ESTIMADO: 35 - 55 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 200,
+        "temperaturaMin": 5,
+        "temperaturaMax": 28
+      }
+    },
+    "id": "manzana",
+    "nombreCientifico": "Malus domestica",
+    "subcategoria": "Frutícola de Pepita",
+    "regiones": [
+      "Patagonia",
+      "Cuyo"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "pera": {
+    "nombre": "Pera",
+    "categoria": "Frutícola",
+    "descripcion": "Frutal de pepita de exportación concentrado en los valles irrigados patagónicos.",
+    "siembra": "Invierno",
+    "cosecha": "Enero a Marzo",
+    "reqSuelo": "Suelos francos, profundos, fértiles.",
+    "reqClima": "Templado frío con requerimiento estricto de horas de frío.",
+    "variedades": [
+      "Williams / Packham's Triumph",
+      "Beurré D'Anjou"
+    ],
+    "fuenteVariedades": "INTA Alto Valle",
+    "rendimientoEstimado": "ESTIMADO: 30 - 50 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.5,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 200,
+        "temperaturaMin": 5,
+        "temperaturaMax": 28
+      }
+    },
+    "id": "pera",
+    "nombreCientifico": "Pyrus communis",
+    "subcategoria": "Frutícola de Pepita",
+    "regiones": [
+      "Patagonia",
+      "Cuyo"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "nogal": {
+    "nombre": "Nogal",
+    "categoria": "Frutícola",
+    "descripcion": "Frutal de carozo/nuez de alto valor económico en valles cordilleranos (Catamarca, La Rioja, Mendoza).",
+    "siembra": "Invierno",
+    "cosecha": "Marzo a Mayo",
+    "reqSuelo": "Suelos muy profundos (>1.5m), francos, con excelente drenaje y sin salinidad.",
+    "reqClima": "Templado seco con días cálidos, noches frescas y horas frío suficientes.",
+    "variedades": [
+      "Chandler",
+      "Tulare / Howard"
+    ],
+    "fuenteVariedades": "INTA Catamarca / Mendoza",
+    "rendimientoEstimado": "ESTIMADO: 3.5 - 6.0 tn/ha (nuez con cáscara)",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.2,
+        "phMax": 7.8,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 300,
+        "temperaturaMin": 8,
+        "temperaturaMax": 32
+      }
+    },
+    "id": "nogal",
+    "nombreCientifico": "Juglans regia",
+    "subcategoria": "Frutícola / Frutos Secos",
+    "regiones": [
+      "Cuyo",
+      "NOA"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
+    "updatedAt": "2025-01-01"
+  },
+  "durazno": {
+    "nombre": "Durazno",
+    "categoria": "Frutícola",
+    "descripcion": "Frutal de carozo para consumo en fresco e industria conservera.",
+    "siembra": "Invierno",
+    "cosecha": "Noviembre a Febrero",
+    "reqSuelo": "Suelos francos a franco-arenosos, bien aireados.",
+    "reqClima": "Templado con primavera libre de heladas tardías.",
+    "variedades": [
+      "Pavías para Industria (Mendoza)",
+      "Variedades de Carne Blanca / Amarilla (San Pedro)"
+    ],
+    "fuenteVariedades": "INTA San Pedro / Mendoza",
+    "rendimientoEstimado": "ESTIMADO: 25 - 45 tn/ha",
+    "pino_eucalyptus": false,
+    "requerimientos": {
+      "suelo": {
+        "phMin": 6.0,
+        "phMax": 7.2,
+        "drenaje": [
+          "bueno",
+          "excelente"
+        ],
+        "texturas": [
+          "franca",
+          "franco-arenosa"
+        ]
+      },
+      "clima": {
+        "precipitacionMin": 400,
+        "temperaturaMin": 8,
+        "temperaturaMax": 30
+      }
+    },
+    "id": "durazno",
+    "nombreCientifico": "Prunus persica",
+    "subcategoria": "Frutícola de Carozo",
+    "regiones": [
+      "Cuyo",
+      "Pampeana"
+    ],
+    "fuentes": [
+      "INTA Catálogo Agronómico",
+      "Ministerio de Economía - Bioeconomía Argentina"
+    ],
+    "version": "2.2.0",
     "updatedAt": "2025-01-01"
   }
 }

@@ -108,55 +108,6 @@ export class MapViewer {
     };
   }
 
-  /**
-   * Carga e integra capas WMS oficiales reales de IDE SAGyP, INTA e IGN
-   */
-  registerOfficialGISLayers() {
-    if (!this.map || typeof L === 'undefined') return;
-
-    // 1. Capa WMS Cartografía de Suelos INTA 1:50.000
-    try {
-      const wmsSuelos = L.tileLayer.wms('https://geoserver.inta.gob.ar/geoserver/wms', {
-        layers: 'suelos:cartografia_nacional',
-        format: 'image/png',
-        transparent: true,
-        opacity: 0.65,
-        attribution: 'INTA Cartografía Oficial de Suelos'
-      });
-      this.registerOverlayLayer('wms_suelos_inta', wmsSuelos, '🌱 Suelos INTA 1:50.000 (WMS INTA)', true, 'Oficiales IDE');
-    } catch (e) {
-      console.warn("[MapViewer] Error registrando WMS Suelos INTA:", e);
-    }
-
-    // 2. Capa WMS Límites Departamentales IGN
-    try {
-      const wmsIGN = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/wms', {
-        layers: 'ign:departamento',
-        format: 'image/png',
-        transparent: true,
-        opacity: 0.75,
-        attribution: 'IGN Instituto Geográfico Nacional'
-      });
-      this.registerOverlayLayer('wms_limites_ign', wmsIGN, '🏛️ Límites Departamentales (WMS IGN)', true, 'Oficiales IDE');
-    } catch (e) {
-      console.warn("[MapViewer] Error registrando WMS IGN:", e);
-    }
-
-    // 3. Capa WMS Ordenamiento Territorial de Bosques Nativos (OTBN)
-    try {
-      const wmsOTBN = L.tileLayer.wms('https://geoserver.inta.gob.ar/geoserver/wms', {
-        layers: 'bosques:otbn_nacional',
-        format: 'image/png',
-        transparent: true,
-        opacity: 0.60,
-        attribution: 'Ministerio de Ambiente / INTA - Ley 26.331'
-      });
-      this.registerOverlayLayer('wms_otbn_bosques', wmsOTBN, '🌳 Bosques Nativos OTBN (Ley 26.331)', true, 'Oficiales IDE');
-    } catch (e) {
-      console.warn("[MapViewer] Error registrando WMS OTBN:", e);
-    }
-  }
-
   toggleOverlayLayer(layerKey, enable) {
     if (!this.map || !this.overlayLayers[layerKey]) return;
 
