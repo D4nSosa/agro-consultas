@@ -58,6 +58,49 @@ export function clearBatch() {
 }
 
 /**
+ * Intenta reconstruir un polígono GeoJSON de Lote a partir del conjunto de fotos con GPS EXIF
+ * @returns {Object|null} Objeto de Lote GeoJSON o null si hay menos de 3 puntos
+ */
+export function buildPolygonFromBatchGps() {
+  const pointsWithGps = uploadedImagesBatch.filter(img => img.exif && img.exif.hasGps && img.exif.gps);
+
+  if (pointsWithGps.length < 3) {
+    return {
+      success: false,
+      message: `Se requieren al menos 3 imágenes con GPS EXIF para reconstruir el perímetro del lote (se encontraron ${pointsWithGps.length}).`,
+      pointsCount: pointsWithGps.length,
+      points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
+    };
+  }
+
+  // Extraer puntos [lng, lat]
+  const coordinates = pointsWithGps.map(p => [p.exif.gps.lng, p.exif.gps.lat]);
+
+  // Cerrar polígono conectando el último punto con el primero
+  const closedCoordinates = [...coordinates, coordinates[0]];
+
+  const geoJsonPolygon = {
+    type: "Feature",
+    properties: {
+      name: `Lote Reconstruido por Fotografía (${pointsWithGps.length} puntos GPS)`,
+      source: "EXIF GPS Cameras / Smartphone Batch",
+      createdAt: new Date().toISOString()
+    },
+    geometry: {
+      type: "Polygon",
+      coordinates: [closedCoordinates]
+    }
+  };
+
+  return {
+    success: true,
+    feature: geoJsonPolygon,
+    pointsCount: pointsWithGps.length,
+    points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
+  };
+}
+
+/**
  * Analiza una imagen individual seleccionada o capturada por el usuario.
  * @param {File} imageFile - Objeto File subido desde el navegador.
  * @returns {Promise<Object>} Análisis de evidencia completo estructurado.
