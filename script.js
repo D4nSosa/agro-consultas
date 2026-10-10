@@ -438,16 +438,16 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px;">
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación Acumulada</div>
+          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación Acumulada (Período Reciente)</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${d.periodMetrics.precipitacionAcumuladaMm} mm</div>
-        <div style="font-size: 0.8rem; color: var(--texto-principal);">Promedio Histórico: ${d.historicalAverages.precipitacionMediaAnualMm} mm/año</div>
+          <div style="font-size: 0.8rem; color: var(--texto-principal);">Línea Base Histórica (2001–2020): ${d.historicalAverages.precipitacionMediaAnualMm} mm/año</div>
         <span class="compatibility-badge ${precDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionPrecipitacion}</span>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura Media Período</div>
+          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura Media (Período Reciente)</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: #e67e22; margin: 4px 0;">${d.periodMetrics.temperaturaMediaC}°C</div>
-        <div style="font-size: 0.8rem; color: var(--texto-principal);">Promedio Histórico: ${d.historicalAverages.temperaturaMediaHistoricaC}°C</div>
+          <div style="font-size: 0.8rem; color: var(--texto-principal);">Línea Base Histórica (2001–2020): ${d.historicalAverages.temperaturaMediaHistoricaC}°C</div>
         <span class="compatibility-badge ${tempDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionTemperatura}</span>
       </div>
 
@@ -810,11 +810,39 @@ function initApp() {
     });
   }
 
-  // Botón Exportar PDF
+  // Botón Exportar PDF y Compartir Reporte
   const btnPDF = document.getElementById("btnExportPDF");
   if (btnPDF) {
     btnPDF.addEventListener("click", () => {
       window.print();
+    });
+  }
+
+  const btnShare = document.getElementById("btnShareReport");
+  if (btnShare) {
+    btnShare.addEventListener("click", () => {
+      if (!currentLat || !currentLng) {
+        alert("Seleccioná primero una ubicación en el mapa o buscador para generar el reporte.");
+        return;
+      }
+      const baseUrl = window.location.origin + window.location.pathname.replace('resultados.html', 'reporte.html');
+      const shareUrl = `${baseUrl}?lat=${currentLat.toFixed(5)}&lng=${currentLng.toFixed(5)}&nombre=${encodeURIComponent(currentUbicacionNombre)}&ha=N/A`;
+
+      const shareData = {
+        title: `Informe Agro Consultas — ${currentUbicacionNombre}`,
+        text: `Informe Agro Consultas para ${currentUbicacionNombre}:`,
+        url: shareUrl
+      };
+
+      if (navigator.share) {
+        navigator.share(shareData).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          alert("Enlace único del reporte copiado al portapapeles:\n" + shareUrl);
+        }).catch(() => {
+          alert("Enlace único del reporte:\n" + shareUrl);
+        });
+      }
     });
   }
 

@@ -62,10 +62,15 @@
         Ubicación: <span id="resultado_ubicacion" style="color: var(--verde-principal);">Sin seleccionar</span>
       </h2>
 
-      <!-- Botón Exportar PDF -->
-      <button id="btnExportPDF" class="btn primary" style="font-size: 0.88rem; padding: 8px 16px; background: #27ae60; border-color: #27ae60;">
-        📄 Descargar Informe Técnico PDF
-      </button>
+      <!-- Acciones de Informe -->
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button id="btnExportPDF" class="btn primary" style="font-size: 0.88rem; padding: 8px 16px; background: #27ae60; border-color: #27ae60;">
+          📄 Descargar Informe PDF
+        </button>
+        <button id="btnShareReport" class="btn primary" style="font-size: 0.88rem; padding: 8px 16px; background: #2980b9; border-color: #2980b9;">
+          📲 Compartir Reporte
+        </button>
+      </div>
     </div>
 
     <!-- Contenedor del mapa y panel lateral -->
