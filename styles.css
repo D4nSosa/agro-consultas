@@ -43,11 +43,12 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   word-break: break-word;
 }
 
-.app-header{ display:flex; justify-content:space-between; align-items:center; padding:12px 18px; gap:12px;}
-.left{display:flex;align-items:center;gap:12px}
-.brand{ width:64px; height:64px; object-fit:cover; border-radius:50%; box-shadow:0 6px 20px var(--sombra-suave)}
-.brand-text .title{ font-weight:800; color:var(--verde-principal); font-size:18px}
-.brand-text .subtitle{ font-size:12px; color:var(--texto-secundario)}
+.app-header{ display:flex; justify-content:space-between; align-items:center; padding:12px 18px; gap:12px; flex-wrap:wrap;}
+.left{display:flex;align-items:center;gap:12px; min-width: 0; flex: 1 1 auto;}
+.brand{ width:64px; height:64px; object-fit:cover; border-radius:50%; box-shadow:0 6px 20px var(--sombra-suave); flex-shrink: 0;}
+.brand-text{ min-width: 0; flex: 1 1 auto; }
+.brand-text .title{ font-weight:800; color:var(--verde-principal); font-size:18px; white-space: nowrap;}
+.brand-text .subtitle, .brand-text > div:last-child{ font-size:12px; color:var(--texto-secundario); line-height: 1.25;}
 
 .container{ max-width:1100px; margin:0 auto; padding:16px}
 .card{ background:var(--gris-card); border-radius:12px; padding:18px; border:1px solid var(--borde-suave); box-shadow:0 10px 30px var(--sombra-suave)}
@@ -573,21 +574,26 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   .forest-layout {
     grid-template-columns: 1fr !important;
   }
+  .tracking-layout {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 600px) {
   .app-header {
     padding: 8px 12px;
+    gap: 8px;
   }
   .brand {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
   }
   .brand-text .title {
     font-size: 15px;
   }
-  .brand-text .subtitle {
-    font-size: 10px;
+  .brand-text .subtitle, .brand-text > div:last-child {
+    font-size: 0.68rem !important;
+    line-height: 1.2;
   }
   .container {
     padding: 10px;
@@ -613,12 +619,26 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
 }
 
 @media (max-width: 480px) {
+  .app-header {
+    padding: 6px 10px;
+  }
+  .brand {
+    width: 38px;
+    height: 38px;
+  }
+  .brand-text .title {
+    font-size: 14px;
+  }
+  .brand-text .subtitle, .brand-text > div:last-child {
+    font-size: 0.62rem !important;
+  }
   .app-header .right {
     gap: 4px !important;
+    width: 100%;
   }
   .app-header .btn {
     padding: 6px 8px;
-    font-size: 0.75rem !important;
+    font-size: 0.72rem !important;
   }
 }
 

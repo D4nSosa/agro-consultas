@@ -107,13 +107,19 @@
 
         <!-- Acciones Directas con el Lote Creado -->
         <div id="lot-actions-box" style="display: none; flex-direction: column; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--borde-suave);">
-          <div style="font-weight: bold; font-size: 0.85rem; color: var(--verde-principal);">🚀 Analizar este Lote en los Módulos:</div>
+          <div style="font-weight: bold; font-size: 0.85rem; color: var(--verde-principal);">🚀 Acciones e Informes del Lote:</div>
 
-          <button type="button" id="btn-analyze-crops" class="btn primary" style="font-size: 0.85rem; padding: 10px;">
-            🌾 Evaluar Aptitud de Cultivos para este Lote
-          </button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" id="btn-print-pdf-tracking" class="btn primary" style="font-size: 0.85rem; padding: 10px; flex: 1; min-width: 140px; background: #27ae60; border-color: #27ae60;">
+              📄 Descargar Informe PDF
+            </button>
+            <button type="button" id="btn-share-tracking" class="btn primary" style="font-size: 0.85rem; padding: 10px; flex: 1; min-width: 140px; background: #2980b9; border-color: #2980b9;">
+              📲 Compartir Reporte
+            </button>
+          </div>
+
           <button type="button" id="btn-analyze-forest" class="btn outline" style="font-size: 0.85rem; padding: 10px;">
-            🌲 Analizar en Módulo Forestal y Satelital (Copernicus)
+            🌲 Abrir en Módulo Forestal y Satelital (Copernicus)
           </button>
 
           <div style="font-weight: bold; font-size: 0.85rem; color: var(--texto-principal); margin-top: 8px;">💾 Exportar Geometría del Lote:</div>
@@ -132,6 +138,22 @@
 
     </div>
 
+    <!-- Sección de Análisis Territorial Completo del Lote Trazado -->
+    <div id="tracking-analysis-section" class="card" style="display: none; margin-bottom: 25px; padding: 20px; border-top: 4px solid var(--verde-principal);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 2px solid var(--verde-principal); padding-bottom: 10px; margin-bottom: 15px;">
+        <h3 style="margin: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 8px;">
+          <span>🌱</span> Análisis Territorial Completo del Lote
+        </h3>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button id="btn-print-pdf-section" class="btn primary" style="font-size: 0.82rem; padding: 6px 14px; background: #27ae60; border-color: #27ae60;">📄 Descargar PDF</button>
+          <button id="btn-share-section" class="btn primary" style="font-size: 0.82rem; padding: 6px 14px; background: #2980b9; border-color: #2980b9;">📲 Compartir Reporte</button>
+        </div>
+      </div>
+
+      <!-- Contenedor dinámico de resultados del lote -->
+      <div id="tracking-analysis-results"></div>
+    </div>
+
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
@@ -144,6 +166,11 @@
   <!-- Script del Módulo de Tracking -->
   <script type="module">
     import { exportToKML, exportToGPX, calculateArea, calculateCentroid, toGeoJSONFeature } from './forestal/utils/geo.js';
+    import { findProvinceByCoords, findSubregion } from './services/territoryService.js';
+    import { getSoilReport } from './services/soilService.js';
+    import { getClimateData } from './services/climateService.js';
+    import { getClimateHistory } from './services/sources/nasaPowerService.js';
+    import { generateRecommendations, loadCultivosData } from './services/recommendationEngine.js';
 
     let map = null;
     let watchId = null;
@@ -294,6 +321,119 @@
       document.getElementById('track-area-m2').innerText = `${areaInfo.squareMeters.toLocaleString('es-AR')} m²`;
 
       document.getElementById('lot-actions-box').style.display = 'flex';
+
+      // Ejecutar análisis territorial automático para el lote caminado
+      runTerritorialAnalysisForLot(currentFeature, areaInfo);
+    }
+
+    async function runTerritorialAnalysisForLot(feature, areaInfo) {
+      const section = document.getElementById('tracking-analysis-section');
+      const container = document.getElementById('tracking-analysis-results');
+      if (!section || !container) return;
+
+      section.style.display = 'block';
+      container.innerHTML = `
+        <div style="text-align: center; padding: 25px;">
+          <span style="font-size: 1.8rem; display: block; margin-bottom: 8px;">⏳</span>
+          <p style="margin: 0; color: var(--texto-secundario); font-size: 0.9rem;">Ejecutando análisis territorial completo para el lote caminado...</p>
+        </div>
+      `;
+
+      const centroid = calculateCentroid(feature);
+      if (!centroid) {
+        container.innerHTML = `<p style="color:#c0392b;">No se pudo obtener el centroide del lote.</p>`;
+        return;
+      }
+
+      const { lat, lng } = centroid;
+      const lotName = document.getElementById('track-lot-name').value || "Lote Campo - Recorrido GPS";
+
+      try {
+        const provKey = await findProvinceByCoords(lat, lng);
+        const subregion = provKey ? await findSubregion(provKey, lat, lng) : null;
+        const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
+        const climateReport = await getClimateData(lat, lng, provKey || "Argentina", subregion?.clima);
+        const climateHistory = await getClimateHistory(lat, lng, 12);
+
+        const catalogo = await loadCultivosData();
+        const cultivosNombres = Object.values(catalogo).map(c => c.nombre || c.id);
+        const recomendaciones = await generateRecommendations(cultivosNombres, soilReport, climateReport);
+
+        container.innerHTML = `
+          <!-- Ficha Resumen del Lote -->
+          <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
+              <div><strong>📍 Lote:</strong> ${lotName}</div>
+              <div><strong>📐 Superficie:</strong> ${areaInfo.hectares} ha (${areaInfo.squareMeters.toLocaleString('es-AR')} m²)</div>
+              <div><strong>🗺️ Coordenadas Centroide:</strong> ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+              <div><strong>Provincia / Zona:</strong> ${provKey || 'Argentina'}</div>
+            </div>
+          </div>
+
+          <!-- Grilla de Suelo y Clima -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <!-- Suelo INTA -->
+            <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Propiedades del Suelo (INTA 1:50.000)</h4>
+              <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
+                <div><strong>Tipo y Clasificación:</strong> ${soilReport.tipo || 'NO DISPONIBLE'}</div>
+                <div><strong>Textura:</strong> ${soilReport.textura || 'NO DISPONIBLE'}</div>
+                <div><strong>Drenaje:</strong> ${soilReport.drenaje || 'NO DISPONIBLE'}</div>
+                <div><strong>Limitantes:</strong> ${soilReport.limitantes || 'Sin limitantes severas detectadas'}</div>
+                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Fuente: ${soilReport.fuente}</div>
+              </div>
+            </div>
+
+            <!-- Clima en Vivo -->
+            <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">⚡ Clima en Vivo y Riesgo (Open-Meteo)</h4>
+              <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
+                <div><strong>Temperatura Actual:</strong> ${climateReport.temperaturaActual}</div>
+                <div><strong>Viento:</strong> ${climateReport.vientoActual}</div>
+                <div><strong>Condición:</strong> ${climateReport.condicionActualTexto}</div>
+                ${climateReport.peligroIncendio ? `
+                  <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--borde-suave);">
+                    <strong>🔥 Riesgo de Incendios:</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}">${climateReport.peligroIncendio.nivel}</span>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Serie Climatológica NASA POWER -->
+            <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌦️ Serie Histórica Climática (NASA POWER)</h4>
+              <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
+                <div><strong>Período Observado Reciente:</strong> ${climateHistory?.data?.periodMetrics?.precipitacionAcumuladaMm ?? 'NO DISPONIBLE'} mm ac.</div>
+                <div><strong>Línea Base Histórica de Referencia (2001–2020):</strong> ${climateHistory?.data?.historicalAverages?.precipitacionMediaAnualMm ?? 'NO DISPONIBLE'} mm/año</div>
+                <div><strong>Anomalía:</strong> ${climateHistory?.data?.comparison?.clasificacionPrecipitacion ?? 'NO DISPONIBLE'}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Evaluación de Aptitud de Cultivos -->
+          <div style="margin-top: 15px;">
+            <h4 style="margin: 0 0 10px 0; color: var(--verde-principal); font-size: 1rem;">🌾 Aptitud Agroecológica de Cultivos Destacados</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+              ${recomendaciones.slice(0, 6).map(c => `
+                <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 0.9rem; color: var(--verde-principal);">${c.nombre}</strong>
+                    <span class="compatibility-badge ${c.compatibilidad.includes('ALTA') ? 'badge-alta' : (c.compatibilidad.includes('MEDIA') ? 'badge-media' : 'badge-baja')}" style="font-size: 0.72rem; padding: 3px 6px;">
+                      ${c.compatibilidad}
+                    </span>
+                  </div>
+                  <p style="margin: 0 0 6px 0; color: var(--texto-secundario); font-size: 0.8rem;">${c.descripcion}</p>
+                  <div style="font-size: 0.78rem;"><strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Compatible'}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+
+      } catch (err) {
+        console.error("Error en runTerritorialAnalysisForLot:", err);
+        container.innerHTML = `<p style="color:#c0392b;">Error al generar el análisis territorial del lote: ${err.message}</p>`;
+      }
     }
 
     function resetTracking() {
@@ -335,16 +475,58 @@
       document.getElementById('btn-start-tracking').addEventListener('click', startTracking);
       document.getElementById('btn-stop-tracking').addEventListener('click', stopTrackingAndClose);
       document.getElementById('btn-add-point').addEventListener('click', addManualPoint);
-      document.getElementById('btn-clear-tracking').addEventListener('click', resetTracking);
-
-      // Botones de Redirección Inteligente
-      document.getElementById('btn-analyze-crops').addEventListener('click', () => {
-        if (!currentFeature) return;
-        const centroid = calculateCentroid(currentFeature);
-        if (centroid) {
-          window.location.href = `resultados.html?lat=${centroid.lat.toFixed(5)}&lng=${centroid.lng.toFixed(5)}`;
-        }
+      document.getElementById('btn-clear-tracking').addEventListener('click', () => {
+        resetTracking();
+        const section = document.getElementById('tracking-analysis-section');
+        if (section) section.style.display = 'none';
       });
+
+      // Función para generar URL única al reporte web
+      function getShareableReportUrl() {
+        if (!currentFeature) return window.location.href;
+        const centroid = calculateCentroid(currentFeature);
+        const areaInfo = calculateArea(currentFeature);
+        const lotName = document.getElementById('track-lot-name').value || "Lote Caminado por GPS";
+
+        const params = new URLSearchParams();
+        if (centroid) {
+          params.set('lat', centroid.lat.toFixed(5));
+          params.set('lng', centroid.lng.toFixed(5));
+        }
+        params.set('nombre', lotName);
+        params.set('ha', areaInfo.hectares);
+        params.set('geom', JSON.stringify(currentFeature.geometry));
+
+        const baseUrl = window.location.origin + window.location.pathname.replace('tracking.html', 'reporte.html');
+        return `${baseUrl}?${params.toString()}`;
+      }
+
+      function shareReport() {
+        const shareUrl = getShareableReportUrl();
+        const lotName = document.getElementById('track-lot-name').value || "Lote Caminado por GPS";
+        const areaHa = document.getElementById('track-area-ha').innerText;
+
+        const shareData = {
+          title: `Informe de Lote — ${lotName}`,
+          text: `Informe Agro Consultas para ${lotName} (${areaHa}):`,
+          url: shareUrl
+        };
+
+        if (navigator.share) {
+          navigator.share(shareData).catch(() => {});
+        } else {
+          navigator.clipboard.writeText(shareUrl).then(() => {
+            alert("Enlace único del reporte copiado al portapapeles:\n" + shareUrl);
+          }).catch(() => {
+            alert("Enlace único del reporte:\n" + shareUrl);
+          });
+        }
+      }
+
+      document.getElementById('btn-print-pdf-tracking')?.addEventListener('click', () => window.print());
+      document.getElementById('btn-print-pdf-section')?.addEventListener('click', () => window.print());
+      document.getElementById('btn-share-tracking')?.addEventListener('click', shareReport);
+      document.getElementById('btn-share-section')?.addEventListener('click', shareReport);
 
       document.getElementById('btn-analyze-forest').addEventListener('click', () => {
         if (!currentFeature) return;

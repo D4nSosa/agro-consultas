@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Informe Técnico Territorial — Agro Consultas</title>
+
+  <!-- Tipografía Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- Estilos base -->
+  <link rel="stylesheet" href="styles.css">
+
+  <link rel="icon" href="dwnl.png" type="image/png">
+</head>
+
+<body>
+
+  <header class="app-header" style="border-bottom: 2px solid var(--verde-principal); padding-bottom: 12px;">
+    <div class="left">
+      <img class="brand" src="dwnl.png" alt="logo" />
+      <div class="brand-text">
+        <div class="title">Agro Consultas</div>
+        <div style="font-size: 0.72rem; color: var(--texto-secundario);">Informe Técnico Territorial</div>
+      </div>
+    </div>
+
+    <div class="right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <button id="btn-print-report" class="btn primary" style="font-size: 0.85rem; background: #27ae60; border-color: #27ae60;">📄 Descargar PDF</button>
+      <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🌐 Ir a Agro Consultas</a>
+      <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
+    </div>
+  </header>
+
+  <main class="container" style="max-width: 1000px; margin-top: 20px;">
+
+    <!-- Encabezado del Informe -->
+    <div class="card" style="margin-bottom: 20px; padding: 20px; border-left: 5px solid var(--verde-principal);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h1 id="report-title" style="margin: 0 0 6px 0; font-size: 1.6rem; color: var(--verde-principal);">
+            Informe Técnico del Lote
+          </h1>
+          <span id="report-date" style="font-size: 0.82rem; color: var(--texto-secundario);">Fecha de emisión: --</span>
+        </div>
+        <span class="badge-origin real" style="font-size: 0.8rem; padding: 6px 12px;">Reporte Web Verificado</span>
+      </div>
+    </div>
+
+    <!-- Layout Mapa y Ficha de Métricas -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 25px;">
+      <!-- Mapa -->
+      <div class="card" style="padding: 12px; display: flex; flex-direction: column;">
+        <h3 style="margin: 0 0 10px 0; color: var(--verde-principal); font-size: 1.05rem;">🗺️ Delimitación y Ubicación del Lote</h3>
+        <div id="report-map" style="height: 320px; border-radius: 8px; border: 1px solid var(--borde-suave); overflow: hidden;"></div>
+      </div>
+
+      <!-- Métricas -->
+      <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+        <h3 style="margin: 0; color: var(--verde-principal); font-size: 1.05rem; border-bottom: 1px solid var(--borde-suave); padding-bottom: 8px;">
+          📊 Métricas de Geometría
+        </h3>
+
+        <div style="background: rgba(39, 174, 96, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(39, 174, 96, 0.25);">
+          <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Superficie del Lote:</span>
+          <strong id="report-ha" style="font-size: 1.5rem; color: var(--verde-principal);">0.00 ha</strong>
+          <span id="report-m2" style="font-size: 0.8rem; display: block; color: var(--texto-secundario);">0 m²</span>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--borde-suave); font-size: 0.85rem; line-height: 1.5;">
+          <div><strong>📍 Coordenadas Centroide:</strong> <span id="report-coords">--</span></div>
+          <div><strong>Provincia / Subregión:</strong> <span id="report-prov">--</span></div>
+          <div><strong>Fuente de Trazado:</strong> Relevamiento GPS de Campo</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenedor del Análisis Territorial -->
+    <div id="report-analysis-container" class="card" style="padding: 20px; margin-bottom: 25px;">
+      <div style="text-align: center; padding: 30px;">
+        <span style="font-size: 2rem; display: block; margin-bottom: 10px;">⏳</span>
+        <p>Cargando análisis territorial de datos oficiales (INTA, Open-Meteo, NASA POWER)...</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="app-footer" style="margin-top: 40px;">
+    <small>Agro Consultas — Informe Técnico Territorial</small>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Script del Reporte -->
+  <script type="module">
+    import { findProvinceByCoords, findSubregion } from './services/territoryService.js';
+    import { getSoilReport } from './services/soilService.js';
+    import { getClimateData } from './services/climateService.js';
+    import { getClimateHistory } from './services/sources/nasaPowerService.js';
+    import { generateRecommendations, loadCultivosData } from './services/recommendationEngine.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('report-date').innerText = `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`;
+
+      // Theme toggle
+      const themeToggle = document.getElementById('themeToggle');
+      function applyTheme(t) {
+        if (t === 'dark') document.documentElement.classList.add('theme-dark');
+        else document.documentElement.classList.remove('theme-dark');
+      }
+      const saved = localStorage.getItem('agro_theme') || 'dark';
+      applyTheme(saved);
+      themeToggle?.addEventListener('click', () => {
+        const cur = document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light';
+        const next = cur === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        localStorage.setItem('agro_theme', next);
+      });
+
+      document.getElementById('btn-print-report')?.addEventListener('click', () => window.print());
+
+      // Parsear URL Params
+      const params = new URLSearchParams(window.location.search);
+      const lat = parseFloat(params.get('lat'));
+      const lng = parseFloat(params.get('lng'));
+      const lotName = params.get('nombre') || 'Lote Campo';
+      const haVal = params.get('ha') || '0.00';
+      const geomStr = params.get('geom');
+
+      document.getElementById('report-title').innerText = `Informe Técnico — ${lotName}`;
+      document.getElementById('report-ha').innerText = `${haVal} ha`;
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        document.getElementById('report-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      }
+
+      // Inicializar mapa del reporte
+      const reportMap = L.map('report-map').setView([!isNaN(lat) ? lat : -38.4161, !isNaN(lng) ? lng : -63.6167], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap | IGN Argentina'
+      }).addTo(reportMap);
+
+      if (geomStr) {
+        try {
+          const geom = JSON.parse(geomStr);
+          const polyLayer = L.geoJSON(geom, {
+            style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.35 }
+          }).addTo(reportMap);
+          reportMap.fitBounds(polyLayer.getBounds(), { padding: [20, 20] });
+        } catch (e) {}
+      } else if (!isNaN(lat) && !isNaN(lng)) {
+        L.marker([lat, lng]).addTo(reportMap);
+      }
+
+      // Ejecutar análisis territorial
+      const analysisContainer = document.getElementById('report-analysis-container');
+      if (isNaN(lat) || isNaN(lng)) {
+        analysisContainer.innerHTML = `<p style="color:#c0392b;">No se especificaron coordenadas válidas para generar el análisis.</p>`;
+        return;
+      }
+
+      try {
+        const provKey = await findProvinceByCoords(lat, lng);
+        document.getElementById('report-prov').innerText = provKey || 'Argentina';
+
+        const subregion = provKey ? await findSubregion(provKey, lat, lng) : null;
+        const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
+        const climateReport = await getClimateData(lat, lng, provKey || "Argentina", subregion?.clima);
+        const climateHistory = await getClimateHistory(lat, lng, 12);
+
+        const catalogo = await loadCultivosData();
+        const cultivosNombres = Object.values(catalogo).map(c => c.nombre || c.id);
+        const recomendaciones = await generateRecommendations(cultivosNombres, soilReport, climateReport);
+
+        analysisContainer.innerHTML = `
+          <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">
+            🌱 Evaluación Territorial y Diagnóstico Agroclimático
+          </h2>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <!-- Suelo INTA -->
+            <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Propiedades del Suelo (INTA 1:50.000)</h4>
+              <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
+                <div><strong>Tipo y Clasificación:</strong> ${soilReport.tipo || 'NO DISPONIBLE'}</div>
+                <div><strong>Textura Predominante:</strong> ${soilReport.textura || 'NO DISPONIBLE'}</div>
+                <div><strong>Drenaje / Escurrimiento:</strong> ${soilReport.drenaje || 'NO DISPONIBLE'}</div>
+                <div><strong>Limitantes Edáficas:</strong> ${soilReport.limitantes || 'Sin limitantes severas detectadas'}</div>
+                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Fuente: ${soilReport.fuente}</div>
+              </div>
+            </div>
+
+            <!-- Clima en Vivo Open-Meteo -->
+            <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">⚡ Clima en Vivo y Riesgo (Open-Meteo)</h4>
+              <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
+                <div><strong>Temperatura Actual:</strong> ${climateReport.temperaturaActual}</div>
+                <div><strong>Viento:</strong> ${climateReport.vientoActual}</div>
+                <div><strong>Condición Met:</strong> ${climateReport.condicionActualTexto}</div>
+                ${climateReport.peligroIncendio ? `
+                  <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--borde-suave);">
+                    <strong>🔥 Peligro de Incendios (FWI):</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}">${climateReport.peligroIncendio.nivel}</span>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- NASA POWER -->
+            <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌦️ Serie Histórica Climática (NASA POWER)</h4>
+              <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
+                <div><strong>Período Observado Reciente:</strong> ${climateHistory?.data?.periodMetrics?.precipitacionAcumuladaMm ?? 'NO DISPONIBLE'} mm ac.</div>
+                <div><strong>Línea Base Histórica de Referencia (2001–2020):</strong> ${climateHistory?.data?.historicalAverages?.precipitacionMediaAnualMm ?? 'NO DISPONIBLE'} mm/año</div>
+                <div><strong>Anomalía:</strong> ${climateHistory?.data?.comparison?.clasificacionPrecipitacion ?? 'NO DISPONIBLE'}</div>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="margin: 20px 0 10px 0; color: var(--verde-principal); font-size: 1.15rem; border-bottom: 1px solid var(--borde-suave); padding-bottom: 6px;">
+            🌾 Matriz de Aptitud Agroecológica de Cultivos
+          </h3>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+            ${recomendaciones.map(c => `
+              <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <strong style="font-size: 0.9rem; color: var(--verde-principal);">${c.nombre}</strong>
+                  <span class="compatibility-badge ${c.compatibilidad.includes('ALTA') ? 'badge-alta' : (c.compatibilidad.includes('MEDIA') ? 'badge-media' : 'badge-baja')}" style="font-size: 0.72rem; padding: 3px 6px;">
+                    ${c.compatibilidad}
+                  </span>
+                </div>
+                <p style="margin: 0 0 6px 0; color: var(--texto-secundario); font-size: 0.8rem;">${c.descripcion}</p>
+                <div style="font-size: 0.78rem;"><strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Compatible'}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al generar el análisis del reporte: ${err.message}</p>`;
+      }
+    });
+  </script>
+
+</body>
+</html>
