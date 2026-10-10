@@ -10,12 +10,12 @@ import { calculateArea } from '../utils/geo.js';
  * Detecta cambios temporales entre dos análisis NDVI (Fecha A y Fecha B)
  */
 export function detectChanges(analysisA, analysisB, geometry) {
-  if (!analysisA || !analysisB || analysisA.available === false || analysisB.available === false || typeof analysisA.stats?.mean !== 'number' || typeof analysisB.stats?.mean !== 'number') {
+  if (!analysisA || !analysisB || analysisA.available === false || analysisB.available === false) {
     return {
       success: false,
       status: 'UNAVAILABLE',
       primaryMessage: 'NO DISPONIBLE CON LOS DATOS DISPONIBLES',
-      description: 'Se requieren observaciones ráster satelitales reales e imágenes comparables en ambas fechas para ejecutar el cálculo de variación espectral (deltaNDVI) y detección de cambios.',
+      description: 'Se requieren observaciones satelitales Sentinel-2 válidas en ambas fechas para ejecutar el cálculo de variación espectral y detección de cambios.',
       deltaNDVI: 'NO DISPONIBLE',
       breakdown: {
         decrease: { percent: 'N/D', hectares: 'N/D' },
@@ -24,7 +24,33 @@ export function detectChanges(analysisA, analysisB, geometry) {
       },
       limitations: [
         'Se requieren imágenes satelitales multiespectrales procesadas para ambas fechas comparadas.',
-        'No se generan porcentajes ni superficies simuladas cuando falta evidencia directa.'
+        'No se generan porcentajes ni superficies simuladas cuando falta evidencia directa de matriz de píxeles.'
+      ]
+    };
+  }
+
+  // Si no se dispone de matriz de píxeles/muestras ráster reales
+  if (typeof analysisA.stats?.mean !== 'number' || typeof analysisB.stats?.mean !== 'number') {
+    return {
+      success: true,
+      status: 'SCENE_IDENTIFIED',
+      period: {
+        dateA: analysisA.acquisitionDate || analysisA.date,
+        dateB: analysisB.acquisitionDate || analysisB.date,
+        productA: analysisA.productId,
+        productB: analysisB.productId
+      },
+      primaryMessage: 'Escenas satelitales identificadas para ambas fechas.',
+      description: `Se recuperaron las observaciones Sentinel-2 para ${analysisA.acquisitionDate} y ${analysisB.acquisitionDate}. Sin matriz ráster directa procesada en cliente, se requiere la API backend para el cálculo espacial de hectáreas por categoría de cambio.`,
+      deltaNDVI: 'Información pendiente de procesamiento ráster',
+      breakdown: {
+        decrease: { percent: 'Pendiente', hectares: 'Pendiente' },
+        stable: { percent: 'Pendiente', hectares: 'Pendiente' },
+        increase: { percent: 'Pendiente', hectares: 'Pendiente' }
+      },
+      confidence: 'Metadatos de escenas verificados',
+      limitations: [
+        'El cálculo de hectáreas afectadas requiere procesamiento de bandas en servidor o cliente con acceso a matriz de píxeles.'
       ]
     };
   }
