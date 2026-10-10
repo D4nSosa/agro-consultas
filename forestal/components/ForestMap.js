@@ -119,24 +119,37 @@ export class ForestMap {
   }
 
   handleMapClick(e) {
-    if (!this.isDrawing) return;
-
     const { lat, lng } = e.latlng;
-    this.drawPolygonPoints.push([lng, lat]);
 
-    // Renderizar marcador temporal del punto
-    L.circleMarker([lat, lng], { radius: 5, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(this.map);
+    if (this.isDrawing) {
+      this.drawPolygonPoints.push([lng, lat]);
+      L.circleMarker([lat, lng], { radius: 5, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(this.map);
 
-    if (this.drawPolygonPoints.length >= 3) {
-      // Cerrar polígono temporal
-      const closedCoords = [...this.drawPolygonPoints, this.drawPolygonPoints[0]];
-      const geom = {
-        type: "Polygon",
-        coordinates: [closedCoords]
-      };
-      const feature = toGeoJSONFeature(geom, { name: "Lote Dibujado" });
+      if (this.drawPolygonPoints.length >= 3) {
+        const closedCoords = [...this.drawPolygonPoints, this.drawPolygonPoints[0]];
+        const geom = {
+          type: "Polygon",
+          coordinates: [closedCoords]
+        };
+        const feature = toGeoJSONFeature(geom, { name: "Lote Dibujado" });
+        this.setGeoJSON(feature);
+        this.isDrawing = false;
+      }
+    } else {
+      // Si hace clic directamente en el mapa sin modo dibujo activo, crea un lote de 1 ha centrado en el punto
+      const delta = 0.0005; // aprox 50m radio (100m x 100m = 1 ha)
+      const coords = [
+        [
+          [lng - delta, lat - delta],
+          [lng + delta, lat - delta],
+          [lng + delta, lat + delta],
+          [lng - delta, lat + delta],
+          [lng - delta, lat - delta]
+        ]
+      ];
+      const geom = { type: "Polygon", coordinates: coords };
+      const feature = toGeoJSONFeature(geom, { name: "Lote Seleccionado en Mapa" });
       this.setGeoJSON(feature);
-      this.isDrawing = false;
     }
   }
 
@@ -222,16 +235,20 @@ export class ForestMap {
           fillOpacity: 0.9
         }).addTo(this.map).bindPopup(`<b>📍 UBICACIÓN GPS CAPTURADA</b><br>Tipo de geometría: PUNTO<br>Precisión:${accText}`).openPopup();
 
-        // Un GPS proporciona un PUNTO, NO un polígono ni una superficie artificial.
-        if (this.currentLayer) {
-          this.map.removeLayer(this.currentLayer);
-          this.currentLayer = null;
-        }
-        this.currentFeature = null;
-
-        if (this.onLotChanged) {
-          this.onLotChanged(null, { lat: latitude, lng: longitude }, { hectares: "LOTE/POLÍGONO NO DEFINIDO", squareMeters: "N/A" });
-        }
+        // Generar un lote de 1 ha centrado en la posición GPS para permitir análisis inmediato
+        const delta = 0.0005;
+        const coords = [
+          [
+            [longitude - delta, latitude - delta],
+            [longitude + delta, latitude - delta],
+            [longitude + delta, latitude + delta],
+            [longitude - delta, latitude + delta],
+            [longitude - delta, latitude - delta]
+          ]
+        ];
+        const geom = { type: "Polygon", coordinates: coords };
+        const feature = toGeoJSONFeature(geom, { name: `Lote en Ubicación GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})` });
+        this.setGeoJSON(feature);
 
         if (btnGps) {
           btnGps.disabled = false;

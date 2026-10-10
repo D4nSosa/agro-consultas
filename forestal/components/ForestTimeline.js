@@ -48,7 +48,6 @@ export class ForestTimeline {
             <div class="card timeline-card" style="padding: 12px; border-radius: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <strong style="font-size: 0.9rem;">📅 ${item.date}</strong>
-                <span class="badge-origin real">REAL</span>
               </div>
               <div style="font-size: 0.82rem; margin-top: 4px;">☁️ Nubosidad: <strong>${item.cloudCover}%</strong></div>
               <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px; word-break: break-all;">🆔 ${item.product}</div>

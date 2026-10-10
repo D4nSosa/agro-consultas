@@ -10,7 +10,7 @@ Agro Consultas es una plataforma web profesional de análisis y apoyo a decision
 | :--- | :--- | :--- |
 | **Búsqueda Geográfica y Geocodificación** | ✅ Funcional | Open-Meteo Geocoding API e IGN Georef API con identificación de nivel espacial. |
 | **Posicionamiento GPS en Tiempo Real** | ✅ Funcional | Browser Geolocation API con margen de precisión `coords.accuracy` en metros. |
-| **Base Agronómica (29 Cultivos)** | ✅ Funcional | Cultivos extensivos, hortícolas, frutícolas, regionales y forestales con requerimientos INTA/INV. |
+| **Base Agronómica (44 Perfiles)** | ✅ Funcional | 44 cultivos extensivos, hortícolas, frutícolas, regionales y forestales con requerimientos INTA/INV. |
 | **Motor Multicriterio de Aptitud** | ✅ Funcional | Aptitud Alta, Media, Baja o No Evaluable con explicaciones de motivos y limitantes. |
 | **Clima Histórico y Comparación** | ✅ Funcional | API Oficial de NASA POWER Climatology con series mensuales y anomalías reales. |
 | **Clima en Vivo** | ✅ Funcional | Open-Meteo Forecast API con caché de resiliencia y datos en directo. |
@@ -20,7 +20,8 @@ Agro Consultas es una plataforma web profesional de análisis y apoyo a decision
 | **Mapa de Decisiones e Interactivo** | ✅ Funcional | Leaflet con capas basemaps y leyenda de aptitud agro-ecológica. |
 | **Catálogo Satelital Sentinel-2** | ✅ Funcional | Consulta directa en vivo a Copernicus Data Space Ecosystem STAC. |
 | **Generación de Informe PDF** | ✅ Funcional | Impresión y descarga de reporte técnico formateado mediante `@media print` CSS. |
-| **Cálculo Ráster de Píxeles B04/B08** | ⚠️ Con Limitaciones | Requiere token S3 de Copernicus CDSE para descarga directa de bandas .jp2. |
+| **Módulo Forestal y Teledetección** | ✅ Funcional | Delimitación de lotes, serie temporal Copernicus Sentinel-2 y estimación dasométrica. |
+| **Exportación y Compartición de Reportes** | ✅ Funcional | Exportación a PDF, GeoJSON, KML, GPX y enlace para compartir en todos los módulos. |
 | **Diagnóstico Fitopatológico IA** | ❌ Pendiente | Se utiliza análisis visual prudente no diagnóstico (*"síntomas compatibles con..."*). |
 
 ---

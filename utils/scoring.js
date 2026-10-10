@@ -8,7 +8,7 @@ export const AptitudCategoria = {
   ALTA: 'APTITUD ALTA',
   MEDIA: 'APTITUD MEDIA (PRESENTA LIMITANTES)',
   BAJA: 'APTITUD BAJA (LIMITACIONES SEVERAS)',
-  NO_EVALUABLE: 'EVIDENCIA INSUFFICIENT / NO EVALUABLE'
+  NO_EVALUABLE: 'INFORMACIÓN PENDIENTE DE VERIFICACIÓN'
 };
 
 /**
@@ -178,11 +178,11 @@ export function calcularCompatibilidad(crop, soil, climate) {
   if (!isSoilAvailable && !isClimateAvailable) {
     return {
       categoria: AptitudCategoria.NO_EVALUABLE,
-      nivelAptitud: 'NO EVALUABLE',
-      motivos: ["Información edáfica y climática insuficiente para determinar aptitud."],
+      nivelAptitud: 'INFORMACIÓN PENDIENTE',
+      motivos: ["Información edáfica y climática pendiente para determinar aptitud."],
       riesgos: riesgos,
       datosFaltantes: datosFaltantes,
-      calidadEvidencia: 'NO EVALUABLE'
+      calidadEvidencia: 'INFORMACIÓN PENDIENTE'
     };
   }
 

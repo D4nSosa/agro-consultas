@@ -487,7 +487,7 @@ function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
   } else if (firstRec.compatibilidad.includes('BAJA') || firstRec.compatibilidad.includes('LIMITACIONES SEVERAS')) {
     color = '#e74c3c';
     textLabel = '🔴 Aptitud Baja / Desfavorable';
-  } else if (firstRec.compatibilidad.includes('EVIDENCIA INSUFFICIENT') || firstRec.compatibilidad.includes('NO EVALUABLE')) {
+  } else if (firstRec.compatibilidad.includes('INFORMACIÓN PENDIENTE') || firstRec.compatibilidad.includes('NO EVALUABLE')) {
     color = '#7f8c8d';
     textLabel = '⚪ No evaluble / Evidencia insuficiente';
   }
@@ -659,7 +659,6 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
               <span class="crop-icon" style="font-size: 1.8rem;">${icon}</span>
               <div>
                 <h3 style="margin: 0; font-weight: 700;">${c.nombre}</h3>
-                <span class="badge-origin ${c.nivelConfianza === 'high' ? 'real' : 'regional'}">${c.confianza}</span>
               </div>
             </div>
             <div>

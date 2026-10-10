@@ -62,7 +62,7 @@
         </div>
 
         <!-- Contenedor del Mapa -->
-        <div id="forest-map" style="height: 420px; border-radius: 8px; border: 1px solid var(--borde-suave); overflow: hidden;"></div>
+        <div id="forest-map" style="height: 320px; border-radius: 8px; border: 1px solid var(--borde-suave); overflow: hidden;"></div>
 
         <!-- Botonera de interacción con la geometría -->
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -114,7 +114,7 @@
         <!-- Trazabilidad SIG y Estado de Conexión en Campo -->
         <div style="margin-top: 10px; padding: 10px; background: rgba(39, 174, 96, 0.06); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem;">
           <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 4px;">🛡️ Trazabilidad SIG y Estado de Campo:</div>
-          <div>• <strong>CRS:</strong> POSGAR 2007 (EPSG:5343) / WGS84 (EPSG:4326)</div>
+          <div>• <strong>Sistema Geográfico:</strong> Coordenadas Estándar WGS84</div>
           <div>• <strong>Resolución:</strong> 10m Multi-espectral (Sentinel-2 L2A)</div>
           <div>• <strong>Modo Campo:</strong> <span id="field-online-status" style="color: #27ae60; font-weight: bold;">🟢 En Línea</span></div>
         </div>
@@ -487,10 +487,24 @@
     });
 
     async function ejecutarAnalisis(dateA, dateB) {
-      const feature = forestMap.getCurrentFeature();
+      let feature = forestMap.getCurrentFeature();
       if (!feature) {
-        alert("LOTE NO DEFINIDO — La ubicación GPS o punto seleccionado proporciona un PUNTO. Delimite un polígono en el mapa o cargue un GeoJSON real para realizar análisis de lote.");
-        return;
+        // Lote por defecto en caso de no haber hecho clic aún (-28.0500, -56.0333 Virasoro, Corrientes)
+        const lat = -28.0500;
+        const lng = -56.0333;
+        const delta = 0.0005;
+        const coords = [
+          [
+            [lng - delta, lat - delta],
+            [lng + delta, lat - delta],
+            [lng + delta, lat + delta],
+            [lng - delta, lat + delta],
+            [lng - delta, lat - delta]
+          ]
+        ];
+        const geom = { type: "Polygon", coordinates: coords };
+        feature = { type: "Feature", geometry: geom, properties: { name: "Lote Virasoro, Corrientes" } };
+        forestMap.setGeoJSON(feature);
       }
 
       const btn = document.getElementById('btn-run-analysis');

@@ -135,11 +135,14 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
 .map-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  min-height: 450px;
+  min-height: 320px;
 }
 
 #map {
   z-index: 1;
+  height: 320px;
+  min-height: 280px;
+  max-height: 350px;
 }
 
 .territory-sidebar {
@@ -150,7 +153,7 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   flex-direction: column;
   justify-content: space-between;
   overflow-y: auto;
-  max-height: 450px;
+  max-height: 350px;
 }
 
 .territory-sidebar h3 {
