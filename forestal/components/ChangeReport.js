@@ -32,10 +32,13 @@ export class ChangeReport {
               Agro Consultas — Módulo de Seguimiento Territorial e Información Satelital
             </div>
           </div>
-          <div style="text-align: right;">
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <div style="font-size: 0.85rem; font-weight: bold;">Fecha de Emisión:</div>
             <div style="font-size: 0.85rem; color: var(--texto-secundario);">${new Date().toLocaleDateString('es-AR')}</div>
-            <button id="btn-print-report" class="btn primary" style="margin-top: 8px; font-size: 0.85rem; padding: 6px 14px;">🖨️ Reporte imprimible / Guardar como PDF</button>
+            <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: flex-end;">
+              <button id="btn-print-report" class="btn primary" style="font-size: 0.85rem; padding: 6px 14px;">🖨️ Reporte / PDF</button>
+              <button id="btn-share-forest-report" class="btn primary" style="font-size: 0.85rem; padding: 6px 14px; background: #2980b9; border-color: #2980b9;">📲 Compartir</button>
+            </div>
           </div>
         </div>
 
@@ -44,7 +47,6 @@ export class ChangeReport {
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Nombre del Lote:</span>
             <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong>
-            <span class="badge-origin real" style="margin-left: 5px;">REAL</span>
           </div>
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
@@ -155,6 +157,26 @@ export class ChangeReport {
     if (btnPrint) {
       btnPrint.addEventListener('click', () => {
         window.print();
+      });
+    }
+
+    const btnShare = document.getElementById('btn-share-forest-report');
+    if (btnShare) {
+      btnShare.addEventListener('click', async () => {
+        const lotName = lot?.geometry?.properties?.name || 'Lote Forestal';
+        const shareData = {
+          title: `Informe Forestal — ${lotName}`,
+          text: `Informe de Análisis Forestal y Teledetección para ${lotName} en Agro Consultas.`,
+          url: window.location.href
+        };
+        if (navigator.share) {
+          try {
+            await navigator.share(shareData);
+          } catch (e) {}
+        } else {
+          navigator.clipboard.writeText(window.location.href);
+          alert('¡Enlace de reporte copiado al portapapeles!');
+        }
       });
     }
   }

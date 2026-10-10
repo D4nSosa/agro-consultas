@@ -31,6 +31,7 @@
 
     <div class="right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
       <button id="btn-print-report" class="btn primary" style="font-size: 0.85rem; background: #27ae60; border-color: #27ae60;">📄 Descargar PDF</button>
+      <button id="btn-share-report" class="btn primary" style="font-size: 0.85rem; background: #2980b9; border-color: #2980b9;">📲 Compartir Reporte</button>
       <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🌐 Ir a Agro Consultas</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
@@ -123,6 +124,21 @@
       });
 
       document.getElementById('btn-print-report')?.addEventListener('click', () => window.print());
+      document.getElementById('btn-share-report')?.addEventListener('click', async () => {
+        const shareData = {
+          title: 'Informe Técnico Territorial — Agro Consultas',
+          text: 'Consulta el informe técnico territorial en Agro Consultas.',
+          url: window.location.href
+        };
+        if (navigator.share) {
+          try {
+            await navigator.share(shareData);
+          } catch(e) {}
+        } else {
+          navigator.clipboard.writeText(window.location.href);
+          alert('¡Enlace de reporte copiado al portapapeles!');
+        }
+      });
 
       // Parsear URL Params
       const params = new URLSearchParams(window.location.search);
