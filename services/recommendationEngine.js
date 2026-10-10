@@ -54,6 +54,18 @@ export async function getCropCatalog() {
 }
 
 /**
+ * Retorna los nombres de los cultivos agrícolas aptos a evaluar para una ubicación/provincia.
+ * Si no hay restricción provincial, retorna la totalidad de los cultivos agrícolas del catálogo.
+ *
+ * @param {string} [provinciaKey] - Clave opcional de la provincia.
+ * @returns {Promise<Array<string>>} Lista de nombres de cultivos a evaluar.
+ */
+export async function getCropsToEvaluate(provinciaKey = null) {
+  const cropCatalog = await getCropCatalog();
+  return Object.values(cropCatalog).map(item => item.nombre || item.id);
+}
+
+/**
  * Retorna exclusivamente el catálogo de especies forestales.
  */
 export async function getForestCatalog() {

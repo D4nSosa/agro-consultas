@@ -10,7 +10,7 @@ import {
 } from './services/territoryService.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
-import { generateRecommendations, loadCultivosData } from './services/recommendationEngine.js';
+import { generateRecommendations, loadCultivosData, getCropCatalog } from './services/recommendationEngine.js';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
 import {
@@ -558,8 +558,9 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
         cultivosAEvaluar = [selectedCropKey];
       }
     } else {
-      // Evaluar los 29 perfiles completos del catálogo
-      cultivosAEvaluar = Object.values(catalogo).map(item => item.nombre || item.id);
+      // Evaluar todos los cultivos agrícolas del catálogo (excluyendo especies estrictamente forestales)
+      const cropCatalog = await getCropCatalog();
+      cultivosAEvaluar = Object.values(cropCatalog).map(item => item.nombre || item.id);
     }
 
     const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateReport);
