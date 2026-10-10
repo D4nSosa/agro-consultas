@@ -39,23 +39,20 @@ def test_api_ndvi_point_area_zero():
     assert data["areaHectares"] == 0.0
     assert data["isPoint"] is True
 
-def test_api_ndvi_missing_credentials_message():
-    # En ausencia de credenciales en entorno de test
+def test_api_ndvi_scene_identified_without_raster():
+    # Retorna SCENE_IDENTIFIED cuando se recupera la escena pública sin matriz ráster de píxeles
     os.environ.pop("COPERNICUS_CLIENT_ID", None)
     os.environ.pop("COPERNICUS_CLIENT_SECRET", None)
-    os.environ.pop("SENTINELHUB_CLIENT_ID", None)
-    os.environ.pop("SENTINELHUB_CLIENT_SECRET", None)
 
     payload = {"geometry": SAMPLE_POLYGON_GEOMETRY, "date": "2024-05-15"}
     response = client.post("/api/forest/ndvi", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "UNAVAILABLE"
-    assert "COPERNICUS_CLIENT_ID" in data["missingEnvVars"]
-    assert "COPERNICUS_CLIENT_SECRET" in data["missingEnvVars"]
-    assert data["stats"]["mean"] == "NO DISPONIBLE"
+    assert data["status"] == "SCENE_IDENTIFIED"
+    assert data["stats"] is None
+    assert "AWS Earth Search" in data["source"]
 
-def test_change_detection_unavailable_without_raster():
+def test_change_detection_scene_identified():
     payload = {
         "geometry": SAMPLE_POLYGON_GEOMETRY,
         "dateA": "2024-01-01",
@@ -64,9 +61,9 @@ def test_change_detection_unavailable_without_raster():
     response = client.post("/api/forest/changes", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["classification"] == "NO_DISPONIBLE"
-    assert data["deltaNDVI"] == "NO DISPONIBLE"
-    assert data["breakdown"]["decrease"]["hectares"] == "N/D"
+    assert data["status"] == "SCENE_IDENTIFIED"
+    assert data["classification"] == "ESCENAS_IDENTIFICADAS"
+    assert data["breakdown"]["decrease"]["hectares"] == "Pendiente"
 
 def test_catalog_exact_29_profiles_and_merge_integrity():
     with open("data/cultivos.json", "r", encoding="utf-8") as f:

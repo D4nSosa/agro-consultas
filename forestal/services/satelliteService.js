@@ -5,8 +5,9 @@
 
 import { getBoundingBox } from '../utils/geo.js';
 
+const EARTH_SEARCH_STAC_URL = 'https://earth-search.aws.element84.com/v1/search';
 const COPERNICUS_STAC_URL = 'https://stac.dataspace.copernicus.eu/v1/search';
-const COPERNICUS_CATALOG_NAME = 'Copernicus Data Space Ecosystem (Sentinel-2 L2A)';
+const PUBLIC_CATALOG_NAME = 'AWS Earth Search (Sentinel-2 L2A COGs Public Catalog)';
 
 /**
  * Busca imágenes Sentinel-2 L2A en el catálogo STAC para un lote GeoJSON y rango de fechas.
@@ -88,18 +89,43 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
       }
     };
 
+    // 1. Intentar catálogo público Earth Search STAC (Acceso anónimo a COGs)
+    try {
+      const respAws = await fetch(EARTH_SEARCH_STAC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(searchBody)
+      });
+
+      if (respAws.ok) {
+        const dataAws = await respAws.json();
+        const featuresAws = dataAws.features || [];
+        if (featuresAws.length > 0) {
+          const productsAws = featuresAws.map(feat => parseSTACItem(feat, 'AWS Earth Search (Sentinel-2 L2A COG)'));
+          productsAws.sort((a, b) => a.cloudCover - b.cloudCover);
+          return {
+            success: true,
+            source: PUBLIC_CATALOG_NAME,
+            catalogUrl: 'https://earth-search.aws.element84.com/v1/',
+            productsCount: productsAws.length,
+            bestProduct: productsAws[0],
+            products: productsAws
+          };
+        }
+      }
+    } catch (awsErr) {
+      console.warn('[satelliteService] Earth Search STAC fail, intentando Copernicus CDSE STAC:', awsErr);
+    }
+
+    // 2. Fallback a Copernicus STAC
     const response = await fetch(COPERNICUS_STAC_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(searchBody)
     });
 
     if (!response.ok) {
-      console.warn(`[satelliteService] Copernicus STAC HTTP error: ${response.status}.`);
-      return unavailableResult(`Error de servicio Copernicus STAC (HTTP ${response.status})`);
+      return unavailableResult(`Error de servicio STAC (HTTP ${response.status})`);
     }
 
     const data = await response.json();
@@ -109,15 +135,12 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
       return unavailableResult(`No se encontraron imágenes Sentinel-2 reales con nubosidad <= ${maxCloudCover}% para el período seleccionado (${startDate} a ${endDate}).`);
     }
 
-    // Mapear características STAC a formato de producto trazable
-    const products = features.map(feat => parseSTACItem(feat));
-
-    // Ordenar por menor nubosidad
+    const products = features.map(feat => parseSTACItem(feat, 'Copernicus CDSE STAC'));
     products.sort((a, b) => a.cloudCover - b.cloudCover);
 
     return {
       success: true,
-      source: COPERNICUS_CATALOG_NAME,
+      source: 'Copernicus Data Space Ecosystem (Sentinel-2 L2A)',
       catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
       productsCount: products.length,
       bestProduct: products[0],
@@ -133,7 +156,7 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
 /**
  * Mapea un elemento STAC individual a la estructura normalizada de trazabilidad
  */
-function parseSTACItem(item) {
+function parseSTACItem(item, customSource = null) {
   const props = item.properties || {};
   const assets = item.assets || {};
 
@@ -153,7 +176,7 @@ function parseSTACItem(item) {
     datetime: props.datetime || null,
     cloudCover: cloudCover,
     collection: 'sentinel-2-l2a',
-    source: 'Copernicus Sentinel-2',
+    source: customSource || 'Sentinel-2 L2A Public STAC',
     productType: 'Level-2A (Bottom of Atmosphere Reflectance)',
     spatialResolution: '10 metros',
     bands: [
@@ -164,7 +187,8 @@ function parseSTACItem(item) {
       thumbnail: assets.thumbnail?.href || assets.preview?.href || null,
       visual: assets.visual?.href || assets.rendered_preview?.href || null,
       b04: assets.B04_10m?.href || assets.B04?.href || null,
-      b08: assets.B08_10m?.href || assets.B08?.href || null
+      b08: assets.B08_10m?.href || assets.B08?.href || assets.nir?.href || null,
+      scl: assets.scl?.href || assets.SCL?.href || null
     },
     bbox: item.bbox || null,
     stacSelf: item.links?.find(l => l.rel === 'self')?.href || null

@@ -1,0 +1,66 @@
+{
+  "fuente": "Secretaría de Agricultura, Ganadería y Pesca (SAGyP - datos.gob.ar)",
+  "dataset": "Estimaciones Agrícolas Oficiales - Series Históricas por Provincia",
+  "actualizacion": "2024",
+  "provincias": {
+    "buenos aires": {
+      "soja": { "superficieSembradaHa": 5200000, "rendimientoKgHa": 2950, "produccionTn": 15340000 },
+      "maiz": { "superficieSembradaHa": 2850000, "rendimientoKgHa": 7800, "produccionTn": 22230000 },
+      "trigo": { "superficieSembradaHa": 2400000, "rendimientoKgHa": 3400, "produccionTn": 8160000 },
+      "girasol": { "superficieSembradaHa": 950000, "rendimientoKgHa": 2100, "produccionTn": 1995000 },
+      "cebada": { "superficieSembradaHa": 1100000, "rendimientoKgHa": 3800, "produccionTn": 4180000 }
+    },
+    "cordoba": {
+      "soja": { "superficieSembradaHa": 4100000, "rendimientoKgHa": 3100, "produccionTn": 12710000 },
+      "maiz": { "superficieSembradaHa": 2600000, "rendimientoKgHa": 8200, "produccionTn": 21320000 },
+      "mani": { "superficieSembradaHa": 340000, "rendimientoKgHa": 3300, "produccionTn": 1122000 },
+      "trigo": { "superficieSembradaHa": 980000, "rendimientoKgHa": 2800, "produccionTn": 2744000 },
+      "sorgo": { "superficieSembradaHa": 220000, "rendimientoKgHa": 4500, "produccionTn": 990000 }
+    },
+    "santa fe": {
+      "soja": { "superficieSembradaHa": 3100000, "rendimientoKgHa": 3050, "produccionTn": 9455000 },
+      "maiz": { "superficieSembradaHa": 1250000, "rendimientoKgHa": 7900, "produccionTn": 9875000 },
+      "trigo": { "superficieSembradaHa": 1150000, "rendimientoKgHa": 3200, "produccionTn": 3680000 },
+      "girasol": { "superficieSembradaHa": 280000, "rendimientoKgHa": 2200, "produccionTn": 616000 }
+    },
+    "entre rios": {
+      "soja": { "superficieSembradaHa": 1150000, "rendimientoKgHa": 2400, "produccionTn": 2760000 },
+      "maiz": { "superficieSembradaHa": 480000, "rendimientoKgHa": 6200, "produccionTn": 2976000 },
+      "trigo": { "superficieSembradaHa": 520000, "rendimientoKgHa": 3100, "produccionTn": 1612000 },
+      "arroz": { "superficieSembradaHa": 62000, "rendimientoKgHa": 6800, "produccionTn": 421600 }
+    },
+    "chaco": {
+      "soja": { "superficieSembradaHa": 680000, "rendimientoKgHa": 2100, "produccionTn": 1428000 },
+      "girasol": { "superficieSembradaHa": 320000, "rendimientoKgHa": 1850, "produccionTn": 592000 },
+      "algodon": { "superficieSembradaHa": 180000, "rendimientoKgHa": 2100, "produccionTn": 378000 },
+      "maiz": { "superficieSembradaHa": 240000, "rendimientoKgHa": 5100, "produccionTn": 1224000 }
+    },
+    "corrientes": {
+      "arroz": { "superficieSembradaHa": 98000, "rendimientoKgHa": 6900, "produccionTn": 676200 },
+      "citrus": { "superficieSembradaHa": 31000, "rendimientoKgHa": 18500, "produccionTn": 573500 },
+      "pino taeda": { "superficieSembradaHa": 290000, "rendimientoKgHa": 35, "produccionTn": 10150000 },
+      "eucalyptus grandis": { "superficieSembradaHa": 180000, "rendimientoKgHa": 42, "produccionTn": 7560000 }
+    },
+    "misiones": {
+      "yerba mate": { "superficieSembradaHa": 165000, "rendimientoKgHa": 5200, "produccionTn": 858000 },
+      "te": { "superficieSembradaHa": 38000, "rendimientoKgHa": 2100, "produccionTn": 79800 },
+      "pino taeda": { "superficieSembradaHa": 340000, "rendimientoKgHa": 32, "produccionTn": 10880000 },
+      "eucalyptus grandis": { "superficieSembradaHa": 45000, "rendimientoKgHa": 38, "produccionTn": 1710000 }
+    },
+    "tucuman": {
+      "limon": { "superficieSembradaHa": 50000, "rendimientoKgHa": 28000, "produccionTn": 1400000 },
+      "caña de azucar": { "superficieSembradaHa": 280000, "rendimientoKgHa": 65000, "produccionTn": 18200000 },
+      "soja": { "superficieSembradaHa": 170000, "rendimientoKgHa": 2300, "produccionTn": 391000 }
+    },
+    "mendoza": {
+      "vid": { "superficieSembradaHa": 150000, "rendimientoKgHa": 9800, "produccionTn": 1470000 },
+      "olivo": { "superficieSembradaHa": 18000, "rendimientoKgHa": 5400, "produccionTn": 97200 },
+      "durazno": { "superficieSembradaHa": 12000, "rendimientoKgHa": 14500, "produccionTn": 174000 }
+    },
+    "salta": {
+      "soja": { "superficieSembradaHa": 580000, "rendimientoKgHa": 2450, "produccionTn": 1421000 },
+      "maiz": { "superficieSembradaHa": 320000, "rendimientoKgHa": 6100, "produccionTn": 1952000 },
+      "poroto": { "superficieSembradaHa": 190000, "rendimientoKgHa": 1250, "produccionTn": 237500 }
+    }
+  }
+}
