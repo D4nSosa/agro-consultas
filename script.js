@@ -98,25 +98,32 @@ export async function inicializarSelectorCultivos() {
   const select = document.getElementById("selectCropFilter");
   if (!select) return;
 
-  const catalogo = await loadCultivosData();
+  try {
+    const catalogo = await loadCultivosData();
+    const cropCatalog = await getCropCatalog();
+    const cropCount = Object.keys(cropCatalog).length;
+    const totalProfiles = Object.keys(catalogo).length;
 
-  let html = `<option value="todos">🌾 Todos los cultivos/especies (${Object.keys(catalogo).length} perfiles)</option>`;
-  const keys = Object.keys(catalogo).sort((a, b) => (catalogo[a].nombre || a).localeCompare(catalogo[b].nombre || b));
+    let html = `<option value="todos">🌾 Todos los cultivos agrícolas (${cropCount} agrícolas / ${totalProfiles} perfiles totales)</option>`;
+    const keys = Object.keys(catalogo).sort((a, b) => (catalogo[a].nombre || a).localeCompare(catalogo[b].nombre || b));
 
-  keys.forEach(k => {
-    const item = catalogo[k];
-    const cat = item.categoria ? ` (${item.categoria})` : '';
-    html += `<option value="${k}">${item.nombre}${cat}</option>`;
-  });
+    keys.forEach(k => {
+      const item = catalogo[k];
+      const cat = item.categoria ? ` (${item.categoria})` : '';
+      html += `<option value="${k}">${item.nombre}${cat}</option>`;
+    });
 
-  select.innerHTML = html;
+    select.innerHTML = html;
 
-  select.addEventListener("change", async (e) => {
-    selectedCropKey = e.target.value;
-    if (currentLat !== null && currentLng !== null) {
-      await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng);
-    }
-  });
+    select.addEventListener("change", async (e) => {
+      selectedCropKey = e.target.value;
+      if (currentLat !== null && currentLng !== null) {
+        await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng);
+      }
+    });
+  } catch (e) {
+    console.error("Error al inicializar selector de cultivos:", e);
+  }
 }
 
 function filtrarRecomendacionesPorCultivo(recs, key) {
@@ -572,6 +579,13 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 
   } catch (err) {
     console.error("ERROR in renderRecomendaciones:", err);
+    container.innerHTML = `
+      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px; border-left: 4px solid #e74c3c;">
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">⚠️</span>
+        <h3>Error al procesar la recomendación</h3>
+        <p class="text-muted" style="font-size:0.88rem;">${err.message || 'No se pudieron recuperar las variables agroambientales. Seleccioná nuevamente el punto.'}</p>
+      </div>
+    `;
   }
 }
 

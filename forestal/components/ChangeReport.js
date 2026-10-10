@@ -42,22 +42,22 @@ export class ChangeReport {
           </div>
         </div>
 
-        <!-- Metadatos del Lote -->
+        <!-- Metadatos del Lote y Clasificación de Datos -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Nombre del Lote:</span>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Identificación (Ingresado por usuario):</span>
             <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong>
           </div>
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
-            <strong>${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)</strong>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie (Calculada desde geometría):</span>
+            <strong>${lot?.area?.isPoint ? '0 ha (Geometría PUNTO GPS / Consulta puntual)' : `${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)`}</strong>
           </div>
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Coordenadas Centroide:</span>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Ubicación Centroide (Calculada WGS84):</span>
             <strong>Lat: ${lot?.centroid?.lat?.toFixed(4)}, Lng: ${lot?.centroid?.lng?.toFixed(4)}</strong>
           </div>
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Período Comparado:</span>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Período Objetivo Consulta:</span>
             <strong>${dates?.dateA} ➔ ${dates?.dateB}</strong>
           </div>
         </div>
@@ -124,7 +124,12 @@ export class ChangeReport {
           📊 Evaluación de Variación Espectral y Detección de Cambios
         </h3>
         <div style="padding: 15px; border-radius: 8px; border-left: 5px solid ${statusBadgeColor}; background: rgba(0,0,0,0.02); margin-bottom: 20px;">
-          <strong style="font-size: 1.05rem; color: ${statusBadgeColor};">${changes.primaryMessage || 'NO DISPONIBLE'}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 1.05rem; color: ${statusBadgeColor};">${changes.primaryMessage || 'NO DISPONIBLE'}</strong>
+            <span style="font-size: 0.78rem; font-weight: bold; background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 4px;">
+              Estado: ${changes.status === 'REAL' ? '🟢 Cálculo Ráster Completado' : (changes.status === 'SCENE_IDENTIFIED' ? '🟡 Escenas Identificadas (Matriz Ráster Pendiente)' : '🔴 Información No Disponible')}
+            </span>
+          </div>
           <p style="font-size: 0.9rem; margin: 8px 0 10px 0; line-height: 1.5;">${changes.description || 'No se pueden calcular variaciones sin datos ráster procesables.'}</p>
         </div>
 

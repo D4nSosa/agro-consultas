@@ -32,8 +32,14 @@ export async function analyzeVegetation(geometry, productInfo) {
   // se reporta el estado de disponibilidad del producto Sentinel-2
   const isAvailable = Boolean(productInfo && productInfo.id);
 
+  const hasCloudMetadata = typeof productInfo.cloudCover === 'number';
+  const cloudText = hasCloudMetadata ? `${productInfo.cloudCover}%` : 'NO DISPONIBLE';
+
+  const hasRasterStats = productInfo.stats && typeof productInfo.stats.mean === 'number';
+
   return {
-    available: isAvailable,
+    available: hasRasterStats,
+    state: hasRasterStats ? 'NDVI_CALCULADO_RASTER' : (isAvailable ? 'ESCENA_ENCONTRADA_SIN_RASTER' : 'NO_DISPONIBLE'),
     indicator: 'NDVI (Normalized Difference Vegetation Index)',
     formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
     bandsUsed: {
@@ -43,16 +49,18 @@ export async function analyzeVegetation(geometry, productInfo) {
     targetDate: productInfo.targetDate || productInfo.date,
     acquisitionDate: productInfo.date,
     daysFromTarget: productInfo.daysFromTarget !== undefined ? productInfo.daysFromTarget : 0,
-    cloudCover: productInfo.cloudCover !== undefined ? `${productInfo.cloudCover}%` : '0%',
+    cloudCover: cloudText,
     productId: productInfo.id,
     source: productInfo.source || 'Copernicus Sentinel-2',
     assets: productInfo.assets || {},
-    stats: null,
-    interpretation: isAvailable
-      ? `Escena Sentinel-2 identificada correctamente (${productInfo.id}, fecha: ${productInfo.date}). Cobertura de nubes: ${productInfo.cloudCover}%. El cálculo de matriz de píxeles procesa las bandas B04 y B08 mediante la API del servidor.`
-      : 'NDVI no disponible para la fecha seleccionada.',
+    stats: hasRasterStats ? productInfo.stats : null,
+    interpretation: hasRasterStats
+      ? `ESTADO 3 - NDVI calculado a partir de matriz de píxeles reales (B04/B08). Media: ${productInfo.stats.mean}`
+      : (isAvailable
+        ? `ESTADO 1/2 - Escena identificada en catálogo (${productInfo.id}, fecha: ${productInfo.date}). Cobertura de nubes: ${cloudText}. ESTADO 3 (NDVI por píxel): Requiere API del servidor backend con credenciales COPERNICUS_CLIENT_ID / SECRET para procesar las bandas B04/B08.`
+        : 'NDVI no disponible para la fecha seleccionada.'),
     gridSample: [],
-    message: isAvailable ? 'Escena Sentinel-2 recuperada' : 'NDVI no disponible'
+    message: hasRasterStats ? 'NDVI por píxel calculado' : (isAvailable ? 'Escena recuperada en catálogo (matriz ráster pendiente de backend)' : 'NDVI no disponible')
   };
 }
 
