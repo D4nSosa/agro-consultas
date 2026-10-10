@@ -489,21 +489,11 @@
     async function ejecutarAnalisis(dateA, dateB) {
       let feature = forestMap.getCurrentFeature();
       if (!feature) {
-        // Lote por defecto en caso de no haber hecho clic aún (-28.0500, -56.0333 Virasoro, Corrientes)
+        // Si no hay lote delimitado ni punto seleccionado, se utiliza un Punto de Referencia de consulta sin polígono inventado
         const lat = -28.0500;
         const lng = -56.0333;
-        const delta = 0.0005;
-        const coords = [
-          [
-            [lng - delta, lat - delta],
-            [lng + delta, lat - delta],
-            [lng + delta, lat + delta],
-            [lng - delta, lat + delta],
-            [lng - delta, lat - delta]
-          ]
-        ];
-        const geom = { type: "Polygon", coordinates: coords };
-        feature = { type: "Feature", geometry: geom, properties: { name: "Lote Virasoro, Corrientes" } };
+        const geom = { type: "Point", coordinates: [lng, lat] };
+        feature = { type: "Feature", geometry: geom, properties: { name: "Punto de Referencia Virasoro, Corrientes" } };
         forestMap.setGeoJSON(feature);
       }
 
