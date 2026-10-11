@@ -109,7 +109,7 @@ export class ForestMap {
     // Capa satelital de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap contributors | Copernicus STAC | IGN Argentina'
+      attribution: '© OpenStreetMap contributors | Sentinel-2 STAC | IGN Argentina'
     }).addTo(this.map);
 
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);

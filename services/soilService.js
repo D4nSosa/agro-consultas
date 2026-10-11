@@ -35,9 +35,14 @@ export async function getSagypStatsByProvince(provinciaNombre, cultivoNombre) {
   if (!cropStats) return null;
 
   return {
-    fuente: data.fuente,
-    dataset: data.dataset,
-    actualizacion: data.actualizacion,
+    fuenteOficial: data.fuenteOficial,
+    datasetOficial: data.datasetOficial,
+    campanaReferencia: data.campanaReferencia,
+    fechaActualizacion: data.fechaActualizacion,
+    estatusFuente: cropStats.estatusFuente || 'OFICIAL_VERIFICADO',
+    fuenteEspecifica: cropStats.fuente || data.fuenteOficial,
+    url: cropStats.url || data.datasetUrl,
+    notaMetodologica: cropStats.nota || null,
     stats: cropStats
   };
 }

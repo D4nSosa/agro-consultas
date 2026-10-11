@@ -1,6 +1,6 @@
 {
-  "fuente": "Secretaría de Agricultura, Ganadería y Pesca (SAGyP - datos.gob.ar)",
-  "dataset": "Estimaciones Agrícolas Oficiales - Series Históricas por Provincia",
+  "fuenteOficial": "Secretaría de Agricultura, Ganadería y Pesca (SAGyP - datos.gob.ar)",
+  "datasetOficial": "Estimaciones Agrícolas Oficiales - Series Históricas por Provincia",
   "datasetUrl": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas",
   "licencia": "Open Data Commons Attribution License (ODC-By)",
   "campanaReferencia": "2022/2023 - 2023/2024",
@@ -8,63 +8,63 @@
   "fechaConsulta": "2024-10-10",
   "provincias": {
     "buenos aires": {
-      "soja": { "superficieSembradaHa": 5200000, "rendimientoKgHa": 2950, "produccionTn": 15340000 },
-      "maiz": { "superficieSembradaHa": 2850000, "rendimientoKgHa": 7800, "produccionTn": 22230000 },
-      "trigo": { "superficieSembradaHa": 2400000, "rendimientoKgHa": 3400, "produccionTn": 8160000 },
-      "girasol": { "superficieSembradaHa": 950000, "rendimientoKgHa": 2100, "produccionTn": 1995000 },
-      "cebada": { "superficieSembradaHa": 1100000, "rendimientoKgHa": 3800, "produccionTn": 4180000 }
+      "soja": { "superficieSembradaHa": 5200000, "rendimientoKgHa": 2950, "produccionTn": 15340000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "maiz": { "superficieSembradaHa": 2850000, "rendimientoKgHa": 7800, "produccionTn": 22230000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "trigo": { "superficieSembradaHa": 2400000, "rendimientoKgHa": 3400, "produccionTn": 8160000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "girasol": { "superficieSembradaHa": 950000, "rendimientoKgHa": 2100, "produccionTn": 1995000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "cebada": { "superficieSembradaHa": 1100000, "rendimientoKgHa": 3800, "produccionTn": 4180000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" }
     },
     "cordoba": {
-      "soja": { "superficieSembradaHa": 4100000, "rendimientoKgHa": 3100, "produccionTn": 12710000 },
-      "maiz": { "superficieSembradaHa": 2600000, "rendimientoKgHa": 8200, "produccionTn": 21320000 },
-      "mani": { "superficieSembradaHa": 340000, "rendimientoKgHa": 3300, "produccionTn": 1122000 },
-      "trigo": { "superficieSembradaHa": 980000, "rendimientoKgHa": 2800, "produccionTn": 2744000 },
-      "sorgo": { "superficieSembradaHa": 220000, "rendimientoKgHa": 4500, "produccionTn": 990000 }
+      "soja": { "superficieSembradaHa": 4100000, "rendimientoKgHa": 3100, "produccionTn": 12710000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "maiz": { "superficieSembradaHa": 2600000, "rendimientoKgHa": 8200, "produccionTn": 21320000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "mani": { "superficieSembradaHa": 340000, "rendimientoKgHa": 3300, "produccionTn": 1122000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "trigo": { "superficieSembradaHa": 980000, "rendimientoKgHa": 2800, "produccionTn": 2744000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "sorgo": { "superficieSembradaHa": 220000, "rendimientoKgHa": 4500, "produccionTn": 990000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" }
     },
     "santa fe": {
-      "soja": { "superficieSembradaHa": 3100000, "rendimientoKgHa": 3050, "produccionTn": 9455000 },
-      "maiz": { "superficieSembradaHa": 1250000, "rendimientoKgHa": 7900, "produccionTn": 9875000 },
-      "trigo": { "superficieSembradaHa": 1150000, "rendimientoKgHa": 3200, "produccionTn": 3680000 },
-      "girasol": { "superficieSembradaHa": 280000, "rendimientoKgHa": 2200, "produccionTn": 616000 }
+      "soja": { "superficieSembradaHa": 3100000, "rendimientoKgHa": 3050, "produccionTn": 9455000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "maiz": { "superficieSembradaHa": 1250000, "rendimientoKgHa": 7900, "produccionTn": 9875000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "trigo": { "superficieSembradaHa": 1150000, "rendimientoKgHa": 3200, "produccionTn": 3680000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "girasol": { "superficieSembradaHa": 280000, "rendimientoKgHa": 2200, "produccionTn": 616000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" }
     },
     "entre rios": {
-      "soja": { "superficieSembradaHa": 1150000, "rendimientoKgHa": 2400, "produccionTn": 2760000 },
-      "maiz": { "superficieSembradaHa": 480000, "rendimientoKgHa": 6200, "produccionTn": 2976000 },
-      "trigo": { "superficieSembradaHa": 520000, "rendimientoKgHa": 3100, "produccionTn": 1612000 },
-      "arroz": { "superficieSembradaHa": 62000, "rendimientoKgHa": 6800, "produccionTn": 421600 }
+      "soja": { "superficieSembradaHa": 1150000, "rendimientoKgHa": 2400, "produccionTn": 2760000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "maiz": { "superficieSembradaHa": 480000, "rendimientoKgHa": 6200, "produccionTn": 2976000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "trigo": { "superficieSembradaHa": 520000, "rendimientoKgHa": 3100, "produccionTn": 1612000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "arroz": { "superficieSembradaHa": 62000, "rendimientoKgHa": 6800, "produccionTn": 421600, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" }
     },
     "chaco": {
-      "soja": { "superficieSembradaHa": 680000, "rendimientoKgHa": 2100, "produccionTn": 1428000 },
-      "girasol": { "superficieSembradaHa": 320000, "rendimientoKgHa": 1850, "produccionTn": 592000 },
-      "algodon": { "superficieSembradaHa": 180000, "rendimientoKgHa": 2100, "produccionTn": 378000 },
-      "maiz": { "superficieSembradaHa": 240000, "rendimientoKgHa": 5100, "produccionTn": 1224000 }
+      "soja": { "superficieSembradaHa": 680000, "rendimientoKgHa": 2100, "produccionTn": 1428000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "girasol": { "superficieSembradaHa": 320000, "rendimientoKgHa": 1850, "produccionTn": 592000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "algodon": { "superficieSembradaHa": 180000, "rendimientoKgHa": 2100, "produccionTn": 378000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "maiz": { "superficieSembradaHa": 240000, "rendimientoKgHa": 5100, "produccionTn": 1224000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" }
     },
     "corrientes": {
-      "arroz": { "superficieSembradaHa": 98000, "rendimientoKgHa": 6900, "produccionTn": 676200 },
-      "citrus": { "superficieSembradaHa": 31000, "rendimientoKgHa": 18500, "produccionTn": 573500 },
-      "pino taeda": { "superficieSembradaHa": 290000, "rendimientoKgHa": 35, "produccionTn": 10150000 },
-      "eucalyptus grandis": { "superficieSembradaHa": 180000, "rendimientoKgHa": 42, "produccionTn": 7560000 }
+      "arroz": { "superficieSembradaHa": 98000, "rendimientoKgHa": 6900, "produccionTn": 676200, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "citrus": { "superficieSembradaHa": 31000, "rendimientoKgHa": 18500, "produccionTn": 573500, "estatusFuente": "SECTORIAL_ESTIMADO", "fuente": "INTA / Ministerio de Producción Corrientes", "nota": "Estimación frutícola regional" },
+      "pino taeda": { "superficieSembradaHa": 290000, "crecimientoVolumetricom3HaAnio": 35, "produccionEstimadam3": 10150000, "estatusFuente": "INVENTARIO_FORESTAL", "fuente": "Dirección de Desarrollo Forestal (MAGyP) / INTA", "nota": "Tasa de crecimiento volumétrico anual m³/ha/año, no confundir con rendimiento agrícola kg/ha" },
+      "eucalyptus grandis": { "superficieSembradaHa": 180000, "crecimientoVolumetricom3HaAnio": 42, "produccionEstimadam3": 7560000, "estatusFuente": "INVENTARIO_FORESTAL", "fuente": "Dirección de Desarrollo Forestal (MAGyP) / INTA", "nota": "Tasa de crecimiento volumétrico anual m³/ha/año, no confundir con rendimiento agrícola kg/ha" }
     },
     "misiones": {
-      "yerba mate": { "superficieSembradaHa": 165000, "rendimientoKgHa": 5200, "produccionTn": 858000 },
-      "te": { "superficieSembradaHa": 38000, "rendimientoKgHa": 2100, "produccionTn": 79800 },
-      "pino taeda": { "superficieSembradaHa": 340000, "rendimientoKgHa": 32, "produccionTn": 10880000 },
-      "eucalyptus grandis": { "superficieSembradaHa": 45000, "rendimientoKgHa": 38, "produccionTn": 1710000 }
+      "yerba mate": { "superficieSembradaHa": 165000, "rendimientoKgHa": 5200, "produccionTn": 858000, "estatusFuente": "OFICIAL_SECTORIAL", "fuente": "INYM (Instituto Nacional de la Yerba Mate)", "url": "https://www.inym.org.ar/" },
+      "te": { "superficieSembradaHa": 38000, "rendimientoKgHa": 2100, "produccionTn": 79800, "estatusFuente": "OFICIAL_SECTORIAL", "fuente": "Ministerio del Agro y la Producción de Misiones" },
+      "pino taeda": { "superficieSembradaHa": 340000, "crecimientoVolumetricom3HaAnio": 32, "produccionEstimadam3": 10880000, "estatusFuente": "INVENTARIO_FORESTAL", "fuente": "Dirección de Desarrollo Forestal (MAGyP) / INTA", "nota": "Tasa de crecimiento volumétrico anual m³/ha/año, no confundir con rendimiento agrícola kg/ha" },
+      "eucalyptus grandis": { "superficieSembradaHa": 45000, "crecimientoVolumetricom3HaAnio": 38, "produccionEstimadam3": 1710000, "estatusFuente": "INVENTARIO_FORESTAL", "fuente": "Dirección de Desarrollo Forestal (MAGyP) / INTA", "nota": "Tasa de crecimiento volumétrico anual m³/ha/año, no confundir con rendimiento agrícola kg/ha" }
     },
     "tucuman": {
-      "limon": { "superficieSembradaHa": 50000, "rendimientoKgHa": 28000, "produccionTn": 1400000 },
-      "caña de azucar": { "superficieSembradaHa": 280000, "rendimientoKgHa": 65000, "produccionTn": 18200000 },
-      "soja": { "superficieSembradaHa": 170000, "rendimientoKgHa": 2300, "produccionTn": 391000 }
+      "limon": { "superficieSembradaHa": 50000, "rendimientoKgHa": 28000, "produccionTn": 1400000, "estatusFuente": "OFICIAL_SECTORIAL", "fuente": "Estación Experimental Agroindustrial Obispo Colombres (EEAOC)" },
+      "caña de azucar": { "superficieSembradaHa": 280000, "rendimientoKgHa": 65000, "produccionTn": 18200000, "estatusFuente": "OFICIAL_SECTORIAL", "fuente": "EEAOC / SAGyP" },
+      "soja": { "superficieSembradaHa": 170000, "rendimientoKgHa": 2300, "produccionTn": 391000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" }
     },
     "mendoza": {
-      "vid": { "superficieSembradaHa": 150000, "rendimientoKgHa": 9800, "produccionTn": 1470000 },
-      "olivo": { "superficieSembradaHa": 18000, "rendimientoKgHa": 5400, "produccionTn": 97200 },
-      "durazno": { "superficieSembradaHa": 12000, "rendimientoKgHa": 14500, "produccionTn": 174000 }
+      "vid": { "superficieSembradaHa": 150000, "rendimientoKgHa": 9800, "produccionTn": 1470000, "estatusFuente": "OFICIAL_SECTORIAL", "fuente": "INV (Instituto Nacional de Vitivinicultura)", "url": "https://www.argentina.gob.ar/inv" },
+      "olivo": { "superficieSembradaHa": 18000, "rendimientoKgHa": 5400, "produccionTn": 97200, "estatusFuente": "SECTORIAL_ESTIMADO", "fuente": "INTA Mendoza / Ministerio de Economía Mendoza" },
+      "durazno": { "superficieSembradaHa": 12000, "rendimientoKgHa": 14500, "produccionTn": 174000, "estatusFuente": "SECTORIAL_ESTIMADO", "fuente": "INTA Mendoza" }
     },
     "salta": {
-      "soja": { "superficieSembradaHa": 580000, "rendimientoKgHa": 2450, "produccionTn": 1421000 },
-      "maiz": { "superficieSembradaHa": 320000, "rendimientoKgHa": 6100, "produccionTn": 1952000 },
-      "poroto": { "superficieSembradaHa": 190000, "rendimientoKgHa": 1250, "produccionTn": 237500 }
+      "soja": { "superficieSembradaHa": 580000, "rendimientoKgHa": 2450, "produccionTn": 1421000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "maiz": { "superficieSembradaHa": 320000, "rendimientoKgHa": 6100, "produccionTn": 1952000, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" },
+      "poroto": { "superficieSembradaHa": 190000, "rendimientoKgHa": 1250, "produccionTn": 237500, "estatusFuente": "OFICIAL_VERIFICADO", "fuente": "SAGyP - Estimaciones Agrícolas", "url": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas" }
     }
   }
 }

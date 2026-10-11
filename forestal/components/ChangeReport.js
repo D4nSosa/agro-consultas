@@ -96,7 +96,7 @@ export class ChangeReport {
             <strong style="color: #27ae60;">🟢 Escena Fecha A</strong>
             ${prodA ? `
               <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
-                <li><strong>Fuente:</strong> ${prodA.source || 'Copernicus Sentinel-2'}</li>
+                <li><strong>Fuente:</strong> ${prodA.source || 'Sentinel-2 L2A'}</li>
                 <li><strong>Identificador:</strong> ${prodA.id}</li>
                 <li><strong>Fecha Adquisición:</strong> ${prodA.date}</li>
                 <li><strong>Nubosidad:</strong> ${prodA.cloudCover}%</li>
@@ -109,7 +109,7 @@ export class ChangeReport {
             <strong style="color: #2980b9;">🔵 Escena Fecha B</strong>
             ${prodB ? `
               <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
-                <li><strong>Fuente:</strong> ${prodB.source || 'Copernicus Sentinel-2'}</li>
+                <li><strong>Fuente:</strong> ${prodB.source || 'Sentinel-2 L2A'}</li>
                 <li><strong>Identificador:</strong> ${prodB.id}</li>
                 <li><strong>Fecha Adquisición:</strong> ${prodB.date}</li>
                 <li><strong>Nubosidad:</strong> ${prodB.cloudCover}%</li>

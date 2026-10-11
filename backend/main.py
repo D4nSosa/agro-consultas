@@ -1,6 +1,6 @@
 """
 main.py - Backend Geoespacial Python con FastAPI para el Módulo Análisis Forestal
-Servicios REST para consulta STAC Copernicus, procesamiento de geometría GeoJSON, NDVI y detección de cambios.
+Servicios REST para consulta STAC Sentinel-2, procesamiento de geometría GeoJSON, NDVI y detección de cambios.
 Basado exclusivamente en datos reales.
 """
 
@@ -21,7 +21,7 @@ from shapely.geometry import shape, Point, Polygon
 
 app = FastAPI(
     title="Agro Consultas - API Geoespacial Forestal",
-    description="API REST para procesamiento de teledetección, catálogo Copernicus STAC, NDVI y detección multitemporal de cambios.",
+    description="API REST para procesamiento de teledetección, catálogo Sentinel-2 STAC, NDVI y detección multitemporal de cambios.",
     version="2.1.0"
 )
 
@@ -47,7 +47,6 @@ app.add_middleware(
 )
 
 EARTH_SEARCH_STAC_URL = "https://earth-search.aws.element84.com/v1/search"
-COPERNICUS_STAC_URL = "https://stac.dataspace.copernicus.eu/v1/search"
 
 def get_default_dates():
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -119,7 +118,7 @@ def read_root():
         "status": "online",
         "service": "Agro Consultas Geospatial Forest API",
         "version": "2.1.0",
-        "copernicusCatalog": "https://stac.dataspace.copernicus.eu/v1/",
+        "stacCatalog": "https://earth-search.aws.element84.com/v1/",
         "endpoints": [
             "/api/forest/lots",
             "/api/forest/stac",
@@ -136,7 +135,7 @@ def get_sample_lots():
 
 @app.post("/api/forest/stac")
 def search_stac_catalog(req: STACSearchRequest):
-    """Consulta el catálogo público AWS Earth Search STAC y Copernicus STAC para Sentinel-2 L2A"""
+    """Consulta el catálogo público AWS Earth Search STAC para Sentinel-2 L2A"""
     try:
         start_def, date_a_def, date_b_def = get_default_dates()
         s_date = req.startDate or start_def
@@ -155,7 +154,7 @@ def search_stac_catalog(req: STACSearchRequest):
             }
         }
 
-        # 1. Intentar catálogo anónimo AWS Earth Search STAC
+        # Consulta catálogo anónimo AWS Earth Search STAC
         try:
             req_data = json.dumps(search_body).encode('utf-8')
             aws_req = urllib.request.Request(
@@ -199,46 +198,9 @@ def search_stac_catalog(req: STACSearchRequest):
         except Exception as aws_err:
             pass
 
-        # 2. Fallback a Copernicus STAC
-        try:
-            req_data = json.dumps(search_body).encode('utf-8')
-            stac_req = urllib.request.Request(
-                COPERNICUS_STAC_URL,
-                data=req_data,
-                headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
-            )
-            with urllib.request.urlopen(stac_req, timeout=8) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode('utf-8'))
-                    features = data.get("features", [])
-                    if features:
-                        parsed_products = []
-                        for feat in features:
-                            props = feat.get("properties", {})
-                            parsed_products.append({
-                                "id": feat.get("id"),
-                                "date": props.get("datetime", "").split("T")[0],
-                                "cloudCover": round(float(props.get("eo:cloud_cover", 0.0)), 1),
-                                "collection": "sentinel-2-l2a",
-                                "source": "Copernicus Sentinel-2 L2A",
-                                "resolution": "10m",
-                                "bands": ["B04 (Red)", "B08 (NIR)"],
-                                "assets": feat.get("assets", {})
-                            })
-                        parsed_products.sort(key=lambda x: x["cloudCover"])
-                        return {
-                            "success": True,
-                            "source": "Copernicus Data Space Ecosystem STAC",
-                            "productsCount": len(parsed_products),
-                            "bestProduct": parsed_products[0],
-                            "products": parsed_products
-                        }
-        except Exception as stac_err:
-            pass
-
         return {
             "success": False,
-            "source": "AWS Earth Search / Copernicus STAC",
+            "source": "AWS Earth Search STAC",
             "productsCount": 0,
             "bestProduct": None,
             "products": [],
@@ -249,15 +211,19 @@ def search_stac_catalog(req: STACSearchRequest):
 
 import rasterio
 from rasterio.mask import mask as rasterio_mask
+from rasterio.warp import reproject, Resampling
 import pyproj
 
 def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
-    """Procesa y recorta exactamente los píxeles COG que intersectan con el polígono ROI del lote"""
+    """
+    Procesa y recorta exactamente los píxeles COG que intersectan con la geometría ROI del lote.
+    Garantiza estricta alineación geoespacial, reproyección si difieren CRS o grillas,
+    y remuestreo apropiado (bilineal para bandas espectrales, nearest para SCL categórica).
+    """
     try:
         with rasterio.open(red_url) as src_red, rasterio.open(nir_url) as src_nir:
-            # Reproyectar la geometría GeoJSON a la proyección de la escena (EPSG:32721 / UTM)
+            # 1. Transformar la geometría GeoJSON a la proyección de la banda RED
             transformer = pyproj.Transformer.from_crs('EPSG:4326', src_red.crs, always_xy=True)
-            coords_proj = []
             if geom_shape.geom_type == 'Polygon':
                 poly_coords = [transformer.transform(x, y) for x, y in geom_shape.exterior.coords]
                 geom_proj = Polygon(poly_coords)
@@ -268,15 +234,24 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 geom_proj = geom_shape
 
             if geom_shape.geom_type == 'Point':
-                # Lectura eficiente por ventana (1x1 píxel) sin cargar la imagen completa en memoria
-                row, col = src_red.index(geom_proj.x, geom_proj.y)
-                window = rasterio.windows.Window(col, row, 1, 1)
-                val_red = src_red.read(1, window=window)[0, 0]
-                val_nir = src_nir.read(1, window=window)[0, 0]
+                row_r, col_r = src_red.index(geom_proj.x, geom_proj.y)
+                window_r = rasterio.windows.Window(col_r, row_r, 1, 1)
+                val_red = src_red.read(1, window=window_r)[0, 0]
+
+                # Leer NIR alineando espacialmente
+                row_n, col_n = src_nir.index(geom_proj.x, geom_proj.y)
+                window_n = rasterio.windows.Window(col_n, row_n, 1, 1)
+                val_nir = src_nir.read(1, window=window_n)[0, 0]
+
+                # Tratar nodata / valores de borde
+                if src_red.nodata is not None and val_red == src_red.nodata:
+                    return None, "Punto fuera de rango o píxel nodata."
+                if src_nir.nodata is not None and val_nir == src_nir.nodata:
+                    return None, "Punto fuera de rango o píxel nodata."
 
                 denom = float(val_nir) + float(val_red)
-                if denom == 0 or val_red == 0 or val_nir == 0:
-                    return None, "Punto fuera de rango o valor de reflectancia nulo."
+                if denom <= 0 or val_red <= 0 or val_nir <= 0:
+                    return None, "Punto fuera de rango o valor de reflectancia inválido/nulo."
 
                 ndvi_pt = round((float(val_nir) - float(val_red)) / denom, 4)
                 return {
@@ -290,42 +265,106 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                     "isPoint": True
                 }, None
 
-            # Recortar raster exactamente al polígono ROI
-            out_red, _ = rasterio_mask(src_red, [geom_proj], crop=True)
-            out_nir, _ = rasterio_mask(src_nir, [geom_proj], crop=True)
-
+            # 2. Recortar banda RED al polígono ROI (malla de referencia principal)
+            out_red, transform_red = rasterio_mask(src_red, [geom_proj], crop=True, nodata=src_red.nodata)
             red_data = out_red[0]
-            nir_data = out_nir[0]
 
+            # Transformar geometría al CRS propio de NIR antes de recortar
+            if src_nir.crs == src_red.crs:
+                geom_proj_nir = geom_proj
+            else:
+                transformer_nir = pyproj.Transformer.from_crs('EPSG:4326', src_nir.crs, always_xy=True)
+                if geom_shape.geom_type == 'Polygon':
+                    poly_coords_nir = [transformer_nir.transform(x, y) for x, y in geom_shape.exterior.coords]
+                    geom_proj_nir = Polygon(poly_coords_nir)
+                else:
+                    geom_proj_nir = geom_shape
+
+            # 3. Recortar y reproyectar/alinear banda NIR a la grilla exacta de RED
+            out_nir_raw, transform_nir = rasterio_mask(src_nir, [geom_proj_nir], crop=True, nodata=src_nir.nodata)
+            nir_raw = out_nir_raw[0]
+
+            # Verificar si las grillas espectrales RED y NIR están 100% alineadas
+            if (src_red.crs == src_nir.crs and
+                src_red.transform == src_nir.transform and
+                nir_raw.shape == red_data.shape):
+                nir_aligned = nir_raw
+            else:
+                # Reproyectar NIR a la grilla de referencia de RED usando remuestreo bilineal
+                nir_aligned = np.full_like(red_data, src_nir.nodata if src_nir.nodata is not None else 0, dtype=nir_raw.dtype)
+                reproject(
+                    source=nir_raw,
+                    destination=nir_aligned,
+                    src_transform=transform_nir,
+                    src_crs=src_nir.crs,
+                    dst_transform=transform_red,
+                    dst_crs=src_red.crs,
+                    resampling=Resampling.bilinear,
+                    src_nodata=src_nir.nodata,
+                    dst_nodata=src_nir.nodata
+                )
+
+            # 4. Procesar y reproyectar/alinear SCL (Scene Classification Layer) si está disponible
             scl_aligned = None
             if scl_url:
                 try:
                     with rasterio.open(scl_url) as src_scl:
-                        out_scl, _ = rasterio_mask(src_scl, [geom_proj], crop=True)
-                        scl_img = out_scl[0]
-                        if scl_img.shape == red_data.shape:
-                            scl_aligned = scl_img
+                        if src_scl.crs == src_red.crs:
+                            geom_proj_scl = geom_proj
                         else:
-                            row_factor = red_data.shape[0] / max(1, scl_img.shape[0])
-                            col_factor = red_data.shape[1] / max(1, scl_img.shape[1])
-                            row_indices = np.clip((np.arange(red_data.shape[0]) / row_factor).astype(int), 0, scl_img.shape[0] - 1)
-                            col_indices = np.clip((np.arange(red_data.shape[1]) / col_factor).astype(int), 0, scl_img.shape[1] - 1)
-                            scl_aligned = scl_img[np.ix_(row_indices, col_indices)]
+                            transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
+                            if geom_shape.geom_type == 'Polygon':
+                                poly_coords_scl = [transformer_scl.transform(x, y) for x, y in geom_shape.exterior.coords]
+                                geom_proj_scl = Polygon(poly_coords_scl)
+                            else:
+                                geom_proj_scl = geom_shape
+
+                        out_scl_raw, transform_scl = rasterio_mask(src_scl, [geom_proj_scl], crop=True, nodata=src_scl.nodata)
+                        scl_raw = out_scl_raw[0]
+
+                        if (src_scl.crs == src_red.crs and
+                            src_scl.transform == src_red.transform and
+                            scl_raw.shape == red_data.shape):
+                            scl_aligned = scl_raw
+                        else:
+                            # Reproyectar SCL a la grilla RED usando remuestreo Nearest Neighbor (categórico)
+                            scl_aligned = np.zeros_like(red_data, dtype=scl_raw.dtype)
+                            reproject(
+                                source=scl_raw,
+                                destination=scl_aligned,
+                                src_transform=transform_scl,
+                                src_crs=src_scl.crs,
+                                dst_transform=transform_red,
+                                dst_crs=src_red.crs,
+                                resampling=Resampling.nearest,
+                                src_nodata=src_scl.nodata,
+                                dst_nodata=0
+                            )
                 except Exception:
                     scl_aligned = None
 
-            denom = nir_data.astype(float) + red_data.astype(float)
-            valid = (denom > 0) & (red_data > 0) & (nir_data > 0)
+            # 5. Máscara de píxeles válidos (reflectancia real > 0 y nodata)
+            red_nodata = src_red.nodata if src_red.nodata is not None else 0
+            nir_nodata = src_nir.nodata if src_nir.nodata is not None else 0
 
-            if scl_aligned is not None and scl_aligned.shape == red_data.shape:
+            valid_red = (red_data != red_nodata) & (red_data > 0)
+            valid_nir = (nir_aligned != nir_nodata) & (nir_aligned > 0)
+            denom = nir_aligned.astype(float) + red_data.astype(float)
+
+            valid = valid_red & valid_nir & (denom > 0)
+
+            # Aplicar filtro de nubes/sombras SCL categórico
+            if scl_aligned is not None:
+                # Clases SCL a descartar: 3 (Sombra de nube), 8 (Nube probabilidad media), 9 (Nube probabilidad alta), 10 (Cirrus), 11 (Nieve/Hielo)
                 cloud_mask = (scl_aligned == 3) | (scl_aligned == 8) | (scl_aligned == 9) | (scl_aligned == 10) | (scl_aligned == 11)
                 valid = valid & (~cloud_mask)
 
-            ndvi_array = np.where(valid, (nir_data.astype(float) - red_data.astype(float)) / np.where(valid, denom, 1.0), np.nan)
+            # 6. Cálculo NDVI
+            ndvi_array = np.where(valid, (nir_aligned.astype(float) - red_data.astype(float)) / np.where(valid, denom, 1.0), np.nan)
             valid_ndvi = ndvi_array[~np.isnan(ndvi_array)]
 
             if len(valid_ndvi) == 0:
-                return None, "No se obtuvieron píxeles válidos dentro del polígono ROI del lote."
+                return None, "No se obtuvieron píxeles válidos/libres de nubes dentro del polígono ROI del lote."
 
             min_val = round(float(np.min(valid_ndvi)), 4)
             max_val = round(float(np.max(valid_ndvi)), 4)

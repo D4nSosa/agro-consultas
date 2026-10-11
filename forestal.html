@@ -46,7 +46,7 @@
         <span>🌲</span> Módulo de Análisis Forestal y Teledetección
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
-        Herramienta de seguimiento de lotes forestales basada en el catálogo oficial de imágenes satelitales multiespectrales <strong>Sentinel-2 Level-2A (Copernicus Data Space Ecosystem)</strong> y evidencia fotográfica de campo.
+        Herramienta de seguimiento de lotes forestales basada en el catálogo de imágenes satelitales multiespectrales <strong>Sentinel-2 Level-2A (AWS Earth Search STAC)</strong> y evidencia fotográfica de campo.
         Permite delimitar lotes en GeoJSON, consultar escenas reales, incorporar imágenes propias y exportar reportes técnicos.
       </p>
     </div>
@@ -193,14 +193,14 @@
       <div class="empty-state" style="text-align: center; padding: 25px;">
         <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🛰️</span>
         <p><strong>LOTE NO DEFINIDO</strong></p>
-        <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas reales de Copernicus Sentinel-2.</p>
+        <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas reales de Sentinel-2 L2A.</p>
       </div>
     </div>
 
     <!-- Botón Ejecutar Análisis Completo -->
     <div style="text-align: center; margin-bottom: 30px;">
       <button id="btn-run-analysis" class="btn primary" style="font-size: 1.1rem; padding: 12px 30px; box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);">
-        🚀 Ejecutar Análisis Forestal y Detección de Cambios (Copernicus)
+        🚀 Ejecutar Análisis Forestal y Detección de Cambios (Sentinel-2)
       </button>
     </div>
 
@@ -500,7 +500,7 @@
       const btn = document.getElementById('btn-run-analysis');
       if (btn) {
         btn.disabled = true;
-        btn.innerText = '⏳ Consultado catálogo Copernicus STAC real...';
+        btn.innerText = '⏳ Consultado catálogo Sentinel-2 STAC real...';
       }
 
       const nameInputRaw = document.getElementById('lot-name-input').value;
@@ -519,7 +519,7 @@
 
       if (btn) {
         btn.disabled = false;
-        btn.innerText = '🚀 Ejecutar Análisis Forestal y Detección de Cambios (Copernicus)';
+        btn.innerText = '🚀 Ejecutar Análisis Forestal y Detección de Cambios (Sentinel-2)';
       }
     }
 

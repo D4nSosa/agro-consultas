@@ -29,7 +29,7 @@ def test_api_root():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "online"
-    assert "copernicusCatalog" in data
+    assert "stacCatalog" in data
 
 def test_api_sample_lots():
     response = client.get("/api/forest/lots")

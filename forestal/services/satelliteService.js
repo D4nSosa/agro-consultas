@@ -1,12 +1,11 @@
 /**
- * satelliteService.js - Cliente STAC para el catálogo oficial de Copernicus Data Space Ecosystem
- * Endpoint: https://stac.dataspace.copernicus.eu/v1/
+ * satelliteService.js - Cliente STAC para el catálogo público AWS Earth Search (Sentinel-2 L2A COGs)
+ * Endpoint: https://earth-search.aws.element84.com/v1/
  */
 
 import { getBoundingBox } from '../utils/geo.js';
 
 const EARTH_SEARCH_STAC_URL = 'https://earth-search.aws.element84.com/v1/search';
-const COPERNICUS_STAC_URL = 'https://stac.dataspace.copernicus.eu/v1/search';
 const PUBLIC_CATALOG_NAME = 'AWS Earth Search (Sentinel-2 L2A COGs Public Catalog)';
 
 /**
@@ -62,8 +61,8 @@ export async function searchSentinelImagesByTargetDate(geometry, targetDateStr, 
 
   return {
     success: true,
-    source: COPERNICUS_CATALOG_NAME,
-    catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
+    source: PUBLIC_CATALOG_NAME,
+    catalogUrl: 'https://earth-search.aws.element84.com/v1/',
     productsCount: productsWithDelta.length,
     targetDate: targetDateStr,
     windowDays: windowDays,
@@ -89,62 +88,33 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
       }
     };
 
-    // 1. Intentar catálogo público Earth Search STAC (Acceso anónimo a COGs)
-    try {
-      const respAws = await fetch(EARTH_SEARCH_STAC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(searchBody)
-      });
-
-      if (respAws.ok) {
-        const dataAws = await respAws.json();
-        const featuresAws = dataAws.features || [];
-        if (featuresAws.length > 0) {
-          const productsAws = featuresAws.map(feat => parseSTACItem(feat, 'AWS Earth Search (Sentinel-2 L2A COG)'));
-          productsAws.sort((a, b) => a.cloudCover - b.cloudCover);
-          return {
-            success: true,
-            source: PUBLIC_CATALOG_NAME,
-            catalogUrl: 'https://earth-search.aws.element84.com/v1/',
-            productsCount: productsAws.length,
-            bestProduct: productsAws[0],
-            products: productsAws
-          };
-        }
-      }
-    } catch (awsErr) {
-      console.warn('[satelliteService] Earth Search STAC fail, intentando Copernicus CDSE STAC:', awsErr);
-    }
-
-    // 2. Fallback a Copernicus STAC
-    const response = await fetch(COPERNICUS_STAC_URL, {
+    const respAws = await fetch(EARTH_SEARCH_STAC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(searchBody)
     });
 
-    if (!response.ok) {
-      return unavailableResult(`Error de servicio STAC (HTTP ${response.status})`);
+    if (!respAws.ok) {
+      return unavailableResult(`Error de servicio STAC (HTTP ${respAws.status})`);
     }
 
-    const data = await response.json();
-    const features = data.features || [];
+    const dataAws = await respAws.json();
+    const featuresAws = dataAws.features || [];
 
-    if (!features.length) {
+    if (!featuresAws.length) {
       return unavailableResult(`No se encontraron imágenes Sentinel-2 reales con nubosidad <= ${maxCloudCover}% para el período seleccionado (${startDate} a ${endDate}).`);
     }
 
-    const products = features.map(feat => parseSTACItem(feat, 'Copernicus CDSE STAC'));
-    products.sort((a, b) => a.cloudCover - b.cloudCover);
+    const productsAws = featuresAws.map(feat => parseSTACItem(feat, 'AWS Earth Search (Sentinel-2 L2A COG)'));
+    productsAws.sort((a, b) => a.cloudCover - b.cloudCover);
 
     return {
       success: true,
-      source: 'Copernicus Data Space Ecosystem (Sentinel-2 L2A)',
-      catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
-      productsCount: products.length,
-      bestProduct: products[0],
-      products: products
+      source: PUBLIC_CATALOG_NAME,
+      catalogUrl: 'https://earth-search.aws.element84.com/v1/',
+      productsCount: productsAws.length,
+      bestProduct: productsAws[0],
+      products: productsAws
     };
 
   } catch (err) {
@@ -198,8 +168,8 @@ function parseSTACItem(item, customSource = null) {
 function unavailableResult(message, targetDate = null, windowDays = null) {
   return {
     success: false,
-    source: COPERNICUS_CATALOG_NAME,
-    catalogUrl: 'https://stac.dataspace.copernicus.eu/v1/',
+    source: PUBLIC_CATALOG_NAME,
+    catalogUrl: 'https://earth-search.aws.element84.com/v1/',
     productsCount: 0,
     targetDate: targetDate,
     windowDays: windowDays,
