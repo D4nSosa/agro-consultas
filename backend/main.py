@@ -238,8 +238,14 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 window_r = rasterio.windows.Window(col_r, row_r, 1, 1)
                 val_red = src_red.read(1, window=window_r)[0, 0]
 
-                # Leer NIR alineando espacialmente
-                row_n, col_n = src_nir.index(geom_proj.x, geom_proj.y)
+                # Reproyectar el punto al CRS propio de NIR cuando sea diferente
+                if src_nir.crs == src_red.crs:
+                    pt_x_n, pt_y_n = geom_proj.x, geom_proj.y
+                else:
+                    transformer_nir_pt = pyproj.Transformer.from_crs('EPSG:4326', src_nir.crs, always_xy=True)
+                    pt_x_n, pt_y_n = transformer_nir_pt.transform(geom_shape.x, geom_shape.y)
+
+                row_n, col_n = src_nir.index(pt_x_n, pt_y_n)
                 window_n = rasterio.windows.Window(col_n, row_n, 1, 1)
                 val_nir = src_nir.read(1, window=window_n)[0, 0]
 
@@ -268,6 +274,15 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
             # 2. Recortar banda RED al polígono ROI (malla de referencia principal)
             out_red, transform_red = rasterio_mask(src_red, [geom_proj], crop=True, nodata=src_red.nodata)
             red_data = out_red[0]
+
+            # Construir máscara booleana de píxeles que pertenecen estrictamente al interior del polígono ROI
+            # rasterio_mask asigna nodata a los píxeles fuera del polígono
+            red_nodata = src_red.nodata if src_red.nodata is not None else 0
+            roi_mask = (red_data != red_nodata)
+            roi_pixel_count = int(np.sum(roi_mask))
+            if roi_pixel_count == 0:
+                # Si todos los píxeles dentro del recorte tienen valor nodata/fuera del ROI
+                roi_pixel_count = red_data.size
 
             # Transformar geometría al CRS propio de NIR antes de recortar
             if src_nir.crs == src_red.crs:
@@ -306,6 +321,9 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
 
             # 4. Procesar y reproyectar/alinear SCL (Scene Classification Layer) si está disponible
             scl_aligned = None
+            scl_error_reason = None
+            scl_filter_applied = False
+
             if scl_url:
                 try:
                     with rasterio.open(scl_url) as src_scl:
@@ -340,11 +358,13 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                                 src_nodata=src_scl.nodata,
                                 dst_nodata=0
                             )
-                except Exception:
+                        scl_filter_applied = True
+                except Exception as scl_err:
                     scl_aligned = None
+                    scl_filter_applied = False
+                    scl_error_reason = f"No se pudo cargar o alinear la capa de clasificación SCL ({str(scl_err)})."
 
             # 5. Máscara de píxeles válidos (reflectancia real > 0 y nodata)
-            red_nodata = src_red.nodata if src_red.nodata is not None else 0
             nir_nodata = src_nir.nodata if src_nir.nodata is not None else 0
 
             valid_red = (red_data != red_nodata) & (red_data > 0)
@@ -353,7 +373,7 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
 
             valid = valid_red & valid_nir & (denom > 0)
 
-            # Aplicar filtro de nubes/sombras SCL categórico
+            # Aplicar filtro de nubes/sombras SCL categórico si está disponible
             if scl_aligned is not None:
                 # Clases SCL a descartar: 3 (Sombra de nube), 8 (Nube probabilidad media), 9 (Nube probabilidad alta), 10 (Cirrus), 11 (Nieve/Hielo)
                 cloud_mask = (scl_aligned == 3) | (scl_aligned == 8) | (scl_aligned == 9) | (scl_aligned == 10) | (scl_aligned == 11)
@@ -371,7 +391,8 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
             mean_val = round(float(np.mean(valid_ndvi)), 4)
             median_val = round(float(np.median(valid_ndvi)), 4)
             std_val = round(float(np.std(valid_ndvi)), 4)
-            valid_pct = round((float(len(valid_ndvi)) / float(red_data.size)) * 100.0, 1)
+            # Calcular porcentaje de píxeles válidos respecto a los píxeles reales que pertenecen al polígono ROI
+            valid_pct = round((float(len(valid_ndvi)) / float(roi_pixel_count)) * 100.0, 1)
 
             # Reemplazar NaN por None para cumplir estricta conformidad JSON
             clean_matrix = np.where(np.isnan(ndvi_array), None, ndvi_array).tolist()
@@ -384,6 +405,9 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 "stdDev": std_val,
                 "validPixelsPercent": valid_pct,
                 "sampleCount": int(len(valid_ndvi)),
+                "roiPixelCount": int(roi_pixel_count),
+                "sclFilterApplied": scl_filter_applied,
+                "sclWarning": scl_error_reason if (scl_url and not scl_filter_applied) else None,
                 "ndviMatrix": clean_matrix,
                 "isPoint": False
             }, None
@@ -436,6 +460,14 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                     mean_val = stats["mean"]
                     v_class = "Excelente vigor vegetativo" if mean_val >= 0.65 else ("Vigor vegetativo moderado" if mean_val >= 0.45 else "Cobertura/vigor bajo")
 
+                    scl_warn = stats.get("sclWarning")
+                    base_msg = "NDVI por píxel calculated con éxito a partir de bandas COG reales de Sentinel-2."
+                    base_detail = f"Procesado anónimamente desde píxeles COG reales de B04/B08 (Escena: {prod_id}, Fecha: {actual_date})."
+
+                    if scl_warn:
+                        base_msg += f" (LIMITACIÓN: {scl_warn})"
+                        base_detail += f" LIMITACIÓN SCL: {scl_warn}"
+
                     return {
                         "indicator": "NDVI (Normalized Difference Vegetation Index)",
                         "formula": "NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)",
@@ -451,10 +483,10 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                         "decisionVigor": {
                             "clasificacionSimple": v_class,
                             "icono": "🟢" if mean_val >= 0.5 else "🟡",
-                            "detalleTecnico": f"Procesado anónimamente desde píxeles COG reales de B04/B08 (Escena: {prod_id}, Fecha: {actual_date})."
+                            "detalleTecnico": base_detail
                         },
                         "status": "REAL",
-                        "message": "NDVI por píxel calculado con éxito a partir de bandas COG reales de Sentinel-2."
+                        "message": base_msg
                     }
                 else:
                     return {

@@ -18,9 +18,9 @@ Agro Consultas es una plataforma web profesional de análisis y apoyo a decision
 | **Fotografías de Campo y EXIF** | ✅ Funcional | Carga batch múltiple, borrado individual, extracción EXIF real y métricas Canvas API. |
 | **Vista Dual (Simple vs. Técnica)** | ✅ Funcional | Alternancia entre semáforo ejecutivo (🟢🟡🔴) y detalle técnico cuantitativo. |
 | **Mapa de Decisiones e Interactivo** | ✅ Funcional | Leaflet con capas basemaps y leyenda de aptitud agro-ecológica. |
-| **Catálogo Satelital Sentinel-2** | ✅ Funcional | Consulta directa en vivo a Copernicus Data Space Ecosystem STAC. |
+| **Catálogo Satelital Sentinel-2** | ✅ Funcional | Consulta directa en vivo a AWS Earth Search STAC (Sentinel-2 L2A COGs). |
 | **Generación de Informe PDF** | ✅ Funcional | Impresión y descarga de reporte técnico formateado mediante `@media print` CSS. |
-| **Módulo Forestal y Teledetección** | ✅ Funcional | Delimitación de lotes, serie temporal Copernicus Sentinel-2 y estimación dasométrica. |
+| **Módulo Forestal y Teledetección** | ✅ Funcional | Delimitación de lotes, serie temporal Sentinel-2 L2A STAC y estimación dasométrica. |
 | **Exportación y Compartición de Reportes** | ✅ Funcional | Exportación a PDF, GeoJSON, KML, GPX y enlace para compartir en todos los módulos. |
 | **Diagnóstico Fitopatológico IA** | ❌ Pendiente | Se utiliza análisis visual prudente no diagnóstico (*"síntomas compatibles con..."*). |
 

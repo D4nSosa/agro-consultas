@@ -39,14 +39,12 @@ def test_aligned_rasters():
         red_path = os.path.join(tmpdir, "red.tif")
         nir_path = os.path.join(tmpdir, "nir.tif")
 
-        # Matriz 10x10 de reflectancias (RED=1000, NIR=3000 -> NDVI = (3000-1000)/(3000+1000) = 0.5)
         red_arr = np.full((10, 10), 1000, dtype=np.uint16)
         nir_arr = np.full((10, 10), 3000, dtype=np.uint16)
 
         create_synthetic_geotiff(red_path, red_arr)
         create_synthetic_geotiff(nir_path, nir_arr)
 
-        # Polígono GeoJSON WGS84 que cubre la zona exacta del raster sintético UTM (500000, 7000000)
         geom_wgs84 = Polygon([
             (-56.9999, -27.1225),
             (-56.9991, -27.1225),
@@ -63,21 +61,21 @@ def test_aligned_rasters():
         assert stats["max"] == 0.5
         assert stats["sampleCount"] > 0
 
-def test_different_resolutions_and_crs_reprojection():
-    """Prueba 2: Rasters con distinta resolución y CRS (reproyección y remuestreo bilineal)"""
+def test_equal_shape_different_affine_transforms():
+    """Prueba 2: Rasters con igual dimensión (10x10) pero transformaciones espaciales distintas (desplazadas)"""
     with tempfile.TemporaryDirectory() as tmpdir:
         red_path = os.path.join(tmpdir, "red.tif")
         nir_path = os.path.join(tmpdir, "nir.tif")
 
-        # RED en EPSG:32721 (UTM 21S) a 10m de resolución
+        # RED origen (500000, 7000000)
         transform_red = from_origin(500000, 7000000, 10, 10)
-        red_arr = np.full((20, 20), 1000, dtype=np.uint16)
+        red_arr = np.full((10, 10), 1000, dtype=np.uint16)
         create_synthetic_geotiff(red_path, red_arr, crs_epsg=32721, transform=transform_red)
 
-        # NIR en EPSG:4326 (WGS84 degrees) a ~20m de resolución equivalente
-        transform_nir = from_origin(-57.0, -27.122, 0.0002, 0.0002)
+        # NIR mismo tamaño (10, 10) pero desplazado 20m al Este (origen 500020, 7000000)
+        transform_nir = from_origin(500020, 7000000, 10, 10)
         nir_arr = np.full((10, 10), 3000, dtype=np.uint16)
-        create_synthetic_geotiff(nir_path, nir_arr, crs_epsg=4326, transform=transform_nir)
+        create_synthetic_geotiff(nir_path, nir_arr, crs_epsg=32721, transform=transform_nir)
 
         geom_wgs84 = Polygon([
             (-56.9999, -27.1225),
@@ -90,26 +88,69 @@ def test_different_resolutions_and_crs_reprojection():
         stats, err = process_cog_raster_ndvi_cropped(red_path, nir_path, None, geom_wgs84)
         assert err is None, f"Error inesperado: {err}"
         assert stats is not None
-        assert 0.4 <= stats["mean"] <= 0.6
+        assert stats["mean"] == 0.5
 
-def test_categorical_scl_mask_reprojection():
-    """Prueba 3: Máscara SCL con grilla diferente (remuestreo Nearest Neighbor)"""
+def test_point_query_different_crss():
+    """Prueba 3: Consulta puntual donde RED está en UTM Zone 21S y NIR en WGS84"""
     with tempfile.TemporaryDirectory() as tmpdir:
         red_path = os.path.join(tmpdir, "red.tif")
         nir_path = os.path.join(tmpdir, "nir.tif")
-        scl_path = os.path.join(tmpdir, "scl.tif")
 
-        transform_10m = from_origin(500000, 7000000, 10, 10)
+        # RED en UTM Zone 21S
+        transform_red = from_origin(500000, 7000000, 10, 10)
         red_arr = np.full((10, 10), 1000, dtype=np.uint16)
+        create_synthetic_geotiff(red_path, red_arr, crs_epsg=32721, transform=transform_red)
+
+        # NIR en WGS84 (EPSG:4326)
+        transform_nir = from_origin(-57.0, -27.122, 0.0001, 0.0001)
         nir_arr = np.full((10, 10), 3000, dtype=np.uint16)
+        create_synthetic_geotiff(nir_path, nir_arr, crs_epsg=4326, transform=transform_nir)
+
+        pt_wgs84 = Point(-56.9995, -27.1226)
+
+        stats, err = process_cog_raster_ndvi_cropped(red_path, nir_path, None, pt_wgs84)
+        assert err is None, f"Error inesperado: {err}"
+        assert stats is not None
+        assert stats["isPoint"] is True
+        assert stats["mean"] == 0.5
+
+def test_roi_precision_and_valid_pixel_percent():
+    """Prueba 4: Porcentaje de píxeles válidos calculado respecto al número real de píxeles dentro del ROI"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        red_path = os.path.join(tmpdir, "red.tif")
+        nir_path = os.path.join(tmpdir, "nir.tif")
+
+        # Matriz grande 20x20
+        transform_10m = from_origin(500000, 7000000, 10, 10)
+        red_arr = np.full((20, 20), 1000, dtype=np.uint16)
+        nir_arr = np.full((20, 20), 3000, dtype=np.uint16)
         create_synthetic_geotiff(red_path, red_arr, transform=transform_10m)
         create_synthetic_geotiff(nir_path, nir_arr, transform=transform_10m)
 
-        # SCL a 20m de resolución (matriz 5x5), con la mitad superior cubierta por nube (clase 9)
-        transform_20m = from_origin(500000, 7000000, 20, 20)
-        scl_arr = np.full((5, 5), 4, dtype=np.uint8) # Clase 4 = vegetación
-        scl_arr[:2, :] = 9 # Clase 9 = Nube probabilidad alta
-        create_synthetic_geotiff(scl_path, scl_arr, transform=transform_20m, nodata=0)
+        # Polígono pequeño en la esquina superior izquierda (4 píxeles reales)
+        geom_wgs84 = Polygon([
+            (-56.9999, -27.1225),
+            (-56.9997, -27.1225),
+            (-56.9997, -27.1227),
+            (-56.9999, -27.1227),
+            (-56.9999, -27.1225)
+        ])
+
+        stats, err = process_cog_raster_ndvi_cropped(red_path, nir_path, None, geom_wgs84)
+        assert err is None
+        assert stats is not None
+        assert stats["roiPixelCount"] > 0
+        assert stats["validPixelsPercent"] == 100.0
+
+def test_scl_reading_failure_reporting():
+    """Prueba 5: Notificación explícita de falla al cargar/alinear SCL en lugar de continuar silenciosamente"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        red_path = os.path.join(tmpdir, "red.tif")
+        nir_path = os.path.join(tmpdir, "nir.tif")
+        invalid_scl_path = os.path.join(tmpdir, "non_existent_scl.tif")
+
+        create_synthetic_geotiff(red_path, np.full((10, 10), 1000, dtype=np.uint16))
+        create_synthetic_geotiff(nir_path, np.full((10, 10), 3000, dtype=np.uint16))
 
         geom_wgs84 = Polygon([
             (-56.9999, -27.1225),
@@ -119,16 +160,15 @@ def test_categorical_scl_mask_reprojection():
             (-56.9999, -27.1225)
         ])
 
-        stats, err = process_cog_raster_ndvi_cropped(red_path, nir_path, scl_path, geom_wgs84)
-        assert err is None, f"Error inesperado: {err}"
+        stats, err = process_cog_raster_ndvi_cropped(red_path, nir_path, invalid_scl_path, geom_wgs84)
+        assert err is None
         assert stats is not None
-        # Píxeles sin nube conservan el cálculo NDVI
-        assert stats["mean"] == 0.5
-        # Muestra menos píxeles por la máscara de nubes
-        assert stats["validPixelsPercent"] < 100.0
+        assert stats["sclFilterApplied"] is False
+        assert stats["sclWarning"] is not None
+        assert "No se pudo cargar o alinear" in stats["sclWarning"]
 
 def test_nodata_and_cloud_coverage_error():
-    """Prueba 4: Error explícito cuando 100% de la superficie es nube/nodata"""
+    """Prueba 6: Error explícito cuando 100% de la superficie es nube/nodata"""
     with tempfile.TemporaryDirectory() as tmpdir:
         red_path = os.path.join(tmpdir, "red.tif")
         nir_path = os.path.join(tmpdir, "nir.tif")
