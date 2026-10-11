@@ -171,10 +171,13 @@ def search_stac_catalog(req: STACSearchRequest):
                         for feat in features:
                             props = feat.get("properties", {})
                             assets = feat.get("assets", {})
+                            raw_cc = props.get("eo:cloud_cover")
+                            cloud_cover_val = round(float(raw_cc), 1) if raw_cc is not None else None
                             parsed_products.append({
                                 "id": feat.get("id"),
-                                "date": props.get("datetime", "").split("T")[0],
-                                "cloudCover": round(float(props.get("eo:cloud_cover", 0.0)), 1),
+                                "date": props.get("datetime", "").split("T")[0] if props.get("datetime") else "NO DISPONIBLE",
+                                "cloudCover": cloud_cover_val,
+                                "cloudCoverDisplay": f"{cloud_cover_val}%" if cloud_cover_val is not None else "NO REGISTRADO",
                                 "collection": "sentinel-2-l2a",
                                 "source": "AWS Earth Search (Sentinel-2 L2A COGs)",
                                 "resolution": "10m",
@@ -187,7 +190,8 @@ def search_stac_catalog(req: STACSearchRequest):
                                     "thumbnail": assets.get("thumbnail", {}).get("href")
                                 }
                             })
-                        parsed_products.sort(key=lambda x: x["cloudCover"])
+                        # Ordenar priorizando menor nubosidad real conocida; colocar desconocidos (None / 999.0) al final
+                        parsed_products.sort(key=lambda x: x["cloudCover"] if x["cloudCover"] is not None else 999.0)
                         return {
                             "success": True,
                             "source": "AWS Earth Search (Sentinel-2 L2A COGs Public Catalog)",
@@ -554,69 +558,74 @@ def calculate_change_detection(req: ChangeDetectionRequest):
             rawA = statsA.get("ndviMatrix")
             rawB = statsB.get("ndviMatrix")
 
+            valid_diffs = None
             if rawA and rawB:
                 matA = np.array(rawA, dtype=float)
                 matB = np.array(rawB, dtype=float)
 
-                if matA.shape == matB.shape:
-                    # Comparación espacial píxel por píxel exacta
+                # Verificar correspondencia exacta de grilla y dimensiones
+                if matA.shape == matB.shape and matA.size > 0:
                     diff_matrix = matB - matA
-                    valid_diffs = diff_matrix[~np.isnan(diff_matrix)]
+                    valid_mask = (~np.isnan(diff_matrix)) & (matA != None) & (matB != None)
+                    diffs_arr = diff_matrix[valid_mask]
+                    if len(diffs_arr) > 0:
+                        valid_diffs = diffs_arr
 
-                if len(valid_diffs) > 0:
-                    dec_px = np.sum(valid_diffs <= -0.15)
-                    inc_px = np.sum(valid_diffs >= 0.15)
-                    st_px = np.sum((valid_diffs > -0.15) & (valid_diffs < 0.15))
-                    total_valid = float(len(valid_diffs))
+            if valid_diffs is not None and len(valid_diffs) > 0:
+                dec_px = np.sum(valid_diffs <= -0.15)
+                inc_px = np.sum(valid_diffs >= 0.15)
+                st_px = np.sum((valid_diffs > -0.15) & (valid_diffs < 0.15))
+                total_valid = float(len(valid_diffs))
 
-                    dec_pct = round((dec_px / total_valid) * 100.0, 1)
-                    inc_pct = round((inc_px / total_valid) * 100.0, 1)
-                    st_pct = round((st_px / total_valid) * 100.0, 1)
+                dec_pct = round((dec_px / total_valid) * 100.0, 1)
+                inc_pct = round((inc_px / total_valid) * 100.0, 1)
+                st_pct = round((st_px / total_valid) * 100.0, 1)
 
-                    if is_point:
-                        dec_ha, st_ha, inc_ha = 0.0, 0.0, 0.0
-                    else:
-                        dec_ha = round((dec_pct / 100.0) * area_ha, 2)
-                        inc_ha = round((inc_pct / 100.0) * area_ha, 2)
-                        st_ha = round(area_ha - dec_ha - inc_ha, 2)
+                if is_point:
+                    dec_ha, st_ha, inc_ha = 0.0, 0.0, 0.0
+                else:
+                    dec_ha = round((dec_pct / 100.0) * area_ha, 2)
+                    inc_ha = round((inc_pct / 100.0) * area_ha, 2)
+                    st_ha = round(area_ha - dec_ha - inc_ha, 2)
 
-                    delta_ndvi = round(meanB - meanA, 4)
+                delta_ndvi = round(meanB - meanA, 4)
 
-                    if dec_pct > 30.0 or delta_ndvi <= -0.15:
-                        classification = "DISMINUCION_SIGNIFICATIVA"
-                        msg = f"Disminución significativa del índice de vegetación detectada (ΔNDVI: {delta_ndvi})."
-                        desc = f"Se observa reducción del vigor vegetativo en {dec_ha} ha ({dec_pct}% del lote). Puede deberse a raleo, cosecha o eventos climáticos. Se sugiere verificación de campo."
-                    elif inc_pct > 30.0 or delta_ndvi >= 0.15:
-                        classification = "AUMENTO_SIGNIFICATIVO"
-                        msg = f"Aumento significativo del índice de vegetación detectado (ΔNDVI: +{delta_ndvi})."
-                        desc = f"Se observa incremento del vigor vegetativo en {inc_ha} ha ({inc_pct}% del lote)."
-                    else:
-                        classification = "ESTABLE"
-                        msg = f"Cobertura vegetativa estable entre ambas observaciones (ΔNDVI: {delta_ndvi})."
-                        desc = f"El {st_pct}% de la superficie del lote ({st_ha} ha) se mantiene estable dentro de los márgenes normales de variación estacional."
+                if dec_pct > 30.0 or delta_ndvi <= -0.15:
+                    classification = "DISMINUCION_SIGNIFICATIVA"
+                    msg = f"Disminución significativa del índice de vegetación detectada (ΔNDVI: {delta_ndvi})."
+                    desc = f"Se observa reducción del vigor vegetativo en {dec_ha} ha ({dec_pct}% del lote). Puede deberse a raleo, cosecha o eventos climáticos. Se sugiere verificación de campo."
+                elif inc_pct > 30.0 or delta_ndvi >= 0.15:
+                    classification = "AUMENTO_SIGNIFICATIVO"
+                    msg = f"Aumento significativo del índice de vegetación detectado (ΔNDVI: +{delta_ndvi})."
+                    desc = f"Se observa incremento del vigor vegetativo en {inc_ha} ha ({inc_pct}% del lote)."
+                else:
+                    classification = "ESTABLE"
+                    msg = f"Cobertura vegetativa estable entre ambas observaciones (ΔNDVI: {delta_ndvi})."
+                    desc = f"El {st_pct}% de la superficie del lote ({st_ha} ha) se mantiene estable dentro de los márgenes normales de variación estacional."
 
-                    return {
-                        "period": {"dateA": ndvi_resA.get("date", dA), "dateB": ndvi_resB.get("date", dB)},
-                        "deltaNDVI": delta_ndvi,
-                        "ndviA": meanA,
-                        "ndviB": meanB,
-                        "totalAreaHa": area_ha,
-                        "isPoint": is_point,
-                        "status": "REAL",
-                        "classification": classification,
-                        "primaryMessage": msg,
-                        "description": desc,
-                        "breakdown": {
-                            "decrease": {"hectares": dec_ha, "percent": dec_pct},
-                            "stable": {"hectares": st_ha, "percent": st_pct},
-                            "increase": {"hectares": inc_ha, "percent": inc_pct}
-                        },
-                        "products": {
-                            "productA": ndvi_resA.get("productId"),
-                            "productB": ndvi_resB.get("productId")
-                        },
-                        "disclaimer": "Las variaciones espectrales representan diferencias de reflectancia satelital calculadas píxel a píxel sobre el lote. No constituyen confirmación de tala o enfermedad sin inspección de terreno."
-                    }
+                return {
+                    "period": {"dateA": ndvi_resA.get("date", dA), "dateB": ndvi_resB.get("date", dB)},
+                    "deltaNDVI": delta_ndvi,
+                    "ndviA": meanA,
+                    "ndviB": meanB,
+                    "totalAreaHa": area_ha,
+                    "isPoint": is_point,
+                    "status": "REAL",
+                    "spatialComparisonAvailable": True,
+                    "classification": classification,
+                    "primaryMessage": msg,
+                    "description": desc,
+                    "breakdown": {
+                        "decrease": {"hectares": dec_ha, "percent": dec_pct},
+                        "stable": {"hectares": st_ha, "percent": st_pct},
+                        "increase": {"hectares": inc_ha, "percent": inc_pct}
+                    },
+                    "products": {
+                        "productA": ndvi_resA.get("productId"),
+                        "productB": ndvi_resB.get("productId")
+                    },
+                    "disclaimer": "Las variaciones espectrales representan diferencias de reflectancia satelital calculadas píxel a píxel sobre el lote. No constituyen confirmación de tala o enfermedad sin inspección de terreno."
+                }
 
             if meanA is not None and meanB is not None:
                 delta_ndvi = round(meanB - meanA, 4)
@@ -642,19 +651,20 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                     "totalAreaHa": area_ha,
                     "isPoint": is_point,
                     "status": "REAL",
+                    "spatialComparisonAvailable": False,
                     "classification": classification,
                     "primaryMessage": msg,
                     "description": desc,
                     "breakdown": {
-                        "decrease": {"hectares": "Matriz espacial no alineada", "percent": "N/D"},
-                        "stable": {"hectares": "Matriz espacial no alineada", "percent": "N/D"},
-                        "increase": {"hectares": "Matriz espacial no alineada", "percent": "N/D"}
+                        "decrease": {"hectares": "N/D (Comparación espacial píxel a píxel no disponible)", "percent": "N/D"},
+                        "stable": {"hectares": "N/D (Comparación espacial píxel a píxel no disponible)", "percent": "N/D"},
+                        "increase": {"hectares": "N/D (Comparación espacial píxel a píxel no disponible)", "percent": "N/D"}
                     },
                     "products": {
                         "productA": ndvi_resA.get("productId"),
                         "productB": ndvi_resB.get("productId")
                     },
-                    "disclaimer": "Las variaciones espectrales representan la diferencia entre las medias de NDVI del ROI."
+                    "disclaimer": "Comparación espacial por píxeles no disponible debido a diferencia de dimensiones o grillas espectrales. Se reporta únicamente la variación entre las medias espectrales del lote."
                 }
 
         return {
@@ -694,10 +704,24 @@ def run_full_forest_analysis_endpoint(req: ChangeDetectionRequest):
     }
 
 def calculate_shapely_area(geom_shape):
-    """Calcula área aproximada en m2 usando el centroide latitud para escalar grados WGS84"""
-    centroid = geom_shape.centroid
-    lat_rad = math.radians(centroid.y)
-    meters_per_deg_lat = 111132.92 - 559.82 * math.cos(2 * lat_rad)
-    meters_per_deg_lng = 111412.84 * math.cos(lat_rad)
+    """
+    Calcula la superficie exacta en metros cuadrados (m²) sobre el elipsoide WGS84 usando pyproj.Geod.
 
-    return abs(geom_shape.area) * meters_per_deg_lat * meters_per_deg_lng
+    Método: Geodesia directa sobre WGS84 (Geod.geometry_area_perimeter).
+    Ventajas: Sin distorsión por proyección plana UTM en límites de faja ni aproximaciones planas simples.
+    Limitaciones: Válido para polígonos GeoJSON WGS84 (EPSG:4326).
+    """
+    if geom_shape.geom_type == 'Point':
+        return 0.0
+
+    try:
+        geod = pyproj.Geod(ellps='WGS84')
+        area_m2, _ = geod.geometry_area_perimeter(geom_shape)
+        return abs(area_m2)
+    except Exception:
+        # Fallback a proyección local UTM si geod.geometry_area_perimeter falla por estructura compleja
+        centroid = geom_shape.centroid
+        lat_rad = math.radians(centroid.y)
+        meters_per_deg_lat = 111132.92 - 559.82 * math.cos(2 * lat_rad)
+        meters_per_deg_lng = 111412.84 * math.cos(lat_rad)
+        return abs(geom_shape.area) * meters_per_deg_lat * meters_per_deg_lng

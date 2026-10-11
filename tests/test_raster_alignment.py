@@ -10,7 +10,13 @@ from rasterio.crs import CRS
 import tempfile
 import os
 from shapely.geometry import Polygon, Point
-from backend.main import process_cog_raster_ndvi_cropped
+from backend.main import (
+    process_cog_raster_ndvi_cropped,
+    calculate_change_detection,
+    calculate_shapely_area,
+    ChangeDetectionRequest,
+    GeoJSONGeometry
+)
 
 def create_synthetic_geotiff(filepath, array, crs_epsg=32721, transform=None, nodata=0):
     """Crea un GeoTIFF sintético para pruebas offline sin depender de Internet"""
@@ -167,8 +173,36 @@ def test_scl_reading_failure_reporting():
         assert stats["sclWarning"] is not None
         assert "No se pudo cargar o alinear" in stats["sclWarning"]
 
+def test_geodesic_area_calculation():
+    """Prueba 6: Cálculo de superficie geodésica exacta sobre WGS84 para distintas latitudes"""
+    # Polígono de 1 grado x 1 grado cerca de Buenos Aires (-34 lat) vs Jujuy (-23 lat)
+    square_ba = Polygon([
+        (-58.5, -34.5),
+        (-57.5, -34.5),
+        (-57.5, -33.5),
+        (-58.5, -33.5),
+        (-58.5, -34.5)
+    ])
+
+    square_jujuy = Polygon([
+        (-65.5, -23.5),
+        (-64.5, -23.5),
+        (-64.5, -22.5),
+        (-65.5, -22.5),
+        (-65.5, -23.5)
+    ])
+
+    area_ba_m2 = calculate_shapely_area(square_ba)
+    area_jujuy_m2 = calculate_shapely_area(square_jujuy)
+
+    # Las superficies geodésicas deben ser coherentes y reflejar convergencia meridiana a mayor latitud
+    assert area_ba_m2 > 0
+    assert area_jujuy_m2 > 0
+    assert area_jujuy_m2 > area_ba_m2 # A menor latitud (más cerca del ecuador), el cuadrado de 1° abarca mayor área m2
+    assert calculate_shapely_area(Point(-58.0, -34.0)) == 0.0
+
 def test_nodata_and_cloud_coverage_error():
-    """Prueba 6: Error explícito cuando 100% de la superficie es nube/nodata"""
+    """Prueba 7: Error explícito cuando 100% de la superficie es nube/nodata"""
     with tempfile.TemporaryDirectory() as tmpdir:
         red_path = os.path.join(tmpdir, "red.tif")
         nir_path = os.path.join(tmpdir, "nir.tif")

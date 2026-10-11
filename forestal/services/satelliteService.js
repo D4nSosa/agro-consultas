@@ -49,10 +49,12 @@ export async function searchSentinelImagesByTargetDate(geometry, targetDateStr, 
     };
   });
 
-  // Criterio explícito de selección: menor nubosidad y cercanía a fecha objetivo
+  // Criterio explícito de selección: menor nubosidad y cercanía a fecha objetivo (desconocidos al final)
   productsWithDelta.sort((a, b) => {
-    if (Math.abs(a.cloudCover - b.cloudCover) > 5) {
-      return a.cloudCover - b.cloudCover;
+    const ccA = a.cloudCover !== null ? a.cloudCover : 999.0;
+    const ccB = b.cloudCover !== null ? b.cloudCover : 999.0;
+    if (Math.abs(ccA - ccB) > 5) {
+      return ccA - ccB;
     }
     return a.daysFromTarget - b.daysFromTarget;
   });
@@ -106,7 +108,7 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
     }
 
     const productsAws = featuresAws.map(feat => parseSTACItem(feat, 'AWS Earth Search (Sentinel-2 L2A COG)'));
-    productsAws.sort((a, b) => a.cloudCover - b.cloudCover);
+    productsAws.sort((a, b) => (a.cloudCover !== null ? a.cloudCover : 999.0) - (b.cloudCover !== null ? b.cloudCover : 999.0));
 
     return {
       success: true,
@@ -130,9 +132,10 @@ function parseSTACItem(item, customSource = null) {
   const props = item.properties || {};
   const assets = item.assets || {};
 
-  const cloudCover = typeof props['eo:cloud_cover'] === 'number'
-    ? Math.round(props['eo:cloud_cover'] * 10) / 10
-    : 0.0;
+  const rawCloud = props['eo:cloud_cover'];
+  const cloudCover = (typeof rawCloud === 'number' && !isNaN(rawCloud))
+    ? Math.round(rawCloud * 10) / 10
+    : null;
 
   const date = props.datetime
     ? props.datetime.split('T')[0]
@@ -145,6 +148,7 @@ function parseSTACItem(item, customSource = null) {
     date: date,
     datetime: props.datetime || null,
     cloudCover: cloudCover,
+    cloudCoverDisplay: cloudCover !== null ? `${cloudCover}%` : 'NO REGISTRADO',
     collection: 'sentinel-2-l2a',
     source: customSource || 'Sentinel-2 L2A Public STAC',
     productType: 'Level-2A (Bottom of Atmosphere Reflectance)',
