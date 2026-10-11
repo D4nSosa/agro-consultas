@@ -24,43 +24,84 @@ export async function analyzeVegetation(geometry, productInfo) {
     };
   }
 
-  // Verificar disponibilidad de bandas ráster directas
-  const b04Url = productInfo.assets?.b04;
-  const b08Url = productInfo.assets?.b08;
+  // 1. Si productInfo ya trae estadísticas ráster previamente procesadas en el backend
+  if (productInfo.stats && typeof productInfo.stats.mean === 'number') {
+    return {
+      available: true,
+      state: 'NDVI_CALCULADO_RASTER',
+      indicator: 'NDVI (Normalized Difference Vegetation Index)',
+      formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
+      bandsUsed: { red: 'B04 (Red, 665 nm)', nir: 'B08 (Near Infrared, 842 nm)' },
+      targetDate: productInfo.targetDate || productInfo.date,
+      acquisitionDate: productInfo.date,
+      cloudCover: typeof productInfo.cloudCover === 'number' ? `${productInfo.cloudCover}%` : (productInfo.cloudCover || 'N/D'),
+      productId: productInfo.id,
+      source: productInfo.source || 'AWS Earth Search (Sentinel-2 L2A COGs)',
+      assets: productInfo.assets || {},
+      stats: productInfo.stats,
+      interpretation: `RÁSTER PROCESADO - NDVI calculado en ROI a partir de píxeles COG reales. Media: ${productInfo.stats.mean}`,
+      gridSample: [],
+      message: 'NDVI por píxel calculado con éxito'
+    };
+  }
 
-  // Si los assets contienen previsualización / thumbnail o la API backend Python está configurada
-  // se reporta el estado de disponibilidad del producto Sentinel-2
-  const isAvailable = Boolean(productInfo && productInfo.id);
+  // 2. Si no trae estadísticas, realizar la consulta directa al endpoint serverless /api/forest/ndvi
+  try {
+    const response = await fetch('/api/forest/ndvi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        geometry: geometry.geometry || geometry,
+        date: productInfo.date,
+        productId: productInfo.id
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.status === 'REAL' && data.stats) {
+        return {
+          available: true,
+          state: 'NDVI_CALCULADO_RASTER',
+          indicator: 'NDVI (Normalized Difference Vegetation Index)',
+          formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
+          bandsUsed: { red: 'B04 (Red, 665 nm)', nir: 'B08 (Near Infrared, 842 nm)' },
+          targetDate: data.date || productInfo.date,
+          acquisitionDate: data.date || productInfo.date,
+          cloudCover: data.cloudCover || `${productInfo.cloudCover}%`,
+          productId: data.productId || productInfo.id,
+          source: data.source || productInfo.source || 'AWS Earth Search (Sentinel-2 L2A COGs)',
+          assets: productInfo.assets || {},
+          stats: data.stats,
+          interpretation: getVegetationInterpretation(data.stats.mean),
+          gridSample: [],
+          message: 'NDVI por píxel recortado en ROI calculado con éxito'
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[vegetationService] Falló la llamada a /api/forest/ndvi:', err);
+  }
 
   const hasCloudMetadata = typeof productInfo.cloudCover === 'number';
   const cloudText = hasCloudMetadata ? `${productInfo.cloudCover}%` : 'NO DISPONIBLE';
 
-  const hasRasterStats = productInfo.stats && typeof productInfo.stats.mean === 'number';
-
   return {
-    available: hasRasterStats,
-    state: hasRasterStats ? 'NDVI_CALCULADO_RASTER' : (isAvailable ? 'ESCENA_ENCONTRADA_SIN_RASTER' : 'NO_DISPONIBLE'),
+    available: false,
+    state: 'ESCENA_ENCONTRADA_SIN_RASTER',
     indicator: 'NDVI (Normalized Difference Vegetation Index)',
     formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
-    bandsUsed: {
-      red: 'B04 (Red, 665 nm)',
-      nir: 'B08 (Near Infrared, 842 nm)'
-    },
+    bandsUsed: { red: 'B04 (Red, 665 nm)', nir: 'B08 (Near Infrared, 842 nm)' },
     targetDate: productInfo.targetDate || productInfo.date,
     acquisitionDate: productInfo.date,
-    daysFromTarget: productInfo.daysFromTarget !== undefined ? productInfo.daysFromTarget : 0,
     cloudCover: cloudText,
     productId: productInfo.id,
-    source: productInfo.source || 'Copernicus Sentinel-2',
+    source: productInfo.source || 'Sentinel-2 L2A STAC',
     assets: productInfo.assets || {},
-    stats: hasRasterStats ? productInfo.stats : null,
-    interpretation: hasRasterStats
-      ? `ESTADO 3 - NDVI calculado a partir de matriz de píxeles reales (B04/B08). Media: ${productInfo.stats.mean}`
-      : (isAvailable
-        ? `ESTADO 1/2 - Escena identificada en catálogo (${productInfo.id}, fecha: ${productInfo.date}). Cobertura de nubes: ${cloudText}. ESTADO 3 (NDVI por píxel): Requiere API del servidor backend con credenciales COPERNICUS_CLIENT_ID / SECRET para procesar las bandas B04/B08.`
-        : 'NDVI no disponible para la fecha seleccionada.'),
+    stats: null,
+    interpretation: `ESCENA IDENTIFICADA EN CATÁLOGO (${productInfo.id}, fecha: ${productInfo.date}). Cobertura de nubes: ${cloudText}. Extracción ráster en ROI pendiente de procesamiento en servidor.`,
     gridSample: [],
-    message: hasRasterStats ? 'NDVI por píxel calculado' : (isAvailable ? 'Escena recuperada en catálogo (matriz ráster pendiente de backend)' : 'NDVI no disponible')
+    message: 'Escena recuperada en catálogo (matriz ráster no procesada)'
   };
 }
 

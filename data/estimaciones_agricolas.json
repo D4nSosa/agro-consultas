@@ -1,7 +1,11 @@
 {
   "fuente": "Secretaría de Agricultura, Ganadería y Pesca (SAGyP - datos.gob.ar)",
   "dataset": "Estimaciones Agrícolas Oficiales - Series Históricas por Provincia",
-  "actualizacion": "2024",
+  "datasetUrl": "https://datos.gob.ar/dataset/agroindustria-agricultura---estimaciones-agricolas",
+  "licencia": "Open Data Commons Attribution License (ODC-By)",
+  "campanaReferencia": "2022/2023 - 2023/2024",
+  "fechaActualizacion": "2024-03-15",
+  "fechaConsulta": "2024-10-10",
   "provincias": {
     "buenos aires": {
       "soja": { "superficieSembradaHa": 5200000, "rendimientoKgHa": 2950, "produccionTn": 15340000 },
