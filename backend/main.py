@@ -268,10 +268,11 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 geom_proj = geom_shape
 
             if geom_shape.geom_type == 'Point':
-                # Extraer el valor del píxel exactación en el punto
+                # Lectura eficiente por ventana (1x1 píxel) sin cargar la imagen completa en memoria
                 row, col = src_red.index(geom_proj.x, geom_proj.y)
-                val_red = src_red.read(1)[row, col]
-                val_nir = src_nir.read(1)[row, col]
+                window = rasterio.windows.Window(col, row, 1, 1)
+                val_red = src_red.read(1, window=window)[0, 0]
+                val_nir = src_nir.read(1, window=window)[0, 0]
 
                 denom = float(val_nir) + float(val_red)
                 if denom == 0 or val_red == 0 or val_nir == 0:
@@ -296,24 +297,28 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
             red_data = out_red[0]
             nir_data = out_nir[0]
 
-            scl_resized = None
+            scl_aligned = None
             if scl_url:
                 try:
                     with rasterio.open(scl_url) as src_scl:
                         out_scl, _ = rasterio_mask(src_scl, [geom_proj], crop=True)
-                        scl_data = out_scl[0]
-                        zoom_y = red_data.shape[0] / max(1, scl_data.shape[0])
-                        zoom_x = red_data.shape[1] / max(1, scl_data.shape[1])
-                        scl_resized = np.repeat(np.repeat(scl_data, int(round(zoom_y)), axis=0), int(round(zoom_x)), axis=1)
-                        scl_resized = scl_resized[:red_data.shape[0], :red_data.shape[1]]
+                        scl_img = out_scl[0]
+                        if scl_img.shape == red_data.shape:
+                            scl_aligned = scl_img
+                        else:
+                            row_factor = red_data.shape[0] / max(1, scl_img.shape[0])
+                            col_factor = red_data.shape[1] / max(1, scl_img.shape[1])
+                            row_indices = np.clip((np.arange(red_data.shape[0]) / row_factor).astype(int), 0, scl_img.shape[0] - 1)
+                            col_indices = np.clip((np.arange(red_data.shape[1]) / col_factor).astype(int), 0, scl_img.shape[1] - 1)
+                            scl_aligned = scl_img[np.ix_(row_indices, col_indices)]
                 except Exception:
-                    scl_resized = None
+                    scl_aligned = None
 
             denom = nir_data.astype(float) + red_data.astype(float)
             valid = (denom > 0) & (red_data > 0) & (nir_data > 0)
 
-            if scl_resized is not None and scl_resized.shape == red_data.shape:
-                cloud_mask = (scl_resized == 3) | (scl_resized == 8) | (scl_resized == 9) | (scl_resized == 10) | (scl_resized == 11)
+            if scl_aligned is not None and scl_aligned.shape == red_data.shape:
+                cloud_mask = (scl_aligned == 3) | (scl_aligned == 8) | (scl_aligned == 9) | (scl_aligned == 10) | (scl_aligned == 11)
                 valid = valid & (~cloud_mask)
 
             ndvi_array = np.where(valid, (nir_data.astype(float) - red_data.astype(float)) / np.where(valid, denom, 1.0), np.nan)
@@ -329,6 +334,9 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
             std_val = round(float(np.std(valid_ndvi)), 4)
             valid_pct = round((float(len(valid_ndvi)) / float(red_data.size)) * 100.0, 1)
 
+            # Reemplazar NaN por None para cumplir estricta conformidad JSON
+            clean_matrix = np.where(np.isnan(ndvi_array), None, ndvi_array).tolist()
+
             return {
                 "min": min_val,
                 "max": max_val,
@@ -337,6 +345,7 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 "stdDev": std_val,
                 "validPixelsPercent": valid_pct,
                 "sampleCount": int(len(valid_ndvi)),
+                "ndviMatrix": clean_matrix,
                 "isPoint": False
             }, None
 
@@ -471,25 +480,88 @@ def calculate_change_detection(req: ChangeDetectionRequest):
             meanA = statsA.get("mean")
             meanB = statsB.get("mean")
 
+            rawA = statsA.get("ndviMatrix")
+            rawB = statsB.get("ndviMatrix")
+
+            if rawA and rawB:
+                matA = np.array(rawA, dtype=float)
+                matB = np.array(rawB, dtype=float)
+
+                if matA.shape == matB.shape:
+                    # Comparación espacial píxel por píxel exacta
+                    diff_matrix = matB - matA
+                    valid_diffs = diff_matrix[~np.isnan(diff_matrix)]
+
+                if len(valid_diffs) > 0:
+                    dec_px = np.sum(valid_diffs <= -0.15)
+                    inc_px = np.sum(valid_diffs >= 0.15)
+                    st_px = np.sum((valid_diffs > -0.15) & (valid_diffs < 0.15))
+                    total_valid = float(len(valid_diffs))
+
+                    dec_pct = round((dec_px / total_valid) * 100.0, 1)
+                    inc_pct = round((inc_px / total_valid) * 100.0, 1)
+                    st_pct = round((st_px / total_valid) * 100.0, 1)
+
+                    if is_point:
+                        dec_ha, st_ha, inc_ha = 0.0, 0.0, 0.0
+                    else:
+                        dec_ha = round((dec_pct / 100.0) * area_ha, 2)
+                        inc_ha = round((inc_pct / 100.0) * area_ha, 2)
+                        st_ha = round(area_ha - dec_ha - inc_ha, 2)
+
+                    delta_ndvi = round(meanB - meanA, 4)
+
+                    if dec_pct > 30.0 or delta_ndvi <= -0.15:
+                        classification = "DISMINUCION_SIGNIFICATIVA"
+                        msg = f"Disminución significativa del índice de vegetación detectada (ΔNDVI: {delta_ndvi})."
+                        desc = f"Se observa reducción del vigor vegetativo en {dec_ha} ha ({dec_pct}% del lote). Puede deberse a raleo, cosecha o eventos climáticos. Se sugiere verificación de campo."
+                    elif inc_pct > 30.0 or delta_ndvi >= 0.15:
+                        classification = "AUMENTO_SIGNIFICATIVO"
+                        msg = f"Aumento significativo del índice de vegetación detectado (ΔNDVI: +{delta_ndvi})."
+                        desc = f"Se observa incremento del vigor vegetativo en {inc_ha} ha ({inc_pct}% del lote)."
+                    else:
+                        classification = "ESTABLE"
+                        msg = f"Cobertura vegetativa estable entre ambas observaciones (ΔNDVI: {delta_ndvi})."
+                        desc = f"El {st_pct}% de la superficie del lote ({st_ha} ha) se mantiene estable dentro de los márgenes normales de variación estacional."
+
+                    return {
+                        "period": {"dateA": ndvi_resA.get("date", dA), "dateB": ndvi_resB.get("date", dB)},
+                        "deltaNDVI": delta_ndvi,
+                        "ndviA": meanA,
+                        "ndviB": meanB,
+                        "totalAreaHa": area_ha,
+                        "isPoint": is_point,
+                        "status": "REAL",
+                        "classification": classification,
+                        "primaryMessage": msg,
+                        "description": desc,
+                        "breakdown": {
+                            "decrease": {"hectares": dec_ha, "percent": dec_pct},
+                            "stable": {"hectares": st_ha, "percent": st_pct},
+                            "increase": {"hectares": inc_ha, "percent": inc_pct}
+                        },
+                        "products": {
+                            "productA": ndvi_resA.get("productId"),
+                            "productB": ndvi_resB.get("productId")
+                        },
+                        "disclaimer": "Las variaciones espectrales representan diferencias de reflectancia satelital calculadas píxel a píxel sobre el lote. No constituyen confirmación de tala o enfermedad sin inspección de terreno."
+                    }
+
             if meanA is not None and meanB is not None:
                 delta_ndvi = round(meanB - meanA, 4)
 
-                # Clasificación de cambio basada en variación espectral calculada
                 if delta_ndvi <= -0.15:
                     classification = "DISMINUCION_SIGNIFICATIVA"
-                    msg = f"Disminución significativa del índice de vegetación (ΔNDVI: {delta_ndvi})."
-                    desc = "Se observa una reducción sustancial en el vigor vegetativo. Puede deberse a cosecha, raleo o contingencia climática. Requiere inspección de campo."
-                    dec_pct, st_pct, inc_pct = 65.0, 30.0, 5.0
+                    msg = f"Disminución del índice de vegetación medio (ΔNDVI: {delta_ndvi})."
+                    desc = "Se observa una reducción del vigor vegetativo medio entre ambas fechas."
                 elif delta_ndvi >= 0.15:
                     classification = "AUMENTO_SIGNIFICATIVO"
-                    msg = f"Aumento significativo del índice de vegetación (ΔNDVI: +{delta_ndvi})."
-                    desc = "Se observa un incremento sustancial en la cobertura/biomasa vegetativa entre ambas fechas."
-                    dec_pct, st_pct, inc_pct = 5.0, 25.0, 70.0
+                    msg = f"Aumento del índice de vegetación medio (ΔNDVI: +{delta_ndvi})."
+                    desc = "Se observa un incremento en la cobertura/biomasa vegetativa media entre ambas fechas."
                 else:
                     classification = "ESTABLE"
-                    msg = f"Cobertura vegetativa estable entre ambas observaciones (ΔNDVI: {delta_ndvi})."
-                    desc = "La respuesta espectral se mantiene dentro de los márgenes normales de variación estacional."
-                    dec_pct, st_pct, inc_pct = 10.0, 80.0, 10.0
+                    msg = f"Respuesta espectral media estable entre ambas observaciones (ΔNDVI: {delta_ndvi})."
+                    desc = "La variación del índice medio de vegetación se mantiene estable."
 
                 return {
                     "period": {"dateA": ndvi_resA.get("date", dA), "dateB": ndvi_resB.get("date", dB)},
@@ -503,15 +575,15 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                     "primaryMessage": msg,
                     "description": desc,
                     "breakdown": {
-                    "decrease": {"hectares": "Pendiente de mapeo de píxeles ROI", "percent": "Pendiente"},
-                    "stable": {"hectares": "Pendiente de mapeo de píxeles ROI", "percent": "Pendiente"},
-                    "increase": {"hectares": "Pendiente de mapeo de píxeles ROI", "percent": "Pendiente"}
+                        "decrease": {"hectares": "Matriz espacial no alineada", "percent": "N/D"},
+                        "stable": {"hectares": "Matriz espacial no alineada", "percent": "N/D"},
+                        "increase": {"hectares": "Matriz espacial no alineada", "percent": "N/D"}
                     },
                     "products": {
                         "productA": ndvi_resA.get("productId"),
                         "productB": ndvi_resB.get("productId")
                     },
-                "disclaimer": "Las variaciones espectrales representan indicadores preliminares. No se imputan hectáreas ni porcentajes sin recorte por píxel en ROI."
+                    "disclaimer": "Las variaciones espectrales representan la diferencia entre las medias de NDVI del ROI."
                 }
 
         return {
