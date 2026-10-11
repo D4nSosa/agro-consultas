@@ -109,7 +109,7 @@ export class ForestMap {
     // Capa satelital de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap contributors | Copernicus STAC | IGN Argentina'
+      attribution: '© OpenStreetMap contributors | Sentinel-2 STAC | IGN Argentina'
     }).addTo(this.map);
 
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);
@@ -136,19 +136,9 @@ export class ForestMap {
         this.isDrawing = false;
       }
     } else {
-      // Si hace clic directamente en el mapa sin modo dibujo activo, crea un lote de 1 ha centrado en el punto
-      const delta = 0.0005; // aprox 50m radio (100m x 100m = 1 ha)
-      const coords = [
-        [
-          [lng - delta, lat - delta],
-          [lng + delta, lat - delta],
-          [lng + delta, lat + delta],
-          [lng - delta, lat + delta],
-          [lng - delta, lat - delta]
-        ]
-      ];
-      const geom = { type: "Polygon", coordinates: coords };
-      const feature = toGeoJSONFeature(geom, { name: "Lote Seleccionado en Mapa" });
+      // Si hace clic directamente en el mapa sin modo dibujo activo, registra/actualiza un PUNTO de consulta
+      const geom = { type: "Point", coordinates: [lng, lat] };
+      const feature = toGeoJSONFeature(geom, { name: `Punto de Consulta (${lat.toFixed(4)}, ${lng.toFixed(4)})` });
       this.setGeoJSON(feature);
     }
   }
@@ -235,19 +225,9 @@ export class ForestMap {
           fillOpacity: 0.9
         }).addTo(this.map).bindPopup(`<b>📍 UBICACIÓN GPS CAPTURADA</b><br>Tipo de geometría: PUNTO<br>Precisión:${accText}`).openPopup();
 
-        // Generar un lote de 1 ha centrado en la posición GPS para permitir análisis inmediato
-        const delta = 0.0005;
-        const coords = [
-          [
-            [longitude - delta, latitude - delta],
-            [longitude + delta, latitude - delta],
-            [longitude + delta, latitude + delta],
-            [longitude - delta, latitude + delta],
-            [longitude - delta, latitude - delta]
-          ]
-        ];
-        const geom = { type: "Polygon", coordinates: coords };
-        const feature = toGeoJSONFeature(geom, { name: `Lote en Ubicación GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})` });
+        // Registrar un PUNTO GPS real sin polígono inventado
+        const geom = { type: "Point", coordinates: [longitude, latitude] };
+        const feature = toGeoJSONFeature(geom, { name: `Punto GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})` });
         this.setGeoJSON(feature);
 
         if (btnGps) {

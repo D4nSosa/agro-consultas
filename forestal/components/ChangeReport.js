@@ -42,22 +42,22 @@ export class ChangeReport {
           </div>
         </div>
 
-        <!-- Metadatos del Lote -->
+        <!-- Metadatos del Lote y Clasificación de Datos -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Nombre del Lote:</span>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Identificación (Ingresado por usuario):</span>
             <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong>
           </div>
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
-            <strong>${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)</strong>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie (Calculada desde geometría):</span>
+            <strong>${lot?.area?.isPoint ? '0 ha (Geometría PUNTO GPS / Consulta puntual)' : `${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)`}</strong>
           </div>
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Coordenadas Centroide:</span>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Ubicación Centroide (Calculada WGS84):</span>
             <strong>Lat: ${lot?.centroid?.lat?.toFixed(4)}, Lng: ${lot?.centroid?.lng?.toFixed(4)}</strong>
           </div>
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Período Comparado:</span>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Período Objetivo Consulta:</span>
             <strong>${dates?.dateA} ➔ ${dates?.dateB}</strong>
           </div>
         </div>
@@ -89,14 +89,14 @@ export class ChangeReport {
 
         <!-- Trazabilidad Satelital Real -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          📡 Trazabilidad de Escenas Satelitales Reales (Copernicus)
+          📡 Trazabilidad de Escenas Satelitales Reales (AWS Earth Search STAC)
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
           <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
             <strong style="color: #27ae60;">🟢 Escena Fecha A</strong>
             ${prodA ? `
               <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
-                <li><strong>Fuente:</strong> ${prodA.source || 'Copernicus Sentinel-2'}</li>
+                <li><strong>Fuente:</strong> ${prodA.source || 'Sentinel-2 L2A'}</li>
                 <li><strong>Identificador:</strong> ${prodA.id}</li>
                 <li><strong>Fecha Adquisición:</strong> ${prodA.date}</li>
                 <li><strong>Nubosidad:</strong> ${prodA.cloudCover}%</li>
@@ -109,7 +109,7 @@ export class ChangeReport {
             <strong style="color: #2980b9;">🔵 Escena Fecha B</strong>
             ${prodB ? `
               <ul style="font-size: 0.85rem; margin: 8px 0 0 0; padding-left: 20px; line-height: 1.5;">
-                <li><strong>Fuente:</strong> ${prodB.source || 'Copernicus Sentinel-2'}</li>
+                <li><strong>Fuente:</strong> ${prodB.source || 'Sentinel-2 L2A'}</li>
                 <li><strong>Identificador:</strong> ${prodB.id}</li>
                 <li><strong>Fecha Adquisición:</strong> ${prodB.date}</li>
                 <li><strong>Nubosidad:</strong> ${prodB.cloudCover}%</li>
@@ -124,7 +124,12 @@ export class ChangeReport {
           📊 Evaluación de Variación Espectral y Detección de Cambios
         </h3>
         <div style="padding: 15px; border-radius: 8px; border-left: 5px solid ${statusBadgeColor}; background: rgba(0,0,0,0.02); margin-bottom: 20px;">
-          <strong style="font-size: 1.05rem; color: ${statusBadgeColor};">${changes.primaryMessage || 'NO DISPONIBLE'}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 1.05rem; color: ${statusBadgeColor};">${changes.primaryMessage || 'NO DISPONIBLE'}</strong>
+            <span style="font-size: 0.78rem; font-weight: bold; background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 4px;">
+              Estado: ${changes.status === 'REAL' ? '🟢 Cálculo Ráster Completado' : (changes.status === 'SCENE_IDENTIFIED' ? '🟡 Escenas Identificadas (Matriz Ráster Pendiente)' : '🔴 Información No Disponible')}
+            </span>
+          </div>
           <p style="font-size: 0.9rem; margin: 8px 0 10px 0; line-height: 1.5;">${changes.description || 'No se pueden calcular variaciones sin datos ráster procesables.'}</p>
         </div>
 
@@ -148,7 +153,7 @@ export class ChangeReport {
         <div style="margin-top: 30px; padding: 12px; background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem; color: var(--texto-secundario); line-height: 1.5;">
           <strong>Aviso Metodológico y Limitaciones Trazables:</strong>
           <br>
-          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta del catálogo oficial Copernicus Data Space Ecosystem. No se inventan datos cuando falta información de reflectancia.
+          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta del catálogo público AWS Earth Search STAC (Sentinel-2 L2A COGs). No se inventan datos cuando falta información de reflectancia.
         </div>
       </div>
     `;

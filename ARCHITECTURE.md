@@ -7,7 +7,7 @@ Agro Consultas implementa una arquitectura modular intermedia desacoplada organi
 ```
 +-----------------------------------------------------------------------+
 |                            DATA SOURCES                               |
-| (Open-Meteo, NASA POWER, INTA WMS, IGN Georef, Copernicus STAC, SMN)  |
+| (Open-Meteo, NASA POWER, INTA WMS, IGN Georef, AWS Earth Search STAC, SMN)  |
 +-----------------------------------------------------------------------+
                                    │
                                    ▼
@@ -60,7 +60,7 @@ Agro Consultas implementa una arquitectura modular intermedia desacoplada organi
 | **NASA POWER** | Climatology & Temporal API | Series de precipitación, temperatura, humedad y radiación | Global / Malla 0.5° |
 | **INTA Cartografía** | WMS / Datasets | Tipo de suelo, textura, drenaje, pH, limitantes | Argentina / Subregional |
 | **IGN Georef** | Geocoding API | Nombres oficiales de localidades, provincias y coordenadas | Argentina |
-| **Copernicus CDSE** | STAC API v1 | Catálogo satelital Sentinel-2 L2A (10m) | Global / Polígono Lote |
+| **AWS Earth Search STAC** | STAC API v1 | Catálogo satelital Sentinel-2 L2A COGs (10m) | Global / Polígono Lote |
 
 ---
 

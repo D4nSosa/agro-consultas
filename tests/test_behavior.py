@@ -39,34 +39,32 @@ def test_api_ndvi_point_area_zero():
     assert data["areaHectares"] == 0.0
     assert data["isPoint"] is True
 
-def test_api_ndvi_missing_credentials_message():
-    # En ausencia de credenciales en entorno de test
+def test_api_ndvi_cog_raster_real_pixel_calculation():
+    # En ausencia de credenciales privadas, procesa píxeles COG reales de AWS Open Data y retorna status REAL
     os.environ.pop("COPERNICUS_CLIENT_ID", None)
     os.environ.pop("COPERNICUS_CLIENT_SECRET", None)
-    os.environ.pop("SENTINELHUB_CLIENT_ID", None)
-    os.environ.pop("SENTINELHUB_CLIENT_SECRET", None)
 
-    payload = {"geometry": SAMPLE_POLYGON_GEOMETRY, "date": "2024-05-15"}
+    payload = {"geometry": SAMPLE_POLYGON_GEOMETRY, "date": "2024-04-19"}
     response = client.post("/api/forest/ndvi", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "UNAVAILABLE"
-    assert "COPERNICUS_CLIENT_ID" in data["missingEnvVars"]
-    assert "COPERNICUS_CLIENT_SECRET" in data["missingEnvVars"]
-    assert data["stats"]["mean"] == "NO DISPONIBLE"
+    assert data["status"] == "REAL"
+    assert data["stats"] is not None
+    assert "mean" in data["stats"]
+    assert "AWS Earth Search" in data["source"]
 
-def test_change_detection_unavailable_without_raster():
+def test_change_detection_real_cog_pixels():
     payload = {
         "geometry": SAMPLE_POLYGON_GEOMETRY,
-        "dateA": "2024-01-01",
-        "dateB": "2024-06-01"
+        "dateA": "2024-01-15",
+        "dateB": "2024-04-19"
     }
     response = client.post("/api/forest/changes", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["classification"] == "NO_DISPONIBLE"
-    assert data["deltaNDVI"] == "NO DISPONIBLE"
-    assert data["breakdown"]["decrease"]["hectares"] == "N/D"
+    assert data["status"] == "REAL"
+    assert data["deltaNDVI"] is not None
+    assert "decrease" in data["breakdown"]
 
 def test_catalog_exact_29_profiles_and_merge_integrity():
     with open("data/cultivos.json", "r", encoding="utf-8") as f:
