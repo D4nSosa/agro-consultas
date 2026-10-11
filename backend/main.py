@@ -247,58 +247,87 @@ def search_stac_catalog(req: STACSearchRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error procesando búsqueda STAC: {str(e)}")
 
-def process_cog_raster_ndvi(red_url, nir_url, scl_url=None):
-    """Descarga e interpreta la matriz de píxeles COG reales para calcular NDVI y máscara SCL"""
+import rasterio
+from rasterio.mask import mask as rasterio_mask
+import pyproj
+
+def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
+    """Procesa y recorta exactamente los píxeles COG que intersectan con el polígono ROI del lote"""
     try:
-        def fetch_tif(url):
-            req = urllib.request.Request(url, headers={"User-Agent": "AgroConsultas/2.1 (Vercel Public Raster Engine)"})
-            with urllib.request.urlopen(req, timeout=12) as resp:
-                return tifffile.TiffFile(io.BytesIO(resp.read()))
+        with rasterio.open(red_url) as src_red, rasterio.open(nir_url) as src_nir:
+            # Reproyectar la geometría GeoJSON a la proyección de la escena (EPSG:32721 / UTM)
+            transformer = pyproj.Transformer.from_crs('EPSG:4326', src_red.crs, always_xy=True)
+            coords_proj = []
+            if geom_shape.geom_type == 'Polygon':
+                poly_coords = [transformer.transform(x, y) for x, y in geom_shape.exterior.coords]
+                geom_proj = Polygon(poly_coords)
+            elif geom_shape.geom_type == 'Point':
+                pt_x, pt_y = transformer.transform(geom_shape.x, geom_shape.y)
+                geom_proj = Point(pt_x, pt_y)
+            else:
+                geom_proj = geom_shape
 
-        with fetch_tif(red_url) as tif_red, fetch_tif(nir_url) as tif_nir:
-            p_red = tif_red.pages[-1].asarray()
-            p_nir = tif_nir.pages[-1].asarray()
+            if geom_shape.geom_type == 'Point':
+                # Extraer el valor del píxel exactación en el punto
+                row, col = src_red.index(geom_proj.x, geom_proj.y)
+                val_red = src_red.read(1)[row, col]
+                val_nir = src_nir.read(1)[row, col]
 
-            p_scl = None
+                denom = float(val_nir) + float(val_red)
+                if denom == 0 or val_red == 0 or val_nir == 0:
+                    return None, "Punto fuera de rango o valor de reflectancia nulo."
+
+                ndvi_pt = round((float(val_nir) - float(val_red)) / denom, 4)
+                return {
+                    "min": ndvi_pt,
+                    "max": ndvi_pt,
+                    "mean": ndvi_pt,
+                    "median": ndvi_pt,
+                    "stdDev": 0.0,
+                    "validPixelsPercent": 100.0,
+                    "sampleCount": 1,
+                    "isPoint": True
+                }, None
+
+            # Recortar raster exactamente al polígono ROI
+            out_red, _ = rasterio_mask(src_red, [geom_proj], crop=True)
+            out_nir, _ = rasterio_mask(src_nir, [geom_proj], crop=True)
+
+            red_data = out_red[0]
+            nir_data = out_nir[0]
+
+            scl_resized = None
             if scl_url:
                 try:
-                    with fetch_tif(scl_url) as tif_scl:
-                        p_scl = tif_scl.pages[-1].asarray()
+                    with rasterio.open(scl_url) as src_scl:
+                        out_scl, _ = rasterio_mask(src_scl, [geom_proj], crop=True)
+                        scl_data = out_scl[0]
+                        zoom_y = red_data.shape[0] / max(1, scl_data.shape[0])
+                        zoom_x = red_data.shape[1] / max(1, scl_data.shape[1])
+                        scl_resized = np.repeat(np.repeat(scl_data, int(round(zoom_y)), axis=0), int(round(zoom_x)), axis=1)
+                        scl_resized = scl_resized[:red_data.shape[0], :red_data.shape[1]]
                 except Exception:
-                    p_scl = None
+                    scl_resized = None
 
-            # Redimensionar SCL si difiere en dimensión de los overviews de bandas
-            if p_scl is not None and p_scl.shape != p_red.shape:
-                # Si SCL difiere, recortar o reajustar matriz
-                min_h = min(p_red.shape[0], p_scl.shape[0])
-                min_w = min(p_red.shape[1], p_scl.shape[1])
-                p_red = p_red[:min_h, :min_w]
-                p_nir = p_nir[:min_h, :min_w]
-                p_scl = p_scl[:min_h, :min_w]
+            denom = nir_data.astype(float) + red_data.astype(float)
+            valid = (denom > 0) & (red_data > 0) & (nir_data > 0)
 
-            denom = p_nir.astype(float) + p_red.astype(float)
-            valid_mask = (denom > 0) & (p_red > 0) & (p_nir > 0)
+            if scl_resized is not None and scl_resized.shape == red_data.shape:
+                cloud_mask = (scl_resized == 3) | (scl_resized == 8) | (scl_resized == 9) | (scl_resized == 10) | (scl_resized == 11)
+                valid = valid & (~cloud_mask)
 
-            # Aplicar máscara SCL (SCL 3=sombra, 8=nube media, 9=nube alta, 10=cirros, 11=nieve)
-            if p_scl is not None:
-                cloud_mask = (p_scl == 3) | (p_scl == 8) | (p_scl == 9) | (p_scl == 10) | (p_scl == 11)
-                valid_mask = valid_mask & (~cloud_mask)
-
-            ndvi_array = np.where(valid_mask, (p_nir.astype(float) - p_red.astype(float)) / denom, np.nan)
+            ndvi_array = np.where(valid, (nir_data.astype(float) - red_data.astype(float)) / np.where(valid, denom, 1.0), np.nan)
             valid_ndvi = ndvi_array[~np.isnan(ndvi_array)]
 
             if len(valid_ndvi) == 0:
-                return None, "Suelo/matriz completamente cubierto por nubes o datos inválidos."
-
-            total_px = float(p_red.size)
-            valid_px = float(len(valid_ndvi))
-            valid_pct = round((valid_px / total_px) * 100.0, 1)
+                return None, "No se obtuvieron píxeles válidos dentro del polígono ROI del lote."
 
             min_val = round(float(np.min(valid_ndvi)), 4)
             max_val = round(float(np.max(valid_ndvi)), 4)
             mean_val = round(float(np.mean(valid_ndvi)), 4)
             median_val = round(float(np.median(valid_ndvi)), 4)
             std_val = round(float(np.std(valid_ndvi)), 4)
+            valid_pct = round((float(len(valid_ndvi)) / float(red_data.size)) * 100.0, 1)
 
             return {
                 "min": min_val,
@@ -307,7 +336,8 @@ def process_cog_raster_ndvi(red_url, nir_url, scl_url=None):
                 "median": median_val,
                 "stdDev": std_val,
                 "validPixelsPercent": valid_pct,
-                "sampleCount": int(valid_px)
+                "sampleCount": int(len(valid_ndvi)),
+                "isPoint": False
             }, None
 
     except Exception as e:
@@ -349,7 +379,7 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
             scl_url = assets.get("scl")
 
             if red_url and nir_url:
-                stats, err_msg = process_cog_raster_ndvi(red_url, nir_url, scl_url)
+                stats, err_msg = process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape)
                 prod_id = best.get("id")
                 cloud_pct = best.get("cloudCover", 0.0)
                 actual_date = best.get("date", target_date)
