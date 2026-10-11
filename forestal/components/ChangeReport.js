@@ -89,7 +89,7 @@ export class ChangeReport {
 
         <!-- Trazabilidad Satelital Real -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          📡 Trazabilidad de Escenas Satelitales Reales (Copernicus)
+          📡 Trazabilidad de Escenas Satelitales Reales (AWS Earth Search STAC)
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
           <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
@@ -153,7 +153,7 @@ export class ChangeReport {
         <div style="margin-top: 30px; padding: 12px; background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem; color: var(--texto-secundario); line-height: 1.5;">
           <strong>Aviso Metodológico y Limitaciones Trazables:</strong>
           <br>
-          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta del catálogo oficial Copernicus Data Space Ecosystem. No se inventan datos cuando falta información de reflectancia.
+          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta del catálogo público AWS Earth Search STAC (Sentinel-2 L2A COGs). No se inventan datos cuando falta información de reflectancia.
         </div>
       </div>
     `;
