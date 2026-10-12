@@ -8,6 +8,7 @@ import {
   findSubregion,
   getProvinceDetails
 } from './services/territoryService.js';
+import { calculateArea } from './forestal/utils/geo.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
 import { generateRecommendations, loadCultivosData, getCropCatalog } from './services/recommendationEngine.js';
@@ -67,41 +68,62 @@ export async function inicializarMapa(provinciaRaw) {
   leafletMap.on('click', (e) => {
     const { lat, lng } = e.latlng;
 
-    if (isDrawingMainLot) {
-      mainDrawPoints.push([lng, lat]);
-      const m = L.circleMarker([lat, lng], { radius: 6, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(leafletMap);
-      mainDrawMarkerLayers.push(m);
+    // Si el modo dibujo no está explícitamente activado pero el usuario hace clic, agregamos un punto vértice interactivo
+    if (!isDrawingMainLot) {
+      isDrawingMainLot = true;
+      mainDrawPoints = [];
+      if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
+      mainDrawMarkerLayers.forEach(lyr => leafletMap.removeLayer(lyr));
+      mainDrawMarkerLayers = [];
+    }
 
-      if (mainDrawPoints.length >= 3) {
-        // Cerrar polígono
-        const closedCoords = [...mainDrawPoints, mainDrawPoints[0]];
-        const geojsonFeature = {
-          type: "Feature",
-          properties: { name: `Lote Dibujado (${mainDrawPoints.length} Vértices)` },
-          geometry: { type: "Polygon", coordinates: [closedCoords] }
-        };
+    mainDrawPoints.push([lng, lat]);
+    const m = L.circleMarker([lat, lng], { radius: 6, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(leafletMap);
+    m.bindPopup(`<b>Vértice ${mainDrawPoints.length}</b><br>Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`).openPopup();
+    mainDrawMarkerLayers.push(m);
 
-        if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
-        mainDrawMarkerLayers.forEach(lyr => leafletMap.removeLayer(lyr));
-        mainDrawMarkerLayers = [];
+    const btnDraw = document.getElementById("btn-start-draw-main");
+    const btnClear = document.getElementById("btn-clear-draw-main");
+    if (btnDraw) btnDraw.innerText = `✏️ Vértice ${mainDrawPoints.length} marcado...`;
+    if (btnClear) btnClear.style.display = "inline-block";
 
-        drawnPolygonLayer = L.geoJSON(geojsonFeature, {
-          style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
-        }).addTo(leafletMap);
+    if (mainDrawPoints.length >= 3) {
+      // Cerrar polígono automáticamente
+      const closedCoords = [...mainDrawPoints, mainDrawPoints[0]];
+      const geojsonFeature = {
+        type: "Feature",
+        properties: { name: `Lote Dibujado (${mainDrawPoints.length} Vértices)` },
+        geometry: { type: "Polygon", coordinates: [closedCoords] }
+      };
 
-        currentAOIPolygon = geojsonFeature.geometry;
-        sessionStorage.setItem('agro_current_polygon', JSON.stringify(geojsonFeature));
+      const areaCalc = calculateArea(geojsonFeature);
 
-        isDrawingMainLot = false;
-        const btnDraw = document.getElementById("btn-start-draw-main");
-        const btnClear = document.getElementById("btn-clear-draw-main");
-        if (btnDraw) btnDraw.innerText = "✏️ Redibujar Lote";
-        if (btnClear) btnClear.style.display = "inline-block";
+      if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
+      mainDrawMarkerLayers.forEach(lyr => leafletMap.removeLayer(lyr));
+      mainDrawMarkerLayers = [];
 
-        procesarSeleccionCoordenadas(lat, lng, `Lote Dibujado en Mapa (${mainDrawPoints.length} Vértices)`, "LOTE / POLÍGONO");
-      }
+      drawnPolygonLayer = L.geoJSON(geojsonFeature, {
+        style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
+      }).addTo(leafletMap);
+
+      drawnPolygonLayer.bindPopup(`
+        <div style="font-size:0.85rem;">
+          <strong>📐 LOTE DIBUJADO EN MAPA</strong><br>
+          <span>Superficie: <strong>${areaCalc.hectares} ha</strong> (${areaCalc.squareMeters.toLocaleString('es-AR')} m²)</span><br>
+          <small>Vértices: ${mainDrawPoints.length}</small>
+        </div>
+      `).openPopup();
+
+      currentAOIPolygon = geojsonFeature.geometry;
+      sessionStorage.setItem('agro_current_polygon', JSON.stringify(geojsonFeature));
+
+      isDrawingMainLot = false;
+      if (btnDraw) btnDraw.innerText = "✏️ Redibujar Lote";
+
+      procesarSeleccionCoordenadas(lat, lng, `Lote Dibujado (${areaCalc.hectares} ha - ${mainDrawPoints.length} Vértices)`, "LOTE / POLÍGONO");
     } else {
-      procesarSeleccionCoordenadas(lat, lng, "PUNTO DE MAPA SELECCIONADO", "PUNTO / COORDENADA EXACTA");
+      // Si aún tiene 1 ó 2 vértices, procesar punto exacto para entregar resultados inmediatos sin trabar la UI
+      procesarSeleccionCoordenadas(lat, lng, `Vértice ${mainDrawPoints.length} (Hacé clic en ${3 - mainDrawPoints.length} punto(s) más para cerrar el lote)`, "PUNTO / COORDENADA EXACTA");
     }
   });
 
@@ -560,28 +582,11 @@ function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
     textLabel = '⚪ No evaluble / Evidencia insuficiente';
   }
 
-  const suitabilityCircle = L.circle([lat, lng], {
-    color: color,
-    fillColor: color,
-    fillOpacity: 0.25,
-    weight: 3,
-    radius: currentRadioKm * 1000
-  });
-
-  suitabilityCircle.bindPopup(`
-    <div style="font-size:0.85rem;">
-      <strong>Aptitud Territorial: ${firstRec.nombre}</strong><br>
-      <span>${textLabel}</span><br>
-      <small style="color:#666;">Factores: ${firstRec.motivos[0] || 'Trazables'}</small>
-    </div>
-  `);
-
-  suitabilityOverlayLayer = suitabilityCircle;
-
-  // Registrar en MapViewer para control de capas
-  mapViewerInstance.registerOverlayLayer('aptitud_cultivo', suitabilityOverlayLayer, `🌾 Aptitud Territorial para ${firstRec.nombre}`, true, 'Análisis');
-  mapViewerInstance.toggleOverlayLayer('aptitud_cultivo', true);
-  mapViewerInstance.renderControlPanel("map-layer-controls-container");
+  // No dibujar círculos transparentes de radio/alcance en el mapa
+  if (suitabilityOverlayLayer) {
+    mapViewerInstance.map.removeLayer(suitabilityOverlayLayer);
+    suitabilityOverlayLayer = null;
+  }
 }
 
 /**

@@ -47,7 +47,7 @@
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
         Herramienta de seguimiento de lotes forestales basada en el catálogo de imágenes satelitales multiespectrales <strong>Sentinel-2 Level-2A (AWS Earth Search STAC)</strong> y evidencia fotográfica de campo.
-        Permite delimitar lotes en GeoJSON, consultar escenas reales, incorporar imágenes propias y exportar reportes técnicos.
+        Permite delimitar lotes en GeoJSON, consultar escenas satelitales, incorporar imágenes propias y exportar reportes técnicos.
       </p>
     </div>
 
@@ -100,7 +100,7 @@
         <!-- Entrada / Edición de GeoJSON manual -->
         <div>
           <label style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px;">Geometría GeoJSON (Input / Output):</label>
-          <textarea id="geojson-textarea" rows="6" placeholder="LOTE NO DEFINIDO — Definí o cargá un lote real para realizar análisis específicos (dibujá en mapa o cargá GeoJSON)..." style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
+          <textarea id="geojson-textarea" rows="6" placeholder="LOTE NO DEFINIDO — Definí o cargá un lote para realizar análisis específicos (dibujá en mapa o cargá GeoJSON)..." style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); resize: vertical;"></textarea>
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -128,7 +128,7 @@
         <span>📷</span> Fotografías e Imágenes del Usuario (Evidencia de Campo)
       </h3>
       <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 12px;">
-        Subí fotografías tomadas en el rodal (corteza, copa, suelo, fotos aéreas, drones o imágenes de afectación) para extraer metadatos EXIF reales (GPS, fecha, cámara) y asociarlas a la ficha de evidencia técnica.
+        Subí fotografías tomadas en el rodal (corteza, copa, suelo, fotos aéreas, drones o imágenes de afectación) para extraer metadatos EXIF (GPS, fecha, cámara) y asociarlas a la ficha de evidencia técnica.
       </p>
       <input type="file" id="forest-image-input" accept="image/jpeg,image/png,image/webp" style="display: none;" />
       <button onclick="document.getElementById('forest-image-input').click()" class="btn primary" style="padding: 10px 18px;">
@@ -193,7 +193,7 @@
       <div class="empty-state" style="text-align: center; padding: 25px;">
         <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🛰️</span>
         <p><strong>LOTE NO DEFINIDO</strong></p>
-        <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas reales de Sentinel-2 L2A.</p>
+        <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas de Sentinel-2 L2A.</p>
       </div>
     </div>
 
@@ -500,7 +500,7 @@
       const btn = document.getElementById('btn-run-analysis');
       if (btn) {
         btn.disabled = true;
-        btn.innerText = '⏳ Consultado catálogo Sentinel-2 STAC real...';
+        btn.innerText = '⏳ Consultando catálogo Sentinel-2 STAC...';
       }
 
       const nameInputRaw = document.getElementById('lot-name-input').value;

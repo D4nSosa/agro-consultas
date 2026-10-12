@@ -18,6 +18,19 @@
 
 <body>
 
+  <!-- Splash Screen / Pantalla de Bienvenida -->
+  <div id="splash-screen" class="splash-screen">
+    <div class="splash-content">
+      <div class="splash-logo-container">
+        <img class="splash-logo" src="dwnl.png" alt="Agro Consultas Logo" />
+      </div>
+      <h1 class="splash-title">Agro Consultas</h1>
+      <p class="splash-subtitle">Inteligencia Territorial Agropecuaria y Forestal</p>
+      <div class="splash-spinner"></div>
+      <button id="splash-enter-btn" class="btn primary splash-btn">Ingresar ➔</button>
+    </div>
+  </div>
+
   <header class="app-header">
     <div class="left">
       <img class="brand" src="dwnl.png" alt="logo" />
@@ -37,7 +50,7 @@
   </header>
 
   <main class="container">
-    <!-- Buscador de Ubicación Real y Selector de Cultivos -->
+    <!-- Buscador de Ubicación y Selector de Cultivos -->
     <div class="card" style="margin-top: 15px; margin-bottom: 20px; padding: 15px 20px; display: flex; flex-direction: column; gap: 12px;">
       <form id="resultadosSearchForm" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <label for="inputSearchUbicacion" style="font-weight: 700; color: var(--verde-principal); font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
@@ -112,7 +125,7 @@
               <option value="75">75 km (Alcance Regional Amplio)</option>
             </select>
           </div>
-          <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 12px;">📍 Usar Mi Ubicación en Tiempo Real</button>
+          <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 12px;">📍 Usar Mi Ubicación Actual</button>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
             <button id="btn-start-draw-main" class="btn outline" style="flex: 1; font-size: 0.8rem; padding: 8px;">✏️ Dibujar Lote</button>
             <button id="btn-clear-draw-main" class="btn outline" style="flex: 1; font-size: 0.8rem; padding: 8px; color: #c0392b; border-color: #c0392b; display: none;">🗑️ Limpiar Vértices</button>
@@ -152,7 +165,7 @@
         <span>📷</span> Incorporar Evidencia de Campo (Fotografías de Terreno)
       </h3>
       <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 12px;">
-        Subí una o múltiples fotografías tomadas en campo para extraer metadatos EXIF reales (GPS, fecha, cámara) y analizar indicios visuales (follaje, suelo, síntomas) antes de consolidar el informe.
+        Subí una o múltiples fotografías tomadas en campo para extraer metadatos EXIF (GPS, fecha, cámara) y analizar indicios visuales (follaje, suelo, síntomas) antes de consolidar el informe.
       </p>
       <input type="file" id="evidence-file-input" accept="image/jpeg,image/png,image/webp" multiple style="display: none;" />
       <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -202,6 +215,25 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script type="module" src="script.js"></script>
   <script>
+    // Splash screen dismissal logic (3s auto-dismiss or button click)
+    (function initSplashScreen() {
+      const splash = document.getElementById('splash-screen');
+      const splashBtn = document.getElementById('splash-enter-btn');
+      if (splash) {
+        let dismissed = false;
+        const dismissSplash = () => {
+          if (dismissed) return;
+          dismissed = true;
+          splash.classList.add('splash-hidden');
+          setTimeout(() => {
+            if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+          }, 600);
+        };
+        if (splashBtn) splashBtn.addEventListener('click', dismissSplash);
+        setTimeout(dismissSplash, 3000);
+      }
+    })();
+
     const themeToggle = document.getElementById('themeToggle');
     function applyTheme(t) {
       if (t === 'dark') document.documentElement.classList.add('theme-dark');

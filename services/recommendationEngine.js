@@ -91,55 +91,89 @@ export async function getForestCatalog() {
 export async function generateRecommendations(listadoNombres, soilReport, climateReport) {
   await loadCultivosData();
 
+  // Garantizar que fallas o demoras en reportes de suelo o clima no detengan la evaluación de cultivos
+  const safeSoil = soilReport || { status: 'UNAVAILABLE', message: 'Datos de suelo pendientes de verificación' };
+  const safeClimate = climateReport || { status: 'UNAVAILABLE', message: 'Datos climáticos pendientes de verificación' };
+
   return listadoNombres.map(nombre => {
-    const key = normalizeKey(nombre);
-    const hasFicha = Boolean(cultivosData[key]);
-    const cropData = cultivosData[key] || {
-      nombre: nombre,
-      descripcion: "Información técnica no disponible.",
-      siembra: "Información técnica no disponible",
-      cosecha: "Información técnica no disponible",
-      reqSuelo: "Información técnica no disponible",
-      reqClima: "Información técnica no disponible",
-      requerimientos: null
-    };
+    try {
+      const key = normalizeKey(nombre);
+      const hasFicha = Boolean(cultivosData && cultivosData[key]);
+      const cropData = (cultivosData && cultivosData[key]) ? cultivosData[key] : {
+        nombre: nombre,
+        descripcion: "Información técnica en proceso de verificación.",
+        siembra: "Información técnica no disponible",
+        cosecha: "Información técnica no disponible",
+        reqSuelo: "Información técnica no disponible",
+        reqClima: "Información técnica no disponible",
+        requerimientos: null
+      };
 
-    // Calcular compatibilidad cualitativa
-    const compat = hasFicha
-      ? calcularCompatibilidad({ nombre, ...cropData }, soilReport, climateReport)
-      : {
-          categoria: "EVIDENCIA INSUFFICIENTE",
-          motivos: ["DATOS TÉCNICOS DEL CULTIVO NO DISPONIBLES — No se puede evaluar compatibilidad sin ficha agronómica trazable."],
-          riesgos: ["Falta de ficha técnica de referencia."],
-          datosFaltantes: ["Ficha técnica agronómica del cultivo"]
+      // Calcular compatibilidad cualitativa atrapando excepciones locales
+      let compat;
+      try {
+        compat = hasFicha
+          ? calcularCompatibilidad({ nombre, ...cropData }, safeSoil, safeClimate)
+          : {
+              categoria: "INFORMACIÓN PENDIENTE DE VERIFICACIÓN",
+              motivos: ["Información técnica del cultivo en proceso de verificación."],
+              riesgos: ["Falta de ficha agronómica de referencia."],
+              datosFaltantes: ["Ficha técnica agronómica"]
+            };
+      } catch (errEval) {
+        console.warn(`[recommendationEngine] Excepción al evaluar ${nombre}:`, errEval);
+        compat = {
+          categoria: "INFORMACIÓN PENDIENTE DE VERIFICACIÓN",
+          motivos: ["Faltan variables edáficas o climáticas para completar el cálculo."],
+          riesgos: ["Evaluación sujeta a verificación de campo."],
+          datosFaltantes: ["Datos ambientales locales"]
         };
+      }
 
-    // Obtener recomendaciones de manejo y rotación sostenible
-    const sostenibilidad = obtenerPracticasSostenibles(key);
+      // Obtener recomendaciones de manejo y rotación sostenible
+      const sostenibilidad = obtenerPracticasSostenibles(key);
 
-    const isReal = soilReport && (soilReport.status === 'REAL' || soilReport.status === 'real');
-    const isUnavailable = soilReport && (soilReport.status === 'UNAVAILABLE' || soilReport.status === 'unavailable');
-    const labelConfianza = isUnavailable ? 'Información de campo pendiente' : (isReal ? 'Datos locales verificados' : 'Estimación del contexto regional');
-    const classConfianza = isUnavailable ? 'none' : (isReal ? 'high' : 'medium');
+      const isReal = safeSoil && (safeSoil.status === 'REAL' || safeSoil.status === 'real');
+      const isUnavailable = safeSoil && (safeSoil.status === 'UNAVAILABLE' || safeSoil.status === 'unavailable');
+      const labelConfianza = isUnavailable ? 'Información pendiente de verificación' : (isReal ? 'Datos locales verificados' : 'Contexto regional');
+      const classConfianza = isUnavailable ? 'none' : (isReal ? 'high' : 'medium');
 
-    return {
-      nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
-      descripcion: cropData.descripcion,
-      siembra: cropData.siembra,
-      cosecha: cropData.cosecha,
-      reqSuelo: cropData.reqSuelo || "Información técnica no disponible.",
-      reqClima: cropData.reqClima || "Información técnica no disponible.",
-      compatibilidad: compat.categoria,
-      motivos: compat.motivos,
-      riesgos: compat.riesgos,
-      datosFaltantes: compat.datosFaltantes || [],
-      variedades: cropData.variedades || [],
-      fuenteVariedades: cropData.fuenteVariedades || null,
-      rendimientoEstimado: cropData.rendimientoEstimado || null,
-      confianza: labelConfianza,
-      nivelConfianza: classConfianza,
-      sostenibilidad: sostenibilidad
-    };
+      return {
+        nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
+        descripcion: cropData.descripcion || "Descripción técnica no disponible.",
+        siembra: cropData.siembra || "Información pendiente",
+        cosecha: cropData.cosecha || "Información pendiente",
+        reqSuelo: cropData.reqSuelo || "Información técnica no disponible.",
+        reqClima: cropData.reqClima || "Información técnica no disponible.",
+        compatibilidad: compat.categoria || "INFORMACIÓN PENDIENTE DE VERIFICACIÓN",
+        motivos: compat.motivos || ["Factor de desarrollo bajo análisis"],
+        riesgos: compat.riesgos || [],
+        datosFaltantes: compat.datosFaltantes || [],
+        variedades: cropData.variedades || [],
+        fuenteVariedades: cropData.fuenteVariedades || null,
+        rendimientoEstimado: cropData.rendimientoEstimado || null,
+        confianza: labelConfianza,
+        nivelConfianza: classConfianza,
+        sostenibilidad: sostenibilidad
+      };
+    } catch (e) {
+      console.error(`[recommendationEngine] Fallo al procesar cultivo ${nombre}:`, e);
+      return {
+        nombre: nombre,
+        descripcion: "Análisis de aptitud no disponible.",
+        siembra: "Información pendiente",
+        cosecha: "Información pendiente",
+        reqSuelo: "Información técnica no disponible.",
+        reqClima: "Información técnica no disponible.",
+        compatibilidad: "INFORMACIÓN PENDIENTE DE VERIFICACIÓN",
+        motivos: ["Información ambiental pendiente de verificación"],
+        riesgos: [],
+        datosFaltantes: [],
+        confianza: "Información pendiente de verificación",
+        nivelConfianza: "none",
+        sostenibilidad: { rotacion: "Manejo estándar", manejo: "Alineado a buenas prácticas agronómicas." }
+      };
+    }
   });
 }
 
