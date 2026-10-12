@@ -133,21 +133,6 @@ export class ChangeReport {
           <p style="font-size: 0.9rem; margin: 8px 0 10px 0; line-height: 1.5;">${changes.description || 'No se pueden calcular variaciones sin datos ráster procesables.'}</p>
         </div>
 
-        <!-- Aptitud Territorial -->
-        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          🌲 Aptitud de Especies Forestales
-        </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
-          ${(aptitude?.recommendations || []).map(r => `
-            <div style="border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <strong style="font-size: 0.95rem;">🌲 ${r.nombre}</strong>
-                <span class="badge" style="padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; background: ${r.compatibilidad === 'ALTA' ? '#2ecc71' : r.compatibilidad === 'MEDIA' ? '#f39c12' : '#e74c3c'}; color: #fff;">${r.compatibilidad}</span>
-              </div>
-              <p style="font-size: 0.8rem; color: var(--texto-secundario); margin: 6px 0;">${r.descripcion}</p>
-            </div>
-          `).join('')}
-        </div>
 
         <!-- Metodología y Descargo de Responsabilidad -->
         <div style="margin-top: 30px; padding: 12px; background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem; color: var(--texto-secundario); line-height: 1.5;">

@@ -27,8 +27,9 @@ export function calcularCompatibilidad(crop, soil, climate) {
   const isSoilAvailable = soil &&
     soil.status !== 'UNAVAILABLE' &&
     soil.status !== 'unavailable' &&
-    soil.ph !== null &&
-    soil.ph !== undefined;
+    ((soil.ph !== null && soil.ph !== undefined) ||
+     (soil.tipo && soil.tipo !== 'NO DISPONIBLE' && !soil.tipo.includes('no disponible')) ||
+     (soil.textura && soil.textura !== 'NO DISPONIBLE' && !soil.textura.includes('no disponible')));
 
   if (!isSoilAvailable) {
     datosFaltantes.push("Cartografía edáfica de alta resolución no disponible en esta coordenada.");
@@ -56,17 +57,18 @@ export function calcularCompatibilidad(crop, soil, climate) {
     const limitantesSuelo = (soil.limitantes || '').toLowerCase();
 
     // pH
-    if (reqSuelo.phMin !== undefined && reqSuelo.phMin !== null && reqSuelo.phMax !== undefined && reqSuelo.phMax !== null) {
-      if (phSuelo >= reqSuelo.phMin && phSuelo <= reqSuelo.phMax) {
-        motivos.push(`✓ pH del suelo idóneo (${phSuelo.toFixed(1)}) dentro del rango (${reqSuelo.phMin}-${reqSuelo.phMax}).`);
+    const phVal = (soil.ph !== null && soil.ph !== undefined && !isNaN(parseFloat(soil.ph))) ? parseFloat(soil.ph) : null;
+    if (phVal !== null && reqSuelo.phMin !== undefined && reqSuelo.phMin !== null && reqSuelo.phMax !== undefined && reqSuelo.phMax !== null) {
+      if (phVal >= reqSuelo.phMin && phVal <= reqSuelo.phMax) {
+        motivos.push(`✓ pH del suelo idóneo (${phVal.toFixed(1)}) dentro del rango (${reqSuelo.phMin}-${reqSuelo.phMax}).`);
       } else {
-        const diff = phSuelo < reqSuelo.phMin ? reqSuelo.phMin - phSuelo : phSuelo - reqSuelo.phMax;
+        const diff = phVal < reqSuelo.phMin ? reqSuelo.phMin - phVal : phVal - reqSuelo.phMax;
         if (diff > 1.2) {
           deficienciasSeveras++;
-          riesgos.push(`⚠ pH desfasado severamente (${phSuelo.toFixed(1)} vs rango idóneo ${reqSuelo.phMin}-${reqSuelo.phMax}).`);
+          riesgos.push(`⚠ pH desfasado severamente (${phVal.toFixed(1)} vs rango idóneo ${reqSuelo.phMin}-${reqSuelo.phMax}).`);
         } else {
           deficienciasModeradas++;
-          riesgos.push(`⚠ pH moderadamente fuera de rango (${phSuelo.toFixed(1)} vs rango idóneo ${reqSuelo.phMin}-${reqSuelo.phMax}).`);
+          riesgos.push(`⚠ pH moderadamente fuera de rango (${phVal.toFixed(1)} vs rango idóneo ${reqSuelo.phMin}-${reqSuelo.phMax}).`);
         }
       }
     }

@@ -69,8 +69,8 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
   const tempMediaText = subregionStaticClima?.temperatura !== undefined
     ? (typeof subregionStaticClima.temperatura === 'number' ? `${subregionStaticClima.temperatura}°C (Promedio Regional)` : subregionStaticClima.temperatura)
     : "NO DISPONIBLE";
-  const tempMediaVal = subregionStaticClima?.temperatura !== undefined && typeof subregionStaticClima.temperatura === 'number'
-    ? subregionStaticClima.temperatura
+  const tempMediaVal = subregionStaticClima?.temperatura !== undefined
+    ? (typeof subregionStaticClima.temperatura === 'number' ? subregionStaticClima.temperatura : extractFloat(subregionStaticClima.temperatura))
     : null;
   const precipAnualesVal = extractNumber(subregionStaticClima?.precipitaciones);
 
@@ -178,6 +178,13 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
     clase: "badge-alta",
     descripcion: "Condiciones meteorológicas estables con bajo riesgo de propagación."
   };
+}
+
+function extractFloat(str) {
+  if (typeof str === 'number') return str;
+  if (!str) return null;
+  const matches = str.match(/[-+]?\d*\.?\d+/);
+  return matches ? parseFloat(matches[0]) : null;
 }
 
 function extractNumber(str) {

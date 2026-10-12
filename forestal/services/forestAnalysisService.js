@@ -8,11 +8,6 @@ import { searchSentinelImagesByTargetDate } from './satelliteService.js';
 import { analyzeVegetation } from './vegetationService.js';
 import { detectChanges } from './changeDetectionService.js';
 import { calculateCentroid, calculateArea } from '../utils/geo.js';
-import { findProvinceByCoords, getProvinceDetails } from '../../services/territoryService.js';
-import { getSoilReport } from '../../services/soilService.js';
-import { getClimateData } from '../../services/climateService.js';
-import { generateRecommendations, getForestCatalog } from '../../services/recommendationEngine.js';
-
 /**
  * Ejecuta un análisis forestal integral para un lote GeoJSON
  */
@@ -47,13 +42,6 @@ export async function runFullForestAnalysis(geometry, dateA, dateB, cloudMax = 3
   // 4. Construir dataset de línea temporal compuesto exclusivamente por datos reales
   const timeline = buildRealForestTimeline([searchResA, searchResB]);
 
-  // 5. Integrar aptitud territorial de especies forestales mediante analyzeForestLocation
-  const forestAptitude = await analyzeForestLocation({
-    geometry: geometry,
-    lat: centroid.lat,
-    lng: centroid.lng
-  });
-
   return {
     timestamp: new Date().toISOString(),
     lot: {
@@ -65,71 +53,8 @@ export async function runFullForestAnalysis(geometry, dateA, dateB, cloudMax = 3
     products: { productA: prodA, productB: prodB },
     ndvi: { analysisA: vegA, analysisB: vegB },
     changes: changes,
-    timeline: timeline,
-    aptitude: forestAptitude
+    timeline: timeline
   };
-}
-
-/**
- * Interfaz oficial requerida por la arquitectura: analyzeForestLocation
- * Recibe geometry, soil, climate, terrain, vegetation -> Devuelve recomendaciones forestales desacopladas
- */
-export async function analyzeForestLocation({ geometry, soil = null, climate = null, lat = null, lng = null }) {
-  try {
-    const centroid = lat && lng ? { lat, lng } : calculateCentroid(geometry);
-    const provinciaKey = await findProvinceByCoords(centroid.lat, centroid.lng);
-
-    if (!provinciaKey) {
-      return {
-        recommendations: [],
-        limitations: ['PROVINCIA NO DETERMINABLE — Coordenadas fuera de jurisdicción provincial reconocida.'],
-        explanation: [`Ubicación lat: ${centroid.lat.toFixed(4)}, lng: ${centroid.lng.toFixed(4)}: No se pudo determinar provincia de referencia.`]
-      };
-    }
-
-    const provDetails = await getProvinceDetails(provinciaKey);
-    const nombreProvincia = provDetails ? (provDetails.nombre?.cultivos ? provinciaKey : provDetails.nombre || provinciaKey) : provinciaKey;
-
-    const soilReport = soil || await getSoilReport(centroid.lat, centroid.lng);
-    const climateReport = climate || await getClimateData(centroid.lat, centroid.lng, nombreProvincia);
-
-    // Cargar catálogo de especies estrictamente forestales
-    let especiesForestales = [];
-    try {
-      const forestCatalog = await getForestCatalog();
-      especiesForestales = Object.values(forestCatalog).map(item => item.nombre || item.id).filter(Boolean);
-    } catch (e) {
-      return {
-        recommendations: [],
-        limitations: ['CATÁLOGO NO DISPONIBLE — Error al cargar los perfiles forestales.'],
-        explanation: ['No se pudo evaluar aptitud porque el catálogo técnico no está accesible.']
-      };
-    }
-
-    const recommendations = await generateRecommendations(especiesForestales, soilReport, climateReport);
-
-    const limitations = [
-      ...(soilReport.limitantes ? [soilReport.limitantes] : []),
-      ...(climateReport.deficitHidrico ? [`Déficit hídrico: ${climateReport.deficitHidrico}`] : [])
-    ];
-
-    return {
-      recommendations: recommendations,
-      limitations: limitations,
-      explanation: [
-        `Evaluación calculada para lat: ${centroid.lat.toFixed(4)}, lng: ${centroid.lng.toFixed(4)}.`,
-        `Suelo dominante: ${soilReport.tipo || "Fuente no disponible para esta zona."}`,
-        `Clima regional: ${climateReport.precipitacionesAnuales || "Fuente no disponible para esta zona."}`
-      ]
-    };
-  } catch (err) {
-    console.error('[forestAnalysisService] Error en analyzeForestLocation:', err);
-    return {
-      recommendations: [],
-      limitations: ['Fuente no disponible para esta zona.'],
-      explanation: ['No se pudieron recuperar datos territoriales para la ubicación.']
-    };
-  }
 }
 
 /**
