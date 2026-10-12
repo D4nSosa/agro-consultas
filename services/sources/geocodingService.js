@@ -141,8 +141,8 @@ export async function geocodeLocation(queryTexto) {
   }
 
   return createUnavailableDataPoint(
-    'Geocodificación Real',
-    `NO DISPONIBLE: No se encontraron registros geográficos reales para "${queryTexto}".`
+    'Geocodificación',
+    `NO DISPONIBLE: No se encontraron registros geográficos para "${queryTexto}".`
   );
 }
 
