@@ -62,6 +62,33 @@ export async function getCropCatalog() {
  */
 export async function getCropsToEvaluate(provinciaKey = null) {
   const cropCatalog = await getCropCatalog();
+  if (provinciaKey) {
+    const provKeyNorm = normalizeKey(provinciaKey);
+    try {
+      const resProvincias = await fetch('/data/provincias.json').then(r => r.ok ? r.json() : {}).catch(() => ({}));
+      const provData = resProvincias[provKeyNorm];
+      if (provData && provData.nombre && Array.isArray(provData.nombre.cultivos)) {
+        const cultivosProv = provData.nombre.cultivos;
+        const nombresValidos = [];
+        cultivosProv.forEach(cName => {
+          const cKey = normalizeKey(cName);
+          if (cropCatalog[cKey]) {
+            nombresValidos.push(cropCatalog[cKey].nombre || cName);
+          } else {
+            const foundKey = Object.keys(cropCatalog).find(k => normalizeKey(cropCatalog[k].nombre) === cKey || k === cKey);
+            if (foundKey) {
+              nombresValidos.push(cropCatalog[foundKey].nombre);
+            }
+          }
+        });
+        if (nombresValidos.length > 0) {
+          return nombresValidos;
+        }
+      }
+    } catch (e) {
+      console.warn("Fallo al consultar provincias.json:", e);
+    }
+  }
   return Object.values(cropCatalog).map(item => item.nombre || item.id);
 }
 

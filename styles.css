@@ -1,29 +1,31 @@
-/* AGRO CONSULTAS v1.0 — styles.css */
+/* AGRO CONSULTAS — styles.css */
 :root{
   --verde-principal: #1b5e20;
   --verde-secundario: #2e7d32;
-  --verde-acento: #66bb6a;
-  --gris-fondo: #f5f6f7;
+  --verde-acento: #27ae60;
+  --verde-claro: #e8f5e9;
+  --gris-fondo: #f4f6f8;
   --gris-card: #ffffff;
-  --texto-principal: #121212;
-  --texto-secundario: #4a4a4a;
-  --sombra-suave: rgba(0,0,0,0.08);
-  --sombra-media: rgba(0,0,0,0.14);
-  --borde-suave: #e6e6e6;
+  --texto-principal: #1c2833;
+  --texto-secundario: #566573;
+  --sombra-suave: rgba(0,0,0,0.06);
+  --sombra-media: rgba(0,0,0,0.12);
+  --borde-suave: #e2e8f0;
   --transicion: 0.24s ease;
 }
 
 :root.theme-dark, .theme-dark {
-  --verde-principal: #66bb6a;
-  --verde-secundario: #4caf50;
+  --verde-principal: #27ae60;
+  --verde-secundario: #2ecc71;
   --verde-acento: #81c784;
-  --gris-fondo: #071018;
-  --gris-card: #0b1220;
-  --texto-principal: #e6eef1;
-  --texto-secundario: #bfc9cc;
+  --verde-claro: rgba(39, 174, 96, 0.15);
+  --gris-fondo: #09130b;
+  --gris-card: #0f1c12;
+  --texto-principal: #eef7f0;
+  --texto-secundario: #a3b8a8;
   --sombra-suave: rgba(0,0,0,0.5);
   --sombra-media: rgba(0,0,0,0.6);
-  --borde-suave: rgba(255,255,255,0.04);
+  --borde-suave: rgba(255,255,255,0.08);
 }
 
 *{box-sizing:border-box}
@@ -120,31 +122,34 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
 }
 
 .splash-spinner {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: 3px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #2ecc71;
+  border-top-color: #27ae60;
   border-radius: 50%;
   animation: splashSpin 0.9s linear infinite;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
-.splash-btn {
+.splash-progress-bar {
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.splash-progress-fill {
+  width: 0%;
+  height: 100%;
   background: #27ae60;
-  color: #ffffff;
-  font-weight: 700;
-  padding: 12px 28px;
-  border-radius: 30px;
-  font-size: 0.95rem;
-  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+  animation: splashProgressFill 2.5s ease-out forwards;
 }
 
-.splash-btn:hover {
-  background: #2ecc71;
-  transform: translateY(-2px);
+@keyframes splashProgressFill {
+  from { width: 0%; }
+  to { width: 100%; }
 }
 
 @keyframes splashFadeUp {
