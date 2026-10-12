@@ -11,7 +11,7 @@ import {
 import { calculateArea } from './forestal/utils/geo.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
-import { generateRecommendations, loadCultivosData, getCropCatalog } from './services/recommendationEngine.js';
+import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate } from './services/recommendationEngine.js';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
 import {
@@ -168,15 +168,6 @@ export async function inicializarMapa(provinciaRaw) {
     btnGeo.addEventListener("click", usarGeolocalizacion);
   }
 
-  const selectAlcance = document.getElementById("select-alcance-radio");
-  if (selectAlcance) {
-    selectAlcance.addEventListener("change", (e) => {
-      currentRadioKm = parseFloat(e.target.value) || 15;
-      if (currentLat !== null && currentLng !== null) {
-        dibujarCirculoAlcance(currentLat, currentLng, currentRadioKm);
-      }
-    });
-  }
 
   if (isSpecificUbicacion) {
     await buscarYProcesarUbicacion(provinciaRaw);
@@ -227,35 +218,56 @@ function filtrarRecomendacionesPorCultivo(recs, key) {
 /**
  * Geocodifica y procesa una ubicación ingresada por texto
  */
+export function mostrarIndicadorCarga(mensaje = "Procesando y cruzando datos de INTA, Open-Meteo, NASA POWER e IGN...") {
+  const overlay = document.getElementById("api-processing-overlay");
+  if (!overlay) return;
+  const msgEl = overlay.querySelector("p");
+  if (msgEl) msgEl.innerText = mensaje;
+  overlay.style.display = "flex";
+}
+
+export function ocultarIndicadorCarga() {
+  const overlay = document.getElementById("api-processing-overlay");
+  if (!overlay) return;
+  overlay.style.display = "none";
+}
+
 export async function buscarYProcesarUbicacion(queryTexto) {
   if (!queryTexto || !queryTexto.trim()) return;
 
-  const geoResult = await geocodeLocation(queryTexto);
+  mostrarIndicadorCarga(`Procesando y cruzando datos de INTA, Open-Meteo, NASA POWER e IGN para "${queryTexto}"...`);
 
-  if (!geoResult.available || !geoResult.value) {
-    mostrarErrorUbicacionNoEncontrada(queryTexto);
-    return;
+  try {
+    const geoResult = await geocodeLocation(queryTexto);
+
+    if (!geoResult.available || !geoResult.value) {
+      mostrarErrorUbicacionNoEncontrada(queryTexto);
+      return;
+    }
+
+    const val = geoResult.value;
+    currentLat = val.lat;
+    currentLng = val.lng;
+    currentUbicacionNombre = `${val.nombre}${val.provincia ? ', ' + val.provincia : ''}`;
+    currentSpatialLevel = val.spatialLevel || "LOCALIDAD / PUNTO DE REFERENCIA";
+
+    if (mapViewerInstance && mapViewerInstance.map) {
+      const zoomLevel = currentSpatialLevel === 'PROVINCIA' ? 7 : 14;
+      mapViewerInstance.map.setView([currentLat, currentLng], zoomLevel);
+    }
+
+    colocarMarcador(currentLat, currentLng, currentUbicacionNombre);
+
+    limpiarEstadoConsultasAnteriores();
+
+    await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
+    await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
+    await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+  } catch (err) {
+    console.error("Error en buscarYProcesarUbicacion:", err);
+  } finally {
+    ocultarIndicadorCarga();
   }
-
-  const val = geoResult.value;
-  currentLat = val.lat;
-  currentLng = val.lng;
-  currentUbicacionNombre = `${val.nombre}${val.provincia ? ', ' + val.provincia : ''}`;
-  currentSpatialLevel = val.spatialLevel || "LOCALIDAD / PUNTO DE REFERENCIA";
-
-  if (mapViewerInstance && mapViewerInstance.map) {
-    const zoomLevel = currentSpatialLevel === 'PROVINCIA' ? 7 : 11;
-    mapViewerInstance.map.setView([currentLat, currentLng], zoomLevel);
-  }
-
-  colocarMarcador(currentLat, currentLng, currentUbicacionNombre);
-  dibujarCirculoAlcance(currentLat, currentLng, currentRadioKm);
-
-  limpiarEstadoConsultasAnteriores();
-
-  await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
-  await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
-  await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
 }
 
 /**
@@ -294,35 +306,42 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
   currentLat = lat;
   currentLng = lng;
 
-  if (mapViewerInstance && mapViewerInstance.map && mapViewerInstance.map.getZoom() < 9) {
-    mapViewerInstance.map.setView([lat, lng], 10);
+  mostrarIndicadorCarga("Procesando y cruzando datos de INTA, Open-Meteo, NASA POWER e IGN...");
+
+  try {
+    if (mapViewerInstance && mapViewerInstance.map) {
+      const targetZoom = mapViewerInstance.map.getZoom() < 12 ? 14 : Math.max(mapViewerInstance.map.getZoom(), 14);
+      mapViewerInstance.map.setView([lat, lng], targetZoom);
+    }
+
+    const provinciaKey = await findProvinceByCoords(lat, lng);
+    const provDetails = provinciaKey ? await getProvinceDetails(provinciaKey) : null;
+    const nombreProvincia = provDetails ? (typeof provDetails.nombre === 'string' ? provDetails.nombre : provinciaKey) : "Argentina";
+
+    currentUbicacionNombre = nombreCustom || `${nombreProvincia} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
+    currentSpatialLevel = spatialLevelCustom || "PUNTO / COORDENADA EXACTA";
+
+    colocarMarcador(lat, lng, currentUbicacionNombre);
+
+    const geoPointData = {
+      nombre: currentUbicacionNombre,
+      provincia: nombreProvincia,
+      pais: 'Argentina',
+      lat: lat,
+      lng: lng,
+      spatialLevel: currentSpatialLevel
+    };
+
+    limpiarEstadoConsultasAnteriores();
+
+    await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
+    await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData);
+    await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+  } catch (err) {
+    console.error("Error en procesarSeleccionCoordenadas:", err);
+  } finally {
+    ocultarIndicadorCarga();
   }
-
-  dibujarCirculoAlcance(lat, lng, currentRadioKm);
-
-  const provinciaKey = await findProvinceByCoords(lat, lng);
-  const provDetails = provinciaKey ? await getProvinceDetails(provinciaKey) : null;
-  const nombreProvincia = provDetails ? (typeof provDetails.nombre === 'string' ? provDetails.nombre : provinciaKey) : "Argentina";
-
-  currentUbicacionNombre = nombreCustom || `${nombreProvincia} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
-  currentSpatialLevel = spatialLevelCustom || "PUNTO / COORDENADA EXACTA";
-
-  colocarMarcador(lat, lng, currentUbicacionNombre);
-
-  const geoPointData = {
-    nombre: currentUbicacionNombre,
-    provincia: nombreProvincia,
-    pais: 'Argentina',
-    lat: lat,
-    lng: lng,
-    spatialLevel: currentSpatialLevel
-  };
-
-  limpiarEstadoConsultasAnteriores();
-
-  await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
-  await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData);
-  await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
 }
 
 /**
@@ -352,7 +371,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <strong>📍 Contexto Territorial de Ubicación (PUNTO)</strong>
         <span style="font-weight: 600; color: var(--verde-principal);">${provincia}</span>
         <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 4px;">Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</span>
-        <span style="font-size: 0.8rem; display: block; color: var(--verde-principal); font-weight: 600; margin-top: 2px;">🎯 Alcance de Análisis: ${currentRadioKm} km alrededor</span>
+        <span style="font-size: 0.8rem; display: block; color: var(--verde-principal); font-weight: 600; margin-top: 2px;">🎯 Precisión Micro-Local (100m - 500m)</span>
       </div>
 
       <div style="background: rgba(2, 119, 189, 0.08); border: 1px solid rgba(2, 119, 189, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-principal);">
@@ -631,9 +650,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
         cultivosAEvaluar = [selectedCropKey];
       }
     } else {
-      // Evaluar todos los cultivos agrícolas del catálogo (excluyendo especies estrictamente forestales)
-      const cropCatalog = await getCropCatalog();
-      cultivosAEvaluar = Object.values(cropCatalog).map(item => item.nombre || item.id);
+      cultivosAEvaluar = await getCropsToEvaluate(key);
     }
 
     const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateReport);
@@ -787,12 +804,20 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
   const container = document.getElementById("crop-results");
   if (!container) return;
 
-  if (recomendaciones.length === 0) {
+  // Filtrar tarjetas con "INFORMACIÓN PENDIENTE DE VERIFICACIÓN" o sin relevancia para la zona
+  const filtradasReales = recomendaciones.filter(c =>
+    c && c.compatibilidad &&
+    !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
+    !c.compatibilidad.includes("NO EVALUABLE") &&
+    !c.compatibilidad.includes("DATOS INSUFICIENTES")
+  );
+
+  if (filtradasReales.length === 0) {
     container.innerHTML = `
       <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
-        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🔍</span>
-        <h3>No se encontraron resultados para el cultivo seleccionado</h3>
-        <p class="text-muted">Elegí "Todos los cultivos" en el selector para ver la aptitud general de la zona.</p>
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌱</span>
+        <h3>No se registraron cultivos específicos recomendados para la selección actual</h3>
+        <p class="text-muted">Elegí "Todos los cultivos" o seleccioná una localidad con producción agrícola registrada.</p>
       </div>
     `;
     return;
@@ -803,12 +828,9 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     const aptos = [];
     const moderados = [];
     const noAptos = [];
-    const pendientes = [];
 
-    recomendaciones.forEach(c => {
-      if (c.compatibilidad.includes("INSUFFICIENT") || c.compatibilidad.includes("NO EVALUABLE")) {
-        pendientes.push(c);
-      } else if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
+    filtradasReales.forEach(c => {
+      if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
         noAptos.push(c);
       } else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
         moderados.push(c);
@@ -823,7 +845,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       html += `
         <div style="grid-column: 1 / -1; margin-top: 10px; margin-bottom: 5px;">
           <h3 style="color: #27ae60; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #27ae60; padding-bottom: 6px; margin: 0;">
-            <span>🟢</span> Cultivos Aptos / Recomendados (${aptos.length})
+            <span>🟢</span> Cultivos Aptos y Recomendados para la Zona (${aptos.length})
           </h3>
         </div>
         ${aptos.map(createSingleRecommendationCardHtml).join('')}
@@ -834,7 +856,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       html += `
         <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 5px;">
           <h3 style="color: #d35400; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #f39c12; padding-bottom: 6px; margin: 0;">
-            <span>🟡</span> Aptitud Media / Con Limitaciones de Manejo (${moderados.length})
+            <span>🟡</span> Aptitud Media / Con Limitaciones de Manejo Local (${moderados.length})
           </h3>
         </div>
         ${moderados.map(createSingleRecommendationCardHtml).join('')}
@@ -845,27 +867,16 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       html += `
         <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 5px;">
           <h3 style="color: #c0392b; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #e74c3c; padding-bottom: 6px; margin: 0;">
-            <span>🔴</span> Cultivos Restringidos / No Recomendados (${noAptos.length})
+            <span>🔴</span> Cultivos Restringidos / Con Severas Limitaciones (${noAptos.length})
           </h3>
         </div>
         ${noAptos.map(createSingleRecommendationCardHtml).join('')}
       `;
     }
 
-    if (pendientes.length > 0) {
-      html += `
-        <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 5px;">
-          <h3 style="color: #7f8c8d; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #95a5a6; padding-bottom: 6px; margin: 0;">
-            <span>⚪</span> Información Pendiente de Verificación (${pendientes.length})
-          </h3>
-        </div>
-        ${pendientes.map(createSingleRecommendationCardHtml).join('')}
-      `;
-    }
-
     container.innerHTML = html;
   } else {
-    container.innerHTML = recomendaciones.map(createSingleRecommendationCardHtml).join('');
+    container.innerHTML = filtradasReales.map(createSingleRecommendationCardHtml).join('');
   }
 }
 

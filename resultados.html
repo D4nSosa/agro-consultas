@@ -18,6 +18,23 @@
 
 <body>
 
+  <!-- Indicador Visual de Procesamiento / Consulta en Vivo de APIs -->
+  <div id="api-processing-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 99999; justify-content: center; align-items: center; padding: 20px;">
+    <div class="card" style="max-width: 480px; width: 100%; text-align: center; padding: 30px; border-top: 5px solid var(--verde-principal); box-shadow: 0 15px 35px rgba(0,0,0,0.5);">
+      <div class="splash-spinner" style="margin: 0 auto 20px auto; border-top-color: var(--verde-principal);"></div>
+      <h3 style="margin: 0 0 10px 0; color: var(--verde-principal); font-size: 1.2rem; font-weight: 800;">
+        Consultando Fuentes Oficiales
+      </h3>
+      <p style="font-size: 0.92rem; color: var(--texto-principal); margin: 0 0 15px 0; line-height: 1.5; font-weight: 600;">
+        Procesando y cruzando datos de INTA, Open-Meteo, NASA POWER e IGN...
+      </p>
+      <div class="splash-progress-bar" style="margin: 0 auto; width: 80%;"><div class="splash-progress-fill" style="animation-duration: 1.8s;"></div></div>
+      <small style="display: block; margin-top: 15px; font-size: 0.78rem; color: var(--texto-secundario);">
+        ⚡ Conexión en vivo con Infraestructuras de Datos Espaciales (IDE Argentina)
+      </small>
+    </div>
+  </div>
+
   <!-- Splash Screen / Pantalla de Bienvenida -->
   <div id="splash-screen" class="splash-screen">
     <div class="splash-content">
@@ -27,16 +44,16 @@
       <h1 class="splash-title">Agro Consultas</h1>
       <p class="splash-subtitle">Inteligencia Territorial Agropecuaria y Forestal</p>
       <div class="splash-spinner"></div>
-      <button id="splash-enter-btn" class="btn primary splash-btn">Ingresar ➔</button>
+      <div class="splash-progress-bar"><div class="splash-progress-fill"></div></div>
     </div>
   </div>
 
   <header class="app-header">
     <div class="left">
-      <img class="brand" src="dwnl.png" alt="logo" />
+      <img class="brand" src="dwnl.png" alt="Agro Consultas Logo" />
       <div class="brand-text">
         <div class="title">Agro Consultas</div>
-        <div style="font-size:0.72rem; color:var(--texto-secundario);">Inteligencia Territorial Agropecuaria</div>
+        <div style="font-size: 0.72rem; color: var(--texto-secundario);">Inteligencia Territorial Agropecuaria y Forestal</div>
       </div>
     </div>
 
@@ -100,7 +117,6 @@
               <div class="legend-item"><span class="legend-color" style="background:#27ae60;"></span> 🟢 Aptitud Alta / Favorable</div>
               <div class="legend-item"><span class="legend-color" style="background:#f39c12;"></span> 🟡 Aptitud Media / Condicionada</div>
               <div class="legend-item"><span class="legend-color" style="background:#e74c3c;"></span> 🔴 Aptitud Baja / Desfavorable</div>
-              <div class="legend-item"><span class="legend-color" style="background:#7f8c8d;"></span> ⚪ No Evaluable / Evidencia Insuficiente</div>
             </div>
           </div>
         </div>
@@ -113,17 +129,6 @@
               <p>Sin ubicación seleccionada.</p>
               <p class="text-muted" style="font-size: 0.85rem;">Ingresá una localidad, seleccioná un punto del mapa o utilizá tu ubicación GPS para comenzar.</p>
             </div>
-          </div>
-          <div style="margin-top: 15px; border-top: 1px solid var(--borde-suave); padding-top: 12px;">
-            <label for="select-alcance-radio" style="display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 6px; color: var(--verde-principal);">
-              🎯 Alcance / Radio de Análisis:
-            </label>
-            <select id="select-alcance-radio" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); cursor: pointer; font-size: 0.85rem;">
-              <option value="5">5 km (Microzona / Lote)</option>
-              <option value="15" selected>15 km (Radio Local / Paraje)</option>
-              <option value="35">35 km (Subregión Departamental)</option>
-              <option value="75">75 km (Alcance Regional Amplio)</option>
-            </select>
           </div>
           <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 12px;">📍 Usar Mi Ubicación Actual</button>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
@@ -208,30 +213,29 @@
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Inteligencia Territorial Agropecuaria</small>
+    <small>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</small>
   </footer>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script type="module" src="script.js"></script>
   <script>
-    // Splash screen dismissal logic (3s auto-dismiss or button click)
+    // Splash screen logic (shows once per session, auto-dismisses after 2.5s)
     (function initSplashScreen() {
       const splash = document.getElementById('splash-screen');
-      const splashBtn = document.getElementById('splash-enter-btn');
-      if (splash) {
-        let dismissed = false;
-        const dismissSplash = () => {
-          if (dismissed) return;
-          dismissed = true;
-          splash.classList.add('splash-hidden');
-          setTimeout(() => {
-            if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
-          }, 600);
-        };
-        if (splashBtn) splashBtn.addEventListener('click', dismissSplash);
-        setTimeout(dismissSplash, 3000);
+      if (!splash) return;
+      if (sessionStorage.getItem('splash_shown') === 'true') {
+        splash.style.display = 'none';
+        if (splash.parentNode) splash.parentNode.removeChild(splash);
+        return;
       }
+      sessionStorage.setItem('splash_shown', 'true');
+      setTimeout(() => {
+        splash.classList.add('splash-hidden');
+        setTimeout(() => {
+          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 600);
+      }, 2500);
     })();
 
     const themeToggle = document.getElementById('themeToggle');
