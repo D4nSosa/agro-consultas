@@ -28,7 +28,7 @@ export class ForestTimeline {
         <div class="empty-state" style="text-align: center; padding: 25px;">
           <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🛰️</span>
           <p><strong>LOTE NO DEFINIDO</strong></p>
-          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas reales de Sentinel-2 L2A.</p>
+          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">Delimitá un lote en el mapa o usá tu GPS para consultar escenas de Sentinel-2 L2A.</p>
         </div>
       `;
       return;
@@ -37,8 +37,8 @@ export class ForestTimeline {
     container.innerHTML = `
       <div class="timeline-header" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div>
-          <h4 style="margin: 0; color: var(--verde-principal);">📅 Serie Temporal de Adquisiciones Reales (Sentinel-2)</h4>
-          <small class="text-muted">Escenas Sentinel-2 reales recuperadas</small>
+          <h4 style="margin: 0; color: var(--verde-principal);">📅 Serie Temporal de Adquisiciones (Sentinel-2)</h4>
+          <small class="text-muted">Escenas Sentinel-2 recuperadas</small>
         </div>
       </div>
 

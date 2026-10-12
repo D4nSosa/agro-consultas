@@ -15,6 +15,19 @@
 </head>
 <body>
 
+  <!-- Splash Screen / Pantalla de Bienvenida -->
+  <div id="splash-screen" class="splash-screen">
+    <div class="splash-content">
+      <div class="splash-logo-container">
+        <img class="splash-logo" src="dwnl.png" alt="Agro Consultas Logo" />
+      </div>
+      <h1 class="splash-title">Agro Consultas</h1>
+      <p class="splash-subtitle">Inteligencia Territorial Agropecuaria y Forestal</p>
+      <div class="splash-spinner"></div>
+      <button id="splash-enter-btn" class="btn primary splash-btn">Ingresar ➔</button>
+    </div>
+  </div>
+
   <header class="app-header">
     <div class="left">
       <img class="brand" src="dwnl.png" alt="Agro Consultas Logo" />
@@ -213,6 +226,25 @@
 
   <!-- Script Helpers -->
   <script>
+    // Splash screen dismissal logic (3s auto-dismiss or button click)
+    (function initSplashScreen() {
+      const splash = document.getElementById('splash-screen');
+      const splashBtn = document.getElementById('splash-enter-btn');
+      if (splash) {
+        let dismissed = false;
+        const dismissSplash = () => {
+          if (dismissed) return;
+          dismissed = true;
+          splash.classList.add('splash-hidden');
+          setTimeout(() => {
+            if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+          }, 600);
+        };
+        if (splashBtn) splashBtn.addEventListener('click', dismissSplash);
+        setTimeout(dismissSplash, 3000);
+      }
+    })();
+
     function enviarFormulario() {
       const provincia = document.getElementById('provincias').value.trim();
       if (!provincia) return alert('Ingrese una ubicación.');

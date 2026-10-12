@@ -43,12 +43,133 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   word-break: break-word;
 }
 
-.app-header{ display:flex; justify-content:space-between; align-items:center; padding:12px 18px; gap:12px; flex-wrap:wrap;}
-.left{display:flex;align-items:center;gap:12px; min-width: 0; flex: 1 1 auto;}
-.brand{ width:68px; height:68px; object-fit:contain; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; background: #ffffff; padding: 5px; border: 2px solid var(--verde-principal);}
+/* Splash Screen / Pantalla de Bienvenida Overlay */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #0f2312 0%, #061008 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s ease;
+  overflow: hidden;
+}
+
+.splash-screen.splash-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.splash-content {
+  text-align: center;
+  padding: 30px 20px;
+  max-width: 480px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: splashFadeUp 0.8s ease-out;
+}
+
+.splash-logo-container {
+  width: 140px;
+  height: 140px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(39, 174, 96, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+  border: 3px solid #27ae60;
+  transition: transform 0.3s ease;
+}
+
+.splash-logo-container:hover {
+  transform: scale(1.05);
+}
+
+.splash-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.splash-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.splash-subtitle {
+  font-size: 1rem;
+  color: #a3e635;
+  margin: 0 0 24px 0;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+.splash-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #2ecc71;
+  border-radius: 50%;
+  animation: splashSpin 0.9s linear infinite;
+  margin-bottom: 20px;
+}
+
+.splash-btn {
+  background: #27ae60;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 12px 28px;
+  border-radius: 30px;
+  font-size: 0.95rem;
+  box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.splash-btn:hover {
+  background: #2ecc71;
+  transform: translateY(-2px);
+}
+
+@keyframes splashFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splashSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.app-header{ display:flex; justify-content:space-between; align-items:center; padding:12px 20px; gap:14px; flex-wrap:wrap;}
+.left{display:flex;align-items:center;gap:14px; min-width: 0; flex: 1 1 auto;}
+.brand{ width:80px; height:80px; object-fit:contain; border-radius:12px; box-shadow:0 6px 16px rgba(0,0,0,0.18); flex-shrink: 0; background: #ffffff !important; padding: 6px; border: 3px solid var(--verde-principal);}
 .brand-text{ min-width: 0; flex: 1 1 auto; }
-.brand-text .title{ font-weight:800; color:var(--verde-principal); font-size:19px; white-space: nowrap; letter-spacing: 0.3px;}
-.brand-text .subtitle, .brand-text > div:last-child{ font-size:12px; color:var(--texto-secundario); line-height: 1.25;}
+.brand-text .title{ font-weight:800; color:var(--verde-principal); font-size:20px; white-space: nowrap; letter-spacing: 0.3px;}
+.brand-text .subtitle, .brand-text > div:last-child{ font-size:12.5px; color:var(--texto-secundario); line-height: 1.25;}
 
 .container{ max-width:1100px; margin:0 auto; padding:16px}
 .card{ background:var(--gris-card); border-radius:12px; padding:18px; border:1px solid var(--borde-suave); box-shadow:0 10px 30px var(--sombra-suave)}

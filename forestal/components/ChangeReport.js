@@ -87,9 +87,9 @@ export class ChangeReport {
         </div>
         ` : ''}
 
-        <!-- Trazabilidad Satelital Real -->
+        <!-- Trazabilidad Satelital -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          📡 Trazabilidad de Escenas Satelitales Reales (AWS Earth Search STAC)
+          📡 Trazabilidad de Escenas Satelitales (AWS Earth Search STAC)
         </h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
           <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
