@@ -45,9 +45,9 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
 
 .app-header{ display:flex; justify-content:space-between; align-items:center; padding:12px 18px; gap:12px; flex-wrap:wrap;}
 .left{display:flex;align-items:center;gap:12px; min-width: 0; flex: 1 1 auto;}
-.brand{ width:64px; height:64px; object-fit:contain; border-radius:8px; box-shadow:0 2px 8px var(--sombra-suave); flex-shrink: 0; background: #f4f6f4; padding: 4px; border: 1px solid rgba(0,0,0,0.08);}
+.brand{ width:68px; height:68px; object-fit:contain; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; background: #ffffff; padding: 5px; border: 2px solid var(--verde-principal);}
 .brand-text{ min-width: 0; flex: 1 1 auto; }
-.brand-text .title{ font-weight:800; color:var(--verde-principal); font-size:18px; white-space: nowrap;}
+.brand-text .title{ font-weight:800; color:var(--verde-principal); font-size:19px; white-space: nowrap; letter-spacing: 0.3px;}
 .brand-text .subtitle, .brand-text > div:last-child{ font-size:12px; color:var(--texto-secundario); line-height: 1.25;}
 
 .container{ max-width:1100px; margin:0 auto; padding:16px}
@@ -588,11 +588,11 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
     gap: 8px;
   }
   .brand {
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
   }
   .brand-text .title {
-    font-size: 15px;
+    font-size: 16px;
   }
   .brand-text .subtitle, .brand-text > div:last-child {
     font-size: 0.68rem !important;
@@ -626,11 +626,11 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
     padding: 6px 10px;
   }
   .brand {
-    width: 38px;
-    height: 38px;
+    width: 48px;
+    height: 48px;
   }
   .brand-text .title {
-    font-size: 14px;
+    font-size: 15px;
   }
   .brand-text .subtitle, .brand-text > div:last-child {
     font-size: 0.62rem !important;
