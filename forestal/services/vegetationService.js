@@ -92,7 +92,7 @@ export async function analyzeVegetation(geometry, productInfo) {
 
   return {
     available: true,
-    state: 'SCENE_IDENTIFIED_CLIENT',
+    state: 'SCENE_IDENTIFIED',
     indicator: 'NDVI (Normalized Difference Vegetation Index)',
     formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
     bandsUsed: {
@@ -109,9 +109,9 @@ export async function analyzeVegetation(geometry, productInfo) {
     source: productInfo.source || 'AWS Earth Search (Sentinel-2 L2A COGs)',
     assets: assets,
     stats: null,
-    interpretation: `ESCENA SATELITAL OBSERVADA (${productInfo.id}, fecha: ${productInfo.date}). Cobertura de nubes: ${cloudText}. Metadatos y enlaces a bandas B04 (Red) y B08 (NIR) extraídos en cliente STAC.`,
+    interpretation: `ESCENA IDENTIFICADA EN CATÁLOGO STAC (${productInfo.id}, fecha: ${productInfo.date}). Cobertura de nubes: ${cloudText}. Metadatos y enlaces a bandas B04 (Red) y B08 (NIR) recuperados. La descarga y cálculo de la matriz de píxeles por ROI permanece pendiente de procesamiento en el servidor backend.`,
     gridSample: [],
-    message: 'Escena recuperada con éxito. Metadatos de bandas B04 y B08 procesados en cliente.'
+    message: 'Escena identificada en catálogo STAC con enlaces a bandas B04 y B08. Descarga y extracción de la matriz de píxeles pendiente de procesamiento en servidor.'
   };
 }
 
