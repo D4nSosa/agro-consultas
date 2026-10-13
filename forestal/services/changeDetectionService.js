@@ -108,28 +108,28 @@ export function detectChanges(analysisA, analysisB, geometry) {
     };
   }
 
-  // Si no disponemos de matriz ráster calculada en backend, procesamos la variación espectral comparativa en cliente
-  let classification = 'ESTABLE';
-  let primaryMessage = 'Detección de variación espectral basada en escenas Sentinel-2 identificadas.';
-  let detailedDescription = `Se recuperaron observaciones reales Sentinel-2 para ${dateA} (${productA}) y ${dateB} (${productB}). Cobertura del lote: ${totalAreaHa} ha. Metadatos espectrales de bandas B04 (Red) y B08 (NIR) verificados en cliente.`;
+  // Si no disponemos de matriz ráster calculada de ambas fechas (stats.mean ausente), reportar status SCENE_IDENTIFIED sin desgloses sintéticos
+  let classification = 'PENDIENTE_PROCESAMIENTO_RASTER';
+  let primaryMessage = 'Escenas satelitales identificadas en catálogo STAC. Extracción de píxeles ráster pendiente.';
+  let detailedDescription = `Se identificaron escenas Sentinel-2 en catálogo STAC para ${dateA} (${productA}) y ${dateB} (${productB}). La cuantificación espacial por categoría de cambio (aumento, estabilidad, disminución) requiere la descarga de bandas multiespectrales B04 y B08 y el procesamiento espacial por píxel en el servidor backend.`;
 
   return {
     success: true,
     status: 'SCENE_IDENTIFIED',
     period: { dateA, dateB, productA, productB },
-    deltaNDVI: 'Evaluado en Cliente STAC (B04/B08 disponibles)',
+    deltaNDVI: 'Pendiente de extracción de píxeles ráster',
     totalAreaHa: totalAreaHa,
     classification: classification,
     primaryMessage: primaryMessage,
     description: detailedDescription,
     breakdown: {
-      decrease: { percent: 0, hectares: 0 },
-      stable: { percent: 100, hectares: totalAreaHa },
-      increase: { percent: 0, hectares: 0 }
+      decrease: { percent: 'Pendiente', hectares: 'Pendiente' },
+      stable: { percent: 'Pendiente', hectares: 'Pendiente' },
+      increase: { percent: 'Pendiente', hectares: 'Pendiente' }
     },
-    confidence: 'Metadatos espectrales B04 y B08 verificados en cliente STAC',
+    confidence: 'Metadatos y enlaces a bandas B04 y B08 recuperados desde catálogo STAC',
     limitations: [
-      'El cálculo de hectáreas afectadas por píxel utiliza delimitación de polígono y metadatos de bandas B04/B08.'
+      'La cuantificación espacial por categoría de cambio requiere la descarga y procesamiento espacial por píxel en el servidor backend.'
     ]
   };
 }
