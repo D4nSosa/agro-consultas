@@ -160,10 +160,16 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       // Obtener recomendaciones de manejo y rotación sostenible
       const sostenibilidad = obtenerPracticasSostenibles(key);
 
-      const isReal = safeSoil && (safeSoil.status === 'REAL' || safeSoil.status === 'real');
-      const isUnavailable = safeSoil && (safeSoil.status === 'UNAVAILABLE' || safeSoil.status === 'unavailable');
-      const labelConfianza = isUnavailable ? 'Información pendiente de verificación' : (isReal ? 'Datos locales verificados' : 'Contexto regional');
-      const classConfianza = isUnavailable ? 'none' : (isReal ? 'high' : 'medium');
+      const soilStatus = (safeSoil?.status || '').toUpperCase();
+      const climateStatus = (safeClimate?.status || '').toUpperCase();
+
+      const isUnavailable = soilStatus === 'UNAVAILABLE' || climateStatus === 'UNAVAILABLE';
+      const isBothReal = soilStatus === 'REAL' && climateStatus === 'REAL';
+
+      const labelConfianza = isUnavailable
+        ? 'Información pendiente de verificación'
+        : (isBothReal ? 'Datos locales verificados' : 'Contexto regional');
+      const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : 'medium');
 
       return {
         nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
