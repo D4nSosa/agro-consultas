@@ -205,13 +205,16 @@ export function calcularCompatibilidad(crop, soil, climate) {
     nivelAptitud = 'MEDIA';
   }
 
-  let calidadEvidencia = 'ALTA';
+  const soilSt = (soil?.status || '').toUpperCase();
+  const climSt = (climate?.status || '').toUpperCase();
+
+  let calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
   if (!isSoilAvailable || !isClimateAvailable) {
     calidadEvidencia = 'PARCIAL';
-  } else if (soil?.status === 'REGIONAL' || climate?.status === 'REGIONAL') {
-    calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
-  } else if (soil?.status === 'REAL' && climate?.status === 'REAL') {
+  } else if (soilSt === 'REAL' && climSt === 'REAL') {
     calidadEvidencia = 'ALTA (DATOS LOCALES VERIFICADOS)';
+  } else {
+    calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
   }
 
   return {
