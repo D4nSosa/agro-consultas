@@ -47,18 +47,27 @@ export function detectChanges(analysisA, analysisB, geometry) {
     const deltaNDVI = Math.round((meanB - meanA) * 100) / 100;
 
     let diffs = [];
-    if (Array.isArray(analysisA.stats?.ndviMatrix) && Array.isArray(analysisB.stats?.ndviMatrix)) {
+    const crsA = analysisA.stats?.crs;
+    const crsB = analysisB.stats?.crs;
+    const trA = analysisA.stats?.transform;
+    const trB = analysisB.stats?.transform;
+
+    const gridMatches = (!crsA || !crsB || crsA === crsB) &&
+                        (!trA || !trB || JSON.stringify(trA) === JSON.stringify(trB));
+
+    if (gridMatches && Array.isArray(analysisA.stats?.ndviMatrix) && Array.isArray(analysisB.stats?.ndviMatrix)) {
       const flatA = analysisA.stats.ndviMatrix.flat(Infinity);
       const flatB = analysisB.stats.ndviMatrix.flat(Infinity);
-      const minLen = Math.min(flatA.length, flatB.length);
-      for (let i = 0; i < minLen; i++) {
-        const vA = flatA[i];
-        const vB = flatB[i];
-        if (vA !== null && vA !== undefined && !isNaN(vA) && vB !== null && vB !== undefined && !isNaN(vB)) {
-          diffs.push(vB - vA);
+      if (flatA.length === flatB.length) {
+        for (let i = 0; i < flatA.length; i++) {
+          const vA = flatA[i];
+          const vB = flatB[i];
+          if (vA !== null && vA !== undefined && !isNaN(vA) && vB !== null && vB !== undefined && !isNaN(vB)) {
+            diffs.push(vB - vA);
+          }
         }
       }
-    } else {
+    } else if (gridMatches) {
       const samplesA = analysisA.gridSample || [];
       const samplesB = analysisB.gridSample || [];
       const minLen = Math.min(samplesA.length, samplesB.length);

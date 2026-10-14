@@ -412,6 +412,9 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 "roiPixelCount": int(roi_pixel_count),
                 "sclFilterApplied": scl_filter_applied,
                 "sclWarning": scl_error_reason if (scl_url and not scl_filter_applied) else None,
+                "crs": str(src_red.crs),
+                "transform": list(transform_red)[:6],
+                "shape": list(red_data.shape),
                 "ndviMatrix": clean_matrix,
                 "isPoint": False
             }, None
@@ -560,11 +563,21 @@ def calculate_change_detection(req: ChangeDetectionRequest):
 
             valid_diffs = None
             if rawA and rawB:
+                crsA = statsA.get("crs")
+                crsB = statsB.get("crs")
+                trA = statsA.get("transform")
+                trB = statsB.get("transform")
+
+                # Verificar correspondencia exacta de CRS y transformadas de grilla espacial entre fechas
+                grid_matches = (
+                    (crsA is None or crsB is None or crsA == crsB) and
+                    (trA is None or trB is None or trA == trB)
+                )
+
                 matA = np.array(rawA, dtype=float)
                 matB = np.array(rawB, dtype=float)
 
-                # Verificar correspondencia exacta de grilla y dimensiones
-                if matA.shape == matB.shape and matA.size > 0:
+                if grid_matches and matA.shape == matB.shape and matA.size > 0:
                     diff_matrix = matB - matA
                     valid_mask = (~np.isnan(diff_matrix)) & (matA != None) & (matB != None)
                     diffs_arr = diff_matrix[valid_mask]
