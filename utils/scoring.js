@@ -131,8 +131,14 @@ export function calcularCompatibilidad(crop, soil, climate) {
       if (tempMedia >= reqClima.temperaturaMin && tempMedia <= reqClima.temperaturaMax) {
         motivos.push(`✓ Temperatura media regional idónea (${tempMedia}°C).`);
       } else {
-        deficienciasModeradas++;
-        riesgos.push(`⚠ Temperatura media desalineada: ${tempMedia}°C (Rango óptimo: ${reqClima.temperaturaMin}-${reqClima.temperaturaMax}°C).`);
+        const diffTemp = tempMedia < reqClima.temperaturaMin ? reqClima.temperaturaMin - tempMedia : tempMedia - reqClima.temperaturaMax;
+        if (diffTemp > 5) {
+          deficienciasSeveras++;
+          riesgos.push(`⚠ Temperatura media severamente desalineada: ${tempMedia}°C (Rango óptimo: ${reqClima.temperaturaMin}-${reqClima.temperaturaMax}°C).`);
+        } else {
+          deficienciasModeradas++;
+          riesgos.push(`⚠ Temperatura media moderadamente desalineada: ${tempMedia}°C (Rango óptimo: ${reqClima.temperaturaMin}-${reqClima.temperaturaMax}°C).`);
+        }
       }
     }
   }
@@ -199,9 +205,16 @@ export function calcularCompatibilidad(crop, soil, climate) {
     nivelAptitud = 'MEDIA';
   }
 
-  let calidadEvidencia = 'ALTA';
+  const soilSt = (soil?.status || '').toUpperCase();
+  const climSt = (climate?.status || '').toUpperCase();
+
+  let calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
   if (!isSoilAvailable || !isClimateAvailable) {
-    calidadEvidencia = 'MEDIA';
+    calidadEvidencia = 'PARCIAL';
+  } else if (soilSt === 'REAL' && climSt === 'REAL') {
+    calidadEvidencia = 'ALTA (DATOS LOCALES VERIFICADOS)';
+  } else {
+    calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
   }
 
   return {

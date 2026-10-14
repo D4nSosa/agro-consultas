@@ -46,66 +46,132 @@ export function detectChanges(analysisA, analysisB, geometry) {
     const meanB = analysisB.stats.mean;
     const deltaNDVI = Math.round((meanB - meanA) * 100) / 100;
 
-    const samplesA = analysisA.gridSample || [];
-    const samplesB = analysisB.gridSample || [];
-    const minLen = Math.min(samplesA.length, samplesB.length);
+    let diffs = [];
+    const crsA = analysisA.stats?.crs;
+    const crsB = analysisB.stats?.crs;
+    const trA = analysisA.stats?.transform;
+    const trB = analysisB.stats?.transform;
 
-    let decreasePoints = 0;
-    let stablePoints = 0;
-    let increasePoints = 0;
+    const gridMatches = (!crsA || !crsB || crsA === crsB) &&
+                        (!trA || !trB || JSON.stringify(trA) === JSON.stringify(trB));
 
-    for (let i = 0; i < minLen; i++) {
-      const diff = samplesB[i] - samplesA[i];
-      if (diff <= -0.15) decreasePoints++;
-      else if (diff >= 0.15) increasePoints++;
-      else stablePoints++;
+    if (gridMatches && Array.isArray(analysisA.stats?.ndviMatrix) && Array.isArray(analysisB.stats?.ndviMatrix)) {
+      const flatA = analysisA.stats.ndviMatrix.flat(Infinity);
+      const flatB = analysisB.stats.ndviMatrix.flat(Infinity);
+      if (flatA.length === flatB.length) {
+        for (let i = 0; i < flatA.length; i++) {
+          const vA = flatA[i];
+          const vB = flatB[i];
+          if (vA !== null && vA !== undefined && !isNaN(vA) && vB !== null && vB !== undefined && !isNaN(vB)) {
+            diffs.push(vB - vA);
+          }
+        }
+      }
+    } else if (gridMatches) {
+      const samplesA = analysisA.gridSample || [];
+      const samplesB = analysisB.gridSample || [];
+      const minLen = Math.min(samplesA.length, samplesB.length);
+      for (let i = 0; i < minLen; i++) {
+        const vA = samplesA[i];
+        const vB = samplesB[i];
+        if (vA !== null && vA !== undefined && !isNaN(vA) && vB !== null && vB !== undefined && !isNaN(vB)) {
+          diffs.push(vB - vA);
+        }
+      }
     }
-
-    const totalPoints = minLen || 1;
-    const decreasePct = Math.round((decreasePoints / totalPoints) * 100);
-    const stablePct = Math.round((stablePoints / totalPoints) * 100);
-    const increasePct = Math.round((increasePoints / totalPoints) * 100);
-
-    const decreaseHa = Math.round(((decreasePct / 100) * totalAreaHa) * 10) / 10;
-    const increaseHa = Math.round(((increasePct / 100) * totalAreaHa) * 10) / 10;
-    const stableHa = Math.round((totalAreaHa - decreaseHa - increaseHa) * 10) / 10;
 
     let classification = 'ESTABLE';
     let primaryMessage = 'Sin cambios significativos en el índice de vegetación.';
     let detailedDescription = `La respuesta espectral se mantiene estable entre ambas fechas (${dateA} y ${dateB}) dentro de los márgenes normales de estacionalidad.`;
 
-    if (deltaNDVI <= -0.15 || decreasePct > 30) {
+    if (deltaNDVI <= -0.15) {
       classification = 'DISMINUCION_SIGNIFICATIVA';
       primaryMessage = 'Disminución significativa del índice de vegetación detectada.';
       detailedDescription = 'Se observa una reducción del vigor vegetativo. Puede deberse a cosecha, raleo o fenología. Se requiere verificación de campo.';
-    } else if (deltaNDVI >= 0.15 || increasePct > 30) {
+    } else if (deltaNDVI >= 0.15) {
       classification = 'AUMENTO_SIGNIFICATIVO';
       primaryMessage = 'Aumento significativo del índice de vegetación detectado.';
       detailedDescription = 'Se observa un incremento sustancial en la respuesta del infrarrojo cercano, compatible con crecimiento foliar o regeneración.';
     }
 
-    return {
-      success: true,
-      status: 'REAL',
-      period: { dateA, dateB, productA, productB },
-      deltaNDVI: deltaNDVI,
-      ndviA: meanA,
-      ndviB: meanB,
-      totalAreaHa: totalAreaHa,
-      classification: classification,
-      primaryMessage: primaryMessage,
-      description: detailedDescription,
-      breakdown: {
-        decrease: { percent: decreasePct, hectares: decreaseHa },
-        stable: { percent: stablePct, hectares: stableHa },
-        increase: { percent: increasePct, hectares: increaseHa }
-      },
-      confidence: 'Población real de muestras de píxeles',
-      limitations: [
-        'Factores atmosféricos y ángulo solar influyen en la reflectancia.',
-        'Requiere validación agronómica o forestal de terreno.'
-      ]
-    };
+    if (diffs.length > 0) {
+      let decreasePoints = 0;
+      let stablePoints = 0;
+      let increasePoints = 0;
+
+      for (const diff of diffs) {
+        if (diff <= -0.15) decreasePoints++;
+        else if (diff >= 0.15) increasePoints++;
+        else stablePoints++;
+      }
+
+      const totalPoints = diffs.length;
+      const decreasePct = Math.round((decreasePoints / totalPoints) * 100);
+      const stablePct = Math.round((stablePoints / totalPoints) * 100);
+      const increasePct = Math.round((increasePoints / totalPoints) * 100);
+
+      const decreaseHa = Math.round(((decreasePct / 100) * totalAreaHa) * 10) / 10;
+      const increaseHa = Math.round(((increasePct / 100) * totalAreaHa) * 10) / 10;
+      const stableHa = Math.round((totalAreaHa - decreaseHa - increaseHa) * 10) / 10;
+
+      if (decreasePct > 30) {
+        classification = 'DISMINUCION_SIGNIFICATIVA';
+        primaryMessage = 'Disminución significativa del índice de vegetación detectada.';
+        detailedDescription = 'Se observa una reducción del vigor vegetativo en sectores del lote. Se requiere verificación de campo.';
+      } else if (increasePct > 30) {
+        classification = 'AUMENTO_SIGNIFICATIVO';
+        primaryMessage = 'Aumento significativo del índice de vegetación detectado.';
+        detailedDescription = 'Se observa un incremento sustancial en la respuesta del infrarrojo cercano en sectores del lote.';
+      }
+
+      return {
+        success: true,
+        status: 'REAL',
+        spatialComparisonAvailable: true,
+        period: { dateA, dateB, productA, productB },
+        deltaNDVI: deltaNDVI,
+        ndviA: meanA,
+        ndviB: meanB,
+        totalAreaHa: totalAreaHa,
+        classification: classification,
+        primaryMessage: primaryMessage,
+        description: detailedDescription,
+        breakdown: {
+          decrease: { percent: decreasePct, hectares: decreaseHa },
+          stable: { percent: stablePct, hectares: stableHa },
+          increase: { percent: increasePct, hectares: increaseHa }
+        },
+        confidence: 'Población real de muestras de píxeles',
+        limitations: [
+          'Factores atmosféricos y ángulo solar influyen en la reflectancia.',
+          'Requiere validación agronómica o forestal de terreno.'
+        ]
+      };
+    } else {
+      return {
+        success: true,
+        status: 'REAL',
+        spatialComparisonAvailable: false,
+        period: { dateA, dateB, productA, productB },
+        deltaNDVI: deltaNDVI,
+        ndviA: meanA,
+        ndviB: meanB,
+        totalAreaHa: totalAreaHa,
+        classification: classification,
+        primaryMessage: primaryMessage,
+        description: `${detailedDescription} (Comparación espacial píxel a píxel no disponible).`,
+        breakdown: {
+          decrease: { percent: 'N/D', hectares: 'N/D (Comparación espacial no disponible)' },
+          stable: { percent: 'N/D', hectares: 'N/D (Comparación espacial no disponible)' },
+          increase: { percent: 'N/D', hectares: 'N/D (Comparación espacial no disponible)' }
+        },
+        confidence: 'Variación entre medias espectrales generales del lote',
+        limitations: [
+          'Comparación espacial por píxeles no disponible debido a falta de matrices de píxeles alineadas.',
+          'Se reporta la variación de la media espectral del lote.'
+        ]
+      };
+    }
   }
 
   // Si no disponemos de matriz ráster calculada de ambas fechas (stats.mean ausente), reportar status SCENE_IDENTIFIED sin desgloses sintéticos
