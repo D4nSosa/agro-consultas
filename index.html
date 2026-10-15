@@ -242,7 +242,7 @@
   </div>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</small><br>
+    <small>© <span class="current-year"></span> Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</small><br>
     <small style="margin-top: 6px; display: inline-block;">Desarrollado por <strong>Dante Iván Sosa</strong> | <a href="https://www.linkedin.com/in/dante-ivan-sosa-657240269" target="_blank" rel="noopener noreferrer" style="color: var(--verde-principal); text-decoration: underline; font-weight: 600;">LinkedIn</a></small>
   </footer>
 
@@ -301,6 +301,10 @@
 
     document.getElementById('btnComoFunciona').addEventListener('click', () => {
       document.getElementById('comoFuncionaModal').style.display = 'flex';
+    });
+
+    document.querySelectorAll('.current-year').forEach(el => {
+      el.innerText = new Date().getFullYear();
     });
 
     // Theme toggle persistent

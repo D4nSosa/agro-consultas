@@ -61,6 +61,12 @@
           <span style="font-size: 0.8rem; color: var(--texto-secundario);">Sentinel-2 L2A</span>
         </div>
 
+        <!-- Buscador de Localidades en Módulo Forestal -->
+        <form id="forest-search-form" style="display: flex; gap: 8px; margin-bottom: 2px;">
+          <input type="text" id="forest-search-input" placeholder="🔍 Buscar localidad, departamento o ciudad..." style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); font-size: 0.88rem;" />
+          <button type="submit" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">Buscar</button>
+        </form>
+
         <!-- Contenedor del Mapa -->
         <div id="forest-map" style="height: 320px; border-radius: 8px; border: 1px solid var(--borde-suave); overflow: hidden;"></div>
 
@@ -212,7 +218,7 @@
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Módulo Forestal e Inteligencia Territorial</small><br>
+    <small>© <span class="current-year"></span> Agro Consultas — Módulo Forestal e Inteligencia Territorial</small><br>
     <small style="margin-top: 6px; display: inline-block;">Desarrollado por <strong>Dante Iván Sosa</strong> | <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" style="color: var(--verde-principal); text-decoration: underline; font-weight: 600;">LinkedIn</a></small>
   </footer>
 
@@ -228,6 +234,7 @@
     import { exportToKML, exportToGPX, exportToPyQGISScript } from './forestal/utils/geo.js';
     import { analyzeUploadedImage } from './services/imageAnalysisService.js';
     import { getForestCatalog } from './services/recommendationEngine.js';
+    import { geocodeLocation } from './services/sources/geocodingService.js';
 
     async function cargarSelectorEspeciesForestales() {
       const select = document.getElementById('inv-especie');
@@ -603,6 +610,35 @@
         }
       });
 
+      // Buscador de Localidades
+      const searchForm = document.getElementById('forest-search-form');
+      const searchInput = document.getElementById('forest-search-input');
+      if (searchForm && searchInput) {
+        searchForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const query = searchInput.value.trim();
+          if (!query) return;
+
+          const btn = searchForm.querySelector('button');
+          if (btn) btn.innerText = '⏳ Buscar...';
+
+          try {
+            const res = await geocodeLocation(query);
+            if (res.available && res.value) {
+              const { lat, lng, nombre, provincia } = res.value;
+              const title = `${nombre}${provincia ? ', ' + provincia : ''}`;
+              forestMap.centerAt(lat, lng, 14, title);
+            } else {
+              alert(`No se encontraron registros geográficos para "${query}".`);
+            }
+          } catch (err) {
+            alert(`Error al buscar la ubicación: ${err.message}`);
+          } finally {
+            if (btn) btn.innerText = 'Buscar';
+          }
+        });
+      }
+
       // 2. Inicializar Línea Temporal
       timelineComp = new ForestTimeline('timeline-container', (dateA, dateB) => {
         if (currentAnalysisData) {
@@ -776,6 +812,8 @@
         btn.innerText = '🚀 Ejecutar Análisis Forestal y Detección de Cambios (Sentinel-2)';
       }
     }
+
+    document.querySelectorAll('.current-year').forEach(el => el.innerText = new Date().getFullYear());
 
     // Theme toggle
     const themeToggle = document.getElementById('themeToggle');

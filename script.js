@@ -1307,7 +1307,19 @@ function initApp() {
         return;
       }
       const baseUrl = window.location.origin + window.location.pathname.replace('resultados.html', 'reporte.html');
-      const shareUrl = `${baseUrl}?lat=${currentLat.toFixed(5)}&lng=${currentLng.toFixed(5)}&nombre=${encodeURIComponent(currentUbicacionNombre)}&ha=N/A`;
+
+      let haVal = 'N/A';
+      let geomParam = '';
+
+      if (currentAOIPolygon) {
+        const areaCalc = calculateArea(currentAOIPolygon);
+        if (areaCalc && areaCalc.hectares) {
+          haVal = areaCalc.hectares;
+        }
+        geomParam = `&geom=${encodeURIComponent(JSON.stringify(currentAOIPolygon))}`;
+      }
+
+      const shareUrl = `${baseUrl}?lat=${currentLat.toFixed(5)}&lng=${currentLng.toFixed(5)}&nombre=${encodeURIComponent(currentUbicacionNombre)}&ha=${haVal}${geomParam}`;
 
       const shareData = {
         title: `Informe Agro Consultas — ${currentUbicacionNombre}`,

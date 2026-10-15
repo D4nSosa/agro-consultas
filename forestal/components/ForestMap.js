@@ -257,6 +257,14 @@ export class ForestMap {
     );
   }
 
+  centerAt(lat, lng, zoomLevel = 14, title = null) {
+    if (!this.map) return;
+    this.map.setView([lat, lng], zoomLevel);
+    const geom = { type: "Point", coordinates: [lng, lat] };
+    const feature = toGeoJSONFeature(geom, { name: title || `Ubicación (${lat.toFixed(4)}, ${lng.toFixed(4)})` });
+    this.setGeoJSON(feature);
+  }
+
   getCurrentFeature() {
     return this.currentFeature;
   }
