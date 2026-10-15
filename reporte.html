@@ -103,7 +103,7 @@
     import { getSoilReport } from './services/soilService.js';
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
-    import { generateRecommendations, loadCultivosData } from './services/recommendationEngine.js';
+    import { generateRecommendations, loadCultivosData, getCropsToEvaluate } from './services/recommendationEngine.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('report-date').innerText = `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`;
@@ -190,9 +190,9 @@
         const climateReport = await getClimateData(lat, lng, provKey || "Argentina", subregion?.clima);
         const climateHistory = await getClimateHistory(lat, lng, 12);
 
-        const catalogo = await loadCultivosData();
-        const cultivosNombres = Object.values(catalogo).map(c => c.nombre || c.id);
-        const recomendaciones = await generateRecommendations(cultivosNombres, soilReport, climateReport);
+        const cultivosNombres = await getCropsToEvaluate(provKey);
+        const todasRecomendaciones = await generateRecommendations(cultivosNombres, soilReport, climateReport);
+        const recomendaciones = todasRecomendaciones.filter(c => c.compatibilidad !== "INFORMACIÓN PENDIENTE DE VERIFICACIÓN");
 
         analysisContainer.innerHTML = `
           <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">

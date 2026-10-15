@@ -59,7 +59,7 @@
         "aptitudUsoPrincipal": "Madera de Aserrío, Lascas y Celulosa"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Montecarlo / SENASA / SAGyP / FAO GAEZ v5",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Pino Taeda.",
         "requerimientosSuelo": "Suelos profundos, texturas franco-arcillosas a arcillosas ácidas (pH 4.5-5.5).",
@@ -78,9 +78,9 @@
         "horizonteProductivo": "Horizonte Forestal (Año 0 a Turno de Cosecha Final)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "800 - 1.111 árboles/ha",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "1.111 - 1.666 árboles/ha (3m x 3m / 3m x 2m inicial), raleado a 300-400 arb/ha",
+        "pautasNutricion": "Fertilización de establecimiento con Superfosfato Triple (100-150 g/planta en hoyo). Guía de Nutrición INTA EEA Montecarlo.",
+        "monitoreoSanitario": "Monitoreo obligatorio SENASA de Avispa Barrenadora del Pino (Sirex noctilio) y Pulgón del Pino (Cinara spp.). Protocolo INTA EEA Montecarlo.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -173,7 +173,7 @@
         "aptitudUsoPrincipal": "Madera de Aserrío y Resina"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Bella Vista / SENASA / SAGyP",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Pino Elliottii.",
         "requerimientosSuelo": "Suelos arenosos pobres o arcillosos con drenaje deficiente o moderado.",
@@ -192,9 +192,9 @@
         "horizonteProductivo": "Horizonte Forestal (Año 0 a Turno de Cosecha Final)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "800 - 1.111 árboles/ha",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "1.111 - 1.666 árboles/ha (3m x 3m inicial), raleos sistemáticos",
+        "pautasNutricion": "Fertilización inicial con fósforo en suelos de la cuenca del Paraná/Uruguay. INTA EEA Bella Vista.",
+        "monitoreoSanitario": "Monitoreo preventivo SENASA contra Sirex noctilio y Hongos foliares. Guía INTA EEA Bella Vista.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -286,7 +286,7 @@
         "aptitudUsoPrincipal": "Aserrío, Bobinado, Celulosa y Energía"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Concordia / SENASA / SAGyP / FAO GAEZ v5",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Eucalyptus Grandis.",
         "requerimientosSuelo": "Suelos muy profundos, bien drenados, texturas francas a franco-arenosas.",
@@ -305,9 +305,9 @@
         "horizonteProductivo": "Horizonte Forestal (Año 0 a Turno de Cosecha Final)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "800 - 1.111 árboles/ha",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "800 - 1.111 árboles/ha (3.5m x 2.5m o 3m x 3m)",
+        "pautasNutricion": "Fertilización fosfatada inicial (NPK 10-30-10 o 12-24-12) a la plantación. Guía Manejo Nutricional INTA EEA Concordia.",
+        "monitoreoSanitario": "Monitoreo SENASA / INTA contra Gorgojo del Eucalipto (Gonipterus platensis), Avispa de la Agalla (Quadrastichus mendeli) y Psílido de los Eucaliptos (Glycaspis brimblecombei).",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -399,7 +399,7 @@
         "aptitudUsoPrincipal": "Pasta Celulósica de Alta Calidad"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Balcarce / SENASA / SAGyP",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Eucalyptus Globulus.",
         "requerimientosSuelo": "Suelos franco-arcillosos moderados, profundos, tolera cierta tosca.",
@@ -418,9 +418,9 @@
         "horizonteProductivo": "Horizonte Forestal (Año 0 a Turno de Cosecha Final)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "800 - 1.111 árboles/ha",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "800 - 1.111 árboles/ha (3.5m x 2.5m)",
+        "pautasNutricion": "Fertilización fosforada inicial según análisis de suelo previo en Cuenca del Salado y Balcarce.",
+        "monitoreoSanitario": "Monitoreo SENASA contra Gonipterus platensis y Mancha foliar por Mycosphaerella. Guía INTA EEA Balcarce.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -511,7 +511,7 @@
         "aptitudUsoPrincipal": "Pasta Celulósica y Aserrío"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Concordia / SENASA / SAGyP",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Eucalyptus Dunnii.",
         "requerimientosSuelo": "Suelos profundos, francos a franco-clay, tolera cierta humedad edáfica.",
@@ -530,9 +530,9 @@
         "horizonteProductivo": "Horizonte Forestal (Año 0 a Turno de Cosecha Final)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "800 - 1.111 árboles/ha",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "800 - 1.111 árboles/ha (3.5m x 2.5m)",
+        "pautasNutricion": "Fertilización balanceada al pozo de plantación (100g NPK). INTA Concordia.",
+        "monitoreoSanitario": "Monitoreo SENASA de Gonipterus platensis y chinche del eucalipto (Thaumastocoris peregrinus). Guía INTA EEA Concordia.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -623,7 +623,7 @@
         "aptitudUsoPrincipal": "Pasta Celulósica y Aserrío (Resistente a Heladas)"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Bella Vista / SENASA / SAGyP",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Eucalyptus Benthamii.",
         "requerimientosSuelo": "Adaptable a suelos pesados o con drenaje moderado.",
@@ -643,8 +643,8 @@
       },
       "seccionD_manejoSanidad": {
         "densidadRecomendada": "800 - 1.111 árboles/ha",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "pautasNutricion": "Fertilización fosforada inicial al momento del trasplante. INTA Bella Vista.",
+        "monitoreoSanitario": "Monitoreo SENASA contra Gonipterus platensis y plagas defoliadoras. Guía INTA Bella Vista.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
