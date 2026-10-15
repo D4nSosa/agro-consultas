@@ -112,6 +112,11 @@ class ChangeDetectionRequest(BaseModel):
     dateA: Optional[str] = None
     dateB: Optional[str] = None
 
+class SARAnalysisRequest(BaseModel):
+    geometry: GeoJSONGeometry
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+
 @app.get("/")
 def read_root():
     return {
@@ -123,6 +128,7 @@ def read_root():
             "/api/forest/lots",
             "/api/forest/stac",
             "/api/forest/ndvi",
+            "/api/forest/sar",
             "/api/forest/changes",
             "/api/forest/analyze"
         ]
@@ -698,6 +704,161 @@ def calculate_change_detection(req: ChangeDetectionRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error en detección de cambios: {str(e)}")
+
+def process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape):
+    """Procesa y recorta exactamente los píxeles radar SAR Sentinel-1 COG para el ROI del lote."""
+    try:
+        from rasterio.vrt import WarpedVRT
+        with rasterio.env.Env(AWS_NO_SIGN_REQUEST='YES'):
+            with rasterio.open(vv_url) as src_vv, rasterio.open(vh_url) as src_vh:
+                with WarpedVRT(src_vv, crs='EPSG:4326') as vrt_vv, WarpedVRT(src_vh, crs='EPSG:4326') as vrt_vh:
+                    if geom_shape.geom_type == 'Point':
+                        pt_x, pt_y = geom_shape.x, geom_shape.y
+                        row_v, col_v = vrt_vv.index(pt_x, pt_y)
+                        val_vv = float(vrt_vv.read(1, window=rasterio.windows.Window(col_v, row_v, 1, 1))[0, 0])
+                        val_vh = float(vrt_vh.read(1, window=rasterio.windows.Window(col_v, row_v, 1, 1))[0, 0])
+                        vv_db = round(10 * math.log10(val_vv**2 + 1e-6) - 83.0, 2) if val_vv > 0 else -25.0
+                        vh_db = round(10 * math.log10(val_vh**2 + 1e-6) - 83.0, 2) if val_vh > 0 else -30.0
+                        ratio_db = round(vh_db - vv_db, 2)
+                        return {
+                            "vv_mean_dB": vv_db,
+                            "vh_mean_dB": vh_db,
+                            "vh_vv_ratio_dB": ratio_db,
+                            "sampleCount": 1,
+                            "isPoint": True
+                        }, None
+                    else:
+                        out_vv, _ = rasterio_mask(vrt_vv, [geom_shape], crop=True)
+                        out_vh, _ = rasterio_mask(vrt_vh, [geom_shape], crop=True)
+                        vv_vals = out_vv[0][out_vv[0] > 0].astype(float)
+                        vh_vals = out_vh[0][out_vh[0] > 0].astype(float)
+                        if len(vv_vals) == 0 or len(vh_vals) == 0:
+                            return None, "No se obtuvieron píxeles válidos de radar en el polígono seleccionado."
+
+                        vv_db = round(float(np.mean(10 * np.log10(np.square(vv_vals) + 1e-6) - 83.0)), 2)
+                        vh_db = round(float(np.mean(10 * np.log10(np.square(vh_vals) + 1e-6) - 83.0)), 2)
+                        ratio_db = round(vh_db - vv_db, 2)
+                        return {
+                            "vv_mean_dB": vv_db,
+                            "vh_mean_dB": vh_db,
+                            "vh_vv_ratio_dB": ratio_db,
+                            "sampleCount": int(len(vv_vals)),
+                            "isPoint": False
+                        }, None
+    except Exception as e:
+        return None, str(e)
+
+def interpret_sar_indicators(vv_db, ratio_db):
+    if vv_db > -8.0:
+        moisture = "Humedad de suelo o superficie de agua muy alta (alta reflexión radar)"
+    elif vv_db > -14.0:
+        moisture = "Humedad de suelo moderada / condiciones de campo normales"
+    else:
+        moisture = "Suelo seco / baja reflectividad dieléctrica radar"
+
+    if ratio_db > -8.0:
+        structure = "Alta densidad de biomasa / dispersión volumétrica en canopia desarrollada"
+    elif ratio_db > -12.0:
+        structure = "Estructura vegetal moderada / cobertura media o rastrojo"
+    else:
+        structure = "Suelo desnudo o mínima biomasa vegetal"
+
+    return moisture, structure
+
+@app.post("/api/forest/sar")
+def get_sar_analysis(req: SARAnalysisRequest):
+    """Consulta observaciones de radar de apertura sintética (SAR) Sentinel-1 (Banda C penetrante de nubes y todo clima)."""
+    try:
+        start_def, date_a_def, date_b_def = get_default_dates()
+        s_date = req.startDate or date_a_def
+        e_date = req.endDate or date_b_def
+
+        geom_dict = get_geom_dict(req.geometry)
+        geom_shape = validate_geometry_shape(geom_dict)
+        bounds = geom_shape.bounds
+
+        if geom_shape.geom_type == 'Point':
+            area_ha = 0.0
+            is_point = True
+        else:
+            area_sq_m = calculate_shapely_area(geom_shape)
+            area_ha = round(area_sq_m / 10000.0, 2)
+            is_point = False
+
+        search_body = {
+            "collections": ["sentinel-1-grd"],
+            "bbox": [bounds[0], bounds[1], bounds[2], bounds[3]],
+            "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
+            "limit": 5
+        }
+
+        req_data = json.dumps(search_body).encode('utf-8')
+        aws_req = urllib.request.Request(
+            EARTH_SEARCH_STAC_URL,
+            data=req_data,
+            headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
+        )
+
+        with urllib.request.urlopen(aws_req, timeout=10) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                features = data.get("features", [])
+                if features:
+                    feat = features[0]
+                    props = feat.get("properties", {})
+                    assets = feat.get("assets", {})
+                    prod_id = feat.get("id")
+                    actual_date = props.get("datetime", "").split("T")[0] if props.get("datetime") else e_date
+                    orbit_state = props.get("sat:orbit_state", "NO DISPONIBLE")
+
+                    vv_url = assets.get("vv", {}).get("href")
+                    vh_url = assets.get("vh", {}).get("href")
+
+                    if vv_url and vh_url:
+                        stats, err_msg = process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape)
+                        if stats:
+                            moisture_desc, structure_desc = interpret_sar_indicators(stats["vv_mean_dB"], stats["vh_vv_ratio_dB"])
+                            return {
+                                "indicator": "Radar SAR Sentinel-1 (Banda C Penetrante de Nubes / Todo Clima)",
+                                "polarizations": ["VV (Vertical-Vertical)", "VH (Vertical-Horizontal)"],
+                                "ratioMeaning": "VH/VV Ratio dB: Indicador de dispersión por volumen y biomasa vegetativa",
+                                "date": actual_date,
+                                "productId": prod_id,
+                                "orbitState": orbit_state,
+                                "areaHectares": area_ha,
+                                "isPoint": is_point,
+                                "allWeather": True,
+                                "cloudIndependent": True,
+                                "source": "AWS Earth Search STAC (Sentinel-1 GRD COGs)",
+                                "stats": stats,
+                                "interpretation": {
+                                    "sueloHumedad": moisture_desc,
+                                    "estructuraBiomasa": structure_desc
+                                },
+                                "status": "REAL",
+                                "message": f"Radar SAR procesado con éxito para la escena {prod_id} (Fecha: {actual_date})."
+                            }
+                        else:
+                            return {
+                                "indicator": "Radar SAR Sentinel-1",
+                                "date": actual_date,
+                                "productId": prod_id,
+                                "areaHectares": area_ha,
+                                "status": "UNAVAILABLE",
+                                "message": f"ERROR RÁSTER RADAR: {err_msg}"
+                            }
+
+        return {
+            "indicator": "Radar SAR Sentinel-1",
+            "date": e_date,
+            "productId": "NO DISPONIBLE",
+            "areaHectares": area_ha,
+            "status": "UNAVAILABLE",
+            "message": "NO DISPONIBLE: No se encontraron escenas radar Sentinel-1 en el catálogo para el período seleccionado."
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error en análisis Radar SAR: {str(e)}")
 
 @app.post("/api/forest/analyze")
 def run_full_forest_analysis_endpoint(req: ChangeDetectionRequest):

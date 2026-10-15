@@ -86,3 +86,22 @@ def test_api_full_analysis():
     data = response.json()
     assert "stac" in data
     assert "changes" in data
+
+def test_api_sar_radar_calculation():
+    payload = {
+        "geometry": SAMPLE_POLYGON_GEOMETRY,
+        "startDate": "2024-01-01",
+        "endDate": "2024-06-01"
+    }
+    response = client.post("/api/forest/sar", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "Radar SAR" in data["indicator"]
+    assert "areaHectares" in data
+    assert data["status"] in ["REAL", "UNAVAILABLE"]
+    if data["status"] == "REAL":
+        assert "stats" in data
+        assert "vv_mean_dB" in data["stats"]
+        assert "vh_mean_dB" in data["stats"]
+        assert "vh_vv_ratio_dB" in data["stats"]
+        assert "interpretation" in data

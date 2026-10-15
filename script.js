@@ -22,6 +22,7 @@ import {
   buildPolygonFromBatchGps
 } from './services/imageAnalysisService.js';
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
+import { getSentinel1SarAnalysis } from './forestal/services/satelliteService.js';
 import { MapViewer } from './services/mapViewer.js';
 
 let mapViewerInstance = null;
@@ -263,6 +264,7 @@ export async function buscarYProcesarUbicacion(queryTexto) {
     await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
     await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
     await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+    await renderSarRadarUI(currentLat, currentLng, polygonGeoJSON);
   } catch (err) {
     console.error("Error en buscarYProcesarUbicacion:", err);
   } finally {
@@ -566,6 +568,73 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
           <div>🔥 <strong>Temp. Máxima Absoluta:</strong> ${d.periodMetrics.temperaturaMaximaAbsolutaC}°C</div>
           <div>❄️ <strong>Temp. Mínima Absoluta:</strong> ${d.periodMetrics.temperaturaMinimaAbsolutaC}°C</div>
           <div>💧 <strong>Humedad Relativa:</strong> ${d.periodMetrics.humedadRelativaMediaPct}%</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Renderiza la sección de Radar SAR Sentinel-1 (Banda C Todo Clima)
+ */
+export async function renderSarRadarUI(lat, lng, geom = null) {
+  const container = document.getElementById("sar-radar-container");
+  if (!container) return;
+
+  if (lat === null || lng === null) {
+    container.innerHTML = `
+      <div class="empty-state" style="text-align: center; padding: 20px;">
+        <span style="font-size: 2rem;">📡</span>
+        <p><strong>DATOS RADAR NO DISPONIBLES</strong></p>
+        <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la respuesta radar Sentinel-1.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 20px;">
+      <span style="font-size: 1.5rem; display: block; margin-bottom: 8px;">⏳</span>
+      <p style="margin: 0; color: var(--texto-secundario); font-size: 0.9rem;">Consultando imágenes Radar SAR Sentinel-1 (Banda C todo clima)...</p>
+    </div>
+  `;
+
+  const targetGeom = geom || { type: "Point", coordinates: [lng, lat] };
+  const sarRes = await getSentinel1SarAnalysis(targetGeom);
+
+  if (!sarRes || sarRes.status === "UNAVAILABLE" || !sarRes.stats) {
+    container.innerHTML = `
+      <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
+        <h4 style="margin: 0 0 6px 0; color: #c0392b;">📡 OBSERVACIONES RADAR SAR PENDIENTES</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">${sarRes?.message || 'No se pudieron recuperar escenas radar de la red AWS STAC para la ubicación seleccionada.'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  const s = sarRes.stats;
+  const interp = sarRes.interpretation || {};
+
+  container.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">💧 Retrodispersión VV (Humedad de Suelo)</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: #2980b9; margin: 4px 0;">${s.vv_mean_dB} dB</div>
+        <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.sueloHumedad || 'Respuesta edáfica'}</div>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌿 Retrodispersión VH (Estructura de Biomasa)</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${s.vh_mean_dB} dB</div>
+        <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.estructuraBiomasa || 'Estructura vegetativa'}</div>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📊 Ratio VH/VV (Dispersión Volumétrica)</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: #8e44ad; margin: 4px 0;">${s.vh_vv_ratio_dB} dB</div>
+        <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px;">
+          Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
+          Fecha: ${sarRes.date} | Satélite: Sentinel-1A (Radar Banda C)
         </div>
       </div>
     </div>
