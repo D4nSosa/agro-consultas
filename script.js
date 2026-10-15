@@ -22,6 +22,7 @@ import {
   buildPolygonFromBatchGps
 } from './services/imageAnalysisService.js';
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
+import { getSentinel1SarAnalysis } from './forestal/services/satelliteService.js';
 import { MapViewer } from './services/mapViewer.js';
 
 let mapViewerInstance = null;
@@ -263,6 +264,7 @@ export async function buscarYProcesarUbicacion(queryTexto) {
     await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
     await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
     await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+    await renderSarRadarUI(currentLat, currentLng, polygonGeoJSON);
   } catch (err) {
     console.error("Error en buscarYProcesarUbicacion:", err);
   } finally {
@@ -566,6 +568,73 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
           <div>🔥 <strong>Temp. Máxima Absoluta:</strong> ${d.periodMetrics.temperaturaMaximaAbsolutaC}°C</div>
           <div>❄️ <strong>Temp. Mínima Absoluta:</strong> ${d.periodMetrics.temperaturaMinimaAbsolutaC}°C</div>
           <div>💧 <strong>Humedad Relativa:</strong> ${d.periodMetrics.humedadRelativaMediaPct}%</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Renderiza la sección de Radar SAR Sentinel-1 (Banda C Todo Clima)
+ */
+export async function renderSarRadarUI(lat, lng, geom = null) {
+  const container = document.getElementById("sar-radar-container");
+  if (!container) return;
+
+  if (lat === null || lng === null) {
+    container.innerHTML = `
+      <div class="empty-state" style="text-align: center; padding: 20px;">
+        <span style="font-size: 2rem;">📡</span>
+        <p><strong>DATOS RADAR NO DISPONIBLES</strong></p>
+        <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la respuesta radar Sentinel-1.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 20px;">
+      <span style="font-size: 1.5rem; display: block; margin-bottom: 8px;">⏳</span>
+      <p style="margin: 0; color: var(--texto-secundario); font-size: 0.9rem;">Consultando imágenes Radar SAR Sentinel-1 (Banda C todo clima)...</p>
+    </div>
+  `;
+
+  const targetGeom = geom || { type: "Point", coordinates: [lng, lat] };
+  const sarRes = await getSentinel1SarAnalysis(targetGeom);
+
+  if (!sarRes || sarRes.status === "UNAVAILABLE" || !sarRes.stats) {
+    container.innerHTML = `
+      <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
+        <h4 style="margin: 0 0 6px 0; color: #c0392b;">📡 OBSERVACIONES RADAR SAR PENDIENTES</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">${sarRes?.message || 'No se pudieron recuperar escenas radar de la red AWS STAC para la ubicación seleccionada.'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  const s = sarRes.stats;
+  const interp = sarRes.interpretation || {};
+
+  container.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">💧 Retrodispersión VV (Humedad de Suelo)</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: #2980b9; margin: 4px 0;">${s.vv_mean_dB} dB</div>
+        <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.sueloHumedad || 'Respuesta edáfica'}</div>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌿 Retrodispersión VH (Estructura de Biomasa)</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${s.vh_mean_dB} dB</div>
+        <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.estructuraBiomasa || 'Estructura vegetativa'}</div>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📊 Ratio VH/VV (Dispersión Volumétrica)</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: #8e44ad; margin: 4px 0;">${s.vh_vv_ratio_dB} dB</div>
+        <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px;">
+          Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
+          Fecha: ${sarRes.date} | Satélite: Sentinel-1A (Radar Banda C)
         </div>
       </div>
     </div>
@@ -954,12 +1023,14 @@ window.abrirModalFichaTecnica = async function(cropId) {
     return;
   }
 
+  const noDataText = "⚪ SIN DATOS SUFICIENTES (Pendiente de verificación de campo)";
+
   const ft = crop.fichaTecnica || {
-    seccionA_identificacion: { nombreComun: crop.nombre || cropId, nombreCientifico: "Especie catalogada", familiaBotanica: "No especificada", categoria: "General", subcategoria: "General", cicloProductivo: "Anual", aptitudUsoPrincipal: "Uso general" },
-    seccionB_aptitudTerritorial: { fuenteOficialAptitud: "INTA / SAGyP", escalaDiagnostico: "Regional", fundamentacionAgroclimatica: "Evaluación preliminar de compatibilidad.", requerimientosSuelo: crop.reqSuelo || "Suelos profundos", requerimientosClima: crop.reqClima || "Clima templado" },
-    seccionC_calendarioFenologia: { preparacionTerreno: "Barbecho / Preparación previa", ventanaSiembraPlantacion: crop.siembra || "Información pendiente", ventanaCosechaTurno: crop.cosecha || "Información pendiente", etapasFenologicasClave: ["Emergencia", "Crecimiento", "Floración / Fructificación", "Cosecha"], horizonteProductivo: "Ciclo Productivo Estándar" },
-    seccionD_manejoSanidad: { densidadRecomendada: "Según arreglo zonal", pautasNutricion: "Fertilización previa análisis de suelo", monitoreoSanitario: "Monitoreo preventivo SENASA/INTA", buenasPracticasAgricolas: "Siembra directa y rotaciones" },
-    seccionE_modelosRendimiento: { unidadRendimiento: "tn/ha", escenarioConservador: "Bajo insumo", escenarioBase: crop.rendimientoEstimado || "Promedio zonal", escenarioFavorable: "Alto insumo", tipoModelo: "Observado Histórico" },
+    seccionA_identificacion: { nombreComun: crop.nombre || cropId, nombreCientifico: noDataText, familiaBotanica: noDataText, categoria: noDataText, subcategoria: noDataText, cicloProductivo: noDataText, aptitudUsoPrincipal: noDataText },
+    seccionB_aptitudTerritorial: { fuenteOficialAptitud: "INTA / SAGyP", escalaDiagnostico: "Regional", fundamentacionAgroclimatica: noDataText, requerimientosSuelo: crop.reqSuelo || noDataText, requerimientosClima: crop.reqClima || noDataText },
+    seccionC_calendarioFenologia: { preparacionTerreno: noDataText, ventanaSiembraPlantacion: crop.siembra || noDataText, ventanaCosechaTurno: crop.cosecha || noDataText, etapasFenologicasClave: [noDataText], horizonteProductivo: noDataText },
+    seccionD_manejoSanidad: { densidadRecomendada: noDataText, pautasNutricion: noDataText, monitoreoSanitario: noDataText, buenasPracticasAgricolas: noDataText },
+    seccionE_modelosRendimiento: { unidadRendimiento: "tn/ha", escenarioConservador: noDataText, escenarioBase: crop.rendimientoEstimado || noDataText, escenarioFavorable: noDataText, tipoModelo: noDataText },
     seccionF_presupuestoEconomico: { moneda: "USD (Campaña 2024/2025)", costoImplantacionUSD: 300, costoMantenimientoAnualUSD: 200, costoCosechaFleteUSD: 150, precioReferenciaUSD: 200, unidadPrecio: "tn", horizonteEconomico: "Anual" },
     seccionG_trazabilidadCalidadEvidencia: { estadoEvidencia: { identificacion: "🟢 VERIFICADO", aptitudTerritorial: "🟡 PARCIAL", calendarioFenologia: "🟢 VERIFICADO", manejoSanidad: "🟢 VERIFICADO", modelosRendimiento: "🟢 VERIFICADO", presupuestoEconomico: "🟡 PARCIAL" }, coberturaDocumental: "🟢 ALTA", avisoLegal: "Valores orientativos editables por el usuario." }
   };
@@ -972,8 +1043,10 @@ window.abrirModalFichaTecnica = async function(cropId) {
   const secF = ft.seccionF_presupuestoEconomico || {};
   const secG = ft.seccionG_trazabilidadCalidadEvidencia || {};
 
-  if (titulo) titulo.innerText = `📋 Ficha Técnica Universal — ${secA.nombreComun || crop.nombre}`;
-  if (subtitulo) subtitulo.innerText = `${secA.nombreCientifico || ''} | ${secA.familiaBotanica || ''} (${secA.categoria || 'General'})`;
+  const fmtVal = (v) => (v !== null && v !== undefined && v !== '') ? v : noDataText;
+
+  if (titulo) titulo.innerText = `📋 Ficha Técnica Universal — ${fmtVal(secA.nombreComun || crop.nombre)}`;
+  if (subtitulo) subtitulo.innerText = `${fmtVal(secA.nombreCientifico)} | ${fmtVal(secA.familiaBotanica)} (${fmtVal(secA.categoria)})`;
 
   // Parse default numbers for economic calculator
   const pImp = parseFloat(secF.costoImplantacionUSD) || 300;
@@ -991,12 +1064,12 @@ window.abrirModalFichaTecnica = async function(cropId) {
     <div id="tab-id" class="tab-pane active">
       <h3 style="color: var(--verde-principal); margin-top: 0;">A. Identificación Agronómica</h3>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
-        <div class="sub-card"><strong>Nombre Común:</strong> ${secA.nombreComun || crop.nombre}</div>
-        <div class="sub-card"><strong>Nombre Científico:</strong> <em>${secA.nombreCientifico || 'Especie catalogada'}</em></div>
-        <div class="sub-card"><strong>Familia Botánica:</strong> ${secA.familiaBotanica || 'No especificada'}</div>
-        <div class="sub-card"><strong>Categoría / Subcategoría:</strong> ${secA.categoria || ''} / ${secA.subcategoria || ''}</div>
-        <div class="sub-card"><strong>Ciclo Productivo:</strong> ${secA.cicloProductivo || 'Anual'}</div>
-        <div class="sub-card"><strong>Aptitud y Uso Principal:</strong> ${secA.aptitudUsoPrincipal || 'Producción agropecuaria'}</div>
+        <div class="sub-card"><strong>Nombre Común:</strong> ${fmtVal(secA.nombreComun || crop.nombre)}</div>
+        <div class="sub-card"><strong>Nombre Científico:</strong> <em>${fmtVal(secA.nombreCientifico)}</em></div>
+        <div class="sub-card"><strong>Familia Botánica:</strong> ${fmtVal(secA.familiaBotanica)}</div>
+        <div class="sub-card"><strong>Categoría / Subcategoría:</strong> ${fmtVal(secA.categoria)} / ${fmtVal(secA.subcategoria)}</div>
+        <div class="sub-card"><strong>Ciclo Productivo:</strong> ${fmtVal(secA.cicloProductivo)}</div>
+        <div class="sub-card"><strong>Aptitud y Uso Principal:</strong> ${fmtVal(secA.aptitudUsoPrincipal)}</div>
       </div>
     </div>
 
@@ -1004,13 +1077,13 @@ window.abrirModalFichaTecnica = async function(cropId) {
     <div id="tab-aptitud" class="tab-pane">
       <h3 style="color: var(--verde-principal); margin-top: 0;">B. Aptitud y Diagnóstico Territorial</h3>
       <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.88rem;">
-        <div><strong>🏛️ Fuente Oficial:</strong> ${secB.fuenteOficialAptitud || 'INTA / GAEZ v5'}</div>
-        <div><strong>📏 Escala de Diagnóstico:</strong> ${secB.escalaDiagnostico || 'Macro-regional'}</div>
-        <div style="margin-top: 6px; color: var(--texto-secundario);">${secB.fundamentacionAgroclimatica || ''}</div>
+        <div><strong>🏛️ Fuente Oficial:</strong> ${fmtVal(secB.fuenteOficialAptitud)}</div>
+        <div><strong>📏 Escala de Diagnóstico:</strong> ${fmtVal(secB.escalaDiagnostico)}</div>
+        <div style="margin-top: 6px; color: var(--texto-secundario);">${fmtVal(secB.fundamentacionAgroclimatica)}</div>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <div class="sub-card"><strong>🌱 Requerimientos de Suelo:</strong><br>${secB.requerimientosSuelo || crop.reqSuelo}</div>
-        <div class="sub-card"><strong>🌦️ Requerimientos de Clima:</strong><br>${secB.requerimientosClima || crop.reqClima}</div>
+        <div class="sub-card"><strong>🌱 Requerimientos de Suelo:</strong><br>${fmtVal(secB.requerimientosSuelo || crop.reqSuelo)}</div>
+        <div class="sub-card"><strong>🌦️ Requerimientos de Clima:</strong><br>${fmtVal(secB.requerimientosClima || crop.reqClima)}</div>
       </div>
     </div>
 
@@ -1018,15 +1091,15 @@ window.abrirModalFichaTecnica = async function(cropId) {
     <div id="tab-calendario" class="tab-pane">
       <h3 style="color: var(--verde-principal); margin-top: 0;">C. Calendario Productivo y Fenología</h3>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
-        <div class="sub-card"><strong>🛠️ Preparación de Terreno:</strong><br>${secC.preparacionTerreno || 'Barbecho y control de malezas'}</div>
-        <div class="sub-card"><strong>📅 Ventana de Siembra / Plantación:</strong><br>${secC.ventanaSiembraPlantacion || crop.siembra}</div>
-        <div class="sub-card"><strong>🌾 Ventana de Cosecha / Turno:</strong><br>${secC.ventanaCosechaTurno || crop.cosecha}</div>
-        <div class="sub-card"><strong>⏳ Horizonte Productivo:</strong><br>${secC.horizonteProductivo || 'Ciclo Anual'}</div>
+        <div class="sub-card"><strong>🛠️ Preparación de Terreno:</strong><br>${fmtVal(secC.preparacionTerreno)}</div>
+        <div class="sub-card"><strong>📅 Ventana de Siembra / Plantación:</strong><br>${fmtVal(secC.ventanaSiembraPlantacion || crop.siembra)}</div>
+        <div class="sub-card"><strong>🌾 Ventana de Cosecha / Turno:</strong><br>${fmtVal(secC.ventanaCosechaTurno || crop.cosecha)}</div>
+        <div class="sub-card"><strong>⏳ Horizonte Productivo:</strong><br>${fmtVal(secC.horizonteProductivo)}</div>
       </div>
       <div class="sub-card">
         <strong>🔄 Etapas Fenológicas Clave:</strong>
         <ul style="margin: 6px 0 0 18px; padding: 0;">
-          ${(secC.etapasFenologicasClave || ["Emergencia", "Desarrollo", "Floración", "Cosecha"]).map(e => `<li>${e}</li>`).join('')}
+          ${(secC.etapasFenologicasClave || [noDataText]).map(e => `<li>${fmtVal(e)}</li>`).join('')}
         </ul>
       </div>
     </div>
@@ -1035,10 +1108,10 @@ window.abrirModalFichaTecnica = async function(cropId) {
     <div id="tab-manejo" class="tab-pane">
       <h3 style="color: var(--verde-principal); margin-top: 0;">D. Manejo Agronómico y Sanidad</h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <div class="sub-card"><strong>🌱 Densidad Recomendada:</strong><br>${secD.densidadRecomendada || 'Según arreglo espacial'}</div>
-        <div class="sub-card"><strong>🧪 Pautas de Nutrición:</strong><br>${secD.pautasNutricion || 'Fertilización fosforada e investigación edáfica'}</div>
-        <div class="sub-card"><strong>🛡️ Monitoreo Sanitario:</strong><br>${secD.monitoreoSanitario || 'Monitoreo de plagas SENASA / INTA'}</div>
-        <div class="sub-card"><strong>🌿 Buenas Prácticas Agrícolas (BPA):</strong><br>${secD.buenasPracticasAgricolas || 'Siembra directa y rotaciones'}</div>
+        <div class="sub-card"><strong>🌱 Densidad Recomendada:</strong><br>${fmtVal(secD.densidadRecomendada)}</div>
+        <div class="sub-card"><strong>🧪 Pautas de Nutrición:</strong><br>${fmtVal(secD.pautasNutricion)}</div>
+        <div class="sub-card"><strong>🛡️ Monitoreo Sanitario:</strong><br>${fmtVal(secD.monitoreoSanitario)}</div>
+        <div class="sub-card"><strong>🌿 Buenas Prácticas Agrícolas (BPA):</strong><br>${fmtVal(secD.buenasPracticasAgricolas)}</div>
       </div>
     </div>
 
@@ -1046,18 +1119,18 @@ window.abrirModalFichaTecnica = async function(cropId) {
     <div id="tab-modelos" class="tab-pane">
       <h3 style="color: var(--verde-principal); margin-top: 0;">E. Modelos de Rendimiento</h3>
       <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
-        <div><strong>📊 Unidad de Rendimiento:</strong> ${secE.unidadRendimiento || 'tn/ha'}</div>
-        <div><strong>🎯 Tipo de Modelo:</strong> ${secE.tipoModelo || 'Potencial Alcanzable GAEZ / SIAP'}</div>
+        <div><strong>📊 Unidad de Rendimiento:</strong> ${fmtVal(secE.unidadRendimiento)}</div>
+        <div><strong>🎯 Tipo de Modelo:</strong> ${fmtVal(secE.tipoModelo)}</div>
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
         <div class="sub-card" style="border-left: 4px solid #e74c3c;">
-          <strong>🔴 Escenario Conservador:</strong><br>${secE.escenarioConservador || 'Bajo insumo / Restricción hídrica'}
+          <strong>🔴 Escenario Conservador:</strong><br>${fmtVal(secE.escenarioConservador)}
         </div>
         <div class="sub-card" style="border-left: 4px solid #f39c12;">
-          <strong>🟡 Escenario Base (Promedio):</strong><br>${secE.escenarioBase || crop.rendimientoEstimado || 'Promedio histórico'}
+          <strong>🟡 Escenario Base (Promedio):</strong><br>${fmtVal(secE.escenarioBase || crop.rendimientoEstimado)}
         </div>
         <div class="sub-card" style="border-left: 4px solid #27ae60;">
-          <strong>🟢 Escenario Favorable:</strong><br>${secE.escenarioFavorable || 'Alto insumo / Riego óptimo'}
+          <strong>🟢 Escenario Favorable:</strong><br>${fmtVal(secE.escenarioFavorable)}
         </div>
       </div>
     </div>

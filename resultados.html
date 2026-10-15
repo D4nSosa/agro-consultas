@@ -139,6 +139,25 @@
       </div>
     </div>
 
+    <!-- Sección de Radar SAR Sentinel-1 (Banda C Todo Clima) -->
+    <div class="card" style="margin-bottom: 25px; padding: 20px;" id="sar-radar-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; border-bottom: 2px solid var(--verde-principal); padding-bottom: 10px;">
+        <h3 style="margin: 0; color: var(--verde-principal); font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+          📡 Radar SAR Sentinel-1 (Banda C Penetrante de Nubes / Todo Clima)
+        </h3>
+        <span class="badge-origin real" style="font-size: 0.78rem;">📡 Satelital Todo Clima</span>
+      </div>
+      <p style="margin: 0 0 12px 0; font-size: 0.85rem; color: var(--texto-secundario);">
+        Monitoreo de retrodispersión radar (VV/VH) que atraviesa nubes y niebla para evaluar la humedad del suelo y la biomasa vegetativa en cualquier condición meteorológica.
+      </p>
+      <div id="sar-radar-container">
+        <div class="empty-state" style="text-align: center; padding: 20px;">
+          <span style="font-size: 2rem;">📡</span>
+          <p>Seleccioná una ubicación para consultar los indicadores de radar Sentinel-1.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Sección de Historia Climática (NASA POWER) -->
     <div class="card" style="margin-bottom: 25px; padding: 20px;" id="climate-history-card">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 2px solid var(--verde-principal); padding-bottom: 10px; margin-bottom: 15px;">
@@ -244,7 +263,8 @@
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</small>
+    <small>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</small><br>
+    <small style="margin-top: 6px; display: inline-block;">Desarrollado por <strong>Dante Iván Sosa</strong> | <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" style="color: var(--verde-principal); text-decoration: underline; font-weight: 600;">LinkedIn</a></small>
   </footer>
 
   <!-- Leaflet JS -->

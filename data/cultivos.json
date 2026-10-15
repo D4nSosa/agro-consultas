@@ -1601,8 +1601,10 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Famaillá",
+      "INTA EEA Concordia",
+      "INTA EEA Bella Vista",
+      "SENASA Programa HLB"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -1617,7 +1619,7 @@
         "aptitudUsoPrincipal": "Fruta Fresca, Jugo Concentrado y Aceite Esencial"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Famaillá / INTA EEA Concordia / INTA EEA Bella Vista / SENASA",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Limón.",
         "requerimientosSuelo": "Suelos francos a franco-arenosos, muy profundos, sin napas altas ni sales.",
@@ -1636,9 +1638,9 @@
         "horizonteProductivo": "Horizonte Plurianual (Año 0 implantación + Mantenimiento anual)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "350 - 500 plantas/ha (marcos de 6m x 4m o 7m x 4m)",
+        "pautasNutricion": "Plan Nutricional INTA (Famaillá/Concordia): N-P-K fraccionado en fertirriego o foliar post-floración, más micronutrientes (Zinc, Manganeso y Boro).",
+        "monitoreoSanitario": "Alerta Fitoterritorial SENASA (Programa Nacional de HLB): Monitoreo de Diaphorina citri y síntoma de HLB (Candidatus Liberibacter), Cancrosis (Xanthomonas citri) y Mofeta.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -1712,8 +1714,10 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Famaillá",
+      "INTA EEA Concordia",
+      "INTA EEA Bella Vista",
+      "SENASA Programa HLB"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -1728,7 +1732,7 @@
         "aptitudUsoPrincipal": "Fruta Fresca y Jugo Concentrado"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Famaillá / INTA EEA Concordia / INTA EEA Bella Vista / SENASA",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Naranja.",
         "requerimientosSuelo": "Suelos francos a franco-arenosos, bien drenados, pH ligeramente ácido.",
@@ -1747,9 +1751,9 @@
         "horizonteProductivo": "Horizonte Plurianual (Año 0 implantación + Mantenimiento anual)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "400 - 625 plantas/ha (marcos de 5m x 4m o 6m x 3m)",
+        "pautasNutricion": "Plan Nutricional INTA (Famaillá/Concordia): N-P-K fraccionado en fertirriego o foliar post-floración, más micronutrientes (Zinc, Manganeso y Boro).",
+        "monitoreoSanitario": "Alerta Fitoterritorial SENASA (Programa Nacional de HLB): Monitoreo de Diaphorina citri y síntoma de HLB (Candidatus Liberibacter), Cancrosis (Xanthomonas citri) y Mofeta.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -1823,8 +1827,10 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Famaillá",
+      "INTA EEA Concordia",
+      "INTA EEA Bella Vista",
+      "SENASA Programa HLB"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -1839,7 +1845,7 @@
         "aptitudUsoPrincipal": "Consumo Fresco"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Famaillá / INTA EEA Concordia / INTA EEA Bella Vista / SENASA",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Mandarina.",
         "requerimientosSuelo": "Suelos francos, profundos, aireados.",
@@ -1858,9 +1864,9 @@
         "horizonteProductivo": "Horizonte Plurianual (Año 0 implantación + Mantenimiento anual)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "400 - 625 plantas/ha (marcos de 5m x 4m o 6m x 3m)",
+        "pautasNutricion": "Plan Nutricional INTA (Famaillá/Concordia): N-P-K fraccionado en fertirriego o foliar post-floración, más micronutrientes (Zinc, Manganeso y Boro).",
+        "monitoreoSanitario": "Alerta Fitoterritorial SENASA (Programa Nacional de HLB): Monitoreo de Diaphorina citri y síntoma de HLB (Candidatus Liberibacter), Cancrosis (Xanthomonas citri) y Mofeta.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -1934,8 +1940,10 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Famaillá",
+      "INTA EEA Concordia",
+      "INTA EEA Bella Vista",
+      "SENASA Programa HLB"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -1950,7 +1958,7 @@
         "aptitudUsoPrincipal": "Consumo Fresco y Jugos"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Famaillá / INTA EEA Concordia / INTA EEA Bella Vista / SENASA",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Pomelo.",
         "requerimientosSuelo": "Suelos sueltos, francos, profundos.",
@@ -1969,9 +1977,9 @@
         "horizonteProductivo": "Horizonte Plurianual (Año 0 implantación + Mantenimiento anual)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "400 - 625 plantas/ha (marcos de 5m x 4m o 6m x 3m)",
+        "pautasNutricion": "Plan Nutricional INTA (Famaillá/Concordia): N-P-K fraccionado en fertirriego o foliar post-floración, más micronutrientes (Zinc, Manganeso y Boro).",
+        "monitoreoSanitario": "Alerta Fitoterritorial SENASA (Programa Nacional de HLB): Monitoreo de Diaphorina citri y síntoma de HLB (Candidatus Liberibacter), Cancrosis (Xanthomonas citri) y Mofeta.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -2156,8 +2164,10 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Cerro Azul",
+      "INTA EEA Montecarlo",
+      "INYM (Instituto Nacional de la Yerba Mate)",
+      "SENASA Boletines Fitosanitarios"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -2172,7 +2182,7 @@
         "aptitudUsoPrincipal": "Infusión (Yerba Canchada y Molida)"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Cerro Azul / INTA EEA Montecarlo / INYM / SENASA / FAO GAEZ v5",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Yerba Mate.",
         "requerimientosSuelo": "Suelos rojos lateríticos profundos, excelente drenaje, ácidos (pH 4.5-6.0).",
@@ -2191,9 +2201,9 @@
         "horizonteProductivo": "Horizonte Plurianual (Año 0 implantación + Mantenimiento anual)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "2.200 - 4.000 plantas/ha (marcos de 2.5m x 1.5m a 3.0m x 1.0m de alta densidad)",
+        "pautasNutricion": "Plan de Fertilización INTA EEA Cerro Azul: Reposición de N, P2O5 y K2O post-cosecha según rendimiento foliar y análisis edáfico. Incorporación de cubiertas verdes leguminosas.",
+        "monitoreoSanitario": "Monitoreo obligatorio SENASA e INTA: Ampollado de la yerba mate (Gyropsylla spegazziniana), Taladrador o Marandová (Hedypathes betulinus) y Rulo de la yerba mate.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -2267,8 +2277,9 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Cerro Azul",
+      "SENASA",
+      "SAGyP"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -2283,7 +2294,7 @@
         "aptitudUsoPrincipal": "Infusión y Extractos"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Cerro Azul / SENASA / SAGyP / FAO GAEZ v5",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Té.",
         "requerimientosSuelo": "Suelos rojos profundos, bien drenados y fuertemente ácidos (pH 4.5-5.5).",
@@ -2302,9 +2313,9 @@
         "horizonteProductivo": "Horizonte Plurianual (Año 0 implantación + Mantenimiento anual)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "10.000 - 12.000 plantas/ha (marcos de 1.2m x 0.8m o en hileras continuas)",
+        "pautasNutricion": "Aplicación nitrogenada (Urea/Sulfato de amonio) fraccionada tras cada brotación y poda de esquileo. Pauta INTA EEA Cerro Azul.",
+        "monitoreoSanitario": "Monitoreo SENASA / INTA: Ácaro rojo del té (Oligonychus yothersi), Oídio del té (Oidium spp.) y chinche del té.",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -2378,8 +2389,9 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Salta",
+      "INTA EEA Famaillá",
+      "SENASA"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -2394,7 +2406,7 @@
         "aptitudUsoPrincipal": "Cigarrillos y Tabaco Manufacturado"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Salta / INTA EEA Famaillá / SENASA / SAGyP",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Tabaco.",
         "requerimientosSuelo": "Suelos francos a franco-arenosos, fértiles, bien drenados y sin sales.",
@@ -2413,9 +2425,9 @@
         "horizonteProductivo": "Ciclo Anual"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "18.000 - 22.000 plantas/ha (marcos de 1.0m x 0.5m)",
+        "pautasNutricion": "Fertilización de base alta en potasio y fósforo al trasplante (NPK 10-15-20 o similar), evitando cloruros. INTA EEA Salta.",
+        "monitoreoSanitario": "Monitoreo SENASA / INTA: Virus de la peste negra (TSWV / Trips), Nematodos agalladores (Meloidogyne spp.) y Moho azul (Peronospora tabacina).",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {
@@ -2601,8 +2613,9 @@
       "Nacional"
     ],
     "fuentes": [
-      "INTA Catálogo Agronómico",
-      "Ministerio de Economía - Bioeconomía Argentina"
+      "INTA EEA Mendoza",
+      "INV (Instituto Nacional de Vitivinicultura)",
+      "SENASA Programa Lobesia"
     ],
     "version": "2.2.0",
     "updatedAt": "2025-01-01",
@@ -2617,7 +2630,7 @@
         "aptitudUsoPrincipal": "Vinificación y MESA"
       },
       "seccionB_aptitudTerritorial": {
-        "fuenteOficialAptitud": "INTA / SENASA / SAGyP / Unidades Especializadas",
+        "fuenteOficialAptitud": "INTA EEA Mendoza / INTA EEA Junín / INV / SENASA / FAO GAEZ v5",
         "escalaDiagnostico": "Macro-regional (1:250.000 / 1:50.000) - Requiere verificación edáfica a escala de lote",
         "fundamentacionAgroclimatica": "Evaluación basada en requerimientos de pH, textura, temperatura media y precipitación acumulada mínimos para Vid.",
         "requerimientosSuelo": "Suelos franco-arenosos a pedregosos, muy profundos y con excelente drenaje.",
@@ -2636,9 +2649,9 @@
         "horizonteProductivo": "Horizonte Plurianual (Año 0 implantación + Mantenimiento anual)"
       },
       "seccionD_manejoSanidad": {
-        "densidadRecomendada": "80.000 - 300.000 plantas/ha según arreglo",
-        "pautasNutricion": "Fertilización fosforada a la siembra/plantación. Ajuste nitrogenado según análisis de laboratorio de suelo.",
-        "monitoreoSanitario": "Monitoreo periódico de plagas y enfermedades clave reportadas por SENASA e INTA.",
+        "densidadRecomendada": "3.300 - 5.000 plantas/ha (sistemas en espaldero 2.5m x 0.8m a 2.2m x 1.0m) o 1.600 pl/ha (parral)",
+        "pautasNutricion": "Fertirriego nitrogenado y potásico fraccionado entre envero y madurez. Guía de Manejo INTA EEA Mendoza.",
+        "monitoreoSanitario": "Programa Nacional de Alerta SENASA: Lobesia botrana (Polilla de la vid), Oídio (Uncinula necator) y Peronospora (Plasmopara viticola).",
         "buenasPracticasAgricolas": "Rotación de cultivos, siembra directa, franjas amortiguadoras y manejo integrado de plagas (MIP)."
       },
       "seccionE_modelosRendimiento": {

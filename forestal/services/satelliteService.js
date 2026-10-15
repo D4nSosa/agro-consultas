@@ -169,6 +169,25 @@ function parseSTACItem(item, customSource = null) {
   };
 }
 
+/**
+ * Consulta la API Backend para el procesamiento de imágenes Radar SAR Sentinel-1 (Banda C penetrante de nubes y todo clima)
+ */
+export async function getSentinel1SarAnalysis(geometry, startDate = null, endDate = null) {
+  try {
+    const resp = await fetch('/api/forest/sar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ geometry, startDate, endDate })
+    });
+    if (!resp.ok) {
+      return { status: 'UNAVAILABLE', message: `HTTP ${resp.status} - No se pudo conectar con la API Radar SAR.` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { status: 'UNAVAILABLE', message: `Error de red al consultar Radar SAR: ${err.message}` };
+  }
+}
+
 function unavailableResult(message, targetDate = null, windowDays = null) {
   return {
     success: false,
