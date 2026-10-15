@@ -691,6 +691,87 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   margin-bottom: 6px;
 }
 
+/* Modal Ficha Técnica Universal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 999999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px;
+  overflow-y: auto;
+}
+
+.modal-card {
+  background: var(--gris-card, #ffffff);
+  color: var(--texto-principal, #2c3e50);
+  border-radius: 12px;
+  max-width: 880px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  border-top: 5px solid var(--verde-principal, #1b5e20);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--borde-suave, #e0e0e0);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--gris-card, #ffffff);
+}
+
+.modal-tabs {
+  display: flex;
+  overflow-x: auto;
+  background: var(--gris-fondo, #f4f6f8);
+  border-bottom: 1px solid var(--borde-suave, #e0e0e0);
+  padding: 0 10px;
+  gap: 4px;
+}
+
+.modal-tabs .tab-btn {
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--texto-secundario, #7f8c8d);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.modal-tabs .tab-btn.active {
+  color: var(--verde-principal, #1b5e20);
+  border-bottom-color: var(--verde-principal, #1b5e20);
+  background: var(--gris-card, #ffffff);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
 @media (max-width: 850px) {
   .map-layout {
     grid-template-columns: 1fr;

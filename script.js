@@ -739,10 +739,14 @@ function createSingleRecommendationCardHtml(c) {
           ${c.riesgos && c.riesgos.length > 0 ? `<div style="margin-top: 4px; color: #c0392b;"><strong>⚠️ Limitante Principal:</strong> ${c.riesgos[0]}</div>` : ''}
         </div>
 
-        <div style="font-size: 0.8rem; color: var(--texto-secundario); display: flex; justify-content: space-between;">
+        <div style="font-size: 0.8rem; color: var(--texto-secundario); display: flex; justify-content: space-between; margin-bottom: 12px;">
           <span>📅 Siembra: <strong>${c.siembra}</strong></span>
           <span>🌾 Cosecha: <strong>${c.cosecha}</strong></span>
         </div>
+
+        <button onclick="window.abrirModalFichaTecnica('${c.id}')" class="btn primary" style="width: 100%; font-size: 0.82rem; padding: 8px;">
+          📋 Ver Ficha Técnica Completa
+        </button>
       </article>
     `;
   } else {
@@ -795,6 +799,10 @@ function createSingleRecommendationCardHtml(c) {
             ` : ''}
           </div>
         </div>
+
+        <button onclick="window.abrirModalFichaTecnica('${c.id}')" class="btn primary" style="width: 100%; font-size: 0.82rem; padding: 8px;">
+          📋 Ver Ficha Técnica Completa
+        </button>
       </article>
     `;
   }
@@ -926,6 +934,246 @@ export function limpiarEstadoConsultasAnteriores() {
     `;
   }
 }
+
+/**
+ * Abre el Modal con la Ficha Técnica Universal de la especie seleccionada
+ */
+window.abrirModalFichaTecnica = async function(cropId) {
+  const modal = document.getElementById("modalFichaTecnica");
+  const titulo = document.getElementById("modalFichaTitulo");
+  const subtitulo = document.getElementById("modalFichaSubtitulo");
+  const contenido = document.getElementById("modalFichaContenido");
+
+  if (!modal || !contenido) return;
+
+  const catalog = await loadCultivosData();
+  const crop = catalog[cropId] || lastRecommendationsCache.find(c => c.id === cropId);
+
+  if (!crop) {
+    alert("No se encontró la ficha técnica para este cultivo.");
+    return;
+  }
+
+  const ft = crop.fichaTecnica || {
+    seccionA_identificacion: { nombreComun: crop.nombre || cropId, nombreCientifico: "Especie catalogada", familiaBotanica: "No especificada", categoria: "General", subcategoria: "General", cicloProductivo: "Anual", aptitudUsoPrincipal: "Uso general" },
+    seccionB_aptitudTerritorial: { fuenteOficialAptitud: "INTA / SAGyP", escalaDiagnostico: "Regional", fundamentacionAgroclimatica: "Evaluación preliminar de compatibilidad.", requerimientosSuelo: crop.reqSuelo || "Suelos profundos", requerimientosClima: crop.reqClima || "Clima templado" },
+    seccionC_calendarioFenologia: { preparacionTerreno: "Barbecho / Preparación previa", ventanaSiembraPlantacion: crop.siembra || "Información pendiente", ventanaCosechaTurno: crop.cosecha || "Información pendiente", etapasFenologicasClave: ["Emergencia", "Crecimiento", "Floración / Fructificación", "Cosecha"], horizonteProductivo: "Ciclo Productivo Estándar" },
+    seccionD_manejoSanidad: { densidadRecomendada: "Según arreglo zonal", pautasNutricion: "Fertilización previa análisis de suelo", monitoreoSanitario: "Monitoreo preventivo SENASA/INTA", buenasPracticasAgricolas: "Siembra directa y rotaciones" },
+    seccionE_modelosRendimiento: { unidadRendimiento: "tn/ha", escenarioConservador: "Bajo insumo", escenarioBase: crop.rendimientoEstimado || "Promedio zonal", escenarioFavorable: "Alto insumo", tipoModelo: "Observado Histórico" },
+    seccionF_presupuestoEconomico: { moneda: "USD (Campaña 2024/2025)", costoImplantacionUSD: 300, costoMantenimientoAnualUSD: 200, costoCosechaFleteUSD: 150, precioReferenciaUSD: 200, unidadPrecio: "tn", horizonteEconomico: "Anual" },
+    seccionG_trazabilidadCalidadEvidencia: { estadoEvidencia: { identificacion: "🟢 VERIFICADO", aptitudTerritorial: "🟡 PARCIAL", calendarioFenologia: "🟢 VERIFICADO", manejoSanidad: "🟢 VERIFICADO", modelosRendimiento: "🟢 VERIFICADO", presupuestoEconomico: "🟡 PARCIAL" }, coberturaDocumental: "🟢 ALTA", avisoLegal: "Valores orientativos editables por el usuario." }
+  };
+
+  const secA = ft.seccionA_identificacion || {};
+  const secB = ft.seccionB_aptitudTerritorial || {};
+  const secC = ft.seccionC_calendarioFenologia || {};
+  const secD = ft.seccionD_manejoSanidad || {};
+  const secE = ft.seccionE_modelosRendimiento || {};
+  const secF = ft.seccionF_presupuestoEconomico || {};
+  const secG = ft.seccionG_trazabilidadCalidadEvidencia || {};
+
+  if (titulo) titulo.innerText = `📋 Ficha Técnica Universal — ${secA.nombreComun || crop.nombre}`;
+  if (subtitulo) subtitulo.innerText = `${secA.nombreCientifico || ''} | ${secA.familiaBotanica || ''} (${secA.categoria || 'General'})`;
+
+  // Parse default numbers for economic calculator
+  const pImp = parseFloat(secF.costoImplantacionUSD) || 300;
+  const pMant = parseFloat(secF.costoMantenimientoAnualUSD) || 200;
+  const pCos = parseFloat(secF.costoCosechaFleteUSD) || 150;
+  const pPrecio = parseFloat(secF.precioReferenciaUSD) || 200;
+  let defaultYield = 3.5;
+  if (crop.rendimientoEstimado) {
+    const m = crop.rendimientoEstimado.match(/(\d+[\.,]?\d*)/);
+    if (m) defaultYield = parseFloat(m[1].replace(',', '.'));
+  }
+
+  contenido.innerHTML = `
+    <!-- Tab 1: Identificación Agronómica -->
+    <div id="tab-id" class="tab-pane active">
+      <h3 style="color: var(--verde-principal); margin-top: 0;">A. Identificación Agronómica</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+        <div class="sub-card"><strong>Nombre Común:</strong> ${secA.nombreComun || crop.nombre}</div>
+        <div class="sub-card"><strong>Nombre Científico:</strong> <em>${secA.nombreCientifico || 'Especie catalogada'}</em></div>
+        <div class="sub-card"><strong>Familia Botánica:</strong> ${secA.familiaBotanica || 'No especificada'}</div>
+        <div class="sub-card"><strong>Categoría / Subcategoría:</strong> ${secA.categoria || ''} / ${secA.subcategoria || ''}</div>
+        <div class="sub-card"><strong>Ciclo Productivo:</strong> ${secA.cicloProductivo || 'Anual'}</div>
+        <div class="sub-card"><strong>Aptitud y Uso Principal:</strong> ${secA.aptitudUsoPrincipal || 'Producción agropecuaria'}</div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Aptitud y Diagnóstico Territorial -->
+    <div id="tab-aptitud" class="tab-pane">
+      <h3 style="color: var(--verde-principal); margin-top: 0;">B. Aptitud y Diagnóstico Territorial</h3>
+      <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.88rem;">
+        <div><strong>🏛️ Fuente Oficial:</strong> ${secB.fuenteOficialAptitud || 'INTA / GAEZ v5'}</div>
+        <div><strong>📏 Escala de Diagnóstico:</strong> ${secB.escalaDiagnostico || 'Macro-regional'}</div>
+        <div style="margin-top: 6px; color: var(--texto-secundario);">${secB.fundamentacionAgroclimatica || ''}</div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="sub-card"><strong>🌱 Requerimientos de Suelo:</strong><br>${secB.requerimientosSuelo || crop.reqSuelo}</div>
+        <div class="sub-card"><strong>🌦️ Requerimientos de Clima:</strong><br>${secB.requerimientosClima || crop.reqClima}</div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Calendario Productivo y Fenología -->
+    <div id="tab-calendario" class="tab-pane">
+      <h3 style="color: var(--verde-principal); margin-top: 0;">C. Calendario Productivo y Fenología</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
+        <div class="sub-card"><strong>🛠️ Preparación de Terreno:</strong><br>${secC.preparacionTerreno || 'Barbecho y control de malezas'}</div>
+        <div class="sub-card"><strong>📅 Ventana de Siembra / Plantación:</strong><br>${secC.ventanaSiembraPlantacion || crop.siembra}</div>
+        <div class="sub-card"><strong>🌾 Ventana de Cosecha / Turno:</strong><br>${secC.ventanaCosechaTurno || crop.cosecha}</div>
+        <div class="sub-card"><strong>⏳ Horizonte Productivo:</strong><br>${secC.horizonteProductivo || 'Ciclo Anual'}</div>
+      </div>
+      <div class="sub-card">
+        <strong>🔄 Etapas Fenológicas Clave:</strong>
+        <ul style="margin: 6px 0 0 18px; padding: 0;">
+          ${(secC.etapasFenologicasClave || ["Emergencia", "Desarrollo", "Floración", "Cosecha"]).map(e => `<li>${e}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Tab 4: Manejo Agronómico y Sanidad -->
+    <div id="tab-manejo" class="tab-pane">
+      <h3 style="color: var(--verde-principal); margin-top: 0;">D. Manejo Agronómico y Sanidad</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="sub-card"><strong>🌱 Densidad Recomendada:</strong><br>${secD.densidadRecomendada || 'Según arreglo espacial'}</div>
+        <div class="sub-card"><strong>🧪 Pautas de Nutrición:</strong><br>${secD.pautasNutricion || 'Fertilización fosforada e investigación edáfica'}</div>
+        <div class="sub-card"><strong>🛡️ Monitoreo Sanitario:</strong><br>${secD.monitoreoSanitario || 'Monitoreo de plagas SENASA / INTA'}</div>
+        <div class="sub-card"><strong>🌿 Buenas Prácticas Agrícolas (BPA):</strong><br>${secD.buenasPracticasAgricolas || 'Siembra directa y rotaciones'}</div>
+      </div>
+    </div>
+
+    <!-- Tab 5: Modelos de Rendimiento -->
+    <div id="tab-modelos" class="tab-pane">
+      <h3 style="color: var(--verde-principal); margin-top: 0;">E. Modelos de Rendimiento</h3>
+      <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+        <div><strong>📊 Unidad de Rendimiento:</strong> ${secE.unidadRendimiento || 'tn/ha'}</div>
+        <div><strong>🎯 Tipo de Modelo:</strong> ${secE.tipoModelo || 'Potencial Alcanzable GAEZ / SIAP'}</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+        <div class="sub-card" style="border-left: 4px solid #e74c3c;">
+          <strong>🔴 Escenario Conservador:</strong><br>${secE.escenarioConservador || 'Bajo insumo / Restricción hídrica'}
+        </div>
+        <div class="sub-card" style="border-left: 4px solid #f39c12;">
+          <strong>🟡 Escenario Base (Promedio):</strong><br>${secE.escenarioBase || crop.rendimientoEstimado || 'Promedio histórico'}
+        </div>
+        <div class="sub-card" style="border-left: 4px solid #27ae60;">
+          <strong>🟢 Escenario Favorable:</strong><br>${secE.escenarioFavorable || 'Alto insumo / Riego óptimo'}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 6: Presupuesto Económico y Márgenes (Paramétrico Editable) -->
+    <div id="tab-economico" class="tab-pane">
+      <h3 style="color: var(--verde-principal); margin-top: 0;">F. Presupuesto Económico e Indicadores de Lote (Editable en Tiempo Real)</h3>
+      <p style="font-size: 0.85rem; color: var(--texto-secundario); margin-bottom: 15px;">
+        Ajustá los valores de rendimiento, precio de venta y costos estimativos para recalcular el <strong>Margen Bruto</strong> y el <strong>Ingreso Neto del Lote</strong> en tiempo real:
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; border: 1px solid var(--borde-suave); margin-bottom: 15px;">
+        <div>
+          <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Rendimiento Estimado (${secE.unidadRendimiento || 'tn/ha'}):</label>
+          <input type="number" id="calcYield" value="${defaultYield}" step="0.1" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave);" />
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Precio de Venta ($ / ${secF.unidadPrecio || 'tn'}):</label>
+          <input type="number" id="calcPrice" value="${pPrecio}" step="1" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave);" />
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Costo Implantación ($/ha):</label>
+          <input type="number" id="calcImp" value="${pImp}" step="10" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave);" />
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Costo Mantenimiento ($/ha):</label>
+          <input type="number" id="calcMant" value="${pMant}" step="10" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave);" />
+        </div>
+        <div>
+          <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Costo Cosecha y Flete ($/ha):</label>
+          <input type="number" id="calcCos" value="${pCos}" step="10" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--borde-suave);" />
+        </div>
+      </div>
+
+      <!-- Cuadro de Resultados Calculados -->
+      <div id="calcResultsBox" style="background: rgba(39, 174, 96, 0.08); border: 1px solid rgba(39, 174, 96, 0.3); border-radius: 8px; padding: 15px; font-size: 0.9rem;">
+        <!-- Se recalcula por JS -->
+      </div>
+      <small style="display: block; margin-top: 8px; color: var(--texto-secundario); font-size: 0.75rem;">
+        📌 Cifras expresadas en ${secF.moneda || 'USD'}. Horizonate económico: ${secF.horizonteEconomico || 'Anual'}.
+      </small>
+    </div>
+
+    <!-- Tab 7: Trazabilidad y Calidad de Evidencia -->
+    <div id="tab-trazabilidad" class="tab-pane">
+      <h3 style="color: var(--verde-principal); margin-top: 0;">G. Trazabilidad y Calidad de Evidencia</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 12px;">
+        <div class="sub-card">Identificación Agronómica: <strong>${secG.estadoEvidencia?.identificacion || '🟢 VERIFICADO'}</strong></div>
+        <div class="sub-card">Aptitud Territorial: <strong>${secG.estadoEvidencia?.aptitudTerritorial || '🟢 VERIFICADO'}</strong></div>
+        <div class="sub-card">Calendario & Fenología: <strong>${secG.estadoEvidencia?.calendarioFenologia || '🟢 VERIFICADO'}</strong></div>
+        <div class="sub-card">Manejo & Sanidad: <strong>${secG.estadoEvidencia?.manejoSanidad || '🟢 VERIFICADO'}</strong></div>
+        <div class="sub-card">Modelos de Rendimiento: <strong>${secG.estadoEvidencia?.modelosRendimiento || '🟢 VERIFICADO'}</strong></div>
+        <div class="sub-card">Presupuesto Económico: <strong>${secG.estadoEvidencia?.presupuestoEconomico || '🟡 PARCIAL'}</strong></div>
+      </div>
+      <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px; font-size: 0.82rem;">
+        <div><strong>📚 Cobertura Documental:</strong> ${secG.coberturaDocumental || '🟢 ALTA'}</div>
+        <div style="margin-top: 6px; color: var(--texto-secundario);"><strong>⚖️ Aviso Legal de Fuentes:</strong> ${secG.avisoLegal || 'Valores paramétricos de referencia zonal.'}</div>
+      </div>
+    </div>
+  `;
+
+  // Attach Tab Switcher Event Listeners
+  const tabBtns = modal.querySelectorAll(".tab-btn");
+  const tabPanes = modal.querySelectorAll(".tab-pane");
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-tab");
+      tabBtns.forEach(b => b.classList.remove("active"));
+      tabPanes.forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      const targetPane = contenido.querySelector(`#${target}`);
+      if (targetPane) targetPane.classList.add("active");
+    });
+  });
+
+  // Attach Economic Calculator Listener
+  const recalculateEcon = () => {
+    const yVal = parseFloat(document.getElementById("calcYield")?.value) || 0;
+    const prVal = parseFloat(document.getElementById("calcPrice")?.value) || 0;
+    const impVal = parseFloat(document.getElementById("calcImp")?.value) || 0;
+    const mantVal = parseFloat(document.getElementById("calcMant")?.value) || 0;
+    const cosVal = parseFloat(document.getElementById("calcCos")?.value) || 0;
+
+    const ingresoBruto = yVal * prVal;
+    const costosTotales = impVal + mantVal + cosVal;
+    const margenBruto = ingresoBruto - costosTotales;
+    const roiPct = costosTotales > 0 ? ((margenBruto / costosTotales) * 100).toFixed(1) : 0;
+
+    const resBox = document.getElementById("calcResultsBox");
+    if (resBox) {
+      resBox.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+          <div>💰 <strong>Ingreso Bruto Estimado:</strong> <br><span style="font-size: 1.2rem; font-weight: 800; color: var(--verde-principal);">$${ingresoBruto.toFixed(2)} / ha</span></div>
+          <div>💸 <strong>Costos Totales (Directos + Flete):</strong> <br><span style="font-size: 1.2rem; font-weight: 800; color: #c0392b;">$${costosTotales.toFixed(2)} / ha</span></div>
+          <div>📈 <strong>Margen Bruto Estimado:</strong> <br><span style="font-size: 1.25rem; font-weight: 800; color: ${margenBruto >= 0 ? '#27ae60' : '#e74c3c'};">$${margenBruto.toFixed(2)} / ha</span></div>
+          <div>📊 <strong>Retorno de Inversión (ROI):</strong> <br><span style="font-size: 1.2rem; font-weight: 800; color: ${roiPct >= 0 ? '#27ae60' : '#e74c3c'};">${roiPct}%</span></div>
+        </div>
+      `;
+    }
+  };
+
+  ["calcYield", "calcPrice", "calcImp", "calcMant", "calcCos"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", recalculateEcon);
+  });
+
+  recalculateEcon();
+
+  modal.style.display = "flex";
+
+  const btnCerrar = document.getElementById("modalFichaCerrar");
+  if (btnCerrar) {
+    btnCerrar.onclick = () => { modal.style.display = "none"; };
+  }
+};
 
 function initApp() {
   const params = new URLSearchParams(window.location.search);

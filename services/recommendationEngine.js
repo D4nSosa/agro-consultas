@@ -172,6 +172,7 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : 'medium');
 
       return {
+        id: key,
         nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
         descripcion: cropData.descripcion || "Descripción técnica no disponible.",
         siembra: cropData.siembra || "Información pendiente",
@@ -187,7 +188,8 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
         rendimientoEstimado: cropData.rendimientoEstimado || null,
         confianza: labelConfianza,
         nivelConfianza: classConfianza,
-        sostenibilidad: sostenibilidad
+        sostenibilidad: sostenibilidad,
+        fichaTecnica: cropData.fichaTecnica || null
       };
     } catch (e) {
       console.error(`[recommendationEngine] Fallo al procesar cultivo ${nombre}:`, e);

@@ -32,5 +32,30 @@ class TestComprehensiveAudit(unittest.TestCase):
         self.assertIn("createUnavailableDataPoint", code)
         self.assertIn("DataStatus", code)
 
+    def test_ficha_tecnica_7_sections_coverage(self):
+        with open("data/cultivos.json", "r", encoding="utf-8") as f:
+            cultivos = json.load(f)
+        with open("data/forestales.json", "r", encoding="utf-8") as f:
+            forestales = json.load(f)
+
+        merged = {**cultivos, **forestales}
+        self.assertEqual(len(merged), 44, "Total catalog species count must be exactly 44")
+
+        required_sections = [
+            "seccionA_identificacion",
+            "seccionB_aptitudTerritorial",
+            "seccionC_calendarioFenologia",
+            "seccionD_manejoSanidad",
+            "seccionE_modelosRendimiento",
+            "seccionF_presupuestoEconomico",
+            "seccionG_trazabilidadCalidadEvidencia"
+        ]
+
+        for key, species in merged.items():
+            self.assertIn("fichaTecnica", species, f"Missing fichaTecnica in {key}")
+            ft = species["fichaTecnica"]
+            for sec in required_sections:
+                self.assertIn(sec, ft, f"Missing section {sec} in fichaTecnica for {key}")
+
 if __name__ == "__main__":
     unittest.main()
