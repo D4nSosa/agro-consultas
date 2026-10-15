@@ -91,7 +91,7 @@
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Reporte Técnico Territorial Agropecuario y Forestal</small><br>
+    <small>© <span class="current-year"></span> Agro Consultas — Reporte Técnico Territorial Agropecuario y Forestal</small><br>
     <small style="margin-top: 6px; display: inline-block;">Desarrollado por <strong>Dante Iván Sosa</strong> | <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" style="color: var(--verde-principal); text-decoration: underline; font-weight: 600;">LinkedIn</a></small>
   </footer>
 
@@ -105,9 +105,12 @@
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
     import { generateRecommendations, loadCultivosData, getCropsToEvaluate } from './services/recommendationEngine.js';
+    import { calculateArea } from './forestal/utils/geo.js';
+    import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('report-date').innerText = `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`;
+      document.querySelectorAll('.current-year').forEach(el => el.innerText = new Date().getFullYear());
 
       // Theme toggle
       const themeToggle = document.getElementById('themeToggle');
@@ -146,11 +149,30 @@
       const lat = parseFloat(params.get('lat'));
       const lng = parseFloat(params.get('lng'));
       const lotName = params.get('nombre') || 'Lote Campo';
-      const haVal = params.get('ha') || '0.00';
+      let haVal = params.get('ha');
       const geomStr = params.get('geom');
+      const reportType = params.get('type') || 'aptitud';
 
       document.getElementById('report-title').innerText = `Informe Técnico — ${lotName}`;
-      document.getElementById('report-ha').innerText = `${haVal} ha`;
+
+      let parsedGeom = null;
+      if (geomStr) {
+        try {
+          parsedGeom = JSON.parse(geomStr);
+          const areaCalc = calculateArea(parsedGeom);
+          if (areaCalc && !areaCalc.isPoint && areaCalc.hectares > 0) {
+            haVal = `${areaCalc.hectares}`;
+            document.getElementById('report-m2').innerText = `${areaCalc.squareMeters.toLocaleString('es-AR')} m²`;
+          }
+        } catch (e) {}
+      }
+
+      if (haVal && haVal !== 'N/A' && haVal !== 'null' && haVal !== 'undefined') {
+        document.getElementById('report-ha').innerText = `${haVal} ha`;
+      } else {
+        document.getElementById('report-ha').innerText = `Punto GPS`;
+        document.getElementById('report-m2').innerText = `Consulta puntual`;
+      }
 
       if (!isNaN(lat) && !isNaN(lng)) {
         document.getElementById('report-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
@@ -163,10 +185,9 @@
         attribution: '© OpenStreetMap | IGN Argentina'
       }).addTo(reportMap);
 
-      if (geomStr) {
+      if (parsedGeom) {
         try {
-          const geom = JSON.parse(geomStr);
-          const polyLayer = L.geoJSON(geom, {
+          const polyLayer = L.geoJSON(parsedGeom, {
             style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.35 }
           }).addTo(reportMap);
           reportMap.fitBounds(polyLayer.getBounds(), { padding: [20, 20] });
@@ -195,7 +216,66 @@
         const todasRecomendaciones = await generateRecommendations(cultivosNombres, soilReport, climateReport);
         const recomendaciones = todasRecomendaciones.filter(c => c.compatibilidad !== "INFORMACIÓN PENDIENTE DE VERIFICACIÓN");
 
+        let forestHTML = '';
+        if (reportType === 'forestal') {
+          const now = new Date();
+          const yearNow = now.getFullYear();
+          const dateBStr = now.toISOString().split('T')[0];
+          const dateAStr = `${yearNow - 1}-01-01`;
+
+          const featureToAnalyze = {
+            type: "Feature",
+            properties: { name: lotName },
+            geometry: parsedGeom || { type: "Point", coordinates: [lng, lat] }
+          };
+
+          const forestAnalysis = await runFullForestAnalysis(featureToAnalyze, dateAStr, dateBStr);
+
+          const prodA = forestAnalysis?.products?.productA;
+          const prodB = forestAnalysis?.products?.productB;
+          const changes = forestAnalysis?.changes || {};
+
+          forestHTML = `
+            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px dashed var(--borde-suave);">
+              <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">
+                🌲 Análisis Técnico Forestal y Teledetección Satelital
+              </h2>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                <div style="background: rgba(39, 174, 96, 0.05); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+                  <strong style="color: #27ae60; font-size: 0.9rem;">🟢 Escena Satelital Fecha A</strong>
+                  ${prodA ? `
+                    <div style="font-size: 0.82rem; margin-top: 6px; line-height: 1.4;">
+                      <div><strong>ID:</strong> ${prodA.id}</div>
+                      <div><strong>Fecha Adquisición:</strong> ${prodA.date}</div>
+                      <div><strong>Nubosidad:</strong> ${prodA.cloudCover}%</div>
+                    </div>
+                  ` : `<div style="font-size: 0.82rem; color: var(--texto-secundario); margin-top: 6px;">Escena no disponible</div>`}
+                </div>
+
+                <div style="background: rgba(41, 128, 185, 0.05); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
+                  <strong style="color: #2980b9; font-size: 0.9rem;">🔵 Escena Satelital Fecha B</strong>
+                  ${prodB ? `
+                    <div style="font-size: 0.82rem; margin-top: 6px; line-height: 1.4;">
+                      <div><strong>ID:</strong> ${prodB.id}</div>
+                      <div><strong>Fecha Adquisición:</strong> ${prodB.date}</div>
+                      <div><strong>Nubosidad:</strong> ${prodB.cloudCover}%</div>
+                    </div>
+                  ` : `<div style="font-size: 0.82rem; color: var(--texto-secundario); margin-top: 6px;">Escena no disponible</div>`}
+                </div>
+              </div>
+
+              <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
+                <strong>📊 Diagnóstico de Variación Espectral:</strong> ${changes.primaryMessage || 'Cálculo de índice NDVI en consulta'}<br>
+                <span style="color: var(--texto-secundario);">${changes.description || ''}</span>
+              </div>
+            </div>
+          `;
+        }
+
         analysisContainer.innerHTML = `
+          ${forestHTML}
+
           <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">
             🌱 Evaluación Territorial y Diagnóstico Agroclimático
           </h2>
@@ -240,7 +320,7 @@
           </div>
 
           <h3 style="margin: 20px 0 10px 0; color: var(--verde-principal); font-size: 1.15rem; border-bottom: 1px solid var(--borde-suave); padding-bottom: 6px;">
-            🌾 Matriz de Aptitud Agroecológica de Cultivos
+            🌾 Matriz de Aptitud Agroecológica y Forestal
           </h3>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">

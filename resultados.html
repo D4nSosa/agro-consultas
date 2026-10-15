@@ -263,9 +263,15 @@
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
-    <small>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</small><br>
+    <small>© <span class="current-year"></span> Agro Consultas — Inteligencia Territorial Agropecuaria y Forestal</small><br>
     <small style="margin-top: 6px; display: inline-block;">Desarrollado por <strong>Dante Iván Sosa</strong> | <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer" style="color: var(--verde-principal); text-decoration: underline; font-weight: 600;">LinkedIn</a></small>
   </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.current-year').forEach(el => el.innerText = new Date().getFullYear());
+    });
+  </script>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

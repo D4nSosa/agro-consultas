@@ -154,18 +154,30 @@ export class ChangeReport {
     if (btnShare) {
       btnShare.addEventListener('click', async () => {
         const lotName = lot?.geometry?.properties?.name || 'Lote Forestal';
+        const lat = lot?.centroid?.lat || -38.4161;
+        const lng = lot?.centroid?.lng || -63.6167;
+        const ha = lot?.area?.hectares || '0.00';
+        const geom = lot?.geometry ? JSON.stringify(lot.geometry) : '';
+
+        const baseUrl = window.location.origin + window.location.pathname.replace(/forestal(\.html)?/, 'reporte.html');
+        const shareUrl = `${baseUrl}?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&nombre=${encodeURIComponent(lotName)}&ha=${ha}&type=forestal${geom ? '&geom=' + encodeURIComponent(geom) : ''}`;
+
         const shareData = {
-          title: `Informe Forestal — ${lotName}`,
-          text: `Informe de Análisis Forestal y Teledetección para ${lotName} en Agro Consultas.`,
-          url: window.location.href
+          title: `Informe Técnico Forestal — ${lotName}`,
+          text: `Informe de Análisis Forestal y Teledetección para ${lotName} en Agro Consultas:`,
+          url: shareUrl
         };
+
         if (navigator.share) {
           try {
             await navigator.share(shareData);
           } catch (e) {}
         } else {
-          navigator.clipboard.writeText(window.location.href);
-          alert('¡Enlace de reporte copiado al portapapeles!');
+          navigator.clipboard.writeText(shareUrl).then(() => {
+            alert("Enlace único del reporte forestal copiado al portapapeles:\n" + shareUrl);
+          }).catch(() => {
+            alert("Enlace único del reporte forestal:\n" + shareUrl);
+          });
         }
       });
     }
