@@ -62,11 +62,11 @@ export class ChangeReport {
           </div>
         </div>
 
-        <!-- Inventario de Campo si existe -->
-        ${analysisData.inventory ? `
+        <!-- Inventario Dasométrico de Campo -->
         <h3 style="color: #2980b9; border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
-          📋 Inventario Daseométrico de Campo
+          📋 Indicadores Dasométricos de Campo
         </h3>
+        ${analysisData.inventory ? `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: rgba(41, 128, 185, 0.04); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--borde-suave);">
           <div>
             <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Especie Dominante:</span>
@@ -77,6 +77,10 @@ export class ChangeReport {
             <strong>${analysisData.inventory.dap} cm | ${analysisData.inventory.altura} m</strong>
           </div>
           <div>
+            <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Área Basal / Densidad:</span>
+            <strong>${analysisData.inventory.areaBasalHa ? `${analysisData.inventory.areaBasalHa} m²/ha` : 'N/D'} | ${analysisData.inventory.densidad} pies/ha</strong>
+          </div>
+          <div>
             <span style="font-size: 0.78rem; color: var(--texto-secundario); display: block;">Volumen Estimado:</span>
             <strong style="color: #2980b9; font-size: 1.1rem;">${analysisData.inventory.volumenHa} m³/ha</strong>
           </div>
@@ -85,7 +89,26 @@ export class ChangeReport {
             <p style="margin: 4px 0 0 0; font-size: 0.85rem;">${analysisData.inventory.evalSilvicola || analysisData.inventory.prescripcion || 'NO DISPONIBLE'}</p>
           </div>
         </div>
-        ` : ''}
+        ` : `
+        <div style="background: rgba(0,0,0,0.02); border: 1px dashed var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem; color: var(--texto-secundario); margin-bottom: 20px;">
+          ⚪ <strong>Información dasométrica no ingresada por el usuario</strong> (DAP, altura y densidad pendientes de medición en terreno).
+        </div>
+        `}
+
+        <!-- Ordenamiento Territorial de Bosques Nativos (OTBN Ley 26.331) -->
+        <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
+          🌳 Ordenamiento Territorial de Bosques Nativos (OTBN - Ley 26.331)
+        </h3>
+        <div style="background: rgba(39, 174, 96, 0.04); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+          <div style="display: flex; gap: 15px; flex-wrap: wrap; font-size: 0.88rem;">
+            <div>🔴 <strong>Categoría I (Roja):</strong> Muy alto valor de conservación (No transformable)</div>
+            <div>🟡 <strong>Categoría II (Amarilla):</strong> Mediano valor de conservación (Sostenible)</div>
+            <div>🟢 <strong>Categoría III (Verde):</strong> Bajo valor de conservación (Aptitud de transformación)</div>
+          </div>
+          <div style="margin-top: 8px; font-size: 0.82rem; color: var(--texto-secundario);">
+            Fuente Oficial: Cartografía de Bosques Nativos WMS INTA / Secretaría de Ambiente y Desarrollo Sustentable.
+          </div>
+        </div>
 
         <!-- Trazabilidad Satelital -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">

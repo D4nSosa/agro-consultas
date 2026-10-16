@@ -16,24 +16,46 @@ const PUBLIC_CATALOG_NAME = 'AWS Earth Search (Sentinel-2 L2A COGs Public Catalo
 /**
  * Busca imágenes Sentinel-2 L2A en el catálogo STAC alrededor de una fecha objetivo (ventana configurable).
  */
-export async function searchSentinelImagesByTargetDate(geometry, targetDateStr, windowDays = 45, maxCloudCover = 30) {
+export async function searchSentinelImagesByTargetDate(geometry, targetDateStr, windowDays = 90, maxCloudCover = 30) {
   const targetDate = new Date(targetDateStr);
   if (isNaN(targetDate.getTime())) {
     return unavailableResult(`Fecha objetivo inválida: "${targetDateStr}"`, targetDateStr, windowDays);
   }
 
-  const startDate = new Date(targetDate.getTime() - windowDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const endDate = new Date(targetDate.getTime() + windowDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  // Búsqueda progresiva ampliando la ventana temporal si no hay resultados en ventanas iniciales
+  const windowsToTry = [windowDays, Math.max(windowDays, 60), Math.max(windowDays, 90), 120];
+  const uniqueWindows = [...new Set(windowsToTry)];
 
-  const searchRes = await searchSentinelImages(geometry, startDate, endDate, maxCloudCover);
+  let searchRes = null;
+  let effectiveWindow = windowDays;
+  let startDate = '';
+  let endDate = '';
 
-  if (!searchRes.success || !searchRes.products || searchRes.products.length === 0) {
+  for (const wDays of uniqueWindows) {
+    effectiveWindow = wDays;
+    startDate = new Date(targetDate.getTime() - wDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    endDate = new Date(targetDate.getTime() + wDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    searchRes = await searchSentinelImages(geometry, startDate, endDate, maxCloudCover);
+    if (searchRes.success && searchRes.products && searchRes.products.length > 0) {
+      break;
+    }
+    // Si no se encuentran escenas con el umbral inicial de nubosidad, probar flexibilizando ligeramente la nubosidad en ventanas mayores
+    if (wDays >= 90) {
+      searchRes = await searchSentinelImages(geometry, startDate, endDate, 50);
+      if (searchRes.success && searchRes.products && searchRes.products.length > 0) {
+        break;
+      }
+    }
+  }
+
+  if (!searchRes || !searchRes.success || !searchRes.products || searchRes.products.length === 0) {
     return {
       ...searchRes,
       targetDate: targetDateStr,
-      windowDays: windowDays,
+      windowDays: effectiveWindow,
       windowRange: `${startDate} a ${endDate}`,
-      message: `NO DISPONIBLE — No se encontraron escenas Sentinel-2 en la ventana de ±${windowDays} días (${startDate} a ${endDate}) respecto a la fecha objetivo ${targetDateStr}.`
+      message: `NO DISPONIBLE — No se encontraron escenas Sentinel-2 en la ventana de ±${effectiveWindow} días (${startDate} a ${endDate}) respecto a la fecha objetivo ${targetDateStr}.`
     };
   }
 

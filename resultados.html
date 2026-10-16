@@ -4,7 +4,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Resultados — Agro Consultas</title>
+  <title>Aptitud de Cultivos y Diagnóstico Territorial — Agro Consultas</title>
+
+  <meta name="description" content="Consulta de aptitud agroecológica de cultivos, mapa edáfico INTA 1:50.000, clima en vivo, riesgo de incendios FWI y series climáticas NASA POWER por localidad en Argentina." />
+  <meta name="keywords" content="aptitud de cultivos, suelos inta, evaluacion agroecologica, clima en vivo agro, fwi incendios, nasa power argentina" />
+  <meta name="author" content="Dante Iván Sosa" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://agroconsultas.com.ar/resultados.html" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Aptitud de Cultivos y Diagnóstico Territorial — Agro Consultas" />
+  <meta property="og:description" content="Evaluación de compatibilidad edafoclimática y mapa de decisiones agronómicas en tiempo real sin datos inventados." />
+  <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Aptitud de Cultivos y Diagnóstico Territorial",
+    "description": "Evaluación multicriterio de compatibilidad de cultivos agrícolas con datos oficiales de INTA y Open-Meteo.",
+    "url": "https://agroconsultas.com.ar/resultados.html"
+  }
+  </script>
 
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
@@ -108,6 +130,14 @@
       <div class="map-layout">
         <div style="position: relative; flex: 1; display: flex; flex-direction: column;">
           <div id="map" style="height: 320px; min-height: 280px; max-height: 350px;"></div>
+
+          <!-- Botonera de Control de Mapa (Ubicada Inmediatamente Debajo del Mapa) -->
+          <div style="display: flex; gap: 8px; padding: 10px; background: var(--gris-fondo); border-bottom: 1px solid var(--borde-suave); flex-wrap: wrap;">
+            <button id="btn-geolocalizar" class="btn primary" style="flex: 1; font-size: 0.85rem; padding: 8px 12px; background: #27ae60; border-color: #27ae60; min-width: 180px;">📍 Usar Mi Ubicación Actual</button>
+            <button id="btn-start-draw-main" class="btn outline" style="flex: 1; font-size: 0.85rem; padding: 8px 12px; min-width: 140px;">✏️ Dibujar Lote</button>
+            <button id="btn-clear-draw-main" class="btn outline" style="flex: 1; font-size: 0.85rem; padding: 8px 12px; color: #c0392b; border-color: #c0392b; display: none; min-width: 140px;">🗑️ Limpiar Vértices</button>
+          </div>
+
           <!-- Panel de control de capas extensible -->
           <div id="map-layer-controls-container" style="padding: 10px; background: var(--bg-principal);"></div>
           <!-- Leyenda del Mapa interactiva -->
@@ -122,18 +152,12 @@
         </div>
         <div class="territory-sidebar" id="territory-info">
           <h3>Información Territorial</h3>
-          <p class="text-muted">Hacé click en cualquier punto del mapa o buscá una localidad para obtener datos de suelo, clima y recomendaciones de cultivos.</p>
           <div id="territory-details" class="territory-details-content">
             <div class="empty-state">
               <span style="font-size: 2rem;">📍</span>
               <p>Sin ubicación seleccionada.</p>
               <p class="text-muted" style="font-size: 0.85rem;">Ingresá una localidad, seleccioná un punto del mapa o utilizá tu ubicación GPS para comenzar.</p>
             </div>
-          </div>
-          <button id="btn-geolocalizar" class="btn primary" style="width: 100%; margin-top: 12px;">📍 Usar Mi Ubicación Actual</button>
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <button id="btn-start-draw-main" class="btn outline" style="flex: 1; font-size: 0.8rem; padding: 8px;">✏️ Dibujar Lote</button>
-            <button id="btn-clear-draw-main" class="btn outline" style="flex: 1; font-size: 0.8rem; padding: 8px; color: #c0392b; border-color: #c0392b; display: none;">🗑️ Limpiar Vértices</button>
           </div>
         </div>
       </div>
@@ -230,36 +254,6 @@
       </div>
     </section>
 
-    <!-- Modal para Ficha Técnica Universal e Indicadores Económicos -->
-    <div id="modalFichaTecnica" class="modal-overlay" style="display: none;">
-      <div class="modal-card">
-        <div class="modal-header">
-          <div>
-            <h2 id="modalFichaTitulo" style="margin: 0; font-size: 1.4rem; color: var(--verde-principal); font-weight: 800;">
-              📋 Ficha Técnica Universal
-            </h2>
-            <div id="modalFichaSubtitulo" style="font-size: 0.85rem; color: var(--texto-secundario);">
-              Diagnóstico Agroecológico e Indicadores Económicos
-            </div>
-          </div>
-          <button id="modalFichaCerrar" class="icon-btn" style="font-size: 1.4rem;">✖</button>
-        </div>
-
-        <div class="modal-tabs">
-          <button class="tab-btn active" data-tab="tab-id">1. Identificación</button>
-          <button class="tab-btn" data-tab="tab-aptitud">2. Aptitud & Diagnóstico</button>
-          <button class="tab-btn" data-tab="tab-calendario">3. Calendario & Fenología</button>
-          <button class="tab-btn" data-tab="tab-manejo">4. Manejo & Sanidad</button>
-          <button class="tab-btn" data-tab="tab-modelos">5. Modelos Rendimiento</button>
-          <button class="tab-btn" data-tab="tab-economico">6. Presupuesto & Márgenes</button>
-          <button class="tab-btn" data-tab="tab-trazabilidad">7. Evidencia & Fuentes</button>
-        </div>
-
-        <div id="modalFichaContenido" class="modal-body">
-          <!-- Se puebla dinámicamente desde script.js -->
-        </div>
-      </div>
-    </div>
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
