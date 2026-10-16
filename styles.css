@@ -484,6 +484,161 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
 }
 
 /* ============================================================================
+   Carrusel de Módulos (Home)
+   ============================================================================ */
+.carousel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 10px 0;
+}
+
+.carousel-track-container {
+  overflow: hidden;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
+}
+
+.carousel-slide {
+  min-width: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+.module-card {
+  background: var(--gris-fondo);
+  border: 1px solid var(--borde-suave);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 260px;
+  box-shadow: 0 4px 12px var(--sombra-suave);
+  transition: transform 0.2s ease;
+}
+
+.carousel-btn {
+  background: var(--gris-card);
+  border: 1px solid var(--borde-suave);
+  color: var(--verde-principal);
+  font-size: 1.2rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px var(--sombra-suave);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.carousel-btn:hover {
+  background: var(--verde-principal);
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.carousel-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--verde-principal);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.25s ease;
+}
+
+.carousel-dot.active {
+  background: var(--verde-principal);
+  width: 28px;
+  border-radius: 12px;
+}
+
+/* ============================================================================
+   Acordeón Plegable de Preguntas Frecuentes (FAQ)
+   ============================================================================ */
+.faq-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.faq-item {
+  background: var(--gris-fondo);
+  border: 1px solid var(--borde-suave);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.faq-item[open] {
+  border-color: var(--verde-principal);
+  background: var(--gris-card);
+  box-shadow: 0 4px 12px var(--sombra-suave);
+}
+
+.faq-question {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--verde-principal);
+  padding: 16px 20px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  outline: none;
+}
+
+.faq-question::-webkit-details-marker {
+  display: none;
+}
+
+.faq-question::after {
+  content: '➕';
+  font-size: 0.85rem;
+  transition: transform 0.25s ease;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.faq-item[open] .faq-question::after {
+  content: '➖';
+}
+
+.faq-answer {
+  padding: 0 20px 18px 20px;
+  font-size: 0.88rem;
+  color: var(--texto-secundario);
+  line-height: 1.6;
+  border-top: 1px dashed var(--borde-suave);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+/* ============================================================================
    Sección Explicativa (Home) - Grid y Cards
    ============================================================================ */
 .explanation-grid {

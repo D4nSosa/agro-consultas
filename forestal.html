@@ -4,7 +4,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Análisis Forestal - Agro Consultas</title>
+  <title>Módulo Forestal y Teledetección Satelital — Agro Consultas</title>
+
+  <meta name="description" content="Monitoreo de lotes forestales con imágenes Sentinel-2 L2A, radar Sentinel-1 SAR, ordenamiento territorial de bosques nativos (OTBN Ley 26.331) e inventario dasométrico en Argentina." />
+  <meta name="keywords" content="analisis forestal, teledeteccion satelital, sentinel-2 forestal, otbn bosques nativos, radar sar sentinel-1, inventario dasometrico, dante ivan sosa" />
+  <meta name="author" content="Dante Iván Sosa" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://agroconsultas.com.ar/forestal.html" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Módulo Forestal y Teledetección Satelital — Agro Consultas" />
+  <meta property="og:description" content="Análisis multitemporal de lotes forestales, cálculo NDVI/EVI real, biomasa SAR y ordenamiento de bosques nativos." />
+  <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Módulo Forestal y Teledetección Satelital",
+    "description": "Monitoreo satelital e inventario dasométrico de lotes forestales en Argentina.",
+    "url": "https://agroconsultas.com.ar/forestal.html"
+  }
+  </script>
 
   <!-- Tipografía Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -70,12 +92,12 @@
         <!-- Contenedor del Mapa -->
         <div id="forest-map" style="height: 320px; border-radius: 8px; border: 1px solid var(--borde-suave); overflow: hidden;"></div>
 
-        <!-- Botonera de interacción con la geometría -->
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <button id="btn-gps-loc" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #27ae60; border-color: #27ae60;">📍 Mi Ubicación GPS (Campo)</button>
-          <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px;">✏️ Dibujar Lote en Mapa</button>
-          <button id="btn-start-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #e67e22; border-color: #e67e22;">🚶 Iniciar Caminata GPS de Lote</button>
-          <button id="btn-stop-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 14px; background: #c0392b; border-color: #c0392b; display: none;">🔴 Finalizar y Cerrar Lote</button>
+        <!-- Botonera de interacción ergonométrica (Inmediatamente Debajo del Mapa) -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; padding: 8px; background: var(--gris-fondo); border-radius: 8px; border: 1px solid var(--borde-suave);">
+          <button id="btn-gps-loc" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; background: #27ae60; border-color: #27ae60; flex: 1; min-width: 160px;">📍 Mi Ubicación GPS (Campo)</button>
+          <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; flex: 1; min-width: 140px;">✏️ Dibujar Lote en Mapa</button>
+          <button id="btn-start-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; background: #e67e22; border-color: #e67e22; flex: 1; min-width: 180px;">🚶 Iniciar Caminata GPS</button>
+          <button id="btn-stop-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; background: #c0392b; border-color: #c0392b; display: none; flex: 1; min-width: 180px;">🔴 Finalizar y Cerrar Lote</button>
         </div>
       </div>
 

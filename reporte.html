@@ -6,6 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Informe Técnico Territorial — Agro Consultas</title>
 
+  <meta name="description" content="Informe técnico territorial verificado para lotes agropecuarios y forestales en Argentina. Datos oficiales de INTA, Open-Meteo, NASA POWER e imágenes satelitales Sentinel-2." />
+  <meta name="keywords" content="informe tecnico agropecuario, reporte territorial inta, analisis de lote satelital, agro consultas reporte" />
+  <meta name="author" content="Dante Iván Sosa" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://agroconsultas.com.ar/reporte.html" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Informe Técnico Territorial — Agro Consultas" />
+  <meta property="og:description" content="Informe técnico territorial con datos oficiales de INTA, Open-Meteo, NASA POWER y Sentinel-2." />
+  <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
+
   <!-- Tipografía Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
@@ -238,7 +250,7 @@
           forestHTML = `
             <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px dashed var(--borde-suave);">
               <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">
-                🌲 Análisis Técnico Forestal y Teledetección Satelital
+                🌲 Análisis Técnico Forestal, OTBN y Teledetección Satelital
               </h2>
 
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 15px;">
@@ -265,9 +277,19 @@
                 </div>
               </div>
 
-              <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
+              <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem; margin-bottom: 15px;">
                 <strong>📊 Diagnóstico de Variación Espectral:</strong> ${changes.primaryMessage || 'Cálculo de índice NDVI en consulta'}<br>
                 <span style="color: var(--texto-secundario);">${changes.description || ''}</span>
+              </div>
+
+              <!-- Ordenamiento Territorial de Bosques Nativos (OTBN Ley 26.331) -->
+              <div style="background: rgba(39, 174, 96, 0.04); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
+                <strong style="color: var(--verde-principal); display: block; margin-bottom: 4px;">🌳 Categorización OTBN (Ley 26.331 Bosques Nativos):</strong>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.82rem; margin-top: 4px;">
+                  <span>🔴 Categoría I (Roja - Preservación)</span>
+                  <span>🟡 Categoría II (Amarilla - Manejo Sostenible)</span>
+                  <span>🟢 Categoría III (Verde - Transformable)</span>
+                </div>
               </div>
             </div>
           `;

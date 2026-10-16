@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://agroconsultas.com.ar/index.html</loc>
+    <lastmod>2025-02-23</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://agroconsultas.com.ar/resultados.html</loc>
+    <lastmod>2025-02-23</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://agroconsultas.com.ar/forestal.html</loc>
+    <lastmod>2025-02-23</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://agroconsultas.com.ar/tracking.html</loc>
+    <lastmod>2025-02-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://agroconsultas.com.ar/reporte.html</loc>
+    <lastmod>2025-02-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>
