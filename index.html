@@ -375,27 +375,29 @@
       window.location.href = 'resultados.html?ubicacion=' + encodeURIComponent(provincia);
     }
 
-    document.getElementById('gpsBtn').addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        alert('La geolocalización no está soportada en tu navegador.');
-        return;
-      }
-      const btn = document.getElementById('gpsBtn');
-      btn.innerText = '📡 Buscando GPS...';
-      btn.disabled = true;
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          window.location.href = `resultados.html?lat=${latitude.toFixed(5)}&lng=${longitude.toFixed(5)}`;
-        },
-        (err) => {
-          alert('No se pudo obtener la ubicación GPS: ' + err.message);
-          btn.innerText = '📍 Consultar Mi Ubicación GPS Actual';
-          btn.disabled = false;
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    });
+    const gpsBtn = document.getElementById('gpsBtn');
+    if (gpsBtn) {
+      gpsBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          alert('La geolocalización no está soportada en tu navegador.');
+          return;
+        }
+        gpsBtn.innerText = '📡 Buscando GPS...';
+        gpsBtn.disabled = true;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            window.location.href = `resultados.html?lat=${latitude.toFixed(5)}&lng=${longitude.toFixed(5)}`;
+          },
+          (err) => {
+            alert('No se pudo obtener la ubicación GPS: ' + err.message);
+            gpsBtn.innerText = '📍 Consultar Mi Ubicación GPS Actual';
+            gpsBtn.disabled = false;
+          },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      });
+    }
 
     // Modales tutorial y metodología
     document.getElementById('btnTutorial').addEventListener('click', () => {

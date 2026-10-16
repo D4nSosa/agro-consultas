@@ -6,11 +6,12 @@
   --verde-claro: #e8f5e9;
   --gris-fondo: #f4f6f8;
   --gris-card: #ffffff;
+  --bg-principal: #ffffff;
   --texto-principal: #1c2833;
-  --texto-secundario: #566573;
+  --texto-secundario: #4a5568;
   --sombra-suave: rgba(0,0,0,0.06);
   --sombra-media: rgba(0,0,0,0.12);
-  --borde-suave: #e2e8f0;
+  --borde-suave: #cbd5e1;
   --transicion: 0.24s ease;
 }
 
@@ -21,11 +22,12 @@
   --verde-claro: rgba(39, 174, 96, 0.15);
   --gris-fondo: #09130b;
   --gris-card: #0f1c12;
+  --bg-principal: #0b180d;
   --texto-principal: #eef7f0;
   --texto-secundario: #a3b8a8;
   --sombra-suave: rgba(0,0,0,0.5);
   --sombra-media: rgba(0,0,0,0.6);
-  --borde-suave: rgba(255,255,255,0.08);
+  --borde-suave: rgba(255,255,255,0.12);
 }
 
 *{box-sizing:border-box}
@@ -188,10 +190,15 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
 .row{ display:flex; gap:10px }
 .row .btn{ flex:1 }
 
-.btn{ display:inline-block; padding:10px 14px; border-radius:10px; border:1px solid var(--borde-suave); background:transparent; cursor:pointer; transition:all var(--transicion); color:var(--texto-principal)}
-.btn.primary{ background:var(--verde-principal); color:#fff; border:none; box-shadow:0 6px 18px rgba(27,94,32,0.12) }
-.btn.outline{ background:transparent; border:1px solid var(--verde-principal); color:var(--verde-principal) }
-.btn.link{ background:transparent; border:none; color:var(--verde-principal); padding:8px 10px }
+.btn{ display:inline-block; padding:10px 14px; border-radius:10px; border:1px solid var(--borde-suave); background:transparent; cursor:pointer; transition:all var(--transicion); color:var(--texto-principal); font-weight:600;}
+.btn.primary{ background:var(--verde-principal); color:#ffffff !important; border:none; box-shadow:0 6px 18px rgba(27,94,32,0.12) }
+.btn.primary:hover{ filter:brightness(1.1); transform:translateY(-1px); }
+.btn.outline{ background:var(--gris-card); border:1.5px solid var(--verde-principal); color:var(--verde-principal) !important; }
+.btn.outline:hover{ background:var(--verde-claro); }
+.btn.link{ background:transparent; border:none; color:var(--verde-principal) !important; padding:8px 10px }
+
+.icon-btn{ background:var(--gris-card); border:1px solid var(--borde-suave); padding:8px 12px; border-radius:8px; cursor:pointer; color:var(--texto-principal); font-size:1.1rem; transition:all var(--transicion); }
+.icon-btn:hover{ background:var(--verde-claro); border-color:var(--verde-principal); }
 
 .app-footer{ padding:32px; text-align:center; color:var(--texto-secundario) }
 
