@@ -264,7 +264,9 @@ export async function buscarYProcesarUbicacion(queryTexto) {
     await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
     await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
     await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
-    await renderSarRadarUI(currentLat, currentLng, polygonGeoJSON);
+    // No usar polygonGeoJSON: no existe en este flujo. Solo enviar el polígono activo si la selección es un lote.
+    const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;
+    await renderSarRadarUI(currentLat, currentLng, sarGeometry);
   } catch (err) {
     console.error("Error en buscarYProcesarUbicacion:", err);
   } finally {
@@ -339,6 +341,10 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
     await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
     await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData);
     await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+    // Ejecutar SAR también cuando la selección llega desde el mapa/GPS (no solo desde el buscador).
+    // Enviar el polígono únicamente cuando la selección actual corresponde al lote dibujado.
+    const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;
+    await renderSarRadarUI(currentLat, currentLng, sarGeometry);
   } catch (err) {
     console.error("Error en procesarSeleccionCoordenadas:", err);
   } finally {
