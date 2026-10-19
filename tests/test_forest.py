@@ -105,3 +105,68 @@ def test_api_sar_radar_calculation():
         assert "vh_mean_dB" in data["stats"]
         assert "vh_vv_ratio_dB" in data["stats"]
         assert "interpretation" in data
+
+
+def test_api_sar_tries_next_scene_when_first_raster_fails(monkeypatch):
+    import json
+    import backend.main as forest_backend
+
+    features = [
+        {
+            "id": "scene-first-fails",
+            "properties": {"datetime": "2024-05-20T10:00:00Z", "sat:orbit_state": "ascending"},
+            "assets": {"vv": {"href": "https://example.test/first-vv.tif"}, "vh": {"href": "https://example.test/first-vh.tif"}}
+        },
+        {
+            "id": "scene-second-works",
+            "properties": {"datetime": "2024-05-18T10:00:00Z", "sat:orbit_state": "descending"},
+            "assets": {"vv": {"href": "https://example.test/second-vv.tif"}, "vh": {"href": "https://example.test/second-vh.tif"}}
+        }
+    ]
+
+    class FakeResponse:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps({"features": features}).encode("utf-8")
+
+    monkeypatch.setattr(forest_backend.urllib.request, "urlopen", lambda *args, **kwargs: FakeResponse())
+    calls = []
+    def fake_process(vv_url, vh_url, geom):
+        calls.append(vv_url)
+        if "first" in vv_url:
+            return None, "No hay píxeles válidos"
+        return {
+            "vv_mean_dB": -12.0,
+            "vh_mean_dB": -20.0,
+            "vh_vv_ratio_dB": -8.0,
+            "sampleCount": 10,
+            "isPoint": False
+        }, None
+    monkeypatch.setattr(forest_backend, "process_cog_raster_sar_cropped", fake_process)
+
+    response = client.post("/api/forest/sar", json={
+        "geometry": SAMPLE_POLYGON_GEOMETRY,
+        "startDate": "2024-01-01",
+        "endDate": "2024-06-01"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "REAL"
+    assert data["productId"] == "scene-second-works"
+    assert calls == [
+        "https://example.test/first-vv.tif",
+        "https://example.test/second-vv.tif"
+    ]
+
+
+def test_api_sar_rejects_invalid_date_range():
+    response = client.post("/api/forest/sar", json={
+        "geometry": SAMPLE_POLYGON_GEOMETRY,
+        "startDate": "2024-06-01",
+        "endDate": "2024-01-01"
+    })
+    assert response.status_code == 400
