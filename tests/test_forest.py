@@ -170,3 +170,41 @@ def test_api_sar_rejects_invalid_date_range():
         "endDate": "2024-01-01"
     })
     assert response.status_code == 400
+
+
+def test_api_root_survives_missing_rasterio_native_dependency(monkeypatch):
+    import builtins
+
+    real_import = builtins.__import__
+
+    def reject_rasterio(name, *args, **kwargs):
+        if name == "rasterio" or name.startswith("rasterio."):
+            raise ImportError("simulated missing libexpat.so.1")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_rasterio)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json()["status"] == "online"
+
+
+def test_sar_processor_reports_rasterio_import_error(monkeypatch):
+    import builtins
+    import backend.main as forest_backend
+    from shapely.geometry import shape
+
+    real_import = builtins.__import__
+
+    def reject_rasterio(name, *args, **kwargs):
+        if name == "rasterio" or name.startswith("rasterio."):
+            raise ImportError("simulated missing libexpat.so.1")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_rasterio)
+    stats, error = forest_backend.process_cog_raster_sar_cropped(
+        "https://example.test/vv.tif",
+        "https://example.test/vh.tif",
+        shape(SAMPLE_POLYGON_GEOMETRY),
+    )
+    assert stats is None
+    assert "simulated missing libexpat.so.1" in error
