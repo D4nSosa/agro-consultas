@@ -208,3 +208,35 @@ def test_sar_processor_reports_rasterio_import_error(monkeypatch):
     )
     assert stats is None
     assert "simulated missing libexpat.so.1" in error
+
+
+def test_api_sar_stac_search_sends_intersects_without_bbox(monkeypatch):
+    import json
+    import backend.main as forest_backend
+
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps({"features": []}).encode("utf-8")
+
+    def fake_urlopen(request, timeout=0):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr(forest_backend.urllib.request, "urlopen", fake_urlopen)
+    response = client.post("/api/forest/sar", json={
+        "geometry": SAMPLE_POLYGON_GEOMETRY,
+        "startDate": "2024-01-01",
+        "endDate": "2024-06-01"
+    })
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "UNAVAILABLE"
+    assert "intersects" in captured["body"]
+    assert "bbox" not in captured["body"]
