@@ -219,10 +219,6 @@ def search_stac_catalog(req: STACSearchRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error procesando búsqueda STAC: {str(e)}")
 
-import rasterio
-from rasterio.mask import mask as rasterio_mask
-from rasterio.warp import reproject, Resampling
-import pyproj
 
 def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
     """
@@ -231,6 +227,12 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
     y remuestreo apropiado (bilineal para bandas espectrales, nearest para SCL categórica).
     """
     try:
+        # Dependencias geoespaciales nativas: cargar solo al procesar rásteres.
+        import rasterio
+        from rasterio.mask import mask as rasterio_mask
+        from rasterio.warp import reproject, Resampling
+        import pyproj
+
         with rasterio.open(red_url) as src_red, rasterio.open(nir_url) as src_nir:
             # 1. Transformar la geometría GeoJSON a la proyección de la banda RED
             transformer = pyproj.Transformer.from_crs('EPSG:4326', src_red.crs, always_xy=True)
@@ -708,7 +710,11 @@ def calculate_change_detection(req: ChangeDetectionRequest):
 def process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape):
     """Procesa y recorta exactamente los píxeles radar SAR Sentinel-1 COG para el ROI del lote."""
     try:
+        # Importar Rasterio dentro del procesador evita que su fallo nativo tumbe toda la API.
+        import rasterio
+        from rasterio.mask import mask as rasterio_mask
         from rasterio.vrt import WarpedVRT
+
         with rasterio.env.Env(AWS_NO_SIGN_REQUEST='YES'):
             with rasterio.open(vv_url) as src_vv, rasterio.open(vh_url) as src_vh:
                 with WarpedVRT(src_vv, crs='EPSG:4326') as vrt_vv, WarpedVRT(src_vh, crs='EPSG:4326') as vrt_vh:
@@ -794,9 +800,10 @@ def get_sar_analysis(req: SARAnalysisRequest):
             area_ha = round(calculate_shapely_area(geom_shape) / 10000.0, 2)
             is_point = False
 
+        # STAC API: bbox e intersects son filtros espaciales alternativos y no deben enviarse juntos.
+        # Enviar la geometría exacta del lote mediante intersects evita el HTTP 400 del catálogo.
         search_body = {
             "collections": ["sentinel-1-grd"],
-            "bbox": [bounds[0], bounds[1], bounds[2], bounds[3]],
             "intersects": geom_dict,
             "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
             "limit": 10
@@ -930,6 +937,7 @@ def calculate_shapely_area(geom_shape):
         return 0.0
 
     try:
+        import pyproj
         geod = pyproj.Geod(ellps='WGS84')
         area_m2, _ = geod.geometry_area_perimeter(geom_shape)
         return abs(area_m2)
