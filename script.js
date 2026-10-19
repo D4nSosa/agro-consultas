@@ -339,6 +339,10 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
     await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
     await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData);
     await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+    // Ejecutar SAR también cuando la selección llega desde el mapa/GPS (no solo desde el buscador).
+    // Enviar el polígono únicamente cuando la selección actual corresponde al lote dibujado.
+    const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;
+    await renderSarRadarUI(currentLat, currentLng, sarGeometry);
   } catch (err) {
     console.error("Error en procesarSeleccionCoordenadas:", err);
   } finally {
