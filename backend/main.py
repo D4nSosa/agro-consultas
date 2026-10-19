@@ -749,29 +749,39 @@ def process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape):
         return None, str(e)
 
 def interpret_sar_indicators(vv_db, ratio_db):
+    """Describe señales de retrodispersión sin presentarlas como mediciones directas de campo."""
     if vv_db > -8.0:
-        moisture = "Humedad de suelo o superficie de agua muy alta (alta reflexión radar)"
+        moisture = "Retrodispersión VV alta. Puede relacionarse con humedad superficial, rugosidad, agua o estructura; requiere contexto local."
     elif vv_db > -14.0:
-        moisture = "Humedad de suelo moderada / condiciones de campo normales"
+        moisture = "Retrodispersión VV intermedia. No permite determinar por sí sola la humedad del suelo."
     else:
-        moisture = "Suelo seco / baja reflectividad dieléctrica radar"
+        moisture = "Retrodispersión VV baja. Puede responder a superficie lisa/seca u otras condiciones; no confirma sequedad."
 
     if ratio_db > -8.0:
-        structure = "Alta densidad de biomasa / dispersión volumétrica en canopia desarrollada"
+        structure = "Relación VH−VV relativamente alta, compatible con mayor dispersión volumétrica en algunos contextos; no cuantifica biomasa."
     elif ratio_db > -12.0:
-        structure = "Estructura vegetal moderada / cobertura media o rastrojo"
+        structure = "Relación VH−VV intermedia. La estructura de la cubierta no puede determinarse de forma concluyente con este valor aislado."
     else:
-        structure = "Suelo desnudo o mínima biomasa vegetal"
+        structure = "Relación VH−VV baja. No confirma suelo desnudo ni ausencia de biomasa."
 
     return moisture, structure
 
 @app.post("/api/forest/sar")
 def get_sar_analysis(req: SARAnalysisRequest):
-    """Consulta observaciones de radar de apertura sintética (SAR) Sentinel-1 (Banda C penetrante de nubes y todo clima)."""
+    """Consulta escenas Sentinel-1 reales y prueba las escenas disponibles hasta obtener píxeles válidos."""
     try:
         start_def, date_a_def, date_b_def = get_default_dates()
         s_date = req.startDate or date_a_def
         e_date = req.endDate or date_b_def
+
+        # Rechazar rangos inválidos antes de consultar el catálogo.
+        try:
+            start_day = datetime.date.fromisoformat(s_date)
+            end_day = datetime.date.fromisoformat(e_date)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Fechas SAR inválidas. Usá el formato YYYY-MM-DD.")
+        if start_day > end_day:
+            raise HTTPException(status_code=400, detail="La fecha inicial SAR no puede ser posterior a la fecha final.")
 
         geom_dict = get_geom_dict(req.geometry)
         geom_shape = validate_geometry_shape(geom_dict)
@@ -781,84 +791,115 @@ def get_sar_analysis(req: SARAnalysisRequest):
             area_ha = 0.0
             is_point = True
         else:
-            area_sq_m = calculate_shapely_area(geom_shape)
-            area_ha = round(area_sq_m / 10000.0, 2)
+            area_ha = round(calculate_shapely_area(geom_shape) / 10000.0, 2)
             is_point = False
 
         search_body = {
             "collections": ["sentinel-1-grd"],
             "bbox": [bounds[0], bounds[1], bounds[2], bounds[3]],
+            "intersects": geom_dict,
             "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
-            "limit": 5
+            "limit": 10
         }
 
         req_data = json.dumps(search_body).encode('utf-8')
         aws_req = urllib.request.Request(
             EARTH_SEARCH_STAC_URL,
             data=req_data,
-            headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
+            headers={'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json'}
         )
 
-        with urllib.request.urlopen(aws_req, timeout=10) as resp:
-            if resp.status == 200:
-                data = json.loads(resp.read().decode('utf-8'))
-                features = data.get("features", [])
-                if features:
-                    feat = features[0]
-                    props = feat.get("properties", {})
-                    assets = feat.get("assets", {})
-                    prod_id = feat.get("id")
-                    actual_date = props.get("datetime", "").split("T")[0] if props.get("datetime") else e_date
-                    orbit_state = props.get("sat:orbit_state", "NO DISPONIBLE")
+        with urllib.request.urlopen(aws_req, timeout=15) as resp:
+            if resp.status != 200:
+                return {
+                    "indicator": "Radar SAR Sentinel-1",
+                    "date": e_date,
+                    "productId": None,
+                    "areaHectares": area_ha,
+                    "status": "UNAVAILABLE",
+                    "message": f"El catálogo Sentinel-1 respondió HTTP {resp.status}."
+                }
+            data = json.loads(resp.read().decode('utf-8'))
 
-                    vv_url = assets.get("vv", {}).get("href")
-                    vh_url = assets.get("vh", {}).get("href")
+        features = data.get("features", [])
+        if not features:
+            return {
+                "indicator": "Radar SAR Sentinel-1",
+                "date": e_date,
+                "productId": None,
+                "areaHectares": area_ha,
+                "status": "UNAVAILABLE",
+                "source": "AWS Earth Search STAC (Sentinel-1 GRD)",
+                "message": f"NO DISPONIBLE: No se encontraron escenas radar Sentinel-1 para el lote entre {s_date} y {e_date}."
+            }
 
-                    if vv_url and vh_url:
-                        stats, err_msg = process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape)
-                        if stats:
-                            moisture_desc, structure_desc = interpret_sar_indicators(stats["vv_mean_dB"], stats["vh_vv_ratio_dB"])
-                            return {
-                                "indicator": "Radar SAR Sentinel-1 (Banda C Penetrante de Nubes / Todo Clima)",
-                                "polarizations": ["VV (Vertical-Vertical)", "VH (Vertical-Horizontal)"],
-                                "ratioMeaning": "VH/VV Ratio dB: Indicador de dispersión por volumen y biomasa vegetativa",
-                                "date": actual_date,
-                                "productId": prod_id,
-                                "orbitState": orbit_state,
-                                "areaHectares": area_ha,
-                                "isPoint": is_point,
-                                "allWeather": True,
-                                "cloudIndependent": True,
-                                "source": "AWS Earth Search STAC (Sentinel-1 GRD COGs)",
-                                "stats": stats,
-                                "interpretation": {
-                                    "sueloHumedad": moisture_desc,
-                                    "estructuraBiomasa": structure_desc
-                                },
-                                "status": "REAL",
-                                "message": f"Radar SAR procesado con éxito para la escena {prod_id} (Fecha: {actual_date})."
-                            }
-                        else:
-                            return {
-                                "indicator": "Radar SAR Sentinel-1",
-                                "date": actual_date,
-                                "productId": prod_id,
-                                "areaHectares": area_ha,
-                                "status": "UNAVAILABLE",
-                                "message": f"ERROR RÁSTER RADAR: {err_msg}"
-                            }
+        # Probar escenas sucesivas: la primera puede carecer de polarizaciones o no cubrir píxeles válidos del lote.
+        scene_errors = []
+        for feat in features:
+            props = feat.get("properties", {})
+            assets = feat.get("assets", {})
+            prod_id = feat.get("id")
+            actual_date = props.get("datetime", "").split("T")[0] if props.get("datetime") else None
+            orbit_state = props.get("sat:orbit_state", "NO DISPONIBLE")
+            vv_url = assets.get("vv", {}).get("href")
+            vh_url = assets.get("vh", {}).get("href")
 
+            if not vv_url or not vh_url:
+                scene_errors.append(f"{prod_id or 'escena sin ID'}: faltan activos VV/VH")
+                continue
+
+            stats, err_msg = process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape)
+            if not stats:
+                scene_errors.append(f"{prod_id or 'escena sin ID'}: {err_msg or 'sin píxeles válidos'}")
+                continue
+
+            moisture_desc, structure_desc = interpret_sar_indicators(
+                stats["vv_mean_dB"], stats["vh_vv_ratio_dB"]
+            )
+            return {
+                "indicator": "Radar SAR Sentinel-1 (Banda C / todo clima)",
+                "polarizations": ["VV (Vertical-Vertical)", "VH (Vertical-Horizontal)"],
+                "ratioMeaning": "Diferencia VH−VV en dB; indicador de respuesta de dispersión, no medición directa de biomasa.",
+                "date": actual_date,
+                "productId": prod_id,
+                "orbitState": orbit_state,
+                "areaHectares": area_ha,
+                "isPoint": is_point,
+                "allWeather": True,
+                "cloudIndependent": True,
+                "source": "AWS Earth Search STAC (Sentinel-1 GRD COGs)",
+                "stats": stats,
+                "interpretation": {
+                    "sueloHumedad": moisture_desc,
+                    "estructuraBiomasa": structure_desc
+                },
+                "status": "REAL",
+                "message": f"Se procesó la escena real {prod_id} ({actual_date or 'fecha no registrada'})."
+            }
+
+        detail = " | ".join(scene_errors[:5])
         return {
             "indicator": "Radar SAR Sentinel-1",
             "date": e_date,
-            "productId": "NO DISPONIBLE",
+            "productId": None,
             "areaHectares": area_ha,
             "status": "UNAVAILABLE",
-            "message": "NO DISPONIBLE: No se encontraron escenas radar Sentinel-1 en el catálogo para el período seleccionado."
+            "source": "AWS Earth Search STAC (Sentinel-1 GRD)",
+            "message": "Se encontraron escenas, pero ninguna produjo píxeles VV/VH válidos para este lote. " + detail
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error en análisis Radar SAR: {str(e)}")
+        return {
+            "indicator": "Radar SAR Sentinel-1",
+            "date": req.endDate or get_default_dates()[2],
+            "productId": None,
+            "areaHectares": 0.0,
+            "status": "UNAVAILABLE",
+            "source": "AWS Earth Search STAC (Sentinel-1 GRD)",
+            "message": f"No se pudo consultar/procesar Sentinel-1: {str(e)}"
+        }
 
 @app.post("/api/forest/analyze")
 def run_full_forest_analysis_endpoint(req: ChangeDetectionRequest):
