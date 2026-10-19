@@ -800,9 +800,10 @@ def get_sar_analysis(req: SARAnalysisRequest):
             area_ha = round(calculate_shapely_area(geom_shape) / 10000.0, 2)
             is_point = False
 
+        # STAC API: bbox e intersects son filtros espaciales alternativos y no deben enviarse juntos.
+        # Enviar la geometría exacta del lote mediante intersects evita el HTTP 400 del catálogo.
         search_body = {
             "collections": ["sentinel-1-grd"],
-            "bbox": [bounds[0], bounds[1], bounds[2], bounds[3]],
             "intersects": geom_dict,
             "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
             "limit": 10
