@@ -28,10 +28,14 @@ export async function fetchLiveWeather(lat, lng) {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code&timezone=auto`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    let response;
+    try {
+      response = await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
 
@@ -42,9 +46,9 @@ export async function fetchLiveWeather(lat, lng) {
 
     const data = createDataPoint({
       value: {
-        temperatura: weather.temperature,
-        viento: weather.windspeed,
-        codigoClima: weather.weathercode
+        temperatura: weather.temperature_2m ?? weather.temperature ?? null,
+        viento: weather.wind_speed_10m ?? weather.windspeed ?? null,
+        codigoClima: weather.weather_code ?? weather.weathercode ?? null
       },
       unit: "°C / km/h",
       source: 'Open-Meteo (API en tiempo real)',
