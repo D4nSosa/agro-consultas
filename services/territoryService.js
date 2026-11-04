@@ -1,111 +1,76 @@
 /**
- * Servicio de Territorio y Ubicación Geográfica
- * Gestiona provincias, subregiones y centroides sin dependencias del DOM.
+ * Servicio de Territorio y Ubicación Geográfica.
+ * Las bases de provincias y subregiones se cargan de forma independiente:
+ * un fallo en regiones.json no debe impedir identificar la provincia.
  */
-
 import { normalizeKey } from '../utils/normalization.js';
 
 let provinciasData = null;
 let regionesData = null;
 
-/**
- * Carga de manera asíncrona las bases de datos geográficas si no han sido cargadas.
- */
-export async function loadTerritoryData() {
-  if (!provinciasData) {
-    const response = await fetch('/data/provincias.json');
-    if (!response.ok) throw new Error("No se pudo cargar provincias.json");
-    provinciasData = await response.json();
-  }
-  if (!regionesData) {
-    const response = await fetch('/data/regiones.json');
-    if (!response.ok) throw new Error("No se pudo cargar regiones.json");
-    regionesData = await response.json();
-  }
-}
-
-/**
- * Busca la provincia más cercana a un par de coordenadas dadas.
- * @param {number} lat - Latitud.
- * @param {number} lng - Longitud.
- * @returns {Promise<string>} Clave normalizada de la provincia más cercana.
- */
-export async function findProvinceByCoords(lat, lng) {
-  await loadTerritoryData();
-
-  let provinciaCercana = null;
-  let distanciaMinima = Infinity;
-
-  for (const [provKey, data] of Object.entries(provinciasData)) {
-    const coords = data.coordenadas;
-    if (!coords) continue;
-
-    const d = Math.pow(lat - coords.lat, 2) + Math.pow(lng - coords.lng, 2);
-    if (d < distanciaMinima) {
-      distanciaMinima = d;
-      provinciaCercana = provKey;
-    }
-  }
-
-  return provinciaCercana;
-}
-
-/**
- * Busca la subregión más cercana dentro de una provincia.
- * @param {string} provinciaKey - Clave de la provincia.
- * @param {number} lat - Latitud.
- * @param {number} lng - Longitud.
- * @returns {Promise<Object|null>} Datos de la subregión más cercana.
- */
-export async function findSubregion(provinciaKey, lat, lng) {
-  await loadTerritoryData();
-  const key = normalizeKey(provinciaKey);
-  const subregiones = regionesData.subregiones[key];
-
-  if (!subregiones || subregiones.length === 0) return null;
-
-  let subregionMasCercana = null;
-  let distMin = Infinity;
-
-  for (const sub of subregiones) {
-    const d = Math.pow(lat - sub.lat, 2) + Math.pow(lng - sub.lng, 2);
-    if (d < distMin) {
-      distMin = d;
-      subregionMasCercana = sub;
-    }
-  }
-
-  return subregionMasCercana;
-}
-
-/**
- * Obtiene los detalles de una provincia específica.
- * @param {string} provinciaKey - Clave de la provincia.
- * @returns {Promise<Object|null>} Detalles de la provincia.
- */
-export async function getProvinceDetails(provinciaKey) {
-  await loadTerritoryData();
-  const key = normalizeKey(provinciaKey);
-  return provinciasData[key] || null;
-}
-
-/**
- * Obtiene el listado completo de provincias disponibles.
- * @returns {Promise<Object>} Base de datos de provincias.
- */
-export async function getAllProvincias() {
-  await loadTerritoryData();
+async function loadProvincias() {
+  if (provinciasData) return provinciasData;
+  const response = await fetch('/data/provincias.json');
+  if (!response.ok) throw new Error(`No se pudo cargar provincias.json (HTTP ${response.status})`);
+  provinciasData = await response.json();
   return provinciasData;
 }
 
-/**
- * Retorna las coordenadas por defecto para una provincia (centroide).
- * @param {string} provinciaKey - Clave de la provincia.
- * @returns {Promise<Object|null>} Coordenadas {lat, lng, zoom}.
- */
-export async function getProvinceCoordinates(provinciaKey) {
-  await loadTerritoryData();
+async function loadRegiones() {
+  if (regionesData) return regionesData;
+  const response = await fetch('/data/regiones.json');
+  if (!response.ok) throw new Error(`No se pudo cargar regiones.json (HTTP ${response.status})`);
+  regionesData = await response.json();
+  return regionesData;
+}
+
+export async function loadTerritoryData() {
+  const [provincias, regiones] = await Promise.allSettled([loadProvincias(), loadRegiones()]);
+  if (provincias.status === 'rejected') throw provincias.reason;
+  return { provincias: provincias.value, regiones: regiones.status === 'fulfilled' ? regiones.value : null };
+}
+
+export async function findProvinceByCoords(lat, lng) {
+  const data = await loadProvincias();
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Coordenadas inválidas para identificar la provincia.');
+  let nearest = null;
+  let minDistance = Infinity;
+  for (const [key, province] of Object.entries(data)) {
+    const coords = province?.coordenadas;
+    if (!Number.isFinite(coords?.lat) || !Number.isFinite(coords?.lng)) continue;
+    const distance = Math.pow(lat - coords.lat, 2) + Math.pow(lng - coords.lng, 2);
+    if (distance < minDistance) { minDistance = distance; nearest = key; }
+  }
+  return nearest;
+}
+
+export async function findSubregion(provinciaKey, lat, lng) {
+  const data = await loadRegiones();
   const key = normalizeKey(provinciaKey);
-  const prov = provinciasData[key];
-  return prov ? prov.coordenadas : null;
+  const subregions = data?.subregiones?.[key];
+  if (!Array.isArray(subregions) || !subregions.length) return null;
+  let nearest = null;
+  let minDistance = Infinity;
+  for (const sub of subregions) {
+    const subLat = Number(sub?.lat), subLng = Number(sub?.lng);
+    if (!Number.isFinite(subLat) || !Number.isFinite(subLng)) continue;
+    const distance = Math.pow(lat - subLat, 2) + Math.pow(lng - subLng, 2);
+    if (distance < minDistance) { minDistance = distance; nearest = sub; }
+  }
+  return nearest;
+}
+
+export async function getProvinceDetails(provinciaKey) {
+  const data = await loadProvincias();
+  return data[normalizeKey(provinciaKey)] || null;
+}
+
+export async function getAllProvincias() {
+  return await loadProvincias();
+}
+
+export async function getProvinceCoordinates(provinciaKey) {
+  const data = await loadProvincias();
+  const province = data[normalizeKey(provinciaKey)];
+  return province ? province.coordenadas : null;
 }
