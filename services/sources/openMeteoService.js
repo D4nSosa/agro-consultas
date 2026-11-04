@@ -26,9 +26,9 @@ export async function fetchLiveWeather(lat, lng) {
 
   // 2. Intentar llamada a la API con timeout
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code&timezone=auto`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -36,7 +36,7 @@ export async function fetchLiveWeather(lat, lng) {
     if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
 
     const result = await response.json();
-    const weather = result.current_weather;
+    const weather = result.current || result.current_weather;
 
     if (!weather) throw new Error("Datos meteorológicos ausentes");
 
