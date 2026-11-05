@@ -26,7 +26,7 @@
    <div id="lot-map" class="map-panel" aria-label="Mapa para seleccionar y dibujar un lote"></div>
    <div class="tools">
     <button id="draw" class="btn primary">Dibujar polígono</button>
-    <button id="undo" class="btn outline" disabled>Deshacer vértice</button>
+    <button id="undo" class="btn outline" disabled>Deshacer vértice</button>\n    <button id="edit" class="btn outline" disabled>Editar vértices</button>
     <button id="close" class="btn outline" disabled>Cerrar polígono</button>
     <button id="locate" class="btn outline">Mi ubicación</button>
     <button id="clear" class="btn outline">Limpiar lote</button>
@@ -56,10 +56,10 @@ import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature } fr
 import { calculateArea } from './forestal/utils/geo.js';
 const map=L.map('lot-map').setView([-38.4,-63.6],4);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-let drawing=false, points=[], draftLayers=[], lotLayer=null, current=null;
+let drawing=false, editing=false, points=[], draftLayers=[], editMarkers=[], lotLayer=null, current=null;
 const $=id=>document.getElementById(id);
 function status(message){$('lot-status').textContent=message;}
-function clearDraft(){draftLayers.forEach(layer=>map.removeLayer(layer));draftLayers=[];}
+function clearDraft(){draftLayers.forEach(layer=>map.removeLayer(layer));draftLayers=[];}\nfunction clearEditMarkers(){editMarkers.forEach(layer=>map.removeLayer(layer));editMarkers=[];}\nfunction renderEditedPolygon(){\n if(!current||current.geometry.type!=='Polygon')return;\n const ring=[...points,points[0]];\n const next=normalizeLotFeature({...current,geometry:{type:'Polygon',coordinates:[ring,...current.geometry.coordinates.slice(1)]}});\n current=next;if(lotLayer)map.removeLayer(lotLayer);lotLayer=L.geoJSON(current,{style:{color:'#16834a',weight:3,fillColor:'#2ecc71',fillOpacity:.22}}).addTo(map);\n clearEditMarkers();points.forEach((p,i)=>{const marker=L.marker([p[1],p[0]],{draggable:true}).addTo(map);marker.on('dragend',e=>{const ll=e.target.getLatLng();points[i]=[ll.lng,ll.lat];try{renderEditedPolygon();}catch(err){alert(err.message);}});marker.on('contextmenu',()=>{if(points.length<=3)return alert('Un polígono necesita al menos 3 vértices.');points.splice(i,1);renderEditedPolygon();});editMarkers.push(marker);});\n}\n
 function drawDraft(){
  clearDraft();
  points.forEach((p,i)=>draftLayers.push(L.circleMarker([p[1],p[0]],{radius:5,color:'#16834a',fillOpacity:1}).bindTooltip('Vértice '+(i+1)).addTo(map)));
@@ -69,17 +69,17 @@ function drawDraft(){
 }
 function showFeature(feature){
  if(lotLayer)map.removeLayer(lotLayer);
- current=feature;lotLayer=L.geoJSON(feature,{style:{color:'#16834a',weight:3,fillColor:'#2ecc71',fillOpacity:.22}}).addTo(map);
+ current=feature;lotLayer=L.geoJSON(feature,{style:{color:'#16834a',weight:3,fillColor:'#2ecc71',fillOpacity:.22}}).addTo(map);\n clearEditMarkers();editing=false;$('edit').textContent='Editar vértices';$('edit').disabled=feature.geometry.type!=='Polygon';
  map.fitBounds(lotLayer.getBounds(),{padding:[20,20]});
  $('save').disabled=false;$('aptitude').disabled=false;$('forest').disabled=false;
  const name=feature.properties?.name||'Lote sin nombre';$('lot-name').value=name;
  const area=calculateArea(feature);\n status(name+' · '+(area.hectares||0)+' ha · geometría '+feature.geometry.type);
 }
-map.on('click',e=>{if(!drawing)return;points.push([e.latlng.lng,e.latlng.lat]);drawDraft();});
+map.on('click',e=>{if(!drawing)return;points.push([e.latlng.lng,e.latlng.lat]);drawDraft();});\n$('edit').onclick=()=>{if(!current||current.geometry.type!=='Polygon')return;if(!editing){editing=true;points=current.geometry.coordinates[0].slice(0,-1).map(p=>[...p]);renderEditedPolygon();$('edit').textContent='Terminar edición';status('Arrastrá vértices para moverlos. Clic derecho sobre un vértice para eliminarlo.');}else{try{renderEditedPolygon();editing=false;clearEditMarkers();$('edit').textContent='Editar vértices';status('Cambios listos. Pulsá Guardar lote para compartirlos con los módulos.');}catch(e){alert(e.message);}}};
 $('draw').onclick=()=>{if(!drawing){drawing=true;points=[];if(lotLayer){map.removeLayer(lotLayer);lotLayer=null;current=null;}clearDraft();$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;$('draw').textContent='Cancelar dibujo';status('Tocá el mapa para agregar vértices.');}else{drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';const previous=getLotContext();if(previous)showFeature(previous);else status('Dibujo cancelado.');}};
 $('undo').onclick=()=>{points.pop();drawDraft();};
 $('close').onclick=()=>{if(points.length<3)return;const ring=[...points,points[0]];try{const feature=normalizeLotFeature({type:'Feature',properties:{name:$('lot-name').value||'Lote dibujado'},geometry:{type:'Polygon',coordinates:[ring]}});drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';showFeature(feature);}catch(e){alert(e.message);}};
-$('clear').onclick=()=>{drawing=false;points=[];clearDraft();if(lotLayer)map.removeLayer(lotLayer);lotLayer=null;current=null;clearLotContext();$('draw').textContent='Dibujar polígono';$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;status('No hay un lote seleccionado.');};
+$('clear').onclick=()=>{drawing=false;points=[];clearDraft();if(lotLayer)map.removeLayer(lotLayer);lotLayer=null;current=null;clearEditMarkers();editing=false;clearLotContext();$('draw').textContent='Dibujar polígono';$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;status('No hay un lote seleccionado.');};
 $('locate').onclick=()=>{if(!navigator.geolocation)return alert('Geolocalización no disponible en este dispositivo.');navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],16),e=>alert('No se pudo obtener la ubicación: '+e.message),{enableHighAccuracy:true,timeout:12000});};
 $('geojson-file').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{const parsed=JSON.parse(await file.text());const feature=normalizeLotFeature(parsed,{source:'geojson-import',name:$('lot-name').value||file.name});drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';showFeature(feature);}catch(err){alert('GeoJSON no válido: '+err.message);}finally{e.target.value='';}};
 $('save').onclick=()=>{if(!current)return;try{const saved=setLotContext(current,{source:current.properties?.source||'central-map',name:$('lot-name').value||'Lote seleccionado'});showFeature(saved);status('Lote guardado y disponible para Aptitud, Forestal y Tracking.');}catch(e){alert(e.message);}};
