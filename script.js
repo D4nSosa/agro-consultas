@@ -8,7 +8,7 @@ import {
   findSubregion,
   getProvinceDetails
 } from './services/territoryService.js';
-import { calculateArea } from './forestal/utils/geo.js';
+import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
 import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate } from './services/recommendationEngine.js';
@@ -154,6 +154,15 @@ export async function inicializarMapa(provinciaRaw) {
     currentAOIPolygon = sharedLot.geometry;
     drawnPolygonLayer = L.geoJSON(sharedLot, { style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.25 } }).addTo(leafletMap);
     leafletMap.fitBounds(drawnPolygonLayer.getBounds(), { padding: [24, 24] });
+    const centroid = calculateCentroid(sharedLot);
+    if (centroid) {
+      await procesarSeleccionCoordenadas(
+        centroid.lat,
+        centroid.lng,
+        sharedLot.properties?.name || 'Lote seleccionado',
+        'LOTE / POLÍGONO'
+      );
+    }
   }
 
   // Renderizar panel de control de capas en el contenedor
