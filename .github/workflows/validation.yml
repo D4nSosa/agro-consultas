@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Validate browser module syntax
+        run: python tests/check_frontend_syntax.py
       - name: Validate shared lot geometry
         run: node --experimental-default-type=module --test tests/lotContext.test.mjs
 
