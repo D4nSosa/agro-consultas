@@ -194,6 +194,7 @@
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
     import { generateRecommendations, loadCultivosData } from './services/recommendationEngine.js';
+    import { getLotContext, setLotContext, clearLotContext } from './services/lotContext.js';
 
     let map = null;
     let watchId = null;
@@ -332,6 +333,12 @@
 
       const lotName = document.getElementById('track-lot-name').value || "Lote Caminado por GPS";
       currentFeature = toGeoJSONFeature(geom, { name: lotName });
+      try {
+        currentFeature = setLotContext(currentFeature, { source: 'gps-tracking', name: lotName });
+      } catch (error) {
+        alert(`No se pudo guardar el lote: ${error.message}`);
+        return;
+      }
 
       polygonLayer = L.geoJSON(currentFeature, {
         style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
@@ -465,9 +472,11 @@
         watchId = null;
       }
       gpsPoints = [];
-      if (polyline) map.removeLayer(polyline);
-      if (polygonLayer) map.removeLayer(polygonLayer);
-      if (userMarker) map.removeLayer(userMarker);
+      if (polyline) { map.removeLayer(polyline); polyline = null; }
+      if (polygonLayer) { map.removeLayer(polygonLayer); polygonLayer = null; }
+      if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+      currentFeature = null;
+      clearLotContext();
 
       document.getElementById('btn-start-tracking').style.display = 'inline-block';
       document.getElementById('btn-stop-tracking').style.display = 'none';
@@ -494,6 +503,20 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       initTrackingMap();
+
+      const sharedLot = getLotContext();
+      if (sharedLot) {
+        currentFeature = sharedLot;
+        polygonLayer = L.geoJSON(sharedLot, {
+          style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
+        }).addTo(map);
+        map.fitBounds(polygonLayer.getBounds(), { padding: [30, 30] });
+        const areaInfo = calculateArea(sharedLot);
+        document.getElementById('track-lot-name').value = sharedLot.properties?.name || 'Lote compartido';
+        document.getElementById('track-area-ha').innerText = `${areaInfo.hectares} ha`;
+        document.getElementById('track-area-m2').innerText = `${areaInfo.squareMeters.toLocaleString('es-AR')} m²`;
+        document.getElementById('lot-actions-box').style.display = 'flex';
+      }
 
       document.getElementById('btn-start-tracking').addEventListener('click', startTracking);
       document.getElementById('btn-stop-tracking').addEventListener('click', stopTrackingAndClose);
@@ -553,7 +576,7 @@
 
       document.getElementById('btn-analyze-forest').addEventListener('click', () => {
         if (!currentFeature) return;
-        sessionStorage.setItem('agro_current_polygon', JSON.stringify(currentFeature));
+        setLotContext(currentFeature, { source: 'gps-tracking' });
         window.location.href = 'forestal.html';
       });
 
