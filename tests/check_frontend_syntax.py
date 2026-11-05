@@ -1,7 +1,6 @@
 from pathlib import Path
 import re
 import subprocess
-import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ["script.js", "services/lotContext.js"]
@@ -22,7 +21,7 @@ for relative in FILES:
 
 for relative in INLINE_HTML:
     html = (ROOT / relative).read_text(encoding="utf-8")
-    blocks = re.findall(r'<script\s+type=["\\']module["\\']>(.*?)</script>', html, flags=re.I | re.S)
+    blocks = re.findall(r'<script\s+type="module">(.*?)</script>', html, flags=re.I | re.S)
     for index, block in enumerate(blocks, start=1):
         check_module(block, f"{relative} inline module #{index}")
 
