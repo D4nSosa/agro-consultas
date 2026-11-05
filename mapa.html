@@ -7,6 +7,7 @@
 <title>Seleccionar lote | Agro Consultas</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="styles.css">
+<script>try{const theme=localStorage.getItem("agro_theme")||"dark";if(theme==="dark")document.documentElement.classList.add("theme-dark");}catch(e){document.documentElement.classList.add("theme-dark");}</script>
 <style>
 .workspace{max-width:1200px;margin:22px auto;padding:0 16px}.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.map-panel{min-height:65vh;border-radius:12px;overflow:hidden;border:1px solid var(--borde-suave)}#lot-map{height:65vh;min-height:480px}.tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tools button,.tools a{flex:1;min-width:130px}.side{padding:18px}.muted{color:var(--texto-secundario);font-size:.9rem}.status{padding:10px;border-radius:8px;background:var(--gris-fondo);margin:12px 0;overflow-wrap:anywhere}@media(max-width:800px){.workspace-grid{grid-template-columns:1fr}#lot-map{height:58vh;min-height:380px}}
 </style>
@@ -14,11 +15,11 @@
 <body>
 <header class="app-header">
  <div class="left"><img class="brand" src="dwnl.png" alt="Agro Consultas"><div class="brand-text"><div class="title">Agro Consultas</div><div style="font-size:.72rem;color:var(--texto-secundario)">Seleccioná tu territorio</div></div></div>
- <div class="right" style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn outline" href="index.html">Inicio</a><a class="btn outline" href="resultados.html">Aptitud</a><a class="btn outline" href="forestal.html">Forestal</a><a class="btn outline" href="tracking.html">Tracking GPS</a></div>
+ <div class="right" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><a class="btn outline" href="index.html">Inicio</a><a class="btn outline" href="resultados.html">Aptitud</a><a class="btn outline" href="forestal.html">Forestal</a><a class="btn outline" href="tracking.html">Tracking GPS</a><button id="themeToggle" class="icon-btn" type="button" title="Cambiar tema" aria-label="Cambiar tema">🌗</button></div>
 </header>
 <main class="workspace">
  <section class="card" style="padding:20px;margin-bottom:14px">
-  <h1 style="margin:0 0 8px;color:var(--verde-principal)">Mapa central · Selección del lote</h1>
+  <h1 style="margin:0 0 8px;color:var(--verde-principal)">Seleccionar lote</h1>
   <p class="muted" style="margin:0">Dibujá el perímetro, importá un GeoJSON o continuá con un lote que ya guardaste. Este mapa define el área de interés; los análisis se ejecutan en sus módulos correspondientes.</p>
  </section>
  <div class="workspace-grid">
@@ -52,6 +53,10 @@
  </div>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const themeToggle=document.getElementById("themeToggle");
+themeToggle?.addEventListener("click",()=>{const dark=document.documentElement.classList.toggle("theme-dark");try{localStorage.setItem("agro_theme",dark?"dark":"light");}catch(e){}});
+</script>
 <script type="module">
 import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature } from './services/lotContext.js';
 import { calculateArea } from './forestal/utils/geo.js';
