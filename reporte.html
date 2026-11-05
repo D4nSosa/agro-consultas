@@ -60,7 +60,7 @@
           </h1>
           <span id="report-date" style="font-size: 0.82rem; color: var(--texto-secundario);">Fecha de emisión: --</span>
         </div>
-        <span class="badge-origin real" style="font-size: 0.8rem; padding: 6px 12px;">Reporte Web Verificado</span>
+        <span class="badge-origin regional" style="font-size: 0.8rem; padding: 6px 12px;">Informe generado · consultar procedencia</span>
       </div>
     </div>
 
@@ -87,7 +87,7 @@
         <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--borde-suave); font-size: 0.85rem; line-height: 1.5;">
           <div><strong>📍 Coordenadas Centroide:</strong> <span id="report-coords">--</span></div>
           <div><strong>Provincia / Subregión:</strong> <span id="report-prov">--</span></div>
-          <div><strong>Fuente de Trazado:</strong> Relevamiento GPS de Campo</div>
+          <div><strong>Fuente de Trazado:</strong> <span id="report-source">Origen no informado en el enlace</span></div>
         </div>
       </div>
     </div>
@@ -188,6 +188,7 @@
 
       if (!isNaN(lat) && !isNaN(lng)) {
         document.getElementById('report-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        document.getElementById('report-source').innerText = parsedGeom?.properties?.source || 'Geometría recibida por enlace; origen no informado';
       }
 
       // Inicializar mapa del reporte
@@ -252,6 +253,10 @@
           const prodA = forestAnalysis?.products?.productA;
           const prodB = forestAnalysis?.products?.productB;
           const changes = forestAnalysis?.changes || {};
+          const ndviA = forestAnalysis?.ndvi?.analysisA;
+          const ndviB = forestAnalysis?.ndvi?.analysisB;
+          const timeline = Array.isArray(forestAnalysis?.timeline) ? forestAnalysis.timeline : [];
+          const ndviValue = item => typeof item?.stats?.mean === 'number' ? item.stats.mean.toFixed(3) : 'No procesado';
 
           forestHTML = `
             <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px dashed var(--borde-suave);">
@@ -285,9 +290,20 @@
 
               <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem; margin-bottom: 15px;">
                 <strong>📊 Diagnóstico de Variación Espectral:</strong> ${(prodA || prodB) ? (changes.primaryMessage || 'Escena identificada; procesamiento espectral no confirmado.') : 'No se identificaron escenas disponibles para las fechas consultadas.'}<br>
-                <span style="color: var(--texto-secundario);">${(prodA || prodB) ? (changes.description || 'La identificación de una escena no implica que el NDVI haya sido procesado.') : 'No se dispone de productos Sentinel-2 para respaldar una comparación en este informe.'}</span>
+                <span style="color: var(--texto-secundario);">${(prodA && prodB) ? (changes.description || 'La identificación de escenas no implica que el NDVI haya sido procesado.') : 'No se dispone de dos escenas Sentinel-2 confirmadas para respaldar una comparación en este informe.'}</span>
+                <div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+                  <div><strong>NDVI Fecha A:</strong> ${ndviValue(ndviA)}</div>
+                  <div><strong>NDVI Fecha B:</strong> ${ndviValue(ndviB)}</div>
+                  <div><strong>Delta NDVI:</strong> ${typeof changes.deltaNDVI === 'number' ? changes.deltaNDVI.toFixed(3) : 'No disponible'}</div>
+                </div>
               </div>
-
+              ${timeline.length ? `
+                <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;margin-bottom:15px;">
+                  <strong>Productos recuperados del catálogo Sentinel-2</strong>
+                  <ul style="margin:8px 0 0;padding-left:20px;font-size:.82rem;">
+                    ${timeline.map(item => `<li>${item.date || 'Fecha no informada'} · ${item.product} · nubosidad: ${typeof item.cloudCover === 'number' ? item.cloudCover + '%' : 'N/D'} · ${item.source || 'Fuente no informada'}</li>`).join('')}
+                  </ul>
+                </div>` : ''}
               <!-- No se atribuye una categoría OTBN sin intersección espacial validada. -->
               <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
                 <strong style="color: var(--verde-principal); display: block; margin-bottom: 4px;">🌳 Ordenamiento Territorial de Bosques Nativos (Ley 26.331)</strong>
