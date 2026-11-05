@@ -10,10 +10,19 @@ function unwrap(input) {
   if (!input || typeof input !== 'object') throw new Error('GeoJSON vacío o inválido.');
   if (input.type === 'Feature') return input;
   if (input.type === 'FeatureCollection') {
-    if (!Array.isArray(input.features) || input.features.length !== 1) {
-      throw new Error('Importá una FeatureCollection con una única geometría.');
+    if (!Array.isArray(input.features) || input.features.length === 0) {
+      throw new Error('La FeatureCollection no contiene geometrías.');
     }
-    return input.features[0];
+    const features = input.features;
+    if (features.length === 1) return features[0];
+    const polygons = [];
+    for (const item of features) {
+      const geometry = item?.geometry;
+      if (geometry?.type === 'Polygon') polygons.push(geometry.coordinates);
+      else if (geometry?.type === 'MultiPolygon') polygons.push(...geometry.coordinates);
+      else throw new Error('La FeatureCollection debe contener solo geometrías Polygon o MultiPolygon.');
+    }
+    return { type: 'Feature', properties: features[0]?.properties || {}, geometry: { type: 'MultiPolygon', coordinates: polygons } };
   }
   return { type: 'Feature', properties: {}, geometry: input };
 }
@@ -94,20 +103,22 @@ export function normalizeLotFeature(input, metadata = {}) {
   return {
     type: 'Feature',
     geometry: JSON.parse(JSON.stringify(geometry)),
-    properties: { ...(feature.properties || {}), ...metadata, contextVersion: 1, updatedAt: new Date().toISOString() }
+    properties: { ...(feature.properties || {}), ...metadata, contextVersion: 1, updatedAt: feature.properties?.updatedAt || new Date().toISOString() }
   };
 }
 
 export function getLotContext() {
-  try {
-    const raw = globalThis.localStorage?.getItem(STORAGE_KEY) || globalThis.sessionStorage?.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return normalizeLotFeature(parsed.feature, parsed.metadata || {});
-  } catch (error) {
-    console.warn('[Agro-Consultas] No se pudo recuperar el lote compartido:', error);
-    return null;
+  for (const storage of [globalThis.localStorage, globalThis.sessionStorage]) {
+    try {
+      const raw = storage?.getItem(STORAGE_KEY);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      return normalizeLotFeature(parsed.feature, parsed.metadata || {});
+    } catch (error) {
+      console.warn('[Agro-Consultas] No se pudo recuperar el lote compartido desde un almacenamiento:', error);
+    }
   }
+  return null;
 }
 
 export function setLotContext(input, metadata = {}) {
