@@ -1084,3 +1084,42 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
     size: A4 portrait;
   }
 }
+
+
+/* Identidad visual GIS: bosque profundo, verde cartográfico y menta */
+:root {
+  --verde-principal: #087c45;
+  --verde-secundario: #126b43;
+  --verde-acento: #24a86a;
+  --verde-claro: #e4f5eb;
+}
+:root.theme-dark, .theme-dark {
+  --verde-principal: #16a765;
+  --verde-secundario: #0d8a50;
+  --verde-acento: #73e6b1;
+  --verde-claro: rgba(36, 168, 106, .16);
+  --gris-fondo: #06130d;
+  --gris-card: #0b1d14;
+  --bg-principal: #07170f;
+  --texto-principal: #edf8f1;
+  --texto-secundario: #9db7a7;
+  --sombra-suave: rgba(0,0,0,.42);
+  --sombra-media: rgba(0,0,0,.56);
+  --borde-suave: rgba(115,230,177,.16);
+}
+.theme-dark .app-header {
+  background: rgba(5, 19, 12, .96);
+  border-bottom: 1px solid var(--borde-suave);
+}
+.theme-dark .card {
+  background: linear-gradient(145deg, rgba(12,31,21,.98), rgba(7,23,15,.98));
+  border-color: var(--borde-suave);
+}
+.theme-dark .btn.primary {
+  background: linear-gradient(135deg, #087c45, #16a765);
+}
+.theme-dark .btn.outline {
+  background: rgba(10,29,19,.72);
+  border-color: rgba(115,230,177,.28);
+  color: #b8f5d6 !important;
+}

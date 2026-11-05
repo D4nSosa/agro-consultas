@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="styles.css">
 <script>try{const theme=localStorage.getItem("agro_theme")||"dark";if(theme==="dark")document.documentElement.classList.add("theme-dark");}catch(e){document.documentElement.classList.add("theme-dark");}</script>
 <style>
-.workspace{max-width:1200px;margin:22px auto;padding:0 16px}.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.map-panel{min-height:65vh;border-radius:12px;overflow:hidden;border:1px solid var(--borde-suave)}#lot-map{height:65vh;min-height:480px}.tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tools button,.tools a{flex:1;min-width:130px}.side{padding:18px}.muted{color:var(--texto-secundario);font-size:.9rem}.status{padding:10px;border-radius:8px;background:var(--gris-fondo);margin:12px 0;overflow-wrap:anywhere}@media(max-width:800px){.workspace-grid{grid-template-columns:1fr}#lot-map{height:58vh;min-height:380px}}
+.workspace{max-width:none;margin:0 auto;padding:16px}.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:stretch}.map-panel{min-height:calc(100vh - 205px);border-radius:14px;overflow:hidden;border:1px solid var(--borde-suave)}#lot-map{height:calc(100vh - 205px);min-height:540px}.tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tools button,.tools a{flex:1;min-width:110px}.side{padding:18px;max-height:calc(100vh - 150px);overflow:auto}.muted{color:var(--texto-secundario);font-size:.9rem}.status{padding:10px;border-radius:8px;background:var(--gris-fondo);margin:12px 0;overflow-wrap:anywhere}.gis-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.gis-toolbar .btn{font-size:.82rem;padding:8px 11px}.gis-section{border-top:1px solid var(--borde-suave);padding-top:12px;margin-top:14px}.gis-section h3{font-size:.9rem;margin:0 0 8px;color:var(--verde-principal)}.layer-row{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:.86rem}.layer-swatch{width:13px;height:13px;border-radius:3px;background:#73e6b1;border:1px solid #1b7554;flex:none}.map-shell{position:relative}.map-shell:after{content:'MAPA DE TRABAJO';position:absolute;top:12px;left:12px;z-index:400;background:rgba(5,20,13,.88);color:#a7f3d0;border:1px solid rgba(115,230,177,.28);padding:8px 12px;border-radius:8px;font-size:.68rem;letter-spacing:.12em;pointer-events:none}@media(max-width:900px){.workspace-grid{grid-template-columns:1fr}.side{max-height:none}#lot-map{height:64vh;min-height:420px}.map-panel{min-height:64vh}}
 </style>
 </head>
 <body>
@@ -24,7 +24,13 @@
  </section>
  <div class="workspace-grid">
   <section class="card" style="padding:12px">
-   <div id="lot-map" class="map-panel" aria-label="Mapa para seleccionar y dibujar un lote"></div>
+   <div class="gis-toolbar" aria-label="Mapas base">
+    <strong style="font-size:.82rem;color:var(--texto-secundario);margin-right:4px">MAPA BASE</strong>
+    <button id="base-street" class="btn outline" type="button">Calles</button>
+    <button id="base-satellite" class="btn primary" type="button">Satélite</button>
+    <button id="base-terrain" class="btn outline" type="button">Relieve</button>
+   </div>
+   <div class="map-shell"><div id="lot-map" class="map-panel" aria-label="Mapa para seleccionar y dibujar un lote"></div></div>
    <div class="tools">
     <button id="draw" class="btn primary">Dibujar polígono</button>
     <button id="undo" class="btn outline" disabled>Deshacer vértice</button>
@@ -39,6 +45,11 @@
    <label for="lot-name">Nombre</label>
    <input id="lot-name" type="text" placeholder="Ej. Lote norte" style="width:100%;margin:6px 0 12px">
    <div id="lot-status" class="status">No hay un lote seleccionado.</div>
+   <section class="gis-section">
+    <h3>Capas de trabajo</h3>
+    <label class="layer-row"><input id="layer-lot" type="checkbox" checked> <span class="layer-swatch"></span> Lote seleccionado / geometría activa</label>
+    <p class="muted" style="margin:4px 0 0">Las capas de aptitud, suelo, cobertura y OTBN se habilitarán aquí cuando cada análisis entregue una geometría verificable. No se muestran capas simuladas.</p>
+   </section>
    <label class="btn outline" for="geojson-file" style="display:block;text-align:center;cursor:pointer">Importar GeoJSON</label>
    <input id="geojson-file" type="file" accept=".json,.geojson,application/geo+json,application/json" hidden>
    <p class="muted">Se acepta Feature, Polygon, MultiPolygon o una FeatureCollection con una sola geometría de lote. Las coordenadas deben estar en WGS84.</p>
@@ -60,8 +71,17 @@ themeToggle?.addEventListener("click",()=>{const dark=document.documentElement.c
 <script type="module">
 import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature } from './services/lotContext.js';
 import { calculateArea } from './forestal/utils/geo.js';
-const map=L.map('lot-map').setView([-38.4,-63.6],4);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const map=L.map('lot-map',{preferCanvas:true}).setView([-38.4,-63.6],4);
+const baseLayers = {
+ street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}),
+ satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'}),
+ terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenTopoMap'})
+};
+let activeBase='satellite';baseLayers.satellite.addTo(map);
+function setBaseLayer(name){if(!baseLayers[name])return;Object.values(baseLayers).forEach(layer=>{if(map.hasLayer(layer))map.removeLayer(layer);});baseLayers[name].addTo(map);activeBase=name;['street','satellite','terrain'].forEach(key=>{const button=document.getElementById('base-'+key);if(button){button.classList.toggle('primary',key===name);button.classList.toggle('outline',key!==name);}});}
+document.getElementById('base-street').onclick=()=>setBaseLayer('street');
+document.getElementById('base-satellite').onclick=()=>setBaseLayer('satellite');
+document.getElementById('base-terrain').onclick=()=>setBaseLayer('terrain');
 let drawing=false, editing=false, points=[], draftLayers=[], editMarkers=[], lotLayer=null, current=null;
 const $=id=>document.getElementById(id);
 function status(message){$('lot-status').textContent=message;}
@@ -71,7 +91,7 @@ function renderEditedPolygon(){
  if(!current||current.geometry.type!=='Polygon')return;
  const ring=[...points,points[0]];
  const next=normalizeLotFeature({...current,geometry:{type:'Polygon',coordinates:[ring,...current.geometry.coordinates.slice(1)]}});
- current=next;if(lotLayer)map.removeLayer(lotLayer);lotLayer=L.geoJSON(current,{style:{color:'#16834a',weight:3,fillColor:'#2ecc71',fillOpacity:.22}}).addTo(map);
+ current=next;if(lotLayer)map.removeLayer(lotLayer);lotLayer=L.geoJSON(current,{style:{color:'#73e6b1',weight:3,fillColor:'#20a66a',fillOpacity:.24}}).addTo(map);
  clearEditMarkers();points.forEach((p,i)=>{const marker=L.marker([p[1],p[0]],{draggable:true}).addTo(map);marker.on('dragend',e=>{const ll=e.target.getLatLng();points[i]=[ll.lng,ll.lat];try{renderEditedPolygon();}catch(err){alert(err.message);}});marker.on('contextmenu',()=>{if(points.length<=3)return alert('Un polígono necesita al menos 3 vértices.');points.splice(i,1);renderEditedPolygon();});editMarkers.push(marker);});
 }
 
@@ -84,7 +104,8 @@ function drawDraft(){
 }
 function showFeature(feature){
  if(lotLayer)map.removeLayer(lotLayer);
- current=feature;lotLayer=L.geoJSON(feature,{style:{color:'#16834a',weight:3,fillColor:'#2ecc71',fillOpacity:.22}}).addTo(map);
+ current=feature;lotLayer=L.geoJSON(feature,{style:{color:'#73e6b1',weight:3,fillColor:'#20a66a',fillOpacity:.24}}).addTo(map);
+ $('layer-lot').checked=true;
  clearEditMarkers();editing=false;$('edit').textContent='Editar vértices';$('edit').disabled=feature.geometry.type!=='Polygon';
  map.fitBounds(lotLayer.getBounds(),{padding:[20,20]});
  $('save').disabled=false;$('aptitude').disabled=false;$('forest').disabled=false;
@@ -104,6 +125,7 @@ $('save').onclick=()=>{if(!current)return;try{const saved=setLotContext(current,
 $('aptitude').onclick=()=>{if(!current)return;$('save').click();location.href='resultados.html';};
 $('forest').onclick=()=>{if(!current)return;$('save').click();location.href='forestal.html';};
 $('tracking').onclick=()=>location.href='tracking.html';
+$('layer-lot').onchange=()=>{if(!lotLayer)return;if($('layer-lot').checked){lotLayer.addTo(map);}else{map.removeLayer(lotLayer);}};
 const saved=getLotContext();if(saved)showFeature(saved);
 </script>
 </body>

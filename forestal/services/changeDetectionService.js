@@ -10,8 +10,10 @@ import { calculateArea } from '../utils/geo.js';
  * Detecta cambios temporales entre dos análisis NDVI (Fecha A y Fecha B)
  */
 export function detectChanges(analysisA, analysisB, geometry) {
-  const hasObsA = Boolean(analysisA && (analysisA.available !== false || analysisA.productId));
-  const hasObsB = Boolean(analysisB && (analysisB.available !== false || analysisB.productId));
+  // Una observación válida exige una escena real y confirmada. El objeto de
+  // respuesta vacío de analyzeVegetation no debe confundirse con una escena.
+  const hasObsA = Boolean(analysisA && analysisA.available === true && analysisA.productId && analysisA.productId !== 'NO DISPONIBLE');
+  const hasObsB = Boolean(analysisB && analysisB.available === true && analysisB.productId && analysisB.productId !== 'NO DISPONIBLE');
 
   if (!hasObsA || !hasObsB) {
     return {
