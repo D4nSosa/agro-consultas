@@ -228,7 +228,7 @@
 
         const subregion = provKey ? await findSubregion(provKey, lat, lng) : null;
         const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
-        const climateReport = await getClimateData(lat, lng, provKey || "", subregion?.clima);
+        const climateReport = await getClimateData(lat, lng, administrativeLocation?.provincia || "", subregion?.clima);
         const climateHistory = await getClimateHistory(lat, lng, 12);
 
         const cultivosNombres = provKey ? await getCropsToEvaluate(provKey) : [];
