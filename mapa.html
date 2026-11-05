@@ -53,6 +53,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script type="module">
 import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature } from './services/lotContext.js';
+import { calculateArea } from './forestal/utils/geo.js';
 const map=L.map('lot-map').setView([-38.4,-63.6],4);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 let drawing=false, points=[], draftLayers=[], lotLayer=null, current=null;
@@ -72,10 +73,10 @@ function showFeature(feature){
  map.fitBounds(lotLayer.getBounds(),{padding:[20,20]});
  $('save').disabled=false;$('aptitude').disabled=false;$('forest').disabled=false;
  const name=feature.properties?.name||'Lote sin nombre';$('lot-name').value=name;
- status(name+' · geometría '+feature.geometry.type+' · '+lotLayer.getBounds().toBBoxString());
+ const area=calculateArea(feature);\n status(name+' · '+(area.hectares||0)+' ha · geometría '+feature.geometry.type);
 }
 map.on('click',e=>{if(!drawing)return;points.push([e.latlng.lng,e.latlng.lat]);drawDraft();});
-$('draw').onclick=()=>{if(!drawing){drawing=true;points=[];if(lotLayer){map.removeLayer(lotLayer);lotLayer=null;current=null;}clearDraft();$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;$('draw').textContent='Cancelar dibujo';status('Tocá el mapa para agregar vértices.');}else{drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';status('Dibujo cancelado.');}};
+$('draw').onclick=()=>{if(!drawing){drawing=true;points=[];if(lotLayer){map.removeLayer(lotLayer);lotLayer=null;current=null;}clearDraft();$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;$('draw').textContent='Cancelar dibujo';status('Tocá el mapa para agregar vértices.');}else{drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';const previous=getLotContext();if(previous)showFeature(previous);else status('Dibujo cancelado.');}};
 $('undo').onclick=()=>{points.pop();drawDraft();};
 $('close').onclick=()=>{if(points.length<3)return;const ring=[...points,points[0]];try{const feature=normalizeLotFeature({type:'Feature',properties:{name:$('lot-name').value||'Lote dibujado'},geometry:{type:'Polygon',coordinates:[ring]}});drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';showFeature(feature);}catch(e){alert(e.message);}};
 $('clear').onclick=()=>{drawing=false;points=[];clearDraft();if(lotLayer)map.removeLayer(lotLayer);lotLayer=null;current=null;clearLotContext();$('draw').textContent='Dibujar polígono';$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;status('No hay un lote seleccionado.');};
