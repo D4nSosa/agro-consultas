@@ -50,3 +50,14 @@ test('acepta una MultiPolygon válida', () => {
   };
   assert.equal(normalizeLotFeature(multi).geometry.type, 'MultiPolygon');
 });
+
+test('combina Features Polygon de una FeatureCollection en MultiPolygon', () => {
+  const collection = {
+    type: 'FeatureCollection',
+    features: [square, {
+      type: 'Feature', properties: {},
+      geometry: { type: 'Polygon', coordinates: [[[-55.9,-28.1],[-55.8,-28.1],[-55.8,-28],[-55.9,-28],[-55.9,-28.1]]] }
+    }]
+  };
+  assert.equal(normalizeLotFeature(collection).geometry.type, 'MultiPolygon');
+});
