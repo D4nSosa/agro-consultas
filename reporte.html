@@ -112,7 +112,7 @@
 
   <!-- Script del Reporte -->
   <script type="module">
-    import { findProvinceByCoords, findSubregion } from './services/territoryService.js';
+    import { findProvinceByCoords, findSubregion, getAdministrativeLocationByCoords } from './services/territoryService.js';
     import { getSoilReport } from './services/soilService.js';
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
@@ -216,16 +216,22 @@
       }
 
       try {
-        const provKey = await findProvinceByCoords(lat, lng);
-        document.getElementById('report-prov').innerText = provKey || 'Argentina';
+        const administrativeLocation = await getAdministrativeLocationByCoords(lat, lng);
+        const provKey = administrativeLocation?.provinceKey || null;
+        const locationLabel = administrativeLocation
+          ? [administrativeLocation.municipio, administrativeLocation.departamento, administrativeLocation.provincia]
+              .filter((value, index, values) => value && values.indexOf(value) === index)
+              .join(' · ')
+          : 'Ubicación administrativa no verificada';
+        document.getElementById('report-prov').innerText = locationLabel;
 
         const subregion = provKey ? await findSubregion(provKey, lat, lng) : null;
         const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
-        const climateReport = await getClimateData(lat, lng, provKey || "Argentina", subregion?.clima);
+        const climateReport = await getClimateData(lat, lng, provKey || "", subregion?.clima);
         const climateHistory = await getClimateHistory(lat, lng, 12);
 
-        const cultivosNombres = await getCropsToEvaluate(provKey);
-        const todasRecomendaciones = await generateRecommendations(cultivosNombres, soilReport, climateReport);
+        const cultivosNombres = provKey ? await getCropsToEvaluate(provKey) : [];
+        const todasRecomendaciones = provKey ? await generateRecommendations(cultivosNombres, soilReport, climateReport) : [];
         const recomendaciones = todasRecomendaciones.filter(c => c.compatibilidad !== "INFORMACIÓN PENDIENTE DE VERIFICACIÓN");
 
         let forestHTML = '';
@@ -278,18 +284,14 @@
               </div>
 
               <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem; margin-bottom: 15px;">
-                <strong>📊 Diagnóstico de Variación Espectral:</strong> ${changes.primaryMessage || 'Cálculo de índice NDVI en consulta'}<br>
-                <span style="color: var(--texto-secundario);">${changes.description || ''}</span>
+                <strong>📊 Diagnóstico de Variación Espectral:</strong> ${(prodA || prodB) ? (changes.primaryMessage || 'Escena identificada; procesamiento espectral no confirmado.') : 'No se identificaron escenas disponibles para las fechas consultadas.'}<br>
+                <span style="color: var(--texto-secundario);">${(prodA || prodB) ? (changes.description || 'La identificación de una escena no implica que el NDVI haya sido procesado.') : 'No se dispone de productos Sentinel-2 para respaldar una comparación en este informe.'}</span>
               </div>
 
-              <!-- Ordenamiento Territorial de Bosques Nativos (OTBN Ley 26.331) -->
-              <div style="background: rgba(39, 174, 96, 0.04); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
-                <strong style="color: var(--verde-principal); display: block; margin-bottom: 4px;">🌳 Categorización OTBN (Ley 26.331 Bosques Nativos):</strong>
-                <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.82rem; margin-top: 4px;">
-                  <span>🔴 Categoría I (Roja - Preservación)</span>
-                  <span>🟡 Categoría II (Amarilla - Manejo Sostenible)</span>
-                  <span>🟢 Categoría III (Verde - Transformable)</span>
-                </div>
+              <!-- No se atribuye una categoría OTBN sin intersección espacial validada. -->
+              <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
+                <strong style="color: var(--verde-principal); display: block; margin-bottom: 4px;">🌳 Ordenamiento Territorial de Bosques Nativos (Ley 26.331)</strong>
+                <span style="color: var(--texto-secundario);">No evaluado para este lote: el informe no dispone de una capa OTBN oficial validada e intersectada con la geometría seleccionada.</span>
               </div>
             </div>
           `;
@@ -311,7 +313,7 @@
                 <div><strong>Textura Predominante:</strong> ${soilReport.textura || 'NO DISPONIBLE'}</div>
                 <div><strong>Drenaje / Escurrimiento:</strong> ${soilReport.drenaje || 'NO DISPONIBLE'}</div>
                 <div><strong>Limitantes Edáficas:</strong> ${soilReport.limitantes || 'Sin limitantes severas detectadas'}</div>
-                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Fuente: ${soilReport.fuente}</div>
+                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Fuente declarada: ${soilReport.fuente || 'No informada'}${soilReport.fallback ? ' · Información regional de referencia; no equivale a una medición puntual.' : ''}</div>
               </div>
             </div>
 
@@ -344,6 +346,7 @@
           <h3 style="margin: 20px 0 10px 0; color: var(--verde-principal); font-size: 1.15rem; border-bottom: 1px solid var(--borde-suave); padding-bottom: 6px;">
             🌾 Matriz de Aptitud Agroecológica y Forestal
           </h3>
+          ${!provKey ? '<p style="color:var(--texto-secundario);">No se generó la matriz de cultivos porque no se pudo verificar la provincia del punto. Reintentá el informe cuando el servicio Georef esté disponible.</p>' : ''}
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
             ${recomendaciones.map(c => `
