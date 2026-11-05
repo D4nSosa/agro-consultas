@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Seleccioná, dibujá o importá un lote GeoJSON y compartilo entre los módulos de Agro Consultas.">
+<title>Seleccionar lote | Agro Consultas</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="styles.css">
+<style>
+.workspace{max-width:1200px;margin:22px auto;padding:0 16px}.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.map-panel{min-height:65vh;border-radius:12px;overflow:hidden;border:1px solid var(--borde-suave)}#lot-map{height:65vh;min-height:480px}.tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tools button,.tools a{flex:1;min-width:130px}.side{padding:18px}.muted{color:var(--texto-secundario);font-size:.9rem}.status{padding:10px;border-radius:8px;background:var(--gris-fondo);margin:12px 0;overflow-wrap:anywhere}@media(max-width:800px){.workspace-grid{grid-template-columns:1fr}#lot-map{height:58vh;min-height:380px}}
+</style>
+</head>
+<body>
+<header class="app-header">
+ <div class="left"><img class="brand" src="dwnl.png" alt="Agro Consultas"><div class="brand-text"><div class="title">Agro Consultas</div><div style="font-size:.72rem;color:var(--texto-secundario)">Seleccioná tu territorio</div></div></div>
+ <div class="right" style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn outline" href="index.html">Inicio</a><a class="btn outline" href="resultados.html">Aptitud</a><a class="btn outline" href="forestal.html">Forestal</a><a class="btn outline" href="tracking.html">Tracking GPS</a></div>
+</header>
+<main class="workspace">
+ <section class="card" style="padding:20px;margin-bottom:14px">
+  <h1 style="margin:0 0 8px;color:var(--verde-principal)">Mapa central · Selección del lote</h1>
+  <p class="muted" style="margin:0">Dibujá el perímetro, importá un GeoJSON o continuá con un lote que ya guardaste. Este mapa define el área de interés; los análisis se ejecutan en sus módulos correspondientes.</p>
+ </section>
+ <div class="workspace-grid">
+  <section class="card" style="padding:12px">
+   <div id="lot-map" class="map-panel" aria-label="Mapa para seleccionar y dibujar un lote"></div>
+   <div class="tools">
+    <button id="draw" class="btn primary">Dibujar polígono</button>
+    <button id="undo" class="btn outline" disabled>Deshacer vértice</button>
+    <button id="edit" class="btn outline" disabled>Editar vértices</button>
+    <button id="close" class="btn outline" disabled>Cerrar polígono</button>
+    <button id="locate" class="btn outline">Mi ubicación</button>
+    <button id="clear" class="btn outline">Limpiar lote</button>
+   </div>
+  </section>
+  <aside class="card side">
+   <h2 style="margin-top:0">Lote seleccionado</h2>
+   <label for="lot-name">Nombre</label>
+   <input id="lot-name" type="text" placeholder="Ej. Lote norte" style="width:100%;margin:6px 0 12px">
+   <div id="lot-status" class="status">No hay un lote seleccionado.</div>
+   <label class="btn outline" for="geojson-file" style="display:block;text-align:center;cursor:pointer">Importar GeoJSON</label>
+   <input id="geojson-file" type="file" accept=".json,.geojson,application/geo+json,application/json" hidden>
+   <p class="muted">Se acepta Feature, Polygon, MultiPolygon o una FeatureCollection con una sola geometría de lote. Las coordenadas deben estar en WGS84.</p>
+   <div class="tools" style="display:grid">
+    <button id="save" class="btn primary" disabled>Guardar lote</button>
+    <button id="aptitude" class="btn outline" disabled>Analizar aptitud</button>
+    <button id="forest" class="btn outline" disabled>Módulo forestal</button>
+    <button id="tracking" class="btn outline">Tracking GPS</button>
+   </div>
+   <p class="muted">El lote guardado se comparte entre páginas en este navegador. La ubicación GPS por sí sola no se convierte en una superficie.</p>
+  </aside>
+ </div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script type="module">
+import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature } from './services/lotContext.js';
+import { calculateArea } from './forestal/utils/geo.js';
+const map=L.map('lot-map').setView([-38.4,-63.6],4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+let drawing=false, editing=false, points=[], draftLayers=[], editMarkers=[], lotLayer=null, current=null;
+const $=id=>document.getElementById(id);
+function status(message){$('lot-status').textContent=message;}
+function clearDraft(){draftLayers.forEach(layer=>map.removeLayer(layer));draftLayers=[];}
+function clearEditMarkers(){editMarkers.forEach(layer=>map.removeLayer(layer));editMarkers=[];}
+function renderEditedPolygon(){
+ if(!current||current.geometry.type!=='Polygon')return;
+ const ring=[...points,points[0]];
+ const next=normalizeLotFeature({...current,geometry:{type:'Polygon',coordinates:[ring,...current.geometry.coordinates.slice(1)]}});
+ current=next;if(lotLayer)map.removeLayer(lotLayer);lotLayer=L.geoJSON(current,{style:{color:'#16834a',weight:3,fillColor:'#2ecc71',fillOpacity:.22}}).addTo(map);
+ clearEditMarkers();points.forEach((p,i)=>{const marker=L.marker([p[1],p[0]],{draggable:true}).addTo(map);marker.on('dragend',e=>{const ll=e.target.getLatLng();points[i]=[ll.lng,ll.lat];try{renderEditedPolygon();}catch(err){alert(err.message);}});marker.on('contextmenu',()=>{if(points.length<=3)return alert('Un polígono necesita al menos 3 vértices.');points.splice(i,1);renderEditedPolygon();});editMarkers.push(marker);});
+}
+
+function drawDraft(){
+ clearDraft();
+ points.forEach((p,i)=>draftLayers.push(L.circleMarker([p[1],p[0]],{radius:5,color:'#16834a',fillOpacity:1}).bindTooltip('Vértice '+(i+1)).addTo(map)));
+ if(points.length>1)draftLayers.push(L.polyline(points.map(p=>[p[1],p[0]]),{color:'#16834a',dashArray:'5 5'}).addTo(map));
+ $('undo').disabled=!points.length;$('close').disabled=points.length<3;
+ status(drawing?'Dibujo activo · '+points.length+' vértices. Cerrá manualmente cuando termines.':'Dibujo en pausa.');
+}
+function showFeature(feature){
+ if(lotLayer)map.removeLayer(lotLayer);
+ current=feature;lotLayer=L.geoJSON(feature,{style:{color:'#16834a',weight:3,fillColor:'#2ecc71',fillOpacity:.22}}).addTo(map);
+ clearEditMarkers();editing=false;$('edit').textContent='Editar vértices';$('edit').disabled=feature.geometry.type!=='Polygon';
+ map.fitBounds(lotLayer.getBounds(),{padding:[20,20]});
+ $('save').disabled=false;$('aptitude').disabled=false;$('forest').disabled=false;
+ const name=feature.properties?.name||'Lote sin nombre';$('lot-name').value=name;
+ const area=calculateArea(feature);
+ status(name+' · '+(area.hectares||0)+' ha · geometría '+feature.geometry.type);
+}
+map.on('click',e=>{if(!drawing)return;points.push([e.latlng.lng,e.latlng.lat]);drawDraft();});
+$('edit').onclick=()=>{if(!current||current.geometry.type!=='Polygon')return;if(!editing){editing=true;points=current.geometry.coordinates[0].slice(0,-1).map(p=>[...p]);renderEditedPolygon();$('edit').textContent='Terminar edición';status('Arrastrá vértices para moverlos. Clic derecho sobre un vértice para eliminarlo.');}else{try{renderEditedPolygon();editing=false;clearEditMarkers();$('edit').textContent='Editar vértices';status('Cambios listos. Pulsá Guardar lote para compartirlos con los módulos.');}catch(e){alert(e.message);}}};
+$('draw').onclick=()=>{if(!drawing){drawing=true;points=[];clearEditMarkers();editing=false;$('edit').textContent='Editar vértices';if(lotLayer){map.removeLayer(lotLayer);lotLayer=null;current=null;}clearDraft();$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;$('draw').textContent='Cancelar dibujo';status('Tocá el mapa para agregar vértices.');}else{drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';const previous=getLotContext();if(previous)showFeature(previous);else status('Dibujo cancelado.');}};
+$('undo').onclick=()=>{points.pop();drawDraft();};
+$('close').onclick=()=>{if(points.length<3)return;const ring=[...points,points[0]];try{const feature=normalizeLotFeature({type:'Feature',properties:{name:$('lot-name').value||'Lote dibujado'},geometry:{type:'Polygon',coordinates:[ring]}});drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';showFeature(feature);}catch(e){alert(e.message);}};
+$('clear').onclick=()=>{drawing=false;points=[];clearDraft();if(lotLayer)map.removeLayer(lotLayer);lotLayer=null;current=null;clearEditMarkers();editing=false;clearLotContext();$('draw').textContent='Dibujar polígono';$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;status('No hay un lote seleccionado.');};
+$('locate').onclick=()=>{if(!navigator.geolocation)return alert('Geolocalización no disponible en este dispositivo.');navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],16),e=>alert('No se pudo obtener la ubicación: '+e.message),{enableHighAccuracy:true,timeout:12000});};
+$('geojson-file').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{const parsed=JSON.parse(await file.text());const feature=normalizeLotFeature(parsed,{source:'geojson-import',name:$('lot-name').value||file.name});drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';showFeature(feature);}catch(err){alert('GeoJSON no válido: '+err.message);}finally{e.target.value='';}};
+$('save').onclick=()=>{if(!current)return;try{const saved=setLotContext(current,{source:current.properties?.source||'central-map',name:$('lot-name').value||'Lote seleccionado'});showFeature(saved);status('Lote guardado y disponible para Aptitud, Forestal y Tracking.');}catch(e){alert(e.message);}};
+$('aptitude').onclick=()=>{if(!current)return;$('save').click();location.href='resultados.html';};
+$('forest').onclick=()=>{if(!current)return;$('save').click();location.href='forestal.html';};
+$('tracking').onclick=()=>location.href='tracking.html';
+const saved=getLotContext();if(saved)showFeature(saved);
+</script>
+</body>
+</html>

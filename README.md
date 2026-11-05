@@ -23,6 +23,7 @@ Agro Consultas es una plataforma web profesional de análisis y apoyo a decision
 | **Módulo Forestal y Teledetección** | ✅ Funcional | Delimitación de lotes, serie temporal Sentinel-2 L2A STAC y estimación dasométrica. |
 | **Exportación y Compartición de Reportes** | ✅ Funcional | Exportación a PDF, GeoJSON, KML, GPX y enlace para compartir en todos los módulos. |
 | **Diagnóstico Fitopatológico IA** | ❌ Pendiente | Se utiliza análisis visual prudente no diagnóstico (*"síntomas compatibles con..."*). |
+| **Mapa central y lote compartido** | 🧪 En validación | Dibujo manual, importación GeoJSON, edición de vértices y contexto compartido entre Aptitud, Forestal y Tracking. |
 
 ---
 
@@ -83,3 +84,10 @@ Para más detalles sobre la arquitectura intermedia, especificaciones de APIs, g
 ## 📜 Licencia
 
 Este proyecto se encuentra bajo la Licencia MIT. Consulta el archivo [LICENSE.md](LICENSE.md) para más información.
+
+
+## Selección territorial y lote compartido
+
+Entrá por `mapa.html` para dibujar un polígono, importar GeoJSON o recuperar el último lote guardado. El contexto se comparte entre páginas del mismo navegador. Los módulos mantienen sus motores y capas temáticas; el mapa central administra el área de interés y la navegación.
+
+El lote se valida como GeoJSON Polygon o MultiPolygon WGS84. Los puntos GPS aislados no se interpretan como superficies. En el módulo de Aptitud, las consultas puntuales de clima y suelos se realizan sobre una coordenada representativa del lote y no constituyen estadísticas zonales de toda la geometría.

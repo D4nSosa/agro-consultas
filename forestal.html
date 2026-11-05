@@ -52,6 +52,7 @@
     </div>
 
     <div class="right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <a class="btn primary" href="mapa.html" style="font-size:0.85rem;">🗺️ Mapa central</a>
       <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🏠 Inicio</a>
       <a class="btn outline" href="resultados.html" style="font-size: 0.85rem;">🌾 Aptitud de Cultivos</a>
       <a class="btn primary" href="forestal.html" style="font-size: 0.85rem;">🌲 Módulo Forestal</a>
@@ -250,6 +251,7 @@
   <!-- Script Orquestador ES Module para la pantalla Forestal -->
   <script type="module">
     import { ForestMap } from './forestal/components/ForestMap.js';
+    import { getLotContext, setLotContext, normalizeLotFeature } from './services/lotContext.js';
     import { ForestTimeline } from './forestal/components/ForestTimeline.js';
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
@@ -625,12 +627,18 @@
           document.getElementById('lot-area-val').innerText = `${area.hectares} ha`;
           document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
           document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
+          try { setLotContext(feature, { source: 'forest-module' }); } catch (error) { console.warn('Lote no sincronizado:', error.message); }
         } else {
           document.getElementById('lot-area-val').innerText = area && area.hectares ? area.hectares : "LOTE NO DEFINIDO";
           document.getElementById('lot-coords-val').innerText = centroid && centroid.lat ? `Lat: ${centroid.lat.toFixed(4)}, Lng: ${centroid.lng.toFixed(4)} (PUNTO GPS)` : "Sin lote definido";
           document.getElementById('geojson-textarea').value = "LOTE NO DEFINIDO — La ubicación GPS capturada provee un PUNTO. Delimite un polígono o cargue un GeoJSON para análisis de lote.";
         }
       });
+
+      const sharedLot = getLotContext();
+      if (sharedLot) {
+        try { forestMap.setGeoJSON(sharedLot); } catch (error) { console.warn('No se pudo cargar el lote compartido:', error); }
+      }
 
       // Buscador de Localidades
       const searchForm = document.getElementById('forest-search-form');
@@ -799,15 +807,13 @@
     });
 
     async function ejecutarAnalisis(dateA, dateB) {
-      let feature = forestMap.getCurrentFeature();
+      let feature = forestMap.getCurrentFeature() || getLotContext();
       if (!feature) {
-        // Si no hay lote delimitado ni punto seleccionado, se utiliza un Punto de Referencia de consulta sin polígono inventado
-        const lat = -28.0500;
-        const lng = -56.0333;
-        const geom = { type: "Point", coordinates: [lng, lat] };
-        feature = { type: "Feature", geometry: geom, properties: { name: "Ejemplo Demostrativo / Punto de Consulta Referencial: Virasoro, Corrientes" } };
-        forestMap.setGeoJSON(feature);
+        alert('No hay un lote seleccionado. Dibujá o importá un polígono GeoJSON antes de ejecutar el análisis forestal. No se utilizará una ubicación de ejemplo.');
+        return;
       }
+      try { feature = normalizeLotFeature(feature, { source: 'forest-analysis' }); }
+      catch (error) { alert(`La geometría no es válida para análisis de lote: ${error.message}`); return; }
 
       const btn = document.getElementById('btn-run-analysis');
       if (btn) {
