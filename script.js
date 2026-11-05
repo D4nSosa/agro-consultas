@@ -24,6 +24,7 @@ import {
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
 import { getSentinel1SarAnalysis } from './forestal/services/satelliteService.js';
 import { MapViewer } from './services/mapViewer.js';
+import { setLotContext, getLotContext, clearLotContext } from './services/lotContext.js';
 
 let mapViewerInstance = null;
 let currentMarker = null;
@@ -66,96 +67,90 @@ export async function inicializarMapa(provinciaRaw) {
 
   if (!leafletMap) return;
 
-  leafletMap.on('click', (e) => {
-    const { lat, lng } = e.latlng;
-
-    // Si el modo dibujo no está explícitamente activado pero el usuario hace clic, agregamos un punto vértice interactivo
-    if (!isDrawingMainLot) {
-      isDrawingMainLot = true;
-      mainDrawPoints = [];
-      if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
-      mainDrawMarkerLayers.forEach(lyr => leafletMap.removeLayer(lyr));
-      mainDrawMarkerLayers = [];
+  const renderDraft = () => {
+    mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
+    mainDrawMarkerLayers = [];
+    mainDrawPoints.forEach((point, index) => {
+      const marker = L.circleMarker([point[1], point[0]], { radius: 6, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(leafletMap);
+      marker.bindPopup(`Vértice ${index + 1}`);
+      mainDrawMarkerLayers.push(marker);
+    });
+    if (drawnPolygonLayer) { leafletMap.removeLayer(drawnPolygonLayer); drawnPolygonLayer = null; }
+    if (mainDrawPoints.length > 1) {
+      const line = L.polyline(mainDrawPoints.map(p => [p[1], p[0]]), { color: '#27ae60', weight: 2, dashArray: '5 5' }).addTo(leafletMap);
+      mainDrawMarkerLayers.push(line);
     }
+    const btnDraw = document.getElementById('btn-start-draw-main');
+    if (btnDraw) btnDraw.innerText = isDrawingMainLot ? `✏️ ${mainDrawPoints.length} vértices · cerrar cuando quieras` : '✏️ Dibujar Lote';
+  };
 
-    mainDrawPoints.push([lng, lat]);
-    const m = L.circleMarker([lat, lng], { radius: 6, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(leafletMap);
-    m.bindPopup(`<b>Vértice ${mainDrawPoints.length}</b><br>Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`).openPopup();
-    mainDrawMarkerLayers.push(m);
-
-    const btnDraw = document.getElementById("btn-start-draw-main");
-    const btnClear = document.getElementById("btn-clear-draw-main");
-    if (btnDraw) btnDraw.innerText = `✏️ Vértice ${mainDrawPoints.length} marcado...`;
-    if (btnClear) btnClear.style.display = "inline-block";
-
-    if (mainDrawPoints.length >= 3) {
-      // Cerrar polígono automáticamente
-      const closedCoords = [...mainDrawPoints, mainDrawPoints[0]];
-      const geojsonFeature = {
-        type: "Feature",
-        properties: { name: `Lote Dibujado (${mainDrawPoints.length} Vértices)` },
-        geometry: { type: "Polygon", coordinates: [closedCoords] }
-      };
-
-      const areaCalc = calculateArea(geojsonFeature);
-
+  const closeDraft = () => {
+    if (mainDrawPoints.length < 3) return alert('Agregá al menos 3 vértices antes de cerrar el lote.');
+    const ring = [...mainDrawPoints, mainDrawPoints[0]];
+    const feature = { type: 'Feature', properties: { name: `Lote dibujado (${mainDrawPoints.length} vértices)`, source: 'map-drawing' }, geometry: { type: 'Polygon', coordinates: [ring] } };
+    try {
+      const saved = setLotContext(feature, { source: 'map-drawing' });
+      currentAOIPolygon = saved.geometry;
+      const areaCalc = calculateArea(saved.geometry);
       if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
-      mainDrawMarkerLayers.forEach(lyr => leafletMap.removeLayer(lyr));
-      mainDrawMarkerLayers = [];
-
-      drawnPolygonLayer = L.geoJSON(geojsonFeature, {
-        style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
-      }).addTo(leafletMap);
-
-      drawnPolygonLayer.bindPopup(`
-        <div style="font-size:0.85rem;">
-          <strong>📐 LOTE DIBUJADO EN MAPA</strong><br>
-          <span>Superficie: <strong>${areaCalc.hectares} ha</strong> (${areaCalc.squareMeters.toLocaleString('es-AR')} m²)</span><br>
-          <small>Vértices: ${mainDrawPoints.length}</small>
-        </div>
-      `).openPopup();
-
-      currentAOIPolygon = geojsonFeature.geometry;
-      sessionStorage.setItem('agro_current_polygon', JSON.stringify(geojsonFeature));
-
+      drawnPolygonLayer = L.geoJSON(saved, { style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 } }).addTo(leafletMap);
+      drawnPolygonLayer.bindPopup(`Lote seleccionado · ${areaCalc.hectares} ha · ${mainDrawPoints.length} vértices`);
       isDrawingMainLot = false;
-      if (btnDraw) btnDraw.innerText = "✏️ Redibujar Lote";
+      renderDraft();
+      const center = drawnPolygonLayer.getBounds().getCenter();
+      procesarSeleccionCoordenadas(center.lat, center.lng, `Lote dibujado (${areaCalc.hectares} ha)`, 'LOTE / POLÍGONO');
+    } catch (error) { alert(error.message); }
+  };
 
-      procesarSeleccionCoordenadas(lat, lng, `Lote Dibujado (${areaCalc.hectares} ha - ${mainDrawPoints.length} Vértices)`, "LOTE / POLÍGONO");
-    } else {
-      // Si aún tiene 1 ó 2 vértices, procesar punto exacto para entregar resultados inmediatos sin trabar la UI
-      procesarSeleccionCoordenadas(lat, lng, `Vértice ${mainDrawPoints.length} (Hacé clic en ${3 - mainDrawPoints.length} punto(s) más para cerrar el lote)`, "PUNTO / COORDENADA EXACTA");
-    }
+  leafletMap.on('click', (e) => {
+    if (!isDrawingMainLot) return;
+    mainDrawPoints.push([e.latlng.lng, e.latlng.lat]);
+    renderDraft();
+    const clearBtn = document.getElementById('btn-clear-draw-main');
+    if (clearBtn) clearBtn.style.display = 'inline-block';
   });
 
-  const btnDrawMain = document.getElementById("btn-start-draw-main");
-  const btnClearMain = document.getElementById("btn-clear-draw-main");
-
+  const btnDrawMain = document.getElementById('btn-start-draw-main');
+  const btnClearMain = document.getElementById('btn-clear-draw-main');
   if (btnDrawMain) {
-    btnDrawMain.addEventListener("click", () => {
-      isDrawingMainLot = true;
-      mainDrawPoints = [];
-      if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
-      mainDrawMarkerLayers.forEach(lyr => leafletMap.removeLayer(lyr));
-      mainDrawMarkerLayers = [];
-      btnDrawMain.innerText = "✏️ Haciendo clic en vértices...";
-      if (btnClearMain) btnClearMain.style.display = "inline-block";
-      alert("✏️ MODO DIBUJO DE LOTE ACTIVO:\n1. Hacé clic en la ubicación de cada vértice de tu lote en el mapa.\n2. Al hacer clic en el 3er vértice, el lote se cerrará automáticamente y se iniciará el análisis territorial.");
+    btnDrawMain.addEventListener('click', () => {
+      if (isDrawingMainLot && mainDrawPoints.length >= 3) return closeDraft();
+      if (!isDrawingMainLot) {
+        isDrawingMainLot = true;
+        mainDrawPoints = [];
+        currentAOIPolygon = null;
+        if (drawnPolygonLayer) { leafletMap.removeLayer(drawnPolygonLayer); drawnPolygonLayer = null; }
+      }
+      renderDraft();
+      if (btnClearMain) btnClearMain.style.display = 'inline-block';
+      if (mainDrawPoints.length === 0) alert('Modo dibujo activo. Tocá el mapa para agregar todos los vértices que necesites. Volvé a pulsar este botón para cerrar el polígono cuando tengas al menos 3.');
     });
   }
-
   if (btnClearMain) {
-    btnClearMain.addEventListener("click", () => {
+    btnClearMain.addEventListener('click', () => {
+      if (isDrawingMainLot && mainDrawPoints.length) {
+        mainDrawPoints.pop();
+        renderDraft();
+        return;
+      }
       isDrawingMainLot = false;
       mainDrawPoints = [];
-      if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
-      mainDrawMarkerLayers.forEach(lyr => leafletMap.removeLayer(lyr));
+      mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
       mainDrawMarkerLayers = [];
+      if (drawnPolygonLayer) { leafletMap.removeLayer(drawnPolygonLayer); drawnPolygonLayer = null; }
       currentAOIPolygon = null;
-      sessionStorage.removeItem('agro_current_polygon');
-      if (btnDrawMain) btnDrawMain.innerText = "✏️ Dibujar Lote";
-      btnClearMain.style.display = "none";
+      clearLotContext();
+      btnClearMain.style.display = 'none';
+      if (btnDrawMain) btnDrawMain.innerText = '✏️ Dibujar Lote';
     });
+    btnClearMain.innerText = '↶ Deshacer vértice / limpiar lote';
+  }
+
+  const sharedLot = getLotContext();
+  if (sharedLot) {
+    currentAOIPolygon = sharedLot.geometry;
+    drawnPolygonLayer = L.geoJSON(sharedLot, { style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.25 } }).addTo(leafletMap);
+    leafletMap.fitBounds(drawnPolygonLayer.getBounds(), { padding: [24, 24] });
   }
 
   // Renderizar panel de control de capas en el contenedor
