@@ -25,3 +25,28 @@ test('rechaza coordenadas fuera de rango', () => {
   invalid.geometry.coordinates[0][0] = [250,-28];
   assert.throws(() => normalizeLotFeature(invalid), /coordenadas GeoJSON inválidas/);
 });
+
+test('rechaza polígonos auto-intersectados', () => {
+  const bowTie = structuredClone(square);
+  bowTie.geometry.coordinates[0] = [
+    [-56.1,-28.1], [-56,-28], [-56,-28.1], [-56.1,-28], [-56.1,-28.1]
+  ];
+  assert.throws(() => normalizeLotFeature(bowTie), /se cruza a sí mismo/);
+});
+
+test('rechaza coordenadas GeoJSON representadas como texto', () => {
+  const invalid = structuredClone(square);
+  invalid.geometry.coordinates[0][0] = ['-56.1', -28.1];
+  assert.throws(() => normalizeLotFeature(invalid), /coordenadas GeoJSON inválidas/);
+});
+
+test('acepta una MultiPolygon válida', () => {
+  const multi = {
+    type: 'Feature', properties: {},
+    geometry: { type: 'MultiPolygon', coordinates: [
+      [[[-56.1,-28.1],[-56,-28.1],[-56,-28],[-56.1,-28],[-56.1,-28.1]]],
+      [[[-55.9,-28.1],[-55.8,-28.1],[-55.8,-28],[-55.9,-28],[-55.9,-28.1]]]
+    ] }
+  };
+  assert.equal(normalizeLotFeature(multi).geometry.type, 'MultiPolygon');
+});
