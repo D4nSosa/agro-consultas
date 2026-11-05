@@ -20,9 +20,30 @@ function unwrap(input) {
 
 function validatePosition(position) {
   return Array.isArray(position) && position.length >= 2 &&
-    Number.isFinite(Number(position[0])) && Number.isFinite(Number(position[1])) &&
-    Number(position[0]) >= -180 && Number(position[0]) <= 180 &&
-    Number(position[1]) >= -90 && Number(position[1]) <= 90;
+    typeof position[0] === 'number' && typeof position[1] === 'number' &&
+    Number.isFinite(position[0]) && Number.isFinite(position[1]) &&
+    position[0] >= -180 && position[0] <= 180 &&
+    position[1] >= -90 && position[1] <= 90;
+}
+
+function orientation(a, b, c) {
+  const value = (b[1] - a[1]) * (c[0] - b[0]) - (b[0] - a[0]) * (c[1] - b[1]);
+  return Math.abs(value) < 1e-12 ? 0 : (value > 0 ? 1 : 2);
+}
+
+function onSegment(a, b, c) {
+  return b[0] <= Math.max(a[0], c[0]) + 1e-12 && b[0] >= Math.min(a[0], c[0]) - 1e-12 &&
+    b[1] <= Math.max(a[1], c[1]) + 1e-12 && b[1] >= Math.min(a[1], c[1]) - 1e-12;
+}
+
+function segmentsIntersect(p1, q1, p2, q2) {
+  const o1 = orientation(p1, q1, p2), o2 = orientation(p1, q1, q2);
+  const o3 = orientation(p2, q2, p1), o4 = orientation(p2, q2, q1);
+  if (o1 !== o2 && o3 !== o4) return true;
+  return (o1 === 0 && onSegment(p1, p2, q1)) ||
+    (o2 === 0 && onSegment(p1, q2, q1)) ||
+    (o3 === 0 && onSegment(p2, p1, q2)) ||
+    (o4 === 0 && onSegment(p2, q1, q2));
 }
 
 function ringArea(ring) {
@@ -40,6 +61,17 @@ function validateRing(ring) {
   if (first[0] !== last[0] || first[1] !== last[1]) throw new Error('El polígono debe cerrarse manualmente.');
   const unique = new Set(ring.slice(0, -1).map(p => p.join(',')));
   if (unique.size < 3) throw new Error('El polígono necesita al menos 3 vértices distintos.');
+  for (let i = 0; i < ring.length - 1; i++) {
+    if (ring[i][0] === ring[i + 1][0] && ring[i][1] === ring[i + 1][1]) {
+      throw new Error('El polígono contiene vértices consecutivos duplicados.');
+    }
+    for (let j = i + 1; j < ring.length - 1; j++) {
+      if (j === i || j === i + 1 || (i === 0 && j === ring.length - 2)) continue;
+      if (segmentsIntersect(ring[i], ring[i + 1], ring[j], ring[j + 1])) {
+        throw new Error('El polígono se cruza a sí mismo o tiene segmentos superpuestos.');
+      }
+    }
+  }
   if (ringArea(ring) <= 1e-12) throw new Error('El polígono no tiene superficie válida.');
 }
 
