@@ -367,8 +367,8 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
     lastSoilReportCache = soilReport;
     lastClimateReportCache = climateReport;
 
-    const soilBadgeText = soilReport.status === DataStatus.REAL ? 'Datos locales verificados (INTA)' : 'Promedio regional (INTA)';
-    const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'Medición en vivo (Open-Meteo)' : 'Promedio regional';
+    const soilBadgeText = soilReport.status === DataStatus.REAL ? 'Consulta cartográfica INTA' : 'Referencia regional';
+    const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'Estimación meteorológica puntual (Open-Meteo)' : 'Referencia regional / no disponible';
 
     const levelText = geoVal?.spatialLevel || currentSpatialLevel || "PUNTO DE REFERENCIA";
 
@@ -377,11 +377,11 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <strong>📍 Contexto Territorial de Ubicación (PUNTO)</strong>
         <span style="font-weight: 600; color: var(--verde-principal);">${provincia}</span>
         <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 4px;">Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</span>
-        <span style="font-size: 0.8rem; display: block; color: var(--verde-principal); font-weight: 600; margin-top: 2px;">🎯 Precisión Micro-Local (100m - 500m)</span>
+        <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 2px;">Provincia asignada por referencia geográfica más cercana; no es una verificación por límites administrativos.</span>
       </div>
 
       <div style="background: rgba(2, 119, 189, 0.08); border: 1px solid rgba(2, 119, 189, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-principal);">
-        <strong>ℹ️ Escala Geográfica:</strong> Esta consulta analiza el contexto agroclimático del punto seleccionado. Para delimitar y evaluar la superficie exacta de un lote por polígono, utilice el Módulo Forestal.
+        <strong>ℹ️ Escala Geográfica:</strong> Clima y suelos se consultan para este punto representativo. Si seleccionaste un lote, estos valores no son estadísticas zonales de toda su superficie. La provincia se aproxima por coordenadas de referencia, no por intersección con límites administrativos.
       </div>
 
       <!-- Clima en Vivo -->
