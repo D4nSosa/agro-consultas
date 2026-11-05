@@ -96,7 +96,10 @@ export async function inicializarMapa(provinciaRaw) {
       drawnPolygonLayer = L.geoJSON(saved, { style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 } }).addTo(leafletMap);
       drawnPolygonLayer.bindPopup(`Lote seleccionado · ${areaCalc.hectares} ha · ${mainDrawPoints.length} vértices`);
       isDrawingMainLot = false;
-      renderDraft();
+      mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
+      mainDrawMarkerLayers = [];
+      const btnDraw = document.getElementById('btn-start-draw-main');
+      if (btnDraw) btnDraw.innerText = '✏️ Redibujar lote';
       const center = drawnPolygonLayer.getBounds().getCenter();
       procesarSeleccionCoordenadas(center.lat, center.lng, `Lote dibujado (${areaCalc.hectares} ha)`, 'LOTE / POLÍGONO');
     } catch (error) { alert(error.message); }
