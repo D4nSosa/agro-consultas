@@ -21,10 +21,21 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
   try {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < CACHE_EXPIRY) {
-        return { ...data, fuente: 'INTA GeoServer (Caché local)', cached: true };
+      const entry = JSON.parse(cached);
+      const { data, timestamp, origin } = entry;
+      // Las entradas antiguas no registran procedencia: se descartan para no presentar
+      // un fallback regional como si fuera una consulta puntual al GeoServer.
+      if (Date.now() - timestamp < CACHE_EXPIRY && (origin === 'wms' || origin === 'regional')) {
+        return {
+          ...data,
+          fuente: origin === 'wms'
+            ? 'INTA Cartografía Oficial (WMS · caché local)'
+            : 'INTA / Cartografía Regional Subregional (caché local)',
+          cached: true,
+          fallback: origin === 'regional'
+        };
       }
+      if (origin !== 'wms' && origin !== 'regional') localStorage.removeItem(cacheKey);
     }
   } catch (err) {
     console.warn("[INTA] Error al leer caché edafológico:", err);
@@ -75,7 +86,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       };
 
       try {
-        localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
+        localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now(), origin: 'wms' }));
       } catch (e) {}
 
       return { ...data, fuente: 'INTA Cartografía Oficial (WMS)', cached: false };
@@ -100,7 +111,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       };
 
       try {
-        localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
+        localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now(), origin: 'regional' }));
       } catch (e) {}
 
       return { ...data, fuente: 'INTA / Cartografía Regional Subregional', cached: false, fallback: true };
