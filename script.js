@@ -631,22 +631,22 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">💧 Retrodispersión VV (Humedad de Suelo)</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">💧 Retrodispersión VV (polarización VV)</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: #2980b9; margin: 4px 0;">${s.vv_mean_dB} dB</div>
         <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.sueloHumedad || 'Respuesta edáfica'}</div>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌿 Retrodispersión VH (Estructura de Biomasa)</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌿 Retrodispersión VH (polarización VH)</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${s.vh_mean_dB} dB</div>
         <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.estructuraBiomasa || 'Estructura vegetativa'}</div>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📊 Ratio VH/VV (Dispersión Volumétrica)</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📊 Diferencia VH − VV (dB)</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: #8e44ad; margin: 4px 0;">${s.vh_vv_ratio_dB} dB</div>
         <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px;">
-          Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
+          Equivale a 10·log₁₀(VH/VV); no es una medición directa de biomasa.<br>Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
           Fecha: ${sarRes.date} | Satélite: Sentinel-1A (Radar Banda C)
         </div>
       </div>
