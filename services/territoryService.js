@@ -33,7 +33,7 @@ export async function getAdministrativeLocationByCoords(lat, lng) {
   try {
     const url = new URL('https://apis.datos.gob.ar/georef/api/ubicacion');
     url.search = new URLSearchParams({
-      lat: String(lat), lon: String(lng), aplanar: 'true',
+      lat: String(lat), lon: String(lng),
       campos: 'estandar', formato: 'json'
     }).toString();
     const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
