@@ -25,29 +25,50 @@ export async function loadTerritoryData() {
 }
 
 /**
- * Busca la provincia más cercana a un par de coordenadas dadas.
- * @param {number} lat - Latitud.
- * @param {number} lng - Longitud.
- * @returns {Promise<string>} Clave normalizada de la provincia más cercana.
+ * Resuelve la jurisdicción que contiene el punto mediante el servicio oficial
+ * Georef (datos.gob.ar). No sustituye límites administrativos por centroides.
+ */
+export async function getAdministrativeLocationByCoords(lat, lng) {
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return null;
+  try {
+    const url = new URL('https://apis.datos.gob.ar/georef/api/ubicacion');
+    url.search = new URLSearchParams({
+      lat: String(lat), lon: String(lng), aplanar: 'true',
+      campos: 'estandar', formato: 'json'
+    }).toString();
+    const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Georef respondió HTTP ${response.status}`);
+    const payload = await response.json();
+    const location = payload?.ubicacion;
+    const provinceName = location?.provincia?.nombre || null;
+    if (!provinceName) return null;
+    await loadTerritoryData();
+    const provinceKey = Object.keys(provinciasData).find(
+      key => normalizeKey(key) === normalizeKey(provinceName)
+    ) || null;
+    return {
+      provincia: provinceName,
+      provinciaId: location?.provincia?.id || null,
+      departamento: location?.departamento?.nombre || null,
+      departamentoId: location?.departamento?.id || null,
+      municipio: location?.municipio?.nombre || null,
+      municipioId: location?.municipio?.id || null,
+      provinceKey,
+      fuente: 'Georef · datos.gob.ar'
+    };
+  } catch (error) {
+    console.warn('[Territorio] No se pudo verificar la ubicación administrativa:', error);
+    return null;
+  }
+}
+
+/**
+ * Devuelve la clave normalizada solo cuando Georef confirma la provincia.
+ * Si el servicio falla, retorna null: nunca adivina usando centroides.
  */
 export async function findProvinceByCoords(lat, lng) {
-  await loadTerritoryData();
-
-  let provinciaCercana = null;
-  let distanciaMinima = Infinity;
-
-  for (const [provKey, data] of Object.entries(provinciasData)) {
-    const coords = data.coordenadas;
-    if (!coords) continue;
-
-    const d = Math.pow(lat - coords.lat, 2) + Math.pow(lng - coords.lng, 2);
-    if (d < distanciaMinima) {
-      distanciaMinima = d;
-      provinciaCercana = provKey;
-    }
-  }
-
-  return provinciaCercana;
+  const location = await getAdministrativeLocationByCoords(lat, lng);
+  return location?.provinceKey || null;
 }
 
 /**
