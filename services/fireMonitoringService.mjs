@@ -116,12 +116,9 @@ function boundsOf(geometry) {
   ];
 }
 
-export async function fetchFireDetections({ geometry, startDate, endDate, minConfidence = 0, signal } = {}) {
+export async function fetchFireDetections({ geometry, minConfidence = 0, signal } = {}) {
   if (!geometry || !['Polygon', 'MultiPolygon'].includes(geometry.type)) {
     throw new Error('El monitoreo de focos requiere un lote Polygon o MultiPolygon.');
-  }
-  if (!startDate || !endDate || startDate > endDate) {
-    throw new Error('Seleccioná un período válido para consultar los focos.');
   }
   const bounds = boundsOf(geometry);
   const responses = await Promise.allSettled(LAYERS.map(layer => fetchLayer(layer, bounds, signal)));
@@ -135,7 +132,7 @@ export async function fetchFireDetections({ geometry, startDate, endDate, minCon
       const feature = normalizeFeature(raw, response.layer.source);
       if (!feature) continue;
       const p = feature.properties;
-      if (!p.date || p.date < startDate || p.date > endDate) continue;
+      if (!p.date) continue;
       if (p.confidence !== null && p.confidence < minConfidence) continue;
       const [lon, lat] = feature.geometry.coordinates;
       if (!pointInGeometry([lon, lat], geometry)) continue;
@@ -223,14 +220,14 @@ export function harmonizeFireDetections(detections = [], maxDistanceMeters = 100
   return events.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function aggregateFireMonths(events = []) {
+export function aggregateFireDays(events = []) {
   const totals = new Map();
   for (const event of events) {
-    const month = event.date?.slice(0, 7);
-    if (month) totals.set(month, (totals.get(month) || 0) + 1);
+    const day = event.date;
+    if (day) totals.set(day, (totals.get(day) || 0) + 1);
   }
   return [...totals.entries()].sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, events]) => ({ month, events }));
+    .map(([date, events]) => ({ date, events }));
 }
 
 export const CONAE_FIRE_SOURCES = {
