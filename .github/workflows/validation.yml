@@ -20,7 +20,7 @@ jobs:
       - name: Validate browser module syntax
         run: python tests/check_frontend_syntax.py
       - name: Validate shared lot geometry
-        run: node --experimental-default-type=module --test tests/lotContext.test.mjs
+        run: node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs
 
   backend-tests:
     runs-on: ubuntu-latest
