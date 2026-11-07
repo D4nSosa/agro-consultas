@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Monitoreo territorial de focos de calor MODIS y VIIRS mediante geoservicios oficiales de CONAE.">
+<title>Monitoreo de incendios | Agro Consultas</title>
+<link rel="icon" href="dwnl.png" type="image/png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="styles.css">
+<script>try{if((localStorage.getItem('agro_theme')||'dark')==='dark')document.documentElement.classList.add('theme-dark')}catch(e){document.documentElement.classList.add('theme-dark')}</script>
+<style>
+.fire-page{max-width:1500px;margin:18px auto;padding:0 16px 30px}.fire-intro{padding:22px;margin-bottom:16px;border-left:5px solid #d97745}.fire-intro h1{margin:0 0 8px;color:var(--verde-principal)}.fire-intro p{margin:0;color:var(--texto-secundario);line-height:1.55}.fire-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:16px;align-items:start}.fire-map-card{padding:12px}.fire-map-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}.fire-map-toolbar button{padding:7px 11px}.fire-map{height:min(70vh,720px);min-height:430px;border:1px solid var(--borde-suave);border-radius:9px;overflow:hidden}.fire-side{padding:18px;display:flex;flex-direction:column;gap:13px}.fire-status{padding:11px;border-radius:8px;background:var(--gris-fondo);color:var(--texto-secundario);font-size:.88rem;line-height:1.45}.fire-control{display:grid;gap:7px}.fire-control label{font-size:.85rem;font-weight:700;color:var(--verde-principal)}.fire-control input{width:100%;accent-color:var(--verde-principal)}.fire-stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}.fire-stat{border:1px solid var(--borde-suave);border-radius:9px;padding:12px;background:var(--gris-fondo)}.fire-stat small{display:block;color:var(--texto-secundario);font-size:.76rem}.fire-stat strong{display:block;font-size:1.45rem;margin-top:5px;color:var(--verde-principal)}.fire-legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--texto-secundario);font-size:.8rem}.fire-legend span{display:flex;align-items:center;gap:5px}.fire-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}.fire-legend .paired{background:#e6b64e}.fire-legend .modis{background:#e56d62}.fire-legend .viirs{background:#5ba7d8}.fire-day{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borde-suave);font-size:.86rem}.fire-note{font-size:.82rem;color:var(--texto-secundario);line-height:1.5}.fire-links{display:flex;gap:10px;flex-wrap:wrap}.fire-links a{font-size:.83rem;color:var(--verde-principal)}.fire-nav-active{border-color:var(--verde-principal)!important;color:var(--verde-principal)!important}@media(max-width:900px){.fire-layout{grid-template-columns:1fr}.fire-map{height:56vh;min-height:360px}}@media(max-width:520px){.fire-page{padding:0 10px 24px}.fire-map{min-height:330px}.fire-intro{padding:16px}.fire-stats{grid-template-columns:1fr 1fr}}
+.fire-history{border-top:1px solid var(--borde-suave);padding-top:14px;margin-top:4px;display:grid;gap:9px}.fire-history h3{margin:0;color:var(--verde-principal)}.fire-history input[type=file]{width:100%;font-size:.82rem}.fire-history .fire-note{margin:0}.history-month{display:grid;grid-template-columns:1fr repeat(3,auto);gap:9px;padding:7px 0;border-bottom:1px solid var(--borde-suave);font-size:.78rem}.history-month strong{font-weight:700}.history-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.history-controls label{display:grid;gap:4px;font-size:.76rem;color:var(--texto-secundario)}.history-controls input{width:100%;min-width:0}.fire-history button{width:100%}
+</style>
+</head>
+<body>
+<header class="app-header">
+ <div class="left"><img class="brand" src="dwnl.png" alt="Agro Consultas"><div class="brand-text"><div class="title">Agro Consultas</div><div style="font-size:.72rem;color:var(--texto-secundario)">Inteligencia Territorial Agropecuaria y Forestal</div></div></div>
+ <div class="right" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <a class="btn outline" href="index.html">Inicio</a><a class="btn outline" href="mapa.html">Mapa / Lote</a><a class="btn outline" href="resultados.html">Aptitud</a><a class="btn outline" href="forestal.html">Forestal</a><a class="btn outline" href="tracking.html">Tracking GPS</a><a class="btn primary fire-nav-active" href="incendios.html">Incendios</a><button id="themeToggle" class="icon-btn" type="button" title="Cambiar tema">🌗</button>
+ </div>
+</header>
+<main class="fire-page">
+ <section class="card fire-intro"><h1>Monitoreo de incendios</h1><p>Focos de calor MODIS y VIIRS sobre el área de trabajo compartida. La vista combina detecciones recientes de CONAE y permite explorar coincidencias espaciales entre sensores.</p></section>
+ <div class="fire-layout">
+  <section class="card fire-map-card">
+   <div class="fire-map-toolbar"><strong>MAPA DE DETECCIONES · CONAE</strong><div><button id="base-satellite" class="btn primary" type="button">Satélite</button> <button id="base-street" class="btn outline" type="button">Calles</button></div></div>
+   <div id="fire-map" class="fire-map" aria-label="Mapa de focos de calor sobre el área seleccionada"></div>
+   <div class="fire-legend" style="margin-top:12px"><span><i class="paired"></i> Coincidencia MODIS + VIIRS</span><span><i class="modis"></i> Solo MODIS</span><span><i class="viirs"></i> Solo VIIRS</span></div>
+  </section>
+  <aside class="card fire-side">
+   <div><small style="color:var(--texto-secundario);letter-spacing:.12em">ÁREA DE TRABAJO</small><h2 id="lot-name" style="margin:5px 0 0">Sin lote seleccionado</h2><div id="lot-meta" class="fire-note">Seleccioná o dibujá un lote desde el mapa central.</div></div>
+   <div id="fire-status" class="fire-status">Esperando un área de trabajo.</div>
+   <div class="fire-control"><label for="fire-confidence">Confianza mínima <strong id="confidence-value">0%</strong></label><input id="fire-confidence" type="range" min="0" max="100" step="5" value="0"></div>
+   <button id="fire-query" class="btn primary" type="button" disabled>Consultar focos MODIS + VIIRS</button>
+   <div class="fire-stats">
+    <div class="fire-stat"><small>Eventos armonizados</small><strong id="stat-events">—</strong></div>
+    <div class="fire-stat"><small>Coincidencias</small><strong id="stat-paired">—</strong></div>
+    <div class="fire-stat"><small>Solo MODIS</small><strong id="stat-modis">—</strong></div>
+    <div class="fire-stat"><small>Solo VIIRS</small><strong id="stat-viirs">—</strong></div>
+   </div>
+   <div><h3 style="margin:0 0 5px">Actividad observada</h3><div id="fire-days" class="fire-note">Todavía no hay una consulta.</div></div>
+   
+   <section class="fire-history">
+    <h3>Investigación histórica</h3>
+    <p class="fire-note">Importá archivos CSV detallados descargados de CONAE o NASA FIRMS. El análisis filtra los registros por el lote activo y permite revisar la evolución mensual por sensor.</p>
+    <a href="https://catalogos5.conae.gov.ar/catalogofocos/default.aspx" target="_blank" rel="noopener">Abrir catálogo histórico de CONAE ↗</a>
+    <label for="history-files" class="fire-note"><strong>Archivos CSV (MODIS y/o VIIRS)</strong></label>
+    <input id="history-files" type="file" accept=".csv,text/csv" multiple>
+    <div class="history-controls">
+     <label>Desde<input id="history-from" type="date"></label>
+     <label>Hasta<input id="history-to" type="date"></label>
+    </div>
+    <button id="history-apply" class="btn primary" type="button" disabled>Analizar histórico en este lote</button>
+    <button id="history-clear" class="btn outline" type="button" disabled>Limpiar histórico</button>
+    <div id="history-status" class="fire-status">Sin archivos históricos cargados.</div>
+    <div id="history-months" class="fire-note">La serie mensual aparecerá después de importar los CSV.</div>
+   </section>
+   <p class="fire-note">Cobertura de las capas WFS: últimas 24 horas. Un foco de calor es una detección satelital y no confirma por sí solo un incendio. La coincidencia se define aquí como detecciones del mismo día separadas hasta 1 km; es un criterio exploratorio, no una equivalencia física de píxeles.</p>
+   <div class="fire-links"><a href="https://catalogos.conae.gov.ar/catalogo/catalogoGeoServiciosOGC.html" target="_blank" rel="noopener">Geoservicios CONAE</a><a href="https://catalogos5.conae.gov.ar/catalogofocos/default.aspx" target="_blank" rel="noopener">Catálogo histórico CONAE</a></div>
+   <a href="mapa.html" class="btn outline" style="text-align:center">Cambiar / delimitar lote</a>
+  </aside>
+ </div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const themeToggle=document.getElementById('themeToggle');
+themeToggle?.addEventListener('click',()=>{const dark=document.documentElement.classList.toggle('theme-dark');try{localStorage.setItem('agro_theme',dark?'dark':'light')}catch(e){}});
+</script>
+<script type="module">
+import {getLotContext,onLotContextChange} from './services/lotContext.js';
+import {fetchFireDetections,harmonizeFireDetections,aggregateFireDays,parseFireCsv,filterFireDetectionsToGeometry,aggregateFireMonths} from './services/fireMonitoringService.mjs';
+const $=id=>document.getElementById(id);
+const map=L.map('fire-map',{preferCanvas:true}).setView([-38.4,-63.6],4);
+const base={satellite:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'}),street:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'})};
+base.satellite.addTo(map);
+$('base-satellite').onclick=()=>{if(map.hasLayer(base.street))map.removeLayer(base.street);base.satellite.addTo(map);$('base-satellite').classList.add('primary');$('base-satellite').classList.remove('outline');$('base-street').classList.remove('primary');$('base-street').classList.add('outline')};
+$('base-street').onclick=()=>{if(map.hasLayer(base.satellite))map.removeLayer(base.satellite);base.street.addTo(map);$('base-street').classList.add('primary');$('base-street').classList.remove('outline');$('base-satellite').classList.remove('primary');$('base-satellite').classList.add('outline')};
+const lotLayer=L.geoJSON(null,{style:{color:'#77d59a',weight:3,fillColor:'#37a96a',fillOpacity:.12}}).addTo(map);
+const fireLayer=L.layerGroup().addTo(map);
+let activeLot=null,lastEvents=[],historyFeatures=[],historyEvents=[];
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function setStatus(message){$('fire-status').textContent=message}
+function setLot(feature){activeLot=feature||null;lotLayer.clearLayers();fireLayer.clearLayers();lastEvents=[];$('stat-events').textContent='—';$('stat-paired').textContent='—';$('stat-modis').textContent='—';$('stat-viirs').textContent='—';$('fire-days').textContent='Todavía no hay una consulta.';if(!feature){$('lot-name').textContent='Sin lote seleccionado';$('lot-meta').textContent='Seleccioná o dibujá un lote desde el mapa central.';$('fire-query').disabled=true;setStatus('No hay un área compartida. Abrí el mapa central, delimitá un lote y volvé a esta vista.');return;}lotLayer.addData(feature);const name=feature.properties?.name||'Área de trabajo';$('lot-name').textContent=name;$('lot-meta').textContent='Geometría '+feature.geometry.type+' · Contexto compartido';$('fire-query').disabled=!['Polygon','MultiPolygon'].includes(feature.geometry.type);const bounds=lotLayer.getBounds();if(bounds.isValid())map.fitBounds(bounds,{padding:[24,24],maxZoom:14});setStatus('Área lista. Consultá los focos recientes o analizá un archivo histórico.');if(historyFeatures.length)applyHistorical();}
+function popup(event){const conf=Object.entries(event.confidence||{}).map(([k,v])=>k+': '+(v===null?'No informada':v+'%')).join(' · ');const power=Object.entries(event.powerMw||{}).map(([k,v])=>k+': '+(v===null?'No informada':v+' MW')).join(' · ');return '<b>Foco de calor</b><br>Fecha: '+esc(event.date)+'<br>Sensor: '+esc(event.sources.join(' + '))+'<br>Coincidencia: '+(event.harmonization==='coincident'?'MODIS / VIIRS':'Un sensor')+(event.distanceMeters!==null?'<br>Distancia: '+event.distanceMeters+' m':'')+'<br>Confianza: '+esc(conf)+'<br>Potencia radiativa: '+esc(power)+'<br><small>No equivale a confirmación de incendio.</small>';}
+function renderEvents(events){fireLayer.clearLayers();const maxMapPoints=10000,visibleEvents=events.length>maxMapPoints?events.slice(0,maxMapPoints):events;const collection={type:'FeatureCollection',features:visibleEvents.map(event=>({type:'Feature',geometry:{type:'Point',coordinates:event.coordinates},properties:event}))};if(events.length>maxMapPoints)setStatus('Se muestran '+maxMapPoints.toLocaleString('es-AR')+' de '+events.length.toLocaleString('es-AR')+' eventos en el mapa para mantener fluida la navegación. Las estadísticas incluyen todos los registros.');L.geoJSON(collection,{pointToLayer:(f,ll)=>{const paired=f.properties.harmonization==='coincident',color=paired?'#e6b64e':f.properties.sources[0]==='MODIS'?'#e56d62':'#5ba7d8';return L.circleMarker(ll,{radius:paired?7:5,color,weight:1.5,fillColor:color,fillOpacity:.9});},onEachFeature:(f,l)=>l.bindPopup(popup(f.properties))}).addTo(fireLayer);}
+async function queryFires(){if(!activeLot||!['Polygon','MultiPolygon'].includes(activeLot.geometry.type))return setStatus('Definí un polígono válido en el mapa central.');const button=$('fire-query');button.disabled=true;button.textContent='Consultando CONAE…';setStatus('Consultando capas MODIS y VIIRS para el área seleccionada…');try{const minConfidence=Number($('fire-confidence').value),result=await fetchFireDetections({geometry:activeLot.geometry,minConfidence}),events=harmonizeFireDetections(result.detections,1000),paired=events.filter(x=>x.harmonization==='coincident').length,modis=events.filter(x=>x.sources.length===1&&x.sources[0]==='MODIS').length,viirs=events.filter(x=>x.sources.length===1&&x.sources[0]==='VIIRS').length;lastEvents=events;renderEvents(events);$('stat-events').textContent=String(events.length);$('stat-paired').textContent=String(paired);$('stat-modis').textContent=String(modis);$('stat-viirs').textContent=String(viirs);const days=aggregateFireDays(events);$('fire-days').innerHTML=days.length?days.map(x=>'<div class="fire-day"><b>'+esc(x.date)+'</b><span>'+x.events+' eventos</span></div>').join(''):'No se encontraron detecciones en el área consultada.';let status=result.detections.length+' detecciones originales · '+events.length+' eventos tras armonización.';if(result.truncated)status+=' La consulta alcanzó el límite de registros y puede estar incompleta.';if(result.errors.length)status+=' Fuente parcial: '+result.errors.join(' · ');setStatus(status);}catch(error){fireLayer.clearLayers();setStatus('No se pudo consultar CONAE: '+error.message);}finally{button.disabled=!activeLot;button.textContent='Consultar focos MODIS + VIIRS';}}
+$('fire-confidence').oninput=()=>{$('confidence-value').textContent=$('fire-confidence').value+'%'};
+$('fire-query').onclick=queryFires;
+
+async function loadHistoricalFiles(){const files=Array.from($('history-files').files||[]);if(!files.length){$('history-status').textContent='Seleccioná uno o más archivos CSV.';return;}try{const parsed=await Promise.all(files.map(async file=>({file,result:parseFireCsv(await file.text(),file.name)})));historyFeatures=parsed.flatMap(x=>x.result.features);const summary=parsed.map(x=>x.file.name+': '+x.result.features.length.toLocaleString('es-AR')+' registros válidos').join(' · ');$('history-status').textContent=summary+'. Registros omitidos por formato: '+parsed.reduce((n,x)=>n+x.result.skipped,0).toLocaleString('es-AR')+'.';$('history-apply').disabled=!activeLot;$('history-clear').disabled=false;if(activeLot)applyHistorical();else $('history-status').textContent+=' Guardado en esta sesión; seleccioná un lote para analizar.';}catch(error){$('history-status').textContent='No se pudo leer el histórico: '+error.message;}}
+function applyHistorical(){if(!activeLot||!historyFeatures.length)return;const from=$('history-from').value,to=$('history-to').value;if(from&&to&&from>to){$('history-status').textContent='El rango de fechas no es válido: la fecha inicial supera a la final.';return;}const minConfidence=Number($('fire-confidence').value),filtered=filterFireDetectionsToGeometry(historyFeatures,activeLot.geometry,minConfidence,from,to);historyEvents=harmonizeFireDetections(filtered,1000);renderEvents(historyEvents);const paired=historyEvents.filter(x=>x.harmonization==='coincident').length,modis=historyEvents.filter(x=>x.sources.length===1&&x.sources[0]==='MODIS').length,viirs=historyEvents.filter(x=>x.sources.length===1&&x.sources[0]==='VIIRS').length;$('stat-events').textContent=historyEvents.length.toLocaleString('es-AR');$('stat-paired').textContent=paired.toLocaleString('es-AR');$('stat-modis').textContent=modis.toLocaleString('es-AR');$('stat-viirs').textContent=viirs.toLocaleString('es-AR');const months=aggregateFireMonths(filtered);$('history-months').innerHTML=months.length?'<div class="history-month"><strong>Mes</strong><strong>Total</strong><strong>MODIS</strong><strong>VIIRS</strong></div>'+months.map(x=>'<div class="history-month"><span>'+esc(x.month)+'</span><strong>'+x.total.toLocaleString('es-AR')+'</strong><span>'+x.MODIS.toLocaleString('es-AR')+'</span><span>'+x.VIIRS.toLocaleString('es-AR')+'</span></div>').join(''):'No hay registros para el lote y rango seleccionados.';$('history-status').textContent=filtered.length.toLocaleString('es-AR')+' detecciones históricas dentro del lote · '+historyEvents.length.toLocaleString('es-AR')+' eventos exploratorios agrupados. Se conservan separados los conteos originales por sensor.';}
+function clearHistorical(){historyFeatures=[];historyEvents=[];$('history-files').value='';$('history-apply').disabled=true;$('history-clear').disabled=true;$('history-status').textContent='Sin archivos históricos cargados.';$('history-months').textContent='La serie mensual aparecerá después de importar los CSV.';fireLayer.clearLayers();$('stat-events').textContent='—';$('stat-paired').textContent='—';$('stat-modis').textContent='—';$('stat-viirs').textContent='—';}
+$('history-files').addEventListener('change',loadHistoricalFiles);$('history-apply').addEventListener('click',applyHistorical);$('history-clear').addEventListener('click',clearHistorical);$('history-from').addEventListener('change',()=>historyFeatures.length&&applyHistorical());$('history-to').addEventListener('change',()=>historyFeatures.length&&applyHistorical());$('fire-confidence').addEventListener('change',()=>historyFeatures.length&&applyHistorical());
+
+setLot(getLotContext());
+onLotContextChange(setLot);
+setTimeout(()=>map.invalidateSize(),150);
+</script>
+</body>
+</html>
