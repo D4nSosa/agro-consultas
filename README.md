@@ -21,11 +21,15 @@ Agro Consultas es una plataforma web profesional de análisis y apoyo a decision
 | **Catálogo Satelital Sentinel-2** | ✅ Funcional | Consulta directa en vivo a AWS Earth Search STAC (Sentinel-2 L2A COGs). |
 | **Generación de Informe PDF** | ✅ Funcional | Impresión y descarga de reporte técnico formateado mediante `@media print` CSS. |
 | **Módulo Forestal y Teledetección** | ✅ Funcional | Delimitación de lotes, serie temporal Sentinel-2 L2A STAC y estimación dasométrica. |
+| **Monitoreo de incendios** | 🧪 Inicial | Focos recientes MODIS/VIIRS de CONAE y análisis histórico importando CSV detallados de CONAE o NASA FIRMS, con resumen anual y mensual por sensor. |
 | **Exportación y Compartición de Reportes** | ✅ Funcional | Exportación a PDF, GeoJSON, KML, GPX y enlace para compartir en todos los módulos. |
 | **Diagnóstico Fitopatológico IA** | ❌ Pendiente | Se utiliza análisis visual prudente no diagnóstico (*"síntomas compatibles con..."*). |
 | **Mapa central y lote compartido** | 🧪 En validación | Dibujo manual, importación GeoJSON, edición de vértices y contexto compartido entre Aptitud, Forestal y Tracking. |
 
 ---
+
+## 🔥 Monitoreo de incendios
+El módulo `incendios.html` combina detecciones recientes de los geoservicios WFS de CONAE con análisis histórico local de CSV detallados MODIS/VIIRS. Los datos se filtran por el lote compartido y se resumen por año y mes, manteniendo separados los conteos de cada sensor. Consultá [FIRE_MONITORING.md](FIRE_MONITORING.md) para las fuentes, el método y los límites.
 
 ## 🛡️ Principio Fundamental: Cero Datos Ficticios
 
