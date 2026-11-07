@@ -3,8 +3,8 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ["script.js", "services/lotContext.js"]
-INLINE_HTML = ["mapa.html", "tracking.html", "forestal.html", "resultados.html"]
+FILES = ["script.js", "services/lotContext.js", "services/fireMonitoringService.mjs"]
+INLINE_HTML = ["mapa.html", "tracking.html", "forestal.html", "resultados.html", "incendios.html"]
 
 def check_module(source: str, label: str) -> None:
     result = subprocess.run(
