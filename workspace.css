@@ -8,3 +8,15 @@
 .splash-spinner{width:36px;height:36px;margin-bottom:15px;border:3px solid #ffffff33;border-top-color:#27ae60;border-radius:50%;animation:splashSpin .9s linear infinite}
 .splash-progress-bar{width:200px;height:4px;margin-top:10px;overflow:hidden;border-radius:4px;background:#ffffff26}.splash-progress-fill{height:100%;width:0;background:#27ae60;animation:splashProgressFill 2.5s ease-out forwards}
 @keyframes splashProgressFill{to{width:100%}}@keyframes splashFadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}@keyframes splashSpin{to{transform:rotate(360deg)}}
+
+.module-symbol.fire{color:#f0a36d}
+.fire-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.fire-controls label{display:grid;gap:5px;color:var(--muted);font-size:8px;letter-spacing:.1em}
+.fire-controls input{min-width:0;width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font:11px 'DM Sans',sans-serif}
+.fire-controls label:last-child{grid-column:1/-1}
+.fire-legend{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0;color:var(--muted);font-size:9px}
+.fire-legend span{display:flex;align-items:center;gap:5px}
+.fire-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.fire-legend .paired{background:#f0c36a}.fire-legend .modis{background:#ed786b}.fire-legend .viirs{background:#82bde8}
+.fire-source-links{font-size:10px!important}.fire-source-links a{color:#8ed5a8}
+@media(max-width:430px){.fire-controls{grid-template-columns:1fr}.fire-controls label:last-child{grid-column:auto}}
