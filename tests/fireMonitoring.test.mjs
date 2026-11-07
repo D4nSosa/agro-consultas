@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { harmonizeFireDetections, aggregateFireMonths } from '../services/fireMonitoringService.mjs';
+import { harmonizeFireDetections, aggregateFireDays } from '../services/fireMonitoringService.mjs';
 
 const point = (source, date, lon, lat, confidence = 80, powerMw = 10) => ({
   type: 'Feature',
@@ -38,12 +38,13 @@ test('matches VIIRS detections one-to-one', () => {
   assert.equal(events.length, 2);
 });
 
-test('aggregates harmonized events by calendar month', () => {
+test('aggregates harmonized events by observation date', () => {
   const months = aggregateFireMonths([
     { date: '2026-10-01' }, { date: '2026-10-21' }, { date: '2026-11-01' }
   ]);
   assert.deepEqual(months, [
-    { month: '2026-10', events: 2 },
-    { month: '2026-11', events: 1 }
+    { date: '2026-10-01', events: 1 },
+    { date: '2026-10-21', events: 1 },
+    { date: '2026-11-01', events: 1 }
   ]);
 });
