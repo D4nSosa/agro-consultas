@@ -39,7 +39,7 @@ test('matches VIIRS detections one-to-one', () => {
 });
 
 test('aggregates harmonized events by observation date', () => {
-  const months = aggregateFireMonths([
+  const months = aggregateFireDays([
     { date: '2026-10-01' }, { date: '2026-10-21' }, { date: '2026-11-01' }
   ]);
   assert.deepEqual(months, [
