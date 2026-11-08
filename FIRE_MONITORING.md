@@ -1,53 +1,42 @@
-# Monitoreo de incendios — Agro-Consultas
+# Monitoreo de incendios — Agro Consultas
 
-## Fuentes y cobertura
+## Vista nacional y fuentes recientes
 
-La vista de monitoreo reciente consume los geoservicios WFS públicos de CONAE:
+La página `incendios.html` muestra detecciones recientes sobre Argentina y su entorno. Los datos se sirven desde dos endpoints independientes para evitar restricciones CORS del navegador:
 
-- `GeoServiciosCONAE:FocosDeCalor`: focos MODIS de Aqua/Terra.
-- `GeoServiciosCONAE:FocosDeCalorVIIRS`: focos VIIRS de SNPP/NOAA-20.
+- `GET /api/fires/national`: NASA FIRMS, archivos públicos CSV de las últimas 24 horas para Sudamérica. Incluye MODIS C6.1 y VIIRS de Suomi-NPP, NOAA-20 y NOAA-21. Se recorta a la extensión geográfica de Argentina y su entorno; los archivos fuente cubren Sudamérica.
+- `GET /api/fires/goes`: última escena disponible del producto NOAA GOES-19 ABI L2 FDCF (Full Disk Fire/Hot Spot Characterization). Se transforma la máscara de fuego a puntos geográficos y se conservan categoría, hora, potencia radiativa (MW), temperatura (K) y área del píxel (m²) cuando están disponibles. La cadencia nominal es aproximadamente 10 minutos.
 
-Las capas WFS publicadas en el catálogo OGC corresponden a las últimas 24 horas. El módulo las presenta como monitoreo reciente, no como un archivo histórico.
+NASA FIRMS se actualiza con los archivos públicos de 24 horas; GOES-19 se consulta de nuevo cada diez minutos desde la interfaz. Las respuestas se cachean brevemente en el backend. Las capas permanecen separadas: GOES es una alerta rápida y no se fusiona con MODIS/VIIRS como si fueran detecciones equivalentes.
+
+## Consulta por lote y respaldo ante HTTP 400
+
+El análisis por lote intenta primero los WFS de CONAE:
+
+- `GeoServiciosCONAE:FocosDeCalor` (MODIS).
+- `GeoServiciosCONAE:FocosDeCalorVIIRS` (VIIRS).
+
+Si ambas capas fallan (incluido HTTP 400), la página consulta NASA FIRMS y filtra las detecciones por la geometría del lote. El error del WFS deja de bloquear el módulo. GOES-19 se filtra por separado para mostrar alertas rápidas dentro del lote. El servidor alternativo `geoservicios2` no se usa como sustituto porque su catálogo WFS no publica las capas de focos requeridas.
 
 ## Análisis histórico
 
-La vista histórica acepta archivos CSV detallados de focos de calor de CONAE y NASA FIRMS. El análisis se ejecuta localmente en el navegador: filtra los puntos por la geometría del lote, aplica el filtro de confianza cuando el dato es numérico y calcula totales anuales y mensuales separados por MODIS y VIIRS.
+La vista histórica acepta archivos CSV detallados de CONAE y NASA FIRMS. El procesamiento ocurre localmente en el navegador: filtra puntos por la geometría del lote, aplica el filtro de confianza cuando el valor es numérico y calcula totales anuales y mensuales separados por MODIS y VIIRS. Los CSV no se suben al servidor.
 
-### Cómo obtener el CSV de CONAE
+Para obtener CSV de CONAE, abrir [Consultas Interactivas: Incendios](https://catalogos5.conae.gov.ar/catalogofocos/default.aspx), elegir satélites, período y área, seleccionar salida **Detalle** y formato CSV. La descarga requiere una cuenta CONAE. No usar las salidas **Totalizar** para el mapa de puntos.
 
-1. Abrir [Consultas Interactivas: Incendios](https://catalogos5.conae.gov.ar/catalogofocos/default.aspx).
-2. Seleccionar Focos de Calor, los satélites y el período histórico deseado.
-3. Elegir el área de interés (coordenadas del lote o provincia/departamento), seleccionar salida **Detalle** y formato CSV.
-4. Ejecutar la consulta e iniciar sesión con una cuenta registrada de CONAE para habilitar la descarga.
-5. Si se seleccionaron ambos instrumentos, importar los CSV MODIS y VIIRS juntos en Agro-Consultas.
+## Interpretación y límites
 
-La consulta web de CONAE es de acceso abierto; la identificación de usuario se exige para descargar archivos. El manual documenta registros detallados con satélite, instrumento, latitud, longitud, fecha/hora, confianza y potencia radiativa. No usar las salidas **Totalizar** para el mapa de puntos.
-
-### NASA FIRMS
-
-También se aceptan CSV de descarga histórica de FIRMS. El archivo de descarga ofrece productos históricos MODIS y VIIRS con distintas coberturas temporales. La API automatizada requiere un MAP_KEY; por eso no se incluye ninguna clave en el frontend ni en el repositorio. En esta versión, la importación de CSV evita credenciales y mantiene la procedencia del archivo.
-
-## Método e interpretación
-
-- La serie mensual y anual cuenta detecciones originales por instrumento. Los conteos MODIS y VIIRS no se suman como si fueran observaciones equivalentes.
-- El agrupamiento exploratorio de eventos coincidentes usa mismo día y distancia máxima de 1.000 metros. Se muestra separado de los registros originales y no equivale a una metodología validada por CONAE.
-- La confianza numérica se filtra por porcentaje; las categorías FIRMS `low`, `nominal` y `high` se conservan como etiquetas, sin convertirlas artificialmente en porcentajes.
-- Los CSV se procesan en memoria del navegador y no se suben a un servidor.
-- Los resultados representan focos de calor detectados, no perímetros ni superficie quemada.
-- Los datos de área quemada mensual de CONAE son otro producto, agregado por provincia/departamento; no se mezclan con la serie de focos puntuales.
-- Para mantener fluida la navegación, el mapa dibuja hasta 10.000 eventos; las estadísticas incluyen todos los registros filtrados.
-
-## Pruebas
-
-```bash
-python tests/check_frontend_syntax.py
-node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs
-```
+- Un foco de calor es una anomalía térmica satelital, no una confirmación de incendio ni un perímetro de área quemada.
+- Los conteos MODIS y VIIRS se conservan separados. El agrupamiento exploratorio de eventos coincidentes usa mismo día y distancia máxima de 1.000 metros; no es una metodología oficial ni una equivalencia física de píxeles.
+- Las categorías FIRMS `low`, `nominal` y `high` se conservan como etiquetas; no se convierten artificialmente en porcentajes.
+- GOES-19 no entrega el mismo campo de confianza que MODIS/VIIRS. Se muestra su clase de máscara y los atributos disponibles, sin inventar confianza.
+- El recorte nacional usa una extensión geográfica rectangular que incluye zonas limítrofes; el mapa se titula Argentina y entorno para no presentarlo como un límite político exacto.
+- La escena GOES corresponde al último archivo FDCF disponible; puede no ser una escena de exactamente diez minutos antes si el producto o la distribución sufren demoras.
 
 ## Referencias
 
 - [Geoservicios OGC de CONAE](https://catalogos.conae.gov.ar/catalogo/catalogoGeoServiciosOGC.html)
-- [Catálogo de focos de calor y áreas quemadas](https://catalogos5.conae.gov.ar/catalogofocos/default.aspx)
-- [Manual de usuario CONAE: Consultas Interactivas de Incendios](https://catalogos5.conae.gov.ar/catalogofocos/Docs/035_CONAE_AQUA_TERRA_NOAA20_MODIS_VIIRS_FC_VISOR_ManualUsuarios_e02.pdf)
+- [Consultas Interactivas de Incendios — CONAE](https://catalogos5.conae.gov.ar/catalogofocos/default.aspx)
+- [NASA FIRMS — Active Fire Data](https://firms.modaps.eosdis.nasa.gov/active_fire/)
 - [NASA FIRMS — Archive Download](https://firms.modaps.eosdis.nasa.gov/download/)
-- [NASA FIRMS — API Map Key](https://firms.modaps.eosdis.nasa.gov/api/map_key)
+- [NOAA GOES Open Data — GOES-19](https://noaa-goes19.s3.amazonaws.com/)
