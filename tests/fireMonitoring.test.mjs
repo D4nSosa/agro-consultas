@@ -47,3 +47,12 @@ test('retains platform and per-sensor observation metadata in harmonized events'
  assert.equal(event.satellites.MODIS,'Terra');assert.equal(event.satellites.VIIRS,'NOAA-21');
  assert.equal(event.observations.MODIS.timeUtc,'1430');assert.equal(event.observations.VIIRS.confidenceLabel,'nominal');
 });
+
+
+test('categorical FIRMS confidence is preserved and is not treated as a numeric percentage',()=>{
+ const parsed=parseFireCsv('latitude,longitude,acq_date,acq_time,satellite,instrument,confidence,frp\n-27.1,-56.2,2026-10-03,1430,NOAA-21,VIIRS,nominal,12.4','FIRMS_VIIRS.csv');
+ const filtered=filterFireDetectionsToGeometry(parsed.features,null,80);
+ assert.equal(filtered.length,1);
+ assert.equal(filtered[0].properties.confidence,null);
+ assert.equal(filtered[0].properties.confidenceLabel,'nominal');
+});

@@ -31,6 +31,17 @@ def _number(value):
         return None
 
 
+def _sample_detection_indices(mask, max_points=2500):
+    """Return a deterministic sample across all candidate pixels, avoiding top-left bias."""
+    candidates = np.argwhere(np.isin(mask, [10, 11, 30, 31]))
+    total = int(len(candidates))
+    truncated = total > max_points
+    if truncated:
+        positions = np.linspace(0, total - 1, num=max_points, dtype=np.int64)
+        candidates = candidates[positions]
+    return candidates, total, truncated
+
+
 def _fetch_firms(item):
     name, url = item
     req = urllib.request.Request(url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "text/csv"})
@@ -147,7 +158,7 @@ def goes19_fires():
             return {"type": "FeatureCollection", "features": [], "meta": {"source": "NOAA GOES-19 ABI L2 FDCF", "count": 0, "file": key}}
         ys, xs = slice(int(yi.min()), int(yi.max()) + 1), slice(int(xi.min()), int(xi.max()) + 1)
         mask = np.ma.filled(ds.variables["Mask"][ys, xs], -99).astype(np.int16)
-        indices = np.argwhere(np.isin(mask, [10, 11, 30, 31]))[:2500]
+        indices, total_candidates, truncated = _sample_detection_indices(mask, 2500)
         power, temp, area = ds.variables["Power"][ys, xs], ds.variables["Temp"][ys, xs], ds.variables["Area"][ys, xs]
         stamp = re.search(r"_s(\d{13,14})_", key)
         observed = datetime.datetime.strptime(stamp.group(1)[:13], "%Y%j%H%M%S").replace(tzinfo=datetime.timezone.utc).isoformat() if stamp else None
@@ -181,6 +192,8 @@ def goes19_fires():
                 "product": "Full Disk Fire/Hot Spot Characterization", "observedAt": observed,
                 "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "count": len(features),
                 "maskClasses": "10/11/30/31 (procesado/saturado y sus clases temporalmente filtradas)", "file": key,
+                "totalCandidates": total_candidates, "truncated": truncated,
+                "returnedLimit": 2500, "sampling": "evenly spaced across candidate index sequence" if truncated else "all candidates",
             },
         }
         GOES_CACHE["payload"], GOES_CACHE["expires"] = payload, time.monotonic() + 120
@@ -197,6 +210,10 @@ def _fire_weather_indicator(temp_max, humidity_min, wind_max, precipitation):
         "wind": wind_max is not None and wind_max >= 20,
         "dryness": precipitation is not None and precipitation <= 1,
     }
+    available = sum(value is not None for value in (temp_max, humidity_min, wind_max, precipitation))
+    if available == 0:
+        return {"score": None, "riskLabel": "No evaluable", "riskClass": "no-evaluable",
+                "conditions": checks, "availableConditions": 0, "requiredConditions": 4}
     score = sum(25 for active in checks.values() if active)
     if score >= 75:
         label, risk_class = "Muy alto", "muy-alto"
@@ -206,7 +223,8 @@ def _fire_weather_indicator(temp_max, humidity_min, wind_max, precipitation):
         label, risk_class = "Moderado", "moderado"
     else:
         label, risk_class = "Bajo", "bajo"
-    return {"score": score, "riskLabel": label, "riskClass": risk_class, "conditions": checks}
+    return {"score": score, "riskLabel": label, "riskClass": risk_class, "conditions": checks,
+            "availableConditions": available, "requiredConditions": 4}
 
 
 @app.get("/api/fires/forecast")
