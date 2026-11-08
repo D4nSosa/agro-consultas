@@ -87,7 +87,22 @@
 import {getLotContext,onLotContextChange} from './services/lotContext.js';
 import {fetchFireDetections,harmonizeFireDetections,parseFireCsv,filterFireDetectionsToGeometry,aggregateFireMonths,aggregateFireYears} from './services/fireMonitoringService.mjs';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const map=L.map('fire-map',{preferCanvas:true}).setView([-38.4,-63.6],4);
+// Extensión nacional: Argentina continental y Tierra del Fuego. Evita que la vista inicial
+// abarque el globo y limita el desplazamiento a la región de interés.
+const ARGENTINA_BOUNDS=L.latLngBounds(
+  L.latLng(-56.2,-74.5),
+  L.latLng(-20.8,-52.2)
+);
+const map=L.map('fire-map',{
+  preferCanvas:true,
+  maxBounds:ARGENTINA_BOUNDS,
+  maxBoundsViscosity:0.92,
+  minZoom:3,
+  zoomSnap:0.25,
+  zoomDelta:0.5
+});
+function showArgentina(){map.fitBounds(ARGENTINA_BOUNDS,{padding:[18,18],maxZoom:5.25,animate:true});}
+showArgentina();
 const satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}.png',{maxZoom:19,attribution:'Tiles © Esri'});
 const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});satellite.addTo(map);
 const detectionLayer=L.layerGroup().addTo(map),goesLayer=L.layerGroup().addTo(map),lotLayer=L.geoJSON(null,{style:{color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.12}}).addTo(map),lotResultLayer=L.layerGroup().addTo(map);
@@ -107,7 +122,7 @@ $('query-lot').addEventListener('click',queryLot);$('confidence').addEventListen
 async function loadHistory(){const files=[...$('history-files').files];if(!files.length)return;$('history-status').textContent='Leyendo archivos CSV localmente…';try{const parsed=await Promise.all(files.map(async f=>parseFireCsv(await f.text(),f.name)));history=parsed.flatMap(x=>x.features);$('history-status').textContent=history.length.toLocaleString('es-AR')+' detecciones históricas cargadas en este dispositivo.';$('history-clear').disabled=false;$('history-apply').disabled=!lot;if(lot)applyHistory();}catch(e){$('history-status').textContent='Error al leer CSV: '+e.message;}}
 function applyHistory(){if(!lot||!history.length)return;const filtered=filterFireDetectionsToGeometry(history,lot.geometry,Number($('confidence').value),$('history-from').value,$('history-to').value),years=aggregateFireYears(filtered),months=aggregateFireMonths(filtered);$('history-years').innerHTML=years.map(x=>'<div class="fire-table-row"><span>'+x.year+'</span><strong>'+x.total+'</strong><span>M '+x.MODIS+'</span><span>V '+x.VIIRS+'</span></div>').join('')||'Sin registros.';$('history-months').innerHTML=months.map(x=>'<div class="fire-table-row"><span>'+x.month+'</span><strong>'+x.total+'</strong><span>M '+x.MODIS+'</span><span>V '+x.VIIRS+'</span></div>').join('')||'Sin registros.';$('history-status').textContent=filtered.length.toLocaleString('es-AR')+' registros dentro del lote; conteos de detecciones, no incendios confirmados.';}
 $('history-files').addEventListener('change',loadHistory);$('history-apply').addEventListener('click',applyHistory);$('history-from').addEventListener('change',applyHistory);$('history-to').addEventListener('change',applyHistory);$('history-clear').addEventListener('click',()=>{history=[];$('history-files').value='';$('history-status').textContent='Sin registros históricos cargados.';$('history-years').textContent='Sin registros.';$('history-months').textContent='Sin registros.';$('history-clear').disabled=true;$('history-apply').disabled=true;});
-$('national-view').addEventListener('click',()=>map.setView([-38.4,-63.6],4));$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));$('show-lot').addEventListener('change',()=>{if($('show-lot').checked)lotLayer.addTo(map);else map.removeLayer(lotLayer);});
+$('national-view').addEventListener('click',showArgentina);$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));$('show-lot').addEventListener('change',()=>{if($('show-lot').checked)lotLayer.addTo(map);else map.removeLayer(lotLayer);});
 $('themeToggle').addEventListener('click',()=>{document.documentElement.classList.toggle('theme-dark');document.body.classList.toggle('theme-dark');try{localStorage.setItem('agro-theme',document.documentElement.classList.contains('theme-dark')?'dark':'light');}catch{}});
 try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
 refresh();window.setInterval(refresh,10*60*1000);
