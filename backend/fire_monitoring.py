@@ -217,7 +217,8 @@ def fire_weather_forecast(lat: float, lon: float):
     params = urllib.parse.urlencode({
         "latitude": lat,
         "longitude": lon,
-        "daily": "temperature_2m_max,relative_humidity_2m_min,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max",
+        "daily": "temperature_2m_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max",
+        "hourly": "relative_humidity_2m",
         "forecast_days": 3,
         "timezone": "auto",
     })
@@ -230,13 +231,20 @@ def fire_weather_forecast(lat: float, lon: float):
             payload = __import__("json").loads(response.read(2_000_000).decode("utf-8"))
         daily = payload.get("daily") or {}
         dates = daily.get("time") or []
+        hourly = payload.get("hourly") or {}
+        humidity_by_date = {}
+        for timestamp, value in zip(hourly.get("time") or [], hourly.get("relative_humidity_2m") or []):
+            humidity_value = _number(value)
+            if humidity_value is not None:
+                humidity_by_date.setdefault(str(timestamp)[:10], []).append(humidity_value)
         days = []
         for index, date in enumerate(dates):
             def at(name):
                 values = daily.get(name) or []
                 return _number(values[index]) if index < len(values) else None
             temp = at("temperature_2m_max")
-            humidity = at("relative_humidity_2m_min")
+            humidity_values = humidity_by_date.get(date) or []
+            humidity = min(humidity_values) if humidity_values else None
             wind = at("wind_speed_10m_max")
             rain = at("precipitation_sum")
             gust = at("wind_gusts_10m_max")
