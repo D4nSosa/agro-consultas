@@ -20,7 +20,7 @@ Si ambas capas fallan (incluido HTTP 400), la página consulta NASA FIRMS y filt
 
 ## Análisis histórico
 
-La vista histórica acepta archivos CSV detallados de CONAE y NASA FIRMS. El procesamiento ocurre localmente en el navegador: filtra puntos por la geometría del lote, aplica el filtro de confianza cuando el valor es numérico y calcula totales anuales y mensuales separados por MODIS y VIIRS. Los CSV no se suben al servidor.
+La vista histórica acepta archivos CSV detallados de CONAE y NASA FIRMS. El procesamiento ocurre localmente en el navegador: permite consultar el conjunto importado completo aunque no haya un lote seleccionado, o filtrar por la geometría del lote; aplica el filtro de confianza cuando el valor es numérico y calcula totales anuales y mensuales separados por MODIS y VIIRS. Los CSV no se suben al servidor. Se informan las filas descartadas y se conservan detecciones con sensor no identificado como `UNKNOWN`, sin asignarlas artificialmente a MODIS o VIIRS. Las coincidencias MODIS/VIIRS se muestran como agrupamientos exploratorios y no sustituyen los conteos originales.
 
 Para obtener CSV de CONAE, abrir [Consultas Interactivas: Incendios](https://catalogos5.conae.gov.ar/catalogofocos/default.aspx), elegir satélites, período y área, seleccionar salida **Detalle** y formato CSV. La descarga requiere una cuenta CONAE. No usar las salidas **Totalizar** para el mapa de puntos.
 
