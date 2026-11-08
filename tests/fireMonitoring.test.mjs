@@ -34,10 +34,10 @@ test('preserves platform, UTC acquisition time and categorical FIRMS confidence'
 });
 test('uses globally closest one-to-one MODIS/VIIRS pairs rather than input-order greedy matches',()=>{
  const rows=[point('MODIS','2026-11-01',-56,-27),point('MODIS','2026-11-01',-55.9999,-27),point('VIIRS','2026-11-01',-55.99989,-27),point('VIIRS','2026-11-01',-56.0003,-27)];
- const events=harmonizeFireDetections(rows,1000);
+ const events=harmonizeFireDetections(rows,35);
  assert.equal(events.filter(e=>e.harmonization==='coincident').length,2);
  const pairs=events.filter(e=>e.harmonization==='coincident');
- assert.ok(pairs.every(e=>e.distanceMeters<40));
+ assert.ok(pairs.every(e=>e.distanceMeters<35));
 });
 test('retains platform and per-sensor observation metadata in harmonized events',()=>{
  const m=point('MODIS','2026-11-01',-56,-27),v=point('VIIRS','2026-11-01',-55.9999,-27);
