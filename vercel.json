@@ -1,23 +1,13 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "backend/main.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "**",
-      "use": "@vercel/static"
-    }
+    { "src": "backend/main.py", "use": "@vercel/python" },
+    { "src": "backend/fire_monitoring.py", "use": "@vercel/python" },
+    { "src": "**", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/main.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
+    { "src": "/api/fires/(.*)", "dest": "backend/fire_monitoring.py" },
+    { "src": "/api/(.*)", "dest": "backend/main.py" },
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }
