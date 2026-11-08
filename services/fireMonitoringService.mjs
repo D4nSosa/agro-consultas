@@ -47,9 +47,9 @@ export function parseFireCsv(text,filename='historical-fire-data.csv'){
   const dateValue=firstValue(row,headers,['fecha','date','acq_date','fecha_utc','fecha_hora','fecha_hora_utc','fecha_observacion','date_utc','datetime','dia']);
   const date=parseObservationDate(dateValue,firstValue(row,headers,['hora','time','acq_time','hora_utc']));
   if(!date){skipped++;continue;}
-  const confidenceRaw=firstValue(row,headers,['fp_confidence','confidence','confianza']),timeValue=firstValue(row,headers,['hora','time','acq_time','hora_utc']),timeRaw=timeValue?timeValue.padStart(4,'0').slice(0,4):'',satellite=firstValue(row,headers,['satelite','satellite','platform','plataforma'])||null;
+  const confidenceRaw=firstValue(row,headers,['fp_confidence','confidence','confianza']),timeValue=firstValue(row,headers,['hora','time','acq_time','hora_utc']),timeRaw=timeValue?timeValue.padStart(4,'0').slice(0,4):'',platformValue=firstValue(row,headers,['satelite','satellite','platform','plataforma'])||null;
   const observedAt=/^\\d{4}$/.test(timeRaw)?date+'T'+timeRaw.slice(0,2)+':'+timeRaw.slice(2)+':00Z':null;
-  features.push({type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:{source,sensor:source,satellite,date,timeUtc:timeRaw||null,observedAt,confidence:numberOrNull(confidenceRaw),confidenceLabel:/^(low|nominal|high)$/i.test(confidenceRaw)?confidenceRaw.toLowerCase():null,powerMw:numberOrNull(firstValue(row,headers,['fp_power','frp','power','potencia_radiativa'])),sourceFile:filename}});
+  features.push({type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:{source,sensor:source,satellite:platformValue||satellite||null,date,timeUtc:timeRaw||null,observedAt,confidence:numberOrNull(confidenceRaw),confidenceLabel:/^(low|nominal|high)$/i.test(confidenceRaw)?confidenceRaw.toLowerCase():null,powerMw:numberOrNull(firstValue(row,headers,['fp_power','frp','power','potencia_radiativa'])),sourceFile:filename}});
  }
  if(!features.length)throw Error('No se encontraron focos válidos. Revisá que el archivo tenga fecha y coordenadas por detección.');
  return{features,skipped,totalRows:rows.length-1};
