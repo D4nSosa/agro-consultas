@@ -40,3 +40,34 @@ def test_fire_weather_indicator_handles_missing_values_without_inventing_data():
     result = fire._fire_weather_indicator(None, None, None, None)
     assert result["score"] == 0
     assert not any(result["conditions"].values())
+
+
+def test_fire_forecast_aggregates_minimum_hourly_humidity(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return __import__("json").dumps({
+                "daily": {
+                    "time": ["2026-11-08"],
+                    "temperature_2m_max": [34],
+                    "precipitation_sum": [0],
+                    "wind_speed_10m_max": [24],
+                    "wind_gusts_10m_max": [38],
+                },
+                "hourly": {
+                    "time": ["2026-11-08T00:00", "2026-11-08T12:00", "2026-11-08T18:00"],
+                    "relative_humidity_2m": [62, 24, 31],
+                },
+            }).encode("utf-8")
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", lambda *_args, **_kwargs: FakeResponse())
+    result = fire.fire_weather_forecast(lat=-28.05, lon=-56.02)
+    assert len(result["days"]) == 1
+    assert result["days"][0]["humidityMin"] == 24
+    assert result["days"][0]["score"] == 100
+    assert result["days"][0]["riskClass"] == "muy-alto"
