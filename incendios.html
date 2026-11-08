@@ -87,22 +87,12 @@
 import {getLotContext,onLotContextChange} from './services/lotContext.js';
 import {fetchFireDetections,harmonizeFireDetections,parseFireCsv,filterFireDetectionsToGeometry,aggregateFireMonths,aggregateFireYears} from './services/fireMonitoringService.mjs';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-// Extensión nacional: Argentina continental y Tierra del Fuego. Evita que la vista inicial
-// abarque el globo y limita el desplazamiento a la región de interés.
-const ARGENTINA_BOUNDS=L.latLngBounds(
-  L.latLng(-56.2,-74.5),
-  L.latLng(-20.8,-52.2)
-);
-const map=L.map('fire-map',{
-  preferCanvas:true,
-  maxBounds:ARGENTINA_BOUNDS,
-  maxBoundsViscosity:0.92,
-  minZoom:3,
-  zoomSnap:0.25,
-  zoomDelta:0.5
-});
-function showArgentina(){map.fitBounds(ARGENTINA_BOUNDS,{padding:[18,18],maxZoom:5.25,animate:true});}
-showArgentina();
+// Mantener el encuadre nacional que ya funcionaba: centro geográfico de Argentina
+// y zoom fijo para abrir directamente sobre el territorio.
+const ARGENTINA_CENTER=[-38.4,-63.6];
+const ARGENTINA_ZOOM=4;
+const map=L.map('fire-map',{preferCanvas:true}).setView(ARGENTINA_CENTER,ARGENTINA_ZOOM);
+function showArgentina(){map.setView(ARGENTINA_CENTER,ARGENTINA_ZOOM);}
 const satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}.png',{maxZoom:19,attribution:'Tiles © Esri'});
 const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});satellite.addTo(map);
 const detectionLayer=L.layerGroup().addTo(map),goesLayer=L.layerGroup().addTo(map),lotLayer=L.geoJSON(null,{style:{color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.12}}).addTo(map),lotResultLayer=L.layerGroup().addTo(map);
