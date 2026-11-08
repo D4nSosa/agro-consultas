@@ -27,7 +27,9 @@ Para obtener CSV de CONAE, abrir [Consultas Interactivas: Incendios](https://cat
 ## Interpretación y límites
 
 - Un foco de calor es una anomalía térmica satelital, no una confirmación de incendio ni un perímetro de área quemada.
-- Los conteos MODIS y VIIRS se conservan separados. El agrupamiento exploratorio de eventos coincidentes usa mismo día y distancia máxima de 1.000 metros; no es una metodología oficial ni una equivalencia física de píxeles.
+- Los conteos MODIS y VIIRS se conservan separados. Para proponer coincidencias, se generan candidatos del mismo día dentro de 1.000 m y se asignan primero los pares espacialmente más cercanos, sin reutilizar una detección. Es un agrupamiento exploratorio, no una metodología oficial ni una equivalencia física de píxeles.
+- Cada grupo conserva plataforma, hora UTC, confianza y potencia radiativa por sensor cuando la fuente los informa.
+- Las categorías FIRMS `low`, `nominal` y `high` se conservan como etiquetas textuales; no se convierten a porcentajes. El filtro numérico de confianza solo puede evaluar fuentes que entregan un valor numérico.
 - Las categorías FIRMS `low`, `nominal` y `high` se conservan como etiquetas; no se convierten artificialmente en porcentajes.
 - GOES-19 no entrega el mismo campo de confianza que MODIS/VIIRS. Se muestra su clase de máscara y los atributos disponibles, sin inventar confianza.
 - El recorte nacional usa una extensión geográfica rectangular que incluye zonas limítrofes; el mapa se titula Argentina y entorno para no presentarlo como un límite político exacto.
