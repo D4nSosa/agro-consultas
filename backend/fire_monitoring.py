@@ -187,3 +187,91 @@ def goes19_fires():
         return payload
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"No se pudo procesar la escena GOES-19: {str(exc)[:200]}")
+
+
+def _fire_weather_indicator(temp_max, humidity_min, wind_max, precipitation):
+    """Indicador meteorológico orientativo; no representa el FWI oficial."""
+    checks = {
+        "temperature": temp_max is not None and temp_max >= 30,
+        "humidity": humidity_min is not None and humidity_min <= 30,
+        "wind": wind_max is not None and wind_max >= 20,
+        "dryness": precipitation is not None and precipitation <= 1,
+    }
+    score = sum(25 for active in checks.values() if active)
+    if score >= 75:
+        label, risk_class = "Muy alto", "muy-alto"
+    elif score >= 50:
+        label, risk_class = "Alto", "alto"
+    elif score >= 25:
+        label, risk_class = "Moderado", "moderado"
+    else:
+        label, risk_class = "Bajo", "bajo"
+    return {"score": score, "riskLabel": label, "riskClass": risk_class, "conditions": checks}
+
+
+@app.get("/api/fires/forecast")
+def fire_weather_forecast(lat: float, lon: float):
+    """Pronóstico meteorológico de tres días e indicador orientativo de condiciones favorables al fuego."""
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise HTTPException(status_code=400, detail="Coordenadas fuera del rango WGS84.")
+    params = urllib.parse.urlencode({
+        "latitude": lat,
+        "longitude": lon,
+        "daily": "temperature_2m_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max",
+        "hourly": "relative_humidity_2m",
+        "forecast_days": 3,
+        "timezone": "auto",
+    })
+    request = urllib.request.Request(
+        "https://api.open-meteo.com/v1/forecast?" + params,
+        headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = __import__("json").loads(response.read(2_000_000).decode("utf-8"))
+        daily = payload.get("daily") or {}
+        dates = daily.get("time") or []
+        hourly = payload.get("hourly") or {}
+        humidity_by_date = {}
+        for timestamp, value in zip(hourly.get("time") or [], hourly.get("relative_humidity_2m") or []):
+            humidity_value = _number(value)
+            if humidity_value is not None:
+                humidity_by_date.setdefault(str(timestamp)[:10], []).append(humidity_value)
+        days = []
+        for index, date in enumerate(dates):
+            def at(name):
+                values = daily.get(name) or []
+                return _number(values[index]) if index < len(values) else None
+            temp = at("temperature_2m_max")
+            humidity_values = humidity_by_date.get(date) or []
+            humidity = min(humidity_values) if humidity_values else None
+            wind = at("wind_speed_10m_max")
+            rain = at("precipitation_sum")
+            gust = at("wind_gusts_10m_max")
+            indicator = _fire_weather_indicator(temp, humidity, wind, rain)
+            parsed_date = datetime.date.fromisoformat(date)
+            days.append({
+                "date": date,
+                "label": parsed_date.strftime("%d/%m") + " · " + ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"][parsed_date.weekday()],
+                "temperatureMax": temp,
+                "humidityMin": humidity,
+                "windMax": wind,
+                "gustMax": gust,
+                "precipitation": rain,
+                **indicator,
+            })
+        if not days:
+            raise ValueError("El proveedor no devolvió días de pronóstico.")
+        return {
+            "location": {"latitude": lat, "longitude": lon, "name": f"{lat:.3f}, {lon:.3f}"},
+            "meta": {
+                "source": "Open-Meteo · pronóstico diario",
+                "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "method": "Indicador orientativo de cuatro condiciones meteorológicas; no es FWI oficial.",
+            },
+            "days": days,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo consultar el pronóstico meteorológico: {str(exc)[:180]}")

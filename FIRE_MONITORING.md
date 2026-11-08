@@ -40,3 +40,12 @@ Para obtener CSV de CONAE, abrir [Consultas Interactivas: Incendios](https://cat
 - [NASA FIRMS — Active Fire Data](https://firms.modaps.eosdis.nasa.gov/active_fire/)
 - [NASA FIRMS — Archive Download](https://firms.modaps.eosdis.nasa.gov/download/)
 - [NOAA GOES Open Data — GOES-19](https://noaa-goes19.s3.amazonaws.com/)
+
+
+## Previsión meteorológica integrada
+
+La interfaz permite seleccionar una coordenada directamente en el mapa o utilizar el centro aproximado del lote compartido. El endpoint GET /api/fires/forecast?lat={lat}&lon={lon} consulta el pronóstico diario de Open-Meteo para tres días y devuelve temperatura máxima, humedad relativa mínima, precipitación acumulada, viento máximo y ráfagas.
+
+Se calcula un indicador operativo orientativo de 0 a 100 con cuatro condiciones transparentes (25 puntos cada una): temperatura máxima >= 30 °C, humedad mínima <= 30 %, viento máximo >= 20 km/h y precipitación <= 1 mm. Los rangos son Bajo (0), Moderado (25), Alto (50) y Muy alto (75–100).
+
+Este indicador NO es el Fire Weather Index (FWI) oficial, no integra humedad del combustible ni topografía, no predice igniciones y no sustituye a los organismos de emergencia. Describe solamente condiciones meteorológicas favorables al fuego para apoyar la exploración territorial. Si falta una variable, esa condición no suma puntos y se conserva como dato no informado en la respuesta.
