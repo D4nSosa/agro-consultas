@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import numpy as np
 from backend import fire_monitoring as fire
 
 
@@ -38,7 +39,10 @@ def test_fire_weather_indicator_uses_transparent_weather_thresholds():
 
 def test_fire_weather_indicator_handles_missing_values_without_inventing_data():
     result = fire._fire_weather_indicator(None, None, None, None)
-    assert result["score"] == 0
+    assert result["score"] is None
+    assert result["riskLabel"] == "No evaluable"
+    assert result["riskClass"] == "no-evaluable"
+    assert result["availableConditions"] == 0
     assert not any(result["conditions"].values())
 
 
@@ -71,3 +75,21 @@ def test_fire_forecast_aggregates_minimum_hourly_humidity(monkeypatch):
     assert result["days"][0]["humidityMin"] == 24
     assert result["days"][0]["score"] == 100
     assert result["days"][0]["riskClass"] == "muy-alto"
+
+
+def test_fire_weather_indicator_reports_partial_data():
+    result = fire._fire_weather_indicator(34, None, 28, None)
+    assert result["score"] == 50
+    assert result["availableConditions"] == 2
+    assert result["requiredConditions"] == 4
+
+
+def test_goes_sampling_spans_the_full_candidate_index_range():
+    mask = np.full((100, 100), 10, dtype=np.int16)
+    indices, total, truncated = fire._sample_detection_indices(mask, 100)
+    assert total == 10000
+    assert truncated is True
+    assert len(indices) == 100
+    assert indices[0, 0] == 0
+    assert indices[-1, 0] == 99
+    assert len(set(map(tuple, indices.tolist()))) == 100
