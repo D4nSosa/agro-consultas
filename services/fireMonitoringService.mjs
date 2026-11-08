@@ -22,9 +22,9 @@ function normalizedHeader(value){return String(value??'').replace(/^\uFEFF/,'').
 function parseCsvMatrix(text){const input=String(text??'').replace(/^\uFEFF/,'');let delimiter=',',quoted=false;for(let i=0;i<input.length;i++){const c=input[i];if(c==='"'){if(quoted&&input[i+1]==='"'){i++;continue;}quoted=!quoted;}else if(!quoted&&(c===','||c===';')){delimiter=c;break;}else if(!quoted&&c==='\n')break;}const rows=[];let row=[],field='',inQuotes=false;for(let i=0;i<input.length;i++){const c=input[i];if(c==='"'){if(inQuotes&&input[i+1]==='"'){field+='"';i++;}else inQuotes=!inQuotes;}else if(c===delimiter&&!inQuotes){row.push(field);field='';}else if((c==='\n'||c==='\r')&&!inQuotes){if(c==='\r'&&input[i+1]==='\n')i++;row.push(field);if(row.some(v=>String(v).trim()!==''))rows.push(row);row=[];field='';}else field+=c;}row.push(field);if(row.some(v=>String(v).trim()!==''))rows.push(row);return rows;}
 function parseObservationDate(dateValue,timeValue=''){
  const raw=String(dateValue??'').trim();if(!raw)return null;let y,m,d,match;
- if((match=raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/))){[,y,m,d]=match;}
- else if((match=raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})/))){d=match[1];m=match[2];y=match[3];}
- else if((match=raw.match(/^(\\d{4})(\\d{2})(\\d{2})$/))){[,y,m,d]=match;}
+ if((match=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))){[,y,m,d]=match;}
+ else if((match=raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/))){d=match[1];m=match[2];y=match[3];}
+ else if((match=raw.match(/^(\d{4})(\d{2})(\d{2})$/))){[,y,m,d]=match;}
  else{const parsed=new Date(raw);if(Number.isNaN(parsed.getTime()))return null;return parsed.toISOString().slice(0,10);}
  const date=new Date(Date.UTC(Number(y),Number(m)-1,Number(d)));
  if(date.getUTCFullYear()!==Number(y)||date.getUTCMonth()!==Number(m)-1||date.getUTCDate()!==Number(d))return null;
