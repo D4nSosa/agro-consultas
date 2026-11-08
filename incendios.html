@@ -87,15 +87,39 @@
 import {getLotContext,onLotContextChange} from './services/lotContext.js';
 import {fetchFireDetections,harmonizeFireDetections,parseFireCsv,filterFireDetectionsToGeometry,aggregateFireMonths,aggregateFireYears} from './services/fireMonitoringService.mjs';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-// Vista nacional inicial independiente del lote o del punto seleccionado.
-const ARGENTINA_BOUNDS=L.latLngBounds(L.latLng(-55.2,-73.6),L.latLng(-21.7,-53.6));
-const map=L.map('fire-map',{preferCanvas:true,minZoom:3}).setView([-38.4,-63.6],4);
-function showArgentina(){map.invalidateSize({pan:false});map.fitBounds(ARGENTINA_BOUNDS,{padding:[18,18],maxZoom:4.5,animate:false});}
+// Vista nacional fija: centro geográfico de Argentina y zoom inicial explícito.
+const ARGENTINA_CENTER=[-38.4161,-63.6167];
+const ARGENTINA_INITIAL_ZOOM=4;
+const map=L.map('fire-map',{preferCanvas:true,minZoom:3,zoomControl:true}).setView(ARGENTINA_CENTER,ARGENTINA_INITIAL_ZOOM);
+
+function showArgentina(){
+ map.invalidateSize({pan:false});
+ map.setView(ARGENTINA_CENTER,ARGENTINA_INITIAL_ZOOM,{animate:false});
+}
+
 function stabilizeNationalView(){
- const fit=()=>{map.invalidateSize({pan:false});showArgentina();};
- map.whenReady(()=>requestAnimationFrame(fit));window.addEventListener('load',fit,{once:true});
- setTimeout(fit,250);setTimeout(fit,650);
- if('ResizeObserver' in window){const observer=new ResizeObserver(()=>map.invalidateSize({pan:false}));observer.observe($('fire-map'));}
+ let resizeObserver=null;
+ const syncInitialView=()=>{
+  const container=$('fire-map');
+  if(!container||container.clientWidth===0||container.clientHeight===0)return;
+  map.invalidateSize({pan:false});
+  map.setView(ARGENTINA_CENTER,ARGENTINA_INITIAL_ZOOM,{animate:false});
+ };
+ // Esperar al primer layout real de Leaflet y del contenedor.
+ map.whenReady(()=>requestAnimationFrame(syncInitialView));
+ window.addEventListener('load',syncInitialView,{once:true});
+ // Si el panel aparece, cambia de tamaño o se adapta al móvil, recalcular
+ // el tamaño sin modificar la posición que eligió el usuario.
+ if('ResizeObserver' in window){
+  resizeObserver=new ResizeObserver(()=>{
+   const container=$('fire-map');
+   if(container&&container.clientWidth>0&&container.clientHeight>0){
+    map.invalidateSize({pan:false});
+   }
+  });
+  resizeObserver.observe($('fire-map'));
+ }
+ window.addEventListener('resize',()=>map.invalidateSize({pan:false}),{passive:true});
 }
 const satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}.png',{maxZoom:19,attribution:'Tiles © Esri'});
 const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});satellite.addTo(map);
