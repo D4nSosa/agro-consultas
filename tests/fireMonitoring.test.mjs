@@ -14,11 +14,11 @@ test('rejects aggregate CSVs without point coordinates',()=>{assert.throws(()=>p
 test('aggregates historical detections by year and sensor',()=>{const rows=[point('MODIS','2025-10-01',-56,-27),point('VIIRS','2025-11-02',-56,-27),point('MODIS','2026-01-01',-56,-27)];assert.deepEqual(aggregateFireYears(rows),[{year:'2025',total:2,MODIS:1,VIIRS:1},{year:'2026',total:1,MODIS:1,VIIRS:0}]);});
 
 test('imports FIRMS CSV with semicolon and decimal comma even without sensor metadata',()=>{
- const parsed=parseFireCsv('latitude;longitude;acq_date;acq_time\\n-27,1;-56,2;2026-10-03;1430','export.csv');
+ const parsed=parseFireCsv('latitude;longitude;acq_date;acq_time\n-27,1;-56,2;2026-10-03;1430','export.csv');
  assert.equal(parsed.features.length,1);assert.equal(parsed.features[0].properties.source,'UNKNOWN');assert.equal(parsed.features[0].properties.date,'2026-10-03');
 });
 test('reports invalid rows while preserving valid detections',()=>{
- const parsed=parseFireCsv('lat;lon;date;satellite\\n-27;-56;2026-10-03;NOAA-21\\ninvalid;-56;bad;NOAA-21','detections.csv');
+ const parsed=parseFireCsv('lat;lon;date;satellite\n-27;-56;2026-10-03;NOAA-21\ninvalid;-56;bad;NOAA-21','detections.csv');
  assert.equal(parsed.features.length,1);assert.equal(parsed.skipped,1);assert.equal(parsed.totalRows,2);
 });
 test('supports historical date filtering without a lot geometry',()=>{
