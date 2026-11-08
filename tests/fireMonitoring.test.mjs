@@ -27,7 +27,7 @@ test('supports historical date filtering without a lot geometry',()=>{
 });
 
 test('preserves platform, UTC acquisition time and categorical FIRMS confidence',()=>{
- const parsed=parseFireCsv('latitude,longitude,acq_date,acq_time,satellite,instrument,confidence,frp\\n-27.1,-56.2,2026-10-03,1430,NOAA-21,VIIRS,nominal,12.4','FIRMS_VIIRS.csv');
+ const parsed=parseFireCsv('latitude,longitude,acq_date,acq_time,satellite,instrument,confidence,frp\n-27.1,-56.2,2026-10-03,1430,NOAA-21,VIIRS,nominal,12.4','FIRMS_VIIRS.csv');
  const p=parsed.features[0].properties;
  assert.equal(p.source,'VIIRS');assert.equal(p.satellite,'NOAA-21');assert.equal(p.timeUtc,'1430');
  assert.equal(p.observedAt,'2026-10-03T14:30:00Z');assert.equal(p.confidence,null);assert.equal(p.confidenceLabel,'nominal');
