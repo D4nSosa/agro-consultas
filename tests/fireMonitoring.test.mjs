@@ -25,3 +25,25 @@ test('supports historical date filtering without a lot geometry',()=>{
  const rows=[point('MODIS','2025-10-01',-56,-27),point('VIIRS','2026-11-02',-56,-27)];
  assert.equal(filterFireDetectionsToGeometry(rows,null,0,'2026-01-01','').length,1);
 });
+
+test('preserves platform, UTC acquisition time and categorical FIRMS confidence',()=>{
+ const parsed=parseFireCsv('latitude,longitude,acq_date,acq_time,satellite,instrument,confidence,frp\\n-27.1,-56.2,2026-10-03,1430,NOAA-21,VIIRS,nominal,12.4','FIRMS_VIIRS.csv');
+ const p=parsed.features[0].properties;
+ assert.equal(p.source,'VIIRS');assert.equal(p.satellite,'NOAA-21');assert.equal(p.timeUtc,'1430');
+ assert.equal(p.observedAt,'2026-10-03T14:30:00Z');assert.equal(p.confidence,null);assert.equal(p.confidenceLabel,'nominal');
+});
+test('uses globally closest one-to-one MODIS/VIIRS pairs rather than input-order greedy matches',()=>{
+ const rows=[point('MODIS','2026-11-01',-56,-27),point('MODIS','2026-11-01',-55.9999,-27),point('VIIRS','2026-11-01',-55.99989,-27),point('VIIRS','2026-11-01',-56.0003,-27)];
+ const events=harmonizeFireDetections(rows,1000);
+ assert.equal(events.filter(e=>e.harmonization==='coincident').length,2);
+ const pairs=events.filter(e=>e.harmonization==='coincident');
+ assert.ok(pairs.every(e=>e.distanceMeters<40));
+});
+test('retains platform and per-sensor observation metadata in harmonized events',()=>{
+ const m=point('MODIS','2026-11-01',-56,-27),v=point('VIIRS','2026-11-01',-55.9999,-27);
+ m.properties.satellite='Terra';m.properties.timeUtc='1430';m.properties.confidence=85;
+ v.properties.satellite='NOAA-21';v.properties.timeUtc='1440';v.properties.confidenceLabel='nominal';
+ const event=harmonizeFireDetections([m,v])[0];
+ assert.equal(event.satellites.MODIS,'Terra');assert.equal(event.satellites.VIIRS,'NOAA-21');
+ assert.equal(event.observations.MODIS.timeUtc,'1430');assert.equal(event.observations.VIIRS.confidenceLabel,'nominal');
+});
