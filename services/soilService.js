@@ -62,12 +62,12 @@ export async function getSoilReport(lat, lng, subregionStaticSuelo = null) {
     tipo: baseSoil.tipo || 'NO DISPONIBLE',
     textura: baseSoil.textura || 'NO DISPONIBLE',
     drenaje: baseSoil.drenaje || 'NO DISPONIBLE',
-    limitantes: baseSoil.limitantes || 'Ninguna registrada',
+    limitantes: baseSoil.limitantes || 'NO DISPONIBLE',
     aptitud: baseSoil.aptitud || 'NO DISPONIBLE',
     ph: baseSoil.ph !== undefined && baseSoil.ph !== null ? baseSoil.ph : 'NO DISPONIBLE',
-    escala: baseSoil.escala || '1:500.000',
-    status: baseSoil.status || 'REGIONAL',
-    confidence: baseSoil.confidence || 'medium',
+    escala: baseSoil.escala || 'NO INFORMADA',
+    status: baseSoil.status || 'UNAVAILABLE',
+    confidence: baseSoil.confidence || 'none',
     fuente: baseSoil.fuente || 'INTA / Cartografía Edáfica Regional'
   };
 }
