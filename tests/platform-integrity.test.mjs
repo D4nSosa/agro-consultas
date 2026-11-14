@@ -8,6 +8,16 @@ async function importSource(path) {
 }
 const geo = await importSource('../forestal/utils/geo.js');
 const scoring = await importSource('../utils/scoring.js');
+const intaService = await importSource('../services/sources/intaService.js');
+
+function memoryStorage() {
+  const values = new Map();
+  return {
+    getItem: key => values.has(key) ? values.get(key) : null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: key => values.delete(key)
+  };
+}
 const square = (west,south,east,north) => ({type:'Polygon',coordinates:[[[west,south],[east,south],[east,north],[west,north],[west,south]]]});
 
 test('MultiPolygon suma partes independientes sin conectarlas',()=>{
@@ -100,4 +110,59 @@ test('rechaza componentes MultiPolygon superpuestos o en contacto',()=>{
  const touching={type:'MultiPolygon',coordinates:[square(0,0,1,1).coordinates,square(1,0,2,1).coordinates]};
  assert.equal(geo.validateGeoJSON(overlapping).valid,false);
  assert.equal(geo.validateGeoJSON(touching).valid,false);
+});
+
+test('respuesta WMS sin atributos no se convierte en suelo disponible',async()=>{
+ const previousFetch=globalThis.fetch,previousStorage=globalThis.localStorage;
+ globalThis.localStorage=memoryStorage();
+ globalThis.fetch=async()=>({ok:true,json:async()=>({features:[{type:'Feature',properties:{}}]})});
+ try{
+  const result=await intaService.fetchINTASoilData(-31.1234,-56.1234,null);
+  assert.equal(result.status,'UNAVAILABLE');
+  assert.equal(result.ph,null);
+  assert.equal(result.tipo,'Información de suelo no disponible para esta ubicación');
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(previousStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=previousStorage;
+ }
+});
+test('respuesta WMS con atributos válidos informa escala sin inventarla',async()=>{
+ const previousFetch=globalThis.fetch,previousStorage=globalThis.localStorage;
+ globalThis.localStorage=memoryStorage();
+ globalThis.fetch=async()=>({ok:true,json:async()=>({features:[{type:'Feature',properties:{tipo_suelo:'Argiudol',textura:'franca',drenaje:'bueno',ph:'6.2'}}]})});
+ try{
+  const result=await intaService.fetchINTASoilData(-31.2234,-56.2234,null);
+  assert.equal(result.status,'REAL');
+  assert.equal(result.ph,6.2);
+  assert.equal(result.escala,'No informada por la respuesta WMS');
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(previousStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=previousStorage;
+ }
+});
+test('fallback regional no atribuye una escala si la ficha no la informa',async()=>{
+ const previousFetch=globalThis.fetch,previousStorage=globalThis.localStorage;
+ globalThis.localStorage=memoryStorage();
+ globalThis.fetch=async()=>({ok:false,status:503});
+ try{
+  const result=await intaService.fetchINTASoilData(-31.3234,-56.3234,{tipo:'Argiudol',textura:'franca'});
+  assert.equal(result.status,'REGIONAL');
+  assert.equal(result.escala,'Regional (escala no informada)');
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(previousStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=previousStorage;
+ }
+});
+test('sin WMS ni variables regionales, el fallback permanece no disponible',async()=>{
+ const previousFetch=globalThis.fetch,previousStorage=globalThis.localStorage;
+ globalThis.localStorage=memoryStorage();
+ globalThis.fetch=async()=>({ok:false,status:503});
+ try{
+  const result=await intaService.fetchINTASoilData(-31.4234,-56.4234,{tipo:'Información Regional de Suelos',textura:'No disponible'});
+  assert.equal(result.status,'UNAVAILABLE');
+  assert.equal(result.tipo,'NO DISPONIBLE');
+ }finally{
+  globalThis.fetch=previousFetch;
+  if(previousStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=previousStorage;
+ }
 });
