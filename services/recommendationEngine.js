@@ -13,8 +13,8 @@ let cultivosData = null;
 export async function loadCultivosData() {
   if (!cultivosData) {
     const [resCultivos, resForestales] = await Promise.all([
-      fetch('/data/cultivos.json').then(r => r.ok ? r.json() : {}),
-      fetch('/data/forestales.json').then(r => r.ok ? r.json() : {})
+      fetch('/data/cultivos.json').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+      fetch('/data/forestales.json').then(r => r.ok ? r.json() : {}).catch(() => ({}))
     ]);
     const merged = {};
     for (const [k, v] of Object.entries(resCultivos)) {
@@ -163,13 +163,13 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       const soilStatus = (safeSoil?.status || '').toUpperCase();
       const climateStatus = (safeClimate?.status || '').toUpperCase();
 
-      const isUnavailable = soilStatus === 'UNAVAILABLE' || climateStatus === 'UNAVAILABLE';
-      const isBothReal = soilStatus === 'REAL' && climateStatus === 'REAL';
-
-      const labelConfianza = isUnavailable
-        ? 'Información pendiente de verificación'
-        : (isBothReal ? 'Datos locales verificados' : 'Contexto regional');
-      const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : 'medium');
+      const evidenceQuality = String(compat.calidadEvidencia || '').toUpperCase();
+      const isVerified = evidenceQuality.includes('ALTA') && soilStatus === 'REAL' && climateStatus === 'REAL';
+      const isUnevaluable = String(compat.categoria || '').includes('PENDIENTE');
+      const labelConfianza = isVerified
+        ? 'Datos locales disponibles y criterios completos'
+        : (isUnevaluable ? 'Información insuficiente para evaluar' : 'Evaluación parcial / contexto regional');
+      const classConfianza = isVerified ? 'high' : (isUnevaluable ? 'none' : 'medium');
 
       return {
         id: key,
