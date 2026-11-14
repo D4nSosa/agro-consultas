@@ -24,12 +24,14 @@ export function calcularCompatibilidad(crop, soil, climate) {
   const riesgos = [];
   const datosFaltantes = [];
 
-  const isSoilAvailable = soil &&
-    soil.status !== 'UNAVAILABLE' &&
-    soil.status !== 'unavailable' &&
-    ((soil.ph !== null && soil.ph !== undefined) ||
-     (soil.tipo && soil.tipo !== 'NO DISPONIBLE' && !soil.tipo.includes('no disponible')) ||
-     (soil.textura && soil.textura !== 'NO DISPONIBLE' && !soil.textura.includes('no disponible')));
+  const isMeaningfulSoilValue = value => {
+    if (value === null || value === undefined || value === '') return false;
+    return !/no disponible|no especificad[ao]|sin cobertura|sin información|información regional de suelos/i.test(String(value));
+  };
+  const hasSoilPH = soil?.ph !== null && soil?.ph !== undefined && soil?.ph !== '' && Number.isFinite(Number(soil.ph));
+  const isSoilAvailable = Boolean(soil &&
+    !['UNAVAILABLE', 'NO DISPONIBLE'].includes(String(soil.status || '').toUpperCase()) &&
+    (hasSoilPH || isMeaningfulSoilValue(soil.tipo) || isMeaningfulSoilValue(soil.textura) || isMeaningfulSoilValue(soil.drenaje)));
 
   if (!isSoilAvailable) {
     datosFaltantes.push("Cartografía edáfica de alta resolución no disponible en esta coordenada.");
@@ -197,9 +199,9 @@ export function calcularCompatibilidad(crop, soil, climate) {
     reqClima.precipitacionMin !== undefined;
   const hasAnyRequirements = hasSoilRequirements || hasClimateRequirements;
   const soilValues = {
-    ph: soil?.ph !== null && soil?.ph !== undefined && soil?.ph !== '' && Number.isFinite(Number(soil.ph)),
-    textura: Boolean(soil?.textura && !/no disponible/i.test(String(soil.textura))),
-    drenaje: Boolean(soil?.drenaje && !/no disponible/i.test(String(soil.drenaje)))
+    ph: hasSoilPH,
+    textura: isMeaningfulSoilValue(soil?.textura),
+    drenaje: isMeaningfulSoilValue(soil?.drenaje)
   };
   const missingCriteria = [];
   if (reqSuelo.phMin !== undefined && reqSuelo.phMax !== undefined && !soilValues.ph) missingCriteria.push('pH del suelo');
