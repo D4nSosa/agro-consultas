@@ -35,9 +35,11 @@ export function calcularCompatibilidad(crop, soil, climate) {
     datosFaltantes.push("Cartografía edáfica de alta resolución no disponible en esta coordenada.");
   }
 
-  const isClimateAvailable = climate &&
-    climate.temperaturaMediaVal !== undefined &&
-    climate.temperaturaMediaVal !== null;
+  const hasTemperature = climate?.temperaturaMediaVal !== null && climate?.temperaturaMediaVal !== undefined &&
+    climate?.temperaturaMediaVal !== '' && Number.isFinite(Number(climate.temperaturaMediaVal));
+  const hasPrecipitation = climate?.precipitacionesAnualesVal !== null && climate?.precipitacionesAnualesVal !== undefined &&
+    climate?.precipitacionesAnualesVal !== '' && Number.isFinite(Number(climate.precipitacionesAnualesVal));
+  const isClimateAvailable = Boolean(climate && (hasTemperature || hasPrecipitation));
 
   if (!isClimateAvailable) {
     datosFaltantes.push("Estadísticas climáticas históricas no disponibles.");
@@ -127,7 +129,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   if (isClimateAvailable) {
     const tempMedia = climate.temperaturaMediaVal;
 
-    if (reqClima.temperaturaMin !== undefined && reqClima.temperaturaMin !== null && reqClima.temperaturaMax !== undefined && reqClima.temperaturaMax !== null) {
+    if (hasTemperature && reqClima.temperaturaMin !== undefined && reqClima.temperaturaMin !== null && reqClima.temperaturaMax !== undefined && reqClima.temperaturaMax !== null) {
       if (tempMedia >= reqClima.temperaturaMin && tempMedia <= reqClima.temperaturaMax) {
         motivos.push(`✓ Temperatura media regional idónea (${tempMedia}°C).`);
       } else {
@@ -144,7 +146,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   }
 
   // Precipitaciones
-  if (climate && climate.precipitacionesAnualesVal !== undefined && climate.precipitacionesAnualesVal !== null) {
+  if (hasPrecipitation) {
     const precipAnual = climate.precipitacionesAnualesVal;
     if (reqClima.precipitacionMin !== undefined && reqClima.precipitacionMin !== null) {
       if (precipAnual >= reqClima.precipitacionMin) {
@@ -182,8 +184,47 @@ export function calcularCompatibilidad(crop, soil, climate) {
     }
   }
 
+  // Comprobar cobertura real de criterios: una ficha sin requerimientos numéricos
+  // o una variable ausente no puede producir una aptitud favorable por defecto.
+  const hasSoilRequirements =
+    (reqSuelo.phMin !== undefined && reqSuelo.phMax !== undefined) ||
+    (Array.isArray(reqSuelo.texturas) && reqSuelo.texturas.length > 0) ||
+    (Array.isArray(reqSuelo.drenaje) && reqSuelo.drenaje.length > 0);
+  const hasClimateRequirements =
+    (reqClima.temperaturaMin !== undefined && reqClima.temperaturaMax !== undefined) ||
+    reqClima.precipitacionMin !== undefined;
+  const hasAnyRequirements = hasSoilRequirements || hasClimateRequirements;
+  const soilValues = {
+    ph: soil?.ph !== null && soil?.ph !== undefined && soil?.ph !== '' && Number.isFinite(Number(soil.ph)),
+    textura: Boolean(soil?.textura && !/no disponible/i.test(String(soil.textura))),
+    drenaje: Boolean(soil?.drenaje && !/no disponible/i.test(String(soil.drenaje)))
+  };
+  const missingCriteria = [];
+  if (reqSuelo.phMin !== undefined && reqSuelo.phMax !== undefined && !soilValues.ph) missingCriteria.push('pH del suelo');
+  if (Array.isArray(reqSuelo.texturas) && reqSuelo.texturas.length && !soilValues.textura) missingCriteria.push('textura del suelo');
+  if (Array.isArray(reqSuelo.drenaje) && reqSuelo.drenaje.length && !soilValues.drenaje) missingCriteria.push('drenaje del suelo');
+  if (reqClima.temperaturaMin !== undefined && reqClima.temperaturaMax !== undefined && !hasTemperature) missingCriteria.push('temperatura media climática');
+  if (reqClima.precipitacionMin !== undefined && !hasPrecipitation) missingCriteria.push('precipitación anual');
+  missingCriteria.forEach(item => {
+    const message = 'Variable requerida no disponible: ' + item + '.';
+    if (!datosFaltantes.includes(message)) datosFaltantes.push(message);
+  });
+  const evaluatedSoilCriteria = [
+    reqSuelo.phMin !== undefined && reqSuelo.phMax !== undefined && soilValues.ph,
+    Array.isArray(reqSuelo.texturas) && reqSuelo.texturas.length > 0 && soilValues.textura,
+    Array.isArray(reqSuelo.drenaje) && reqSuelo.drenaje.length > 0 && soilValues.drenaje
+  ].filter(Boolean).length;
+  const evaluatedClimateCriteria = [
+    reqClima.temperaturaMin !== undefined && reqClima.temperaturaMax !== undefined && hasTemperature,
+    reqClima.precipitacionMin !== undefined && hasPrecipitation
+  ].filter(Boolean).length;
+  const evaluatedCriteria = evaluatedSoilCriteria + evaluatedClimateCriteria;
+  const incompleteRequirements = missingCriteria.length > 0 ||
+    (hasSoilRequirements && evaluatedSoilCriteria === 0) ||
+    (hasClimateRequirements && evaluatedClimateCriteria === 0);
+
   // Evaluaciones finales
-  if (!isSoilAvailable && !isClimateAvailable) {
+  if (!hasAnyRequirements || evaluatedCriteria === 0 || (!isSoilAvailable && !isClimateAvailable)) {
     return {
       categoria: AptitudCategoria.NO_EVALUABLE,
       nivelAptitud: 'INFORMACIÓN PENDIENTE',
@@ -200,7 +241,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   if (deficienciasSeveras > 0) {
     categoria = AptitudCategoria.BAJA;
     nivelAptitud = 'BAJA';
-  } else if (deficienciasModeradas > 0 || !isSoilAvailable || !isClimateAvailable) {
+  } else if (deficienciasModeradas > 0 || incompleteRequirements || !isSoilAvailable || !isClimateAvailable || !hasSoilRequirements || !hasClimateRequirements) {
     categoria = AptitudCategoria.MEDIA;
     nivelAptitud = 'MEDIA';
   }
@@ -211,7 +252,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   let calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
   if (!isSoilAvailable || !isClimateAvailable) {
     calidadEvidencia = 'PARCIAL';
-  } else if (soilSt === 'REAL' && climSt === 'REAL') {
+  } else if (soilSt === 'REAL' && climSt === 'REAL' && hasSoilRequirements && hasClimateRequirements && !incompleteRequirements) {
     calidadEvidencia = 'ALTA (DATOS LOCALES VERIFICADOS)';
   } else {
     calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
@@ -220,7 +261,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   return {
     categoria: categoria,
     nivelAptitud: nivelAptitud,
-    motivos: motivos.length > 0 ? motivos : ["Condiciones agroambientales registradas compatibles."],
+    motivos: motivos.length > 0 ? motivos : ["No hay criterios suficientes para afirmar compatibilidad."],
     riesgos: riesgos,
     datosFaltantes: datosFaltantes,
     calidadEvidencia: calidadEvidencia
