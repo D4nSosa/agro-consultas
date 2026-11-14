@@ -69,3 +69,13 @@ test('calculateArea acepta FeatureCollection de un único lote',()=>{
  const collection={type:'FeatureCollection',features:[{type:'Feature',geometry:square(0,0,1,1),properties:{}}]};
  assert.equal(geo.calculateArea(collection).valid,true);
 });
+
+test('rechaza huecos fuera del anillo exterior y anillos de área nula',()=>{
+ const outsideHole={type:'Polygon',coordinates:[
+  [[0,0],[1,0],[1,1],[0,1],[0,0]],
+  [[2,2],[3,2],[3,3],[2,3],[2,2]]
+ ]};
+ const zeroArea={type:'Polygon',coordinates:[[[0,0],[1,0],[2,0],[3,0],[0,0]]]};
+ assert.equal(geo.validateGeoJSON(outsideHole).valid,false);
+ assert.equal(geo.validateGeoJSON(zeroArea).valid,false);
+});
