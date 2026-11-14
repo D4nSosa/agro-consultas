@@ -53,3 +53,19 @@ test('ficha sin requerimientos cuantificables queda pendiente y no favorable por
  const result=scoring.calcularCompatibilidad({nombre:'Sin criterios'},{status:'REAL',ph:6},{status:'REAL',temperaturaMediaVal:20});
  assert.equal(result.nivelAptitud,'INFORMACIÓN PENDIENTE');
 });
+
+test('contexto regional limita la clasificación a aptitud media',()=>{
+ const crop={nombre:'Cultivo prueba',requerimientos:{suelo:{phMin:5,phMax:7},clima:{temperaturaMin:10,temperaturaMax:25,precipitacionMin:500}}};
+ const result=scoring.calcularCompatibilidad(crop,{status:'REGIONAL',ph:6},{status:'REGIONAL',temperaturaMediaVal:20,precipitacionesAnualesVal:700});
+ assert.notEqual(result.nivelAptitud,'ALTA');
+});
+test('evidencia REAL completa permite una aptitud alta cuando no hay limitantes',()=>{
+ const crop={nombre:'Cultivo prueba',requerimientos:{suelo:{phMin:5,phMax:7,texturas:['franca'],drenaje:['bueno']},clima:{temperaturaMin:10,temperaturaMax:25,precipitacionMin:500}}};
+ const result=scoring.calcularCompatibilidad(crop,{status:'REAL',ph:6,textura:'franca',drenaje:'bueno'},{status:'REAL',temperaturaMediaVal:20,precipitacionesAnualesVal:700});
+ assert.equal(result.nivelAptitud,'ALTA');
+ assert.match(result.calidadEvidencia,/ALTA/);
+});
+test('calculateArea acepta FeatureCollection de un único lote',()=>{
+ const collection={type:'FeatureCollection',features:[{type:'Feature',geometry:square(0,0,1,1),properties:{}}]};
+ assert.equal(geo.calculateArea(collection).valid,true);
+});
