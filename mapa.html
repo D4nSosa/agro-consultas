@@ -47,6 +47,14 @@
    <input id="lot-name" type="text" placeholder="Ej. Lote norte" style="width:100%;margin:6px 0 12px">
    <div id="lot-status" class="status">No hay un lote seleccionado.</div>
    <section class="gis-section">
+    <h3>Lotes guardados en este dispositivo</h3>
+    <select id="saved-lots" style="width:100%;margin:6px 0 8px"><option value="">Seleccioná un lote guardado…</option></select>
+    <div class="tools">
+     <button id="load-saved-lot" class="btn outline" type="button" disabled>Abrir lote</button>
+     <button id="delete-saved-lot" class="btn outline" type="button" disabled>Eliminar lote</button>
+    </div>
+   </section>
+   <section class="gis-section">
     <h3>Capas de trabajo</h3>
     <label class="layer-row"><input id="layer-lot" type="checkbox" checked> <span class="layer-swatch"></span> Lote seleccionado / geometría activa</label>
     <p class="muted" style="margin:4px 0 0">Las capas de aptitud, suelo, cobertura y OTBN se habilitarán aquí cuando cada análisis entregue una geometría verificable. No se muestran capas simuladas.</p>
@@ -70,7 +78,7 @@ const themeToggle=document.getElementById("themeToggle");
 themeToggle?.addEventListener("click",()=>{const dark=document.documentElement.classList.toggle("theme-dark");try{localStorage.setItem("agro_theme",dark?"dark":"light");}catch(e){}});
 </script>
 <script type="module">
-import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature } from './services/lotContext.js';
+import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature, listSavedLots, selectSavedLot, deleteSavedLot } from './services/lotContext.js';
 import { calculateArea } from './forestal/utils/geo.js';
 const map=L.map('lot-map',{preferCanvas:true}).setView([-38.4,-63.6],4);
 const baseLayers = {
@@ -86,6 +94,18 @@ document.getElementById('base-terrain').onclick=()=>setBaseLayer('terrain');
 let drawing=false, editing=false, points=[], draftLayers=[], editMarkers=[], lotLayer=null, current=null;
 const $=id=>document.getElementById(id);
 function status(message){$('lot-status').textContent=message;}
+function refreshSavedLots(selectedId=null){
+ const select=$('saved-lots');if(!select)return;
+ let lots=[];
+ try{lots=listSavedLots();}catch(error){status('No se pudo leer el registro de lotes: '+error.message);}
+ select.innerHTML='<option value="">Seleccioná un lote guardado…</option>';
+ lots.forEach(lot=>{const option=document.createElement('option');option.value=lot.properties.lotId;option.textContent=(lot.properties.name||'Lote sin nombre')+' · '+new Date(lot.properties.updatedAt||Date.now()).toLocaleDateString('es-AR');select.appendChild(option);});
+ select.value=selectedId||'';
+ $('load-saved-lot').disabled=!select.value;$('delete-saved-lot').disabled=!select.value;
+}
+$('saved-lots').onchange=()=>{const enabled=Boolean($('saved-lots').value);$('load-saved-lot').disabled=!enabled;$('delete-saved-lot').disabled=!enabled;};
+$('load-saved-lot').onclick=()=>{try{const feature=selectSavedLot($('saved-lots').value);drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';showFeature(feature);status('Lote recuperado y establecido como área activa para todos los módulos.');}catch(error){alert(error.message);}};
+$('delete-saved-lot').onclick=()=>{const id=$('saved-lots').value;if(!id)return;const feature=listSavedLots().find(lot=>lot.properties.lotId===id);if(!feature)return;if(!confirm('¿Eliminar permanentemente el lote «'+(feature.properties.name||'Lote sin nombre')+'» de este dispositivo?'))return;try{deleteSavedLot(id);if(current?.properties?.lotId===id){if(lotLayer)map.removeLayer(lotLayer);lotLayer=null;current=null;$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;status('Lote eliminado. No hay un área activa.');}refreshSavedLots();}catch(error){alert(error.message);}};
 function clearDraft(){draftLayers.forEach(layer=>map.removeLayer(layer));draftLayers=[];}
 function clearEditMarkers(){editMarkers.forEach(layer=>map.removeLayer(layer));editMarkers=[];}
 function renderEditedPolygon(){
@@ -122,12 +142,12 @@ $('close').onclick=()=>{if(points.length<3)return;const ring=[...points,points[0
 $('clear').onclick=()=>{drawing=false;points=[];clearDraft();if(lotLayer)map.removeLayer(lotLayer);lotLayer=null;current=null;clearEditMarkers();editing=false;clearLotContext();$('draw').textContent='Dibujar polígono';$('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;status('No hay un lote seleccionado.');};
 $('locate').onclick=()=>{if(!navigator.geolocation)return alert('Geolocalización no disponible en este dispositivo.');navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],16),e=>alert('No se pudo obtener la ubicación: '+e.message),{enableHighAccuracy:true,timeout:12000});};
 $('geojson-file').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{const parsed=JSON.parse(await file.text());const feature=normalizeLotFeature(parsed,{source:'geojson-import',name:$('lot-name').value||file.name});drawing=false;clearDraft();$('draw').textContent='Dibujar polígono';showFeature(feature);}catch(err){alert('GeoJSON no válido: '+err.message);}finally{e.target.value='';}};
-$('save').onclick=()=>{if(!current)return;try{const saved=setLotContext(current,{source:current.properties?.source||'central-map',name:$('lot-name').value||'Lote seleccionado'});showFeature(saved);status('Lote guardado y disponible para Aptitud, Forestal y Tracking.');}catch(e){alert(e.message);}};
+$('save').onclick=()=>{if(!current)return;try{const saved=setLotContext(current,{source:current.properties?.source||'central-map',name:$('lot-name').value||'Lote seleccionado'});showFeature(saved);refreshSavedLots(saved.properties.lotId);status('Lote guardado y disponible para Aptitud, Forestal y Tracking.');}catch(e){alert(e.message);}};
 $('aptitude').onclick=()=>{if(!current)return;$('save').click();location.href='resultados.html';};
 $('forest').onclick=()=>{if(!current)return;$('save').click();location.href='forestal.html';};
 $('tracking').onclick=()=>location.href='tracking.html';
 $('layer-lot').onchange=()=>{if(!lotLayer)return;if($('layer-lot').checked){lotLayer.addTo(map);}else{map.removeLayer(lotLayer);}};
-const saved=getLotContext();if(saved)showFeature(saved);
+const saved=getLotContext();if(saved)showFeature(saved);refreshSavedLots(saved?.properties?.lotId||null);
 </script>
 </body>
 </html>
