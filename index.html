@@ -187,14 +187,14 @@
     <!-- Preguntas Frecuentes (FAQ) en Acordeón Plegable -->
     <section class="card" style="padding: 28px; margin-bottom: 25px;">
       <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem; margin-bottom: 18px; display: flex; align-items: center; gap: 10px;">
-        <span>💡</span> Preguntas Frecuentes (FAQ) sobre Fuentes Oficiales y Precisión
+        <span>💡</span> Preguntas frecuentes sobre fuentes, escalas y metodología
       </h2>
 
       <div class="faq-accordion">
         <details class="faq-item">
           <summary class="faq-question">¿Cuál es el compromiso de veracidad de datos de la plataforma?</summary>
           <div class="faq-answer">
-            Agro Consultas cumple con la regla estricta de <strong>Cero Datos Inventados o Simulados</strong>. Si un dato ambiental no se encuentra disponible en las APIs oficiales de INTA o NASA POWER para las coordenadas seleccionadas, la plataforma lo indica de forma transparente como <em>"Información pendiente de verificación"</em> o <em>"Dato no disponible"</em> en lugar de mostrar promedios o estadísticas artificiales.
+            Principio de diseño: no completar variables ausentes con valores inventados. Algunas consultas pueden ofrecer contexto regional o estimaciones derivadas, siempre sujetas a la fuente, escala y disponibilidad de cada servicio. Cuando una variable necesaria no está disponible, la evaluación debe indicarlo como <em>"Información pendiente"</em> o <em>"Dato no disponible"</em>.
           </div>
         </details>
 
@@ -206,7 +206,7 @@
         </details>
 
         <details class="faq-item">
-          <summary class="faq-question">¿Cuáles son las fuentes de datos oficiales integradas?</summary>
+          <summary class="faq-question">¿Qué fuentes de datos y servicios se consultan?</summary>
           <div class="faq-answer">
             La plataforma consulta servicios y catálogos públicos como INTA, IGN, NASA POWER, Open-Meteo, NASA FIRMS, NOAA y AWS Earth Search STAC. La presencia de un servicio no implica convenio, aval institucional ni disponibilidad continua; cada módulo muestra la fuente que logró consultar.
           </div>
@@ -270,10 +270,10 @@
     <div class="card" style="max-width: 650px; width: 100%; max-height: 85vh; overflow-y: auto; position: relative; padding: 25px;">
       <button onclick="document.getElementById('comoFuncionaModal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--texto-principal);">✕</button>
 
-      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem;">ℹ️ Metodología y Fuentes Oficiales</h2>
+      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem;">ℹ️ Metodología y fuentes consultadas</h2>
 
       <div style="font-size: 0.85rem; line-height: 1.5; color: var(--texto-principal); margin-bottom: 15px;">
-        <p>Agro Consultas integra información geoespacial oficial pública:</p>
+        <p>Agro Consultas consulta servicios y catálogos públicos de distintos proveedores. La cobertura, escala y disponibilidad varían por fuente y ubicación; su integración no implica aval ni convenio institucional:</p>
 
         <ul>
           <li><strong>Cartografía de suelos:</strong> servicios WMS de INTA; la escala y cobertura dependen de la capa consultada.</li>
