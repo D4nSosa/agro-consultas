@@ -196,12 +196,13 @@ function findActive(registry) {
 /** Devuelve el lote activo compartido entre los módulos. */
 export function getLotContext() {
   try {
+    const storage = getStorage();
+    const hasCurrentRegistry = Boolean(storage.getItem(STORAGE_KEY));
     const registry = readRegistry();
+    // Migra el contexto v1 antes de devolverlo; el legado queda intacto si falla la escritura.
+    if (!hasCurrentRegistry && registry.lots.length) writeRegistry(registry);
     const active = findActive(registry);
-    if (active) return clone(active);
-    // Migra el contexto v1 en la primera lectura, sin borrar el original hasta confirmar escritura.
-    if (!globalThis.localStorage?.getItem(STORAGE_KEY) && registry.lots.length) writeRegistry(registry);
-    return null;
+    return active ? clone(active) : null;
   } catch (error) {
     console.warn('[Agro-Consultas] No se pudo recuperar el registro de lotes:', error);
     return null;
