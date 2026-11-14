@@ -99,8 +99,9 @@ export function calculateCentroid(input) {
   if(geom.type==='Point'&&Array.isArray(geom.coordinates))return{lat:geom.coordinates[1],lng:geom.coordinates[0]};
   const polygons=geom.type==='Polygon'?[geom.coordinates]:geom.type==='MultiPolygon'?geom.coordinates:[];
   let weightedX=0,weightedY=0,totalWeight=0;
+  const ringArea=ring=>{let sum=0;for(let i=0;i<ring.length-1;i++){const a=ring[i],b=ring[i+1];sum+=(b[0]-a[0])*Math.PI/180*(2+Math.sin(a[1]*Math.PI/180)+Math.sin(b[1]*Math.PI/180));}return Math.abs(sum*6371008.8*6371008.8/2);};
   for(const rings of polygons){
-    const stats=rings.map((ring,index)=>{let crossSum=0,x=0,y=0;for(let i=0;i<ring.length-1;i++){const c=ring[i][0]*ring[i+1][1]-ring[i+1][0]*ring[i][1];crossSum+=c;x+=(ring[i][0]+ring[i+1][0])*c;y+=(ring[i][1]+ring[i+1][1])*c;}if(Math.abs(crossSum)<1e-14)return null;return{lng:x/(3*crossSum),lat:y/(3*crossSum),weight:(index===0?1:-1)*Math.abs(crossSum/2)};}).filter(Boolean);
+    const stats=rings.map((ring,index)=>{let crossSum=0,x=0,y=0;for(let i=0;i<ring.length-1;i++){const c=ring[i][0]*ring[i+1][1]-ring[i+1][0]*ring[i][1];crossSum+=c;x+=(ring[i][0]+ring[i+1][0])*c;y+=(ring[i][1]+ring[i+1][1])*c;}if(Math.abs(crossSum)<1e-14)return null;return{lng:x/(3*crossSum),lat:y/(3*crossSum),weight:(index===0?1:-1)*ringArea(ring)};}).filter(Boolean);
     const weight=stats.reduce((sum,v)=>sum+v.weight,0);if(weight<=0)continue;
     weightedX+=stats.reduce((sum,v)=>sum+v.lng*v.weight,0)/weight*weight;
     weightedY+=stats.reduce((sum,v)=>sum+v.lat*v.weight,0)/weight*weight;totalWeight+=weight;
