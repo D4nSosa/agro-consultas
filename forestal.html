@@ -630,7 +630,10 @@
           document.getElementById('lot-area-val').innerText = `${area.hectares} ha`;
           document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
           document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
-          try { setLotContext(feature, { source: 'forest-module' }); } catch (error) { console.warn('Lote no sincronizado:', error.message); }
+          if (['Polygon', 'MultiPolygon'].includes(feature.geometry?.type)) {
+            // Si falla la persistencia, propagar el error: no mostrar un lote como guardado cuando no lo está.
+            setLotContext(feature, { source: 'forest-module' });
+          }
         } else {
           document.getElementById('lot-area-val').innerText = area && area.hectares ? area.hectares : "LOTE NO DEFINIDO";
           document.getElementById('lot-coords-val').innerText = centroid && centroid.lat ? `Lat: ${centroid.lat.toFixed(4)}, Lng: ${centroid.lng.toFixed(4)} (PUNTO GPS)` : "Sin lote definido";
