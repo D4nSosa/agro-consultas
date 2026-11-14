@@ -129,12 +129,57 @@ const fmt=v=>v===null||v===undefined||v===''?'No informado':Number.isFinite(Numb
 function popup(feature){const p=feature.properties||{},isGoes=p.sensor==='GOES';const rows=isGoes?[['Fuente',p.source],['Satélite',p.satellite],['Clase',p.category+' · '+p.maskCode],['Hora UTC',p.observedAt],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura',fmt(p.temperatureK)+' K'],['Área del píxel',fmt(p.areaM2)+' m²']]:[['Fuente',p.source],['Sensor',p.sensor],['Satélite',p.satellite],['Fecha / hora UTC',(p.date||'')+' '+(p.timeUtc||'')],['Confianza',p.confidence??p.confidenceLabel??'No informada'],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura de brillo',fmt(p.brightness)+' K'],['Día / noche',p.daynight]];return '<strong>'+esc(isGoes?'Alerta GOES-19':'Detección '+p.sensor)+'</strong>'+rows.filter(x=>x[1]!==undefined&&x[1]!==null&&x[1]!=='').map(x=>'<div><b>'+esc(x[0])+':</b> '+esc(x[1])+'</div>').join('')+'<small>Anomalía térmica satelital; no equivale a incendio confirmado.</small>';}
 function drawDetections(){detectionLayer.clearLayers();goesLayer.clearLayers();const draw=(items,layer,color,radius)=>items.forEach(f=>{const c=f.geometry.coordinates;L.circleMarker([c[1],c[0]],{radius,color,weight:2,fillColor:color,fillOpacity:.82}).bindPopup(popup(f)).addTo(layer);});draw(modisViirs.filter(f=>f.properties.sensor==='MODIS'&&$('show-modis').checked),detectionLayer,'#c62828',5.5);draw(modisViirs.filter(f=>f.properties.sensor==='VIIRS'&&$('show-viirs').checked),detectionLayer,'#ef6c00',5);draw(goes.filter(()=>$('show-goes').checked),goesLayer,'#8e2424',7);}
 function updateCounts(){const m=modisViirs.filter(f=>f.properties.sensor==='MODIS').length,v=modisViirs.filter(f=>f.properties.sensor==='VIIRS').length,g=goes.length;$('count-modis').textContent=m.toLocaleString('es-AR');$('count-viirs').textContent=v.toLocaleString('es-AR');$('count-goes').textContent=g.toLocaleString('es-AR');$('count-total').textContent=(m+v+g).toLocaleString('es-AR');}
-async function refresh(){const b=$('refresh');b.disabled=true;b.textContent='Actualizando…';$('source-status').textContent='Consultando detecciones recientes…';$('source-status').classList.remove('error');const results=await Promise.allSettled([fetch('/api/fires/national',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('NASA FIRMS HTTP '+r.status);return r.json()}),fetch('/api/fires/goes',{cache:'no-store'}).then(async r=>{if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(d.detail||'GOES HTTP '+r.status)}return r.json()})]);const errs=[];if(results[0].status==='fulfilled')modisViirs=results[0].value.features||[];else{modisViirs=[];errs.push(results[0].reason.message);}if(results[1].status==='fulfilled')goes=results[1].value.features||[];else{goes=[];errs.push(results[1].reason.message);}drawDetections();updateCounts();const fm=results[0].status==='fulfilled'?results[0].value.meta:null,gm=results[1].status==='fulfilled'?results[1].value.meta:null;
-const sourceIssues=(fm?.sources||[]).filter(s=>!s.ok).map(s=>s.name+': '+(s.error||'sin respuesta'));
-$('source-status').textContent='NASA FIRMS: '+(fm?.count??'sin respuesta')+' detecciones · GOES-19: '+(gm?.count??'sin respuesta')+(errs.length?' · '+errs.join(' · '):'')+(sourceIssues.length?' · Fuentes FIRMS con fallos: '+sourceIssues.join('; '):'');
-if(errs.length||sourceIssues.length)$('source-status').classList.add('error');
-$('source-meta').textContent='NASA FIRMS: '+((fm?.sources||[]).map(s=>s.name+' '+(s.ok?'OK ('+s.count+')':'ERROR')).join(' · ')||'estado no informado')+' · GOES: '+(gm?.truncated?'muestra parcial; ':'')+(gm?.totalCandidates??gm?.count??'—')+' candidatos / '+(gm?.count??'—')+' devueltos · actualización automática cada 10 minutos.';b.disabled=false;b.textContent='Actualizar datos';}
-function centroid(geometry){const pts=[];const walk=x=>{if(Array.isArray(x)&&typeof x[0]==='number')pts.push(x);else if(Array.isArray(x))x.forEach(walk);};walk(geometry.coordinates);if(!pts.length)return null;return[pts.reduce((a,p)=>a+p[0],0)/pts.length,pts.reduce((a,p)=>a+p[1],0)/pts.length];}
+async function refresh(){
+ const button=$('refresh');
+ button.disabled=true;button.textContent='Actualizando…';
+ $('source-status').textContent='Consultando fuentes de detección…';
+ $('source-status').classList.remove('error');
+ const fetchJson=async url=>{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  try{
+   const response=await fetch(url,{cache:'no-store',signal:controller.signal,headers:{Accept:'application/json'}});
+   const payload=await response.json().catch(()=>null);
+   if(!response.ok)throw Error(payload?.detail||payload?.message||'HTTP '+response.status);
+   if(!payload||!Array.isArray(payload.features))throw Error('Respuesta sin colección GeoJSON válida.');
+   const features=payload.features.filter(feature=>{
+    const c=feature?.geometry?.coordinates;
+    return feature?.geometry?.type==='Point'&&Array.isArray(c)&&c.length>=2&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1]))&&Math.abs(Number(c[0]))<=180&&Math.abs(Number(c[1]))<=90;
+   });
+   return{...payload,features};
+  }finally{clearTimeout(timer);}
+ };
+ try{
+  const results=await Promise.allSettled([fetchJson('/api/fires/national'),fetchJson('/api/fires/goes')]);
+  const errors=[];
+  if(results[0].status==='fulfilled')modisViirs=results[0].value.features;
+  else{modisViirs=[];errors.push('FIRMS: '+(results[0].reason?.name==='AbortError'?'tiempo de espera agotado':results[0].reason?.message||'sin respuesta'));}
+  if(results[1].status==='fulfilled')goes=results[1].value.features;
+  else{goes=[];errors.push('GOES-19: '+(results[1].reason?.name==='AbortError'?'tiempo de espera agotado':results[1].reason?.message||'sin respuesta'));}
+  drawDetections();updateCounts();
+  const fm=results[0].status==='fulfilled'?results[0].value.meta:null;
+  const gm=results[1].status==='fulfilled'?results[1].value.meta:null;
+  const sourceIssues=(fm?.sources||[]).filter(source=>!source.ok).map(source=>source.name+': '+(source.error||'sin respuesta'));
+  const successes=results.filter(result=>result.status==='fulfilled').length;
+  $('source-status').textContent='NASA FIRMS: '+(fm?.count??'sin respuesta')+' detecciones · GOES-19: '+(gm?.count??'sin respuesta')+
+   (errors.length?' · '+errors.join(' · '):'')+(sourceIssues.length?' · Fuentes FIRMS con fallos: '+sourceIssues.join('; '):'');
+  if(errors.length||sourceIssues.length||successes===0)$('source-status').classList.add('error');
+  $('source-meta').textContent='FIRMS: '+((fm?.sources||[]).map(source=>source.name+' '+(source.ok?'OK ('+source.count+')':'ERROR')).join(' · ')||'estado no informado')+
+   ' · GOES-19: '+(gm?.truncated?'muestra parcial; ':'')+(gm?.totalCandidates??gm?.count??'—')+' candidatos / '+(gm?.count??'—')+' devueltos. Las fuentes pueden tener latencia o cobertura incompleta.';
+ }catch(error){
+  $('source-status').textContent='No se pudo completar la actualización: '+(error.message||'error inesperado');
+  $('source-status').classList.add('error');
+ }finally{
+  button.disabled=false;button.textContent='Actualizar datos';
+ }
+}
+function centroid(geometry){
+ const g=geometry?.type==='Feature'?geometry.geometry:geometry;if(!g)return null;
+ const points=[];const walk=value=>{if(Array.isArray(value)&&typeof value[0]==='number')points.push(value);else if(Array.isArray(value))value.forEach(walk);};walk(g.coordinates);
+ if(!points.length)return null;
+ // Centro de la caja envolvente para ubicar el marcador; no se etiqueta como centroide geométrico.
+ const xs=points.map(p=>Number(p[0])),ys=points.map(p=>Number(p[1]));
+ return[(Math.min(...xs)+Math.max(...xs))/2,(Math.min(...ys)+Math.max(...ys))/2];
+}
 async function loadForecast(lat,lon,label){if(forecastController)forecastController.abort();const requestId=++forecastRequest;forecastController=new AbortController();const signal=forecastController.signal;selectedPoint={lat,lon,label};if(forecastMarker)map.removeLayer(forecastMarker);forecastMarker=L.circleMarker([lat,lon],{radius:8,color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.9}).addTo(map).bindPopup('Ubicación de previsión: '+esc(label));$('forecast-location').textContent=label;$('forecast-status').textContent='Consultando pronóstico meteorológico…';$('forecast-days').innerHTML='<div class="fire-empty">Cargando variables meteorológicas…</div>';try{const r=await fetch('/api/fires/forecast?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store',signal});const data=await r.json();if(!r.ok)throw Error(data.detail||'No se pudo consultar el pronóstico.');$('forecast-status').textContent='Previsión para '+data.location.name+' · '+data.meta.source+' · '+data.meta.updatedAt;$('forecast-days').innerHTML=(data.days||[]).map(d=>'<article class="fire-day"><div><strong>'+esc(d.label)+'</strong><small>Máx. '+fmt(d.temperatureMax)+' °C · HR mín. '+fmt(d.humidityMin)+'%<br>Viento '+fmt(d.windMax)+' km/h · ráfagas '+fmt(d.gustMax)+' km/h · lluvia '+fmt(d.precipitation)+' mm<br>Variables disponibles: '+(d.availableConditions??4)+'/4</small></div><span class="fire-risk '+esc(d.riskClass)+'">'+esc(d.riskLabel)+' · '+(d.score===null?'—':d.score+'/100')+'</span></article>').join('')||'<div class="fire-empty">El proveedor no devolvió días de pronóstico.</div>';}catch(e){if(e.name!=='AbortError'&&requestId===forecastRequest){$('forecast-status').textContent='No se pudo obtener la previsión: '+e.message;$('forecast-days').innerHTML='<div class="fire-empty">Reintentá seleccionando otra ubicación o más tarde.</div>';}}finally{if(requestId===forecastRequest)forecastController=null;}}
 map.on('click',e=>{const {lat,lng}=e.latlng;loadForecast(lat,lng,lat.toFixed(3)+'°, '+lng.toFixed(3)+'°');});
 function setLot(feature,{zoomToLot=true}={}){lot=feature||null;lotLayer.clearLayers();lotResultLayer.clearLayers();$('lot-name').textContent=lot?(lot.properties?.name||'Área seleccionada')+' · '+lot.geometry.type:'Sin lote seleccionado';$('query-lot').disabled=!lot||!['Polygon','MultiPolygon'].includes(lot.geometry.type);$('history-apply').disabled=!history.length;if(lot){lotLayer.addData(lot);const bounds=lotLayer.getBounds();if(zoomToLot&&bounds.isValid())map.fitBounds(bounds,{padding:[25,25],maxZoom:13});const c=centroid(lot.geometry);if(c)loadForecast(c[1],c[0],lot.properties?.name||'Centro aproximado del lote');$('lot-status').textContent='Lote sincronizado desde Agro Consultas.';if(history.length)applyHistory();}else $('lot-status').textContent='Seleccioná o compartí un lote para analizarlo.';}
