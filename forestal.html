@@ -97,6 +97,9 @@
         <div style="display: flex; gap: 8px; flex-wrap: wrap; padding: 8px; background: var(--gris-fondo); border-radius: 8px; border: 1px solid var(--borde-suave);">
           <button id="btn-gps-loc" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; background: #27ae60; border-color: #27ae60; flex: 1; min-width: 160px;">📍 Mi Ubicación GPS (Campo)</button>
           <button id="btn-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; flex: 1; min-width: 140px;">✏️ Dibujar Lote en Mapa</button>
+          <button id="btn-undo-draw-lot" class="btn outline" style="font-size: 0.85rem; padding: 8px 12px; display: none;">↶ Deshacer vértice</button>
+          <button id="btn-finish-draw-lot" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; display: none;">Cerrar polígono</button>
+          <button id="btn-cancel-draw-lot" class="btn outline" style="font-size: 0.85rem; padding: 8px 12px; display: none;">Cancelar dibujo</button>
           <button id="btn-start-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; background: #e67e22; border-color: #e67e22; flex: 1; min-width: 180px;">🚶 Iniciar Caminata GPS</button>
           <button id="btn-stop-gps-walk" class="btn primary" style="font-size: 0.85rem; padding: 8px 12px; background: #c0392b; border-color: #c0392b; display: none; flex: 1; min-width: 180px;">🔴 Finalizar y Cerrar Lote</button>
         </div>
@@ -684,9 +687,30 @@
         forestMap.useUserGPSLocation();
       });
 
-      document.getElementById('btn-draw-lot').addEventListener('click', () => {
-        alert('Haz click en 3 o más puntos sobre el mapa para cerrar el polígono del lote.');
+      const btnDrawLot = document.getElementById('btn-draw-lot');
+      const btnUndoDrawLot = document.getElementById('btn-undo-draw-lot');
+      const btnFinishDrawLot = document.getElementById('btn-finish-draw-lot');
+      const btnCancelDrawLot = document.getElementById('btn-cancel-draw-lot');
+      const setDrawingControls = active => {
+        [btnUndoDrawLot, btnFinishDrawLot, btnCancelDrawLot].forEach(button => {
+          if (button) button.style.display = active ? 'inline-block' : 'none';
+        });
+        if (btnDrawLot) btnDrawLot.disabled = active;
+      };
+      btnDrawLot?.addEventListener('click', () => {
         forestMap.startDrawing();
+        setDrawingControls(true);
+      });
+      btnUndoDrawLot?.addEventListener('click', () => {
+        forestMap.undoDrawingVertex();
+      });
+      btnFinishDrawLot?.addEventListener('click', () => {
+        const lotName = document.getElementById('lot-name-input')?.value?.trim() || 'Lote dibujado';
+        if (forestMap.finishDrawing(lotName)) setDrawingControls(false);
+      });
+      btnCancelDrawLot?.addEventListener('click', () => {
+        forestMap.cancelDrawing();
+        setDrawingControls(false);
       });
 
       const btnStartWalk = document.getElementById('btn-start-gps-walk');
