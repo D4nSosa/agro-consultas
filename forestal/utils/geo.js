@@ -18,7 +18,12 @@ export function validateGeoJSON(geojson) {
   if(!geometry||!['Point','Polygon','MultiPolygon','LineString'].includes(geometry.type))return{valid:false,error:'Tipo GeoJSON no soportado.'};
   const pos=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=-180&&p[0]<=180&&p[1]>=-90&&p[1]<=90;
   const orient=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
-  const intersects=(a,b,c,d)=>{const o1=orient(a,b,c),o2=orient(a,b,d),o3=orient(c,d,a),o4=orient(c,d,b);return((o1>0&&o2<0)||(o1<0&&o2>0))&&((o3>0&&o4<0)||(o3<0&&o4>0));};
+  const onSegment=(a,b,p)=>Math.abs(orient(a,b,p))<1e-12&&p[0]>=Math.min(a[0],b[0])-1e-12&&p[0]<=Math.max(a[0],b[0])+1e-12&&p[1]>=Math.min(a[1],b[1])-1e-12&&p[1]<=Math.max(a[1],b[1])+1e-12;
+  const intersects=(a,b,c,d)=>{
+    const o1=orient(a,b,c),o2=orient(a,b,d),o3=orient(c,d,a),o4=orient(c,d,b);
+    if(((o1>0&&o2<0)||(o1<0&&o2>0))&&((o3>0&&o4<0)||(o3<0&&o4>0)))return true;
+    return onSegment(a,b,c)||onSegment(a,b,d)||onSegment(c,d,a)||onSegment(c,d,b);
+  };
   const ringValid=ring=>{
     if(!Array.isArray(ring)||ring.length<4||!ring.every(pos)||ring[0][0]!==ring.at(-1)[0]||ring[0][1]!==ring.at(-1)[1])return false;
     const n=ring.length-1;let signedArea=0;
@@ -54,7 +59,13 @@ export function validateGeoJSON(geojson) {
   if(geometry.type==='Point'&&!pos(geometry.coordinates))return{valid:false,error:'Punto fuera del rango WGS84.'};
   if(geometry.type==='LineString'&&(!Array.isArray(geometry.coordinates)||geometry.coordinates.length<2||!geometry.coordinates.every(pos)))return{valid:false,error:'LineString inválida.'};
   if(geometry.type==='Polygon'&&!polygonValid(geometry.coordinates))return{valid:false,error:'Anillos de Polygon inválidos, abiertos o autointersectados.'};
-  if(geometry.type==='MultiPolygon'&&(!Array.isArray(geometry.coordinates)||!geometry.coordinates.length||!geometry.coordinates.every(polygonValid)))return{valid:false,error:'MultiPolygon inválido, vacío o con anillos autointersectados.'};
+  if(geometry.type==='MultiPolygon'){
+    if(!Array.isArray(geometry.coordinates)||!geometry.coordinates.length||!geometry.coordinates.every(polygonValid))return{valid:false,error:'MultiPolygon inválido, vacío o con anillos autointersectados.'};
+    const shells=geometry.coordinates.map(polygon=>polygon[0]);
+    for(let i=0;i<shells.length;i++)for(let j=i+1;j<shells.length;j++){
+      if(ringsIntersect(shells[i],shells[j])||pointInRing(shells[i][0],shells[j])||pointInRing(shells[j][0],shells[i]))return{valid:false,error:'Las partes de MultiPolygon se superponen o se tocan.'};
+    }
+  }
   return{valid:true,geometry,feature:feature.type==='Feature'?feature:toGeoJSONFeature(geometry)};
 }
 
