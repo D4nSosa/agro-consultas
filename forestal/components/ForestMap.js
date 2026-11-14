@@ -11,6 +11,7 @@ export class ForestMap {
     this.map = null;
     this.currentLayer = null;
     this.drawPolygonPoints = [];
+    this.draftLayers = [];
     this.isDrawing = false;
     this.currentFeature = null;
     this.userGpsMarker = null;
@@ -118,38 +119,78 @@ export class ForestMap {
     this.map.on('click', (e) => this.handleMapClick(e));
   }
 
-  handleMapClick(e) {
-    const { lat, lng } = e.latlng;
+  clearDraftLayers() {
+    this.draftLayers.forEach(layer => {
+      if (this.map && this.map.hasLayer(layer)) this.map.removeLayer(layer);
+    });
+    this.draftLayers = [];
+  }
 
-    if (this.isDrawing) {
-      this.drawPolygonPoints.push([lng, lat]);
-      L.circleMarker([lat, lng], { radius: 5, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(this.map);
-
-      if (this.drawPolygonPoints.length >= 3) {
-        const closedCoords = [...this.drawPolygonPoints, this.drawPolygonPoints[0]];
-        const geom = {
-          type: "Polygon",
-          coordinates: [closedCoords]
-        };
-        const feature = toGeoJSONFeature(geom, { name: "Lote Dibujado" });
-        this.setGeoJSON(feature);
-        this.isDrawing = false;
-      }
-    } else {
-      // Si hace clic directamente en el mapa sin modo dibujo activo, registra/actualiza un PUNTO de consulta
-      const geom = { type: "Point", coordinates: [lng, lat] };
-      const feature = toGeoJSONFeature(geom, { name: `Punto de Consulta (${lat.toFixed(4)}, ${lng.toFixed(4)})` });
-      this.setGeoJSON(feature);
+  renderDraft() {
+    this.clearDraftLayers();
+    this.drawPolygonPoints.forEach((point, index) => {
+      const marker = L.circleMarker([point[1], point[0]], {
+        radius: 5, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1
+      }).bindTooltip(`Vértice ${index + 1}`).addTo(this.map);
+      this.draftLayers.push(marker);
+    });
+    if (this.drawPolygonPoints.length > 1) {
+      const line = L.polyline(this.drawPolygonPoints.map(point => [point[1], point[0]]), {
+        color: '#27ae60', weight: 2, dashArray: '5 5'
+      }).addTo(this.map);
+      this.draftLayers.push(line);
     }
   }
 
+  handleMapClick(e) {
+    const { lat, lng } = e.latlng;
+    if (this.isDrawing) {
+      this.drawPolygonPoints.push([lng, lat]);
+      this.renderDraft();
+      return;
+    }
+    // Fuera del modo dibujo, el clic representa una referencia puntual, nunca un lote.
+    const geom = { type: "Point", coordinates: [lng, lat] };
+    const feature = toGeoJSONFeature(geom, { name: `Punto de Consulta (${lat.toFixed(4)}, ${lng.toFixed(4)})` });
+    this.setGeoJSON(feature);
+  }
+
   startDrawing() {
+    if (!this.map) return;
     this.isDrawing = true;
     this.drawPolygonPoints = [];
-    if (this.currentLayer) {
-      this.map.removeLayer(this.currentLayer);
+    this.clearDraftLayers();
+    alert("✏️ MODO DIBUJO ACTIVO:\nAgregá todos los vértices necesarios. Usá «Cerrar polígono» cuando termines; el tercer punto NO cierra el lote automáticamente.");
+  }
+
+  undoDrawingVertex() {
+    if (!this.isDrawing || !this.drawPolygonPoints.length) return false;
+    this.drawPolygonPoints.pop();
+    this.renderDraft();
+    return true;
+  }
+
+  cancelDrawing() {
+    if (!this.isDrawing) return false;
+    this.isDrawing = false;
+    this.drawPolygonPoints = [];
+    this.clearDraftLayers();
+    return true;
+  }
+
+  finishDrawing(name = "Lote dibujado") {
+    if (!this.isDrawing) return false;
+    if (this.drawPolygonPoints.length < 3) {
+      alert(`Agregá al menos 3 vértices distintos antes de cerrar. Actualmente hay ${this.drawPolygonPoints.length}.`);
+      return false;
     }
-    alert("✏️ MODO DIBUJO ACTIVO:\n1. Hacé clic en cada uno de los vértices del lote.\n2. Al hacer clic en el 3er punto, el polígono se cerrará y validará automáticamente.");
+    const closedCoords = [...this.drawPolygonPoints, this.drawPolygonPoints[0]];
+    const feature = toGeoJSONFeature({ type: "Polygon", coordinates: [closedCoords] }, { name });
+    if (!this.setGeoJSON(feature)) return false;
+    this.isDrawing = false;
+    this.clearDraftLayers();
+    this.drawPolygonPoints = [];
+    return true;
   }
 
   setGeoJSON(geojson) {
