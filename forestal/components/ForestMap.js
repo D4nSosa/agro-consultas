@@ -241,7 +241,8 @@ export class ForestMap {
     }
 
     if (this.onLotChanged) {
-      this.onLotChanged(this.currentFeature, centroid, area);
+      const sharedFeature = this.onLotChanged(this.currentFeature, centroid, area);
+      if (sharedFeature?.type === 'Feature') this.currentFeature = sharedFeature;
     }
 
     return true;
