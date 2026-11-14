@@ -165,7 +165,10 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
 
       const evidenceQuality = String(compat.calidadEvidencia || '').toUpperCase();
       const isVerified = evidenceQuality.includes('ALTA') && soilStatus === 'REAL' && climateStatus === 'REAL';
-      const isUnevaluable = String(compat.categoria || '').includes('PENDIENTE');
+      const resultLevel = String(compat.nivelAptitud || '').toUpperCase();
+      const resultCategory = String(compat.categoria || '').toUpperCase();
+      const isUnevaluable = resultLevel.includes('PENDIENTE') || resultCategory.includes('PENDIENTE') ||
+        resultCategory.includes('NO EVALUABLE') || resultCategory.includes('NO_EVALUABLE');
       const labelConfianza = isVerified
         ? 'Datos locales disponibles y criterios completos'
         : (isUnevaluable ? 'Información insuficiente para evaluar' : 'Evaluación parcial / contexto regional');
