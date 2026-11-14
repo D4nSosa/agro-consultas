@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal</title>
 
-  <meta name="description" content="Plataforma profesional de inteligencia territorial agropecuaria y forestal de Argentina. Evaluación de aptitud de cultivos, teledetección satelital Sentinel-2/Sentinel-1, WMS INTA 1:50.000, clima en vivo y tracking GPS de lotes sin datos inventados." />
+  <meta name="description" content="Herramienta de consulta territorial agropecuaria y forestal con selección de lotes, fuentes geoespaciales y meteorológicas públicas, análisis satelital sujeto a disponibilidad y registro GPS móvil." />
   <meta name="keywords" content="agro consultas, inteligencia territorial, aptitud de cultivos, inta suelos, sentinel-2, tracking gps campo, teledeteccion forestal, mapa edafico argentina, otbn bosques nativos, fwi incendios, dante ivan sosa" />
   <meta name="author" content="Dante Iván Sosa" />
   <meta name="robots" content="index, follow" />
@@ -15,14 +15,14 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://agroconsultas.com.ar/" />
   <meta property="og:title" content="Agro Consultas — Inteligencia Territorial Agropecuaria y Forestal" />
-  <meta property="og:description" content="Sistema profesional de soporte a decisiones agroeconómicas e investigación territorial en Argentina con datos 100% oficiales de INTA, IGN, NASA POWER, Open-Meteo y Sentinel STAC." />
+  <meta property="og:description" content="Herramienta de consulta territorial que integra servicios y catálogos públicos de distintas instituciones y proveedores. La disponibilidad, escala y cobertura varían según fuente y ubicación." />
   <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
   <meta property="og:locale" content="es_AR" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Agro Consultas — Inteligencia Territorial Agropecuaria y Forestal" />
-  <meta name="twitter:description" content="Evaluación de aptitud de cultivos, teledetección satelital e inventarios de campo con precisión micro-local sin datos inventados." />
+  <meta name="twitter:description" content="Consulta de aptitud territorial, observaciones satelitales disponibles y datos de campo aportados por el usuario." />
   <meta name="twitter:image" content="https://agroconsultas.com.ar/dwnl.png" />
 
   <!-- Schema.org Structured Data (JSON-LD) para Motores de Búsqueda e IA (GEO) -->
@@ -111,7 +111,7 @@
         Plataforma Profesional de Inteligencia Territorial Agropecuaria y Forestal
       </h1>
       <p class="lead" style="font-size: 1.02rem; color: var(--texto-secundario); max-width: 900px; margin-bottom: 25px; line-height: 1.6;">
-        Agro Consultas es el sistema integral de soporte a decisiones agroeconómicas y forestales de Argentina. Integra en tiempo real datos espacializados de fuentes oficiales públicas (INTA, IGN, Open-Meteo, NASA POWER, Sentinel-2 STAC y SAGyP) con escalas espaciales explícitas y trazabilidad de fuentes, ofreciendo evaluación de aptitud de cultivos, teledetección satelital e inventarios de campo bajo una estricta política de <strong>cero datos inventados</strong>.
+        Agro Consultas reúne herramientas para explorar un territorio, consultar información agroambiental, revisar observaciones satelitales disponibles y registrar recorridos de campo. Cada resultado depende de la cobertura, fecha, escala y respuesta de su fuente; una consulta puntual o al centroide no equivale a un análisis completo de todos los píxeles del lote.
       </p>
 
       <div style="margin:0 0 22px"><a href="mapa.html" class="btn primary" style="display:inline-block;padding:13px 28px;font-weight:700;font-size:1rem">Iniciar →</a><p style="font-size:.85rem;color:var(--texto-secundario);margin:8px 0 0">Seleccioná tu lote para comenzar y compartir el territorio entre los módulos.</p></div>
@@ -129,7 +129,7 @@
                   <div style="font-size: 2.2rem; margin-bottom: 10px;">🌾</div>
                   <h3 style="margin-top: 0; font-size: 1.22rem; color: var(--verde-principal); font-weight: 700;">1. Aptitud de Cultivos y Análisis Territorial</h3>
                   <p style="font-size: 0.9rem; color: var(--texto-secundario); line-height: 1.5; margin-bottom: 18px;">
-                    Evaluación multicriterio de compatibilidad agroecológica ajustada a la oferta ambiental específica de tu provincia o municipio. Consulta cartografía de suelos INTA 1:50.000, clima en vivo, riesgo de incendios y recomendaciones regionales.
+                    Evaluación orientativa de compatibilidad a partir de requerimientos de catálogo y variables edáficas o climáticas disponibles. La cobertura y escala de cada fuente se informa en el resultado; no reemplaza análisis de suelo ni validación agronómica.
                   </p>
                 </div>
                 <a href="resultados.html" class="btn primary" style="width: 100%; text-align: center; font-size: 0.9rem; padding: 11px; font-weight: 700;">
@@ -145,7 +145,7 @@
                   <div style="font-size: 2.2rem; margin-bottom: 10px;">🌲</div>
                   <h3 style="margin-top: 0; font-size: 1.22rem; color: #2980b9; font-weight: 700;">2. Módulo Forestal y Teledetección Satelital</h3>
                   <p style="font-size: 0.9rem; color: var(--texto-secundario); line-height: 1.5; margin-bottom: 18px;">
-                    Monitoreo multitemporal de lotes forestales utilizando imágenes multiespectrales reales de Sentinel-2 L2A (AWS Earth Search STAC), cálculo de área foliar/NDVI, inventario dasométrico ($m^3/ha$), bosques nativos OTBN y fotografías de campo.
+                    Exploración de escenas Sentinel-2 L2A disponibles en AWS Earth Search, cálculo de NDVI cuando existen bandas y píxeles válidos, consulta de señales SAR y registro de observaciones de campo. Los índices espectrales no son inventarios dasométricos ni mediciones directas de biomasa.
                   </p>
                 </div>
                 <a href="forestal.html" class="btn primary" style="background: #2980b9; border-color: #2980b9; width: 100%; text-align: center; font-size: 0.9rem; padding: 11px; font-weight: 700;">
@@ -161,7 +161,7 @@
                   <div style="font-size: 2.2rem; margin-bottom: 10px;">🚶</div>
                   <h3 style="margin-top: 0; font-size: 1.22rem; color: #d35400; font-weight: 700;">3. Caminata y Tracking GPS en Campo</h3>
                   <p style="font-size: 0.9rem; color: var(--texto-secundario); line-height: 1.5; margin-bottom: 18px;">
-                    Herramienta mobile-first para medir el perímetro y trazado de tu lote mientras caminás la parcela. Registra vértices en tiempo real, calcula la superficie exacta en hectáreas y exporta archivos listos para app QField o GPS Garmin.
+                    Herramienta móvil para registrar posiciones GNSS durante un recorrido y generar un perímetro aproximado. La precisión depende del dispositivo, la recepción satelital, el entorno y la calidad de los puntos; verificá el trazado antes de usarlo como límite de lote.
                   </p>
                 </div>
                 <a href="tracking.html" class="btn primary" style="background: #e67e22; border-color: #e67e22; width: 100%; text-align: center; font-size: 0.9rem; padding: 11px; font-weight: 700;">
@@ -201,28 +201,28 @@
         <details class="faq-item">
           <summary class="faq-question">¿Qué nivel de precisión territorial y escalas geográficas maneja?</summary>
           <div class="faq-answer">
-            La plataforma aplica <strong>Precisión Micro-Local (100m - 500m)</strong> para el análisis de coordenadas de puntos y lotes. Integra cartografía nacional de suelos INTA a escala 1:50.000, límites departamentales IGN, y teledetección multiespectral Sentinel-2 a 10 metros de resolución espacial por píxel.
+            No existe una precisión única para todos los módulos. Una consulta por coordenada puede devolver datos puntuales, de grilla, regionales o cartográficos según el servicio. La resolución nominal de algunas bandas Sentinel-2 no representa la precisión posicional del lote ni garantiza cobertura libre de nubes.
           </div>
         </details>
 
         <details class="faq-item">
           <summary class="faq-question">¿Cuáles son las fuentes de datos oficiales integradas?</summary>
           <div class="faq-answer">
-            Las fuentes son 100% públicas e interoperables: <strong>INTA</strong> (GeoServer WMS de suelos y OTBN Ley 26.331), <strong>IGN</strong> (Argenmap y límites políticos), <strong>NASA POWER API</strong> (series climáticas climatológicas 2001-2020), <strong>Open-Meteo</strong> (clima en vivo y cálculo FWI) y <strong>AWS Earth Search STAC</strong> (escenas satelitales de Sentinel-2 L2A).
+            La plataforma consulta servicios y catálogos públicos como INTA, IGN, NASA POWER, Open-Meteo, NASA FIRMS, NOAA y AWS Earth Search STAC. La presencia de un servicio no implica convenio, aval institucional ni disponibilidad continua; cada módulo muestra la fuente que logró consultar.
           </div>
         </details>
 
         <details class="faq-item">
           <summary class="faq-question">¿Cómo se filtran los cultivos recomendados para mi zona?</summary>
           <div class="faq-answer">
-            El motor de evaluación analiza la ubicación geográfica seleccionada y cruza la oferta edáfica y climática local con los requerimientos agronómicos del catálogo oficial (44 especies). Muestra únicamente los cultivos agronómicamente aptos y recomendados para la provincia o subregión, omitiendo fichas no aplicables a tu área.
+            El motor compara variables disponibles con los requerimientos estructurados de cada ficha. Si faltan variables o criterios, la evaluación se marca como parcial o pendiente; la lista del catálogo no representa una recomendación validada para el lote ni una certificación oficial.
           </div>
         </details>
 
         <details class="faq-item">
           <summary class="faq-question">¿Puedo exportar los lotes trazados a mis herramientas de trabajo?</summary>
           <div class="faq-answer">
-            Sí. Todos los lotes delimitados o caminados con el GPS de tu celular se pueden exportar con un solo clic a formatos interoperables: <strong>KML</strong> (optimizado para QField y Google Earth), <strong>GPX</strong> (para navegadores GPS Garmin de mano), <strong>GeoJSON</strong> estándar y reportes ejecutivos en PDF.
+            Los módulos ofrecen exportaciones según el tipo de geometría y las funciones disponibles. Revisá el archivo exportado en un SIG antes de utilizarlo para decisiones operativas o límites prediales.
           </div>
         </details>
 
