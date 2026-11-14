@@ -94,7 +94,12 @@ export class ForestMap {
     };
 
     const feature = toGeoJSONFeature(geom, { name: `Lote Caminado por GPS (${this.gpsTrackPoints.length} Puntos)` });
-    return this.setGeoJSON(feature);
+    try {
+      return this.setGeoJSON(feature);
+    } catch (error) {
+      alert('No se pudo guardar el lote GPS compartido: ' + error.message);
+      return false;
+    }
   }
 
   initMap() {
@@ -186,7 +191,12 @@ export class ForestMap {
     }
     const closedCoords = [...this.drawPolygonPoints, this.drawPolygonPoints[0]];
     const feature = toGeoJSONFeature({ type: "Polygon", coordinates: [closedCoords] }, { name });
-    if (!this.setGeoJSON(feature)) return false;
+    try {
+      if (!this.setGeoJSON(feature)) return false;
+    } catch (error) {
+      alert('El polígono se validó, pero no se pudo guardar el lote compartido: ' + error.message);
+      return false;
+    }
     this.isDrawing = false;
     this.clearDraftLayers();
     this.drawPolygonPoints = [];
