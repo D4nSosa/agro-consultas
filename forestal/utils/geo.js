@@ -1,3 +1,5 @@
+const unwrapFeature = input => input?.type === 'Feature' ? input.geometry :
+  (input?.type === 'FeatureCollection' && input.features?.length === 1 ? input.features[0]?.geometry : input);
 /**
  * geo.js - Utilidades geoespaciales para el módulo Análisis Forestal
  */
@@ -6,30 +8,29 @@
  * Valida un objeto GeoJSON (Feature, Polygon, MultiPolygon o Point)
  */
 export function validateGeoJSON(geojson) {
-  if (!geojson || typeof geojson !== 'object') {
-    return { valid: false, error: 'Objeto GeoJSON no válido.' };
+  if (!geojson || typeof geojson !== 'object' || Array.isArray(geojson)) return { valid:false,error:'Objeto GeoJSON no válido.' };
+  let feature=geojson;
+  if(geojson.type==='FeatureCollection'){
+    if(!Array.isArray(geojson.features)||geojson.features.length!==1)return{valid:false,error:'La colección debe contener exactamente una geometría de lote.'};
+    feature=geojson.features[0];
   }
-
-  let geometry = geojson;
-  if (geojson.type === 'FeatureCollection') {
-    if (!geojson.features || !geojson.features.length) {
-      return { valid: false, error: 'FeatureCollection vacía.' };
-    }
-    geometry = geojson.features[0].geometry;
-  } else if (geojson.type === 'Feature') {
-    geometry = geojson.geometry;
-  }
-
-  if (!geometry || !geometry.type || !geometry.coordinates) {
-    return { valid: false, error: 'Estructura de geometría no válida (falta type o coordinates).' };
-  }
-
-  const validTypes = ['Point', 'Polygon', 'MultiPolygon', 'LineString'];
-  if (!validTypes.includes(geometry.type)) {
-    return { valid: false, error: `Tipo de geometría no soportado: ${geometry.type}` };
-  }
-
-  return { valid: true, geometry, feature: geojson.type === 'Feature' ? geojson : toGeoJSONFeature(geometry) };
+  const geometry=feature.type==='Feature'?feature.geometry:feature;
+  if(!geometry||!['Point','Polygon','MultiPolygon','LineString'].includes(geometry.type))return{valid:false,error:'Tipo GeoJSON no soportado.'};
+  const pos=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=-180&&p[0]<=180&&p[1]>=-90&&p[1]<=90;
+  const orient=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+  const intersects=(a,b,c,d)=>{const o1=orient(a,b,c),o2=orient(a,b,d),o3=orient(c,d,a),o4=orient(c,d,b);return((o1>0&&o2<0)||(o1<0&&o2>0))&&((o3>0&&o4<0)||(o3<0&&o4>0));};
+  const ringValid=ring=>{
+    if(!Array.isArray(ring)||ring.length<4||!ring.every(pos)||ring[0][0]!==ring.at(-1)[0]||ring[0][1]!==ring.at(-1)[1])return false;
+    const n=ring.length-1;
+    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){if(j===i+1||(i===0&&j===n-1))continue;if(intersects(ring[i],ring[i+1],ring[j],ring[j+1]))return false;}
+    return true;
+  };
+  const polygonValid=rings=>Array.isArray(rings)&&rings.length>0&&rings.every(ringValid);
+  if(geometry.type==='Point'&&!pos(geometry.coordinates))return{valid:false,error:'Punto fuera del rango WGS84.'};
+  if(geometry.type==='LineString'&&(!Array.isArray(geometry.coordinates)||geometry.coordinates.length<2||!geometry.coordinates.every(pos)))return{valid:false,error:'LineString inválida.'};
+  if(geometry.type==='Polygon'&&!polygonValid(geometry.coordinates))return{valid:false,error:'Anillos de Polygon inválidos, abiertos o autointersectados.'};
+  if(geometry.type==='MultiPolygon'&&(!Array.isArray(geometry.coordinates)||!geometry.coordinates.length||!geometry.coordinates.every(polygonValid)))return{valid:false,error:'MultiPolygon inválido, vacío o con anillos autointersectados.'};
+  return{valid:true,geometry,feature:feature.type==='Feature'?feature:toGeoJSONFeature(geometry)};
 }
 
 /**
@@ -50,206 +51,79 @@ export function toGeoJSONFeature(geometry, properties = {}) {
 /**
  * Calcula el área en hectáreas y metros cuadrados de una geometría Polygon/MultiPolygon
  */
-export function calculateArea(geometry) {
-  if (!geometry) return { hectares: 0, squareMeters: 0, isPoint: false };
-
-  const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
-  if (geom.type === 'Point') {
-    return { hectares: 0, squareMeters: 0, isPoint: true, message: 'Un punto de consulta no posee superficie definida.' };
-  }
-
-  let coords = [];
-  if (geom.type === 'Polygon') {
-    coords = geom.coordinates[0];
-  } else if (geom.type === 'MultiPolygon') {
-    coords = geom.coordinates.flatMap(p => p[0]);
-  } else {
-    return { hectares: 0, squareMeters: 0 };
-  }
-
-  // Geodesic area approximation (Shoelace formula scaled to meters on WGS84)
-  const RADIUS = 6378137; // Earth radius in meters
-  let area = 0;
-
-  if (coords.length > 2) {
-    for (let i = 0; i < coords.length - 1; i++) {
-      const p1 = coords[i];
-      const p2 = coords[i + 1];
-      const rad1 = (p1[1] * Math.PI) / 180;
-      const rad2 = (p2[1] * Math.PI) / 180;
-      const dLng = ((p2[0] - p1[0]) * Math.PI) / 180;
-
-      area += dLng * (2 + Math.sin(rad1) + Math.sin(rad2));
-    }
-    area = Math.abs((area * RADIUS * RADIUS) / 2.0);
-  }
-
-  const squareMeters = Math.round(area * 100) / 100;
-  const hectares = Math.round((squareMeters / 10000) * 100) / 100;
-
-  let warning = null;
-  if (hectares > 10000) {
-    warning = `⚠️ AOI MUY GRANDE: La geometría ingresada tiene ${hectares.toLocaleString('es-AR')} ha (${squareMeters.toLocaleString('es-AR')} m²). Esto excede el tamaño normal de un lote forestal individual. Revisá los vértices antes de ejecutar el análisis.`;
-  }
-
-  return { hectares, squareMeters, isPoint: false, warning };
+export function calculateArea(input) {
+  const geom=unwrapFeature(input);
+  if(!geom)return{hectares:0,squareMeters:0,isPoint:false,valid:false,error:'Geometría ausente.'};
+  if(geom.type==='Point')return{hectares:0,squareMeters:0,isPoint:true,message:'Un punto no posee superficie.'};
+  const checked=validateGeoJSON(input);
+  if(!checked.valid)return{hectares:0,squareMeters:0,isPoint:false,valid:false,error:checked.error};
+  const polygons=geom.type==='Polygon'?[geom.coordinates]:geom.type==='MultiPolygon'?geom.coordinates:[];
+  if(!polygons.length)return{hectares:0,squareMeters:0,isPoint:false,valid:false,error:'La geometría no representa una superficie.'};
+  const radius=6371008.8;
+  const ringArea=ring=>{let sum=0;for(let i=0;i<ring.length-1;i++){const a=ring[i],b=ring[i+1];sum+=(b[0]-a[0])*Math.PI/180*(2+Math.sin(a[1]*Math.PI/180)+Math.sin(b[1]*Math.PI/180));}return Math.abs(sum*radius*radius/2);};
+  const area=polygons.reduce((total,rings)=>total+Math.max(0,ringArea(rings[0])-rings.slice(1).reduce((holes,ring)=>holes+ringArea(ring),0)),0);
+  const squareMeters=Math.round(area*100)/100,hectares=Math.round(squareMeters/10000*100)/100;
+  return{hectares,squareMeters,isPoint:false,valid:squareMeters>0,warning:hectares>10000?'AOI mayor a 10.000 ha: revisá el perímetro antes de analizar.':null,method:'Aproximación geodésica esférica WGS84; no equivale a mensura.'};
 }
 
 /**
  * Calcula el centroide [lat, lng] de una geometría
  */
-export function calculateCentroid(geometry) {
-  if (!geometry) return null;
-  const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
-  if (!geom) return null;
-
-  if (geom.type === 'Point') {
-    if (Array.isArray(geom.coordinates) && geom.coordinates.length >= 2) {
-      return { lat: geom.coordinates[1], lng: geom.coordinates[0] };
-    }
-    return null;
+export function calculateCentroid(input) {
+  const geom=unwrapFeature(input);if(!geom)return null;
+  if(geom.type==='Point'&&Array.isArray(geom.coordinates))return{lat:geom.coordinates[1],lng:geom.coordinates[0]};
+  const polygons=geom.type==='Polygon'?[geom.coordinates]:geom.type==='MultiPolygon'?geom.coordinates:[];
+  let weightedX=0,weightedY=0,totalWeight=0;
+  for(const rings of polygons){
+    const stats=rings.map((ring,index)=>{let crossSum=0,x=0,y=0;for(let i=0;i<ring.length-1;i++){const c=ring[i][0]*ring[i+1][1]-ring[i+1][0]*ring[i][1];crossSum+=c;x+=(ring[i][0]+ring[i+1][0])*c;y+=(ring[i][1]+ring[i+1][1])*c;}if(Math.abs(crossSum)<1e-14)return null;return{lng:x/(3*crossSum),lat:y/(3*crossSum),weight:(index===0?1:-1)*Math.abs(crossSum/2)};}).filter(Boolean);
+    const weight=stats.reduce((sum,v)=>sum+v.weight,0);if(weight<=0)continue;
+    weightedX+=stats.reduce((sum,v)=>sum+v.lng*v.weight,0)/weight*weight;
+    weightedY+=stats.reduce((sum,v)=>sum+v.lat*v.weight,0)/weight*weight;totalWeight+=weight;
   }
-
-  let points = [];
-  if (geom.type === 'Polygon') {
-    points = geom.coordinates[0];
-  } else if (geom.type === 'MultiPolygon') {
-    points = geom.coordinates.flatMap(p => p[0]);
-  }
-
-  if (!points || !points.length) return null;
-
-  let sumLat = 0;
-  let sumLng = 0;
-  points.forEach(p => {
-    sumLng += p[0];
-    sumLat += p[1];
-  });
-
-  return {
-    lat: sumLat / points.length,
-    lng: sumLng / points.length
-  };
+  if(totalWeight>0)return{lat:weightedY/totalWeight,lng:weightedX/totalWeight};
+  if(geom.type==='LineString'&&geom.coordinates?.length){const p=geom.coordinates[Math.floor((geom.coordinates.length-1)/2)];return{lat:p[1],lng:p[0]};}
+  return null;
 }
 
 /**
  * Retorna el Bounding Box [minLng, minLat, maxLng, maxLat]
  */
-export function getBoundingBox(geometry) {
-  const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
-
-  if (geom.type === 'Point') {
-    const delta = 0.01;
-    return [
-      geom.coordinates[0] - delta,
-      geom.coordinates[1] - delta,
-      geom.coordinates[0] + delta,
-      geom.coordinates[1] + delta
-    ];
-  }
-
-  let points = [];
-  if (geom.type === 'Polygon') {
-    points = geom.coordinates[0];
-  } else if (geom.type === 'MultiPolygon') {
-    points = geom.coordinates.flatMap(p => p[0]);
-  }
-
-  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-  points.forEach(p => {
-    if (p[0] < minLng) minLng = p[0];
-    if (p[0] > maxLng) maxLng = p[0];
-    if (p[1] < minLat) minLat = p[1];
-    if (p[1] > maxLat) maxLat = p[1];
-  });
-
-  return [minLng, minLat, maxLng, maxLat];
+export function getBoundingBox(input) {
+  const geom=unwrapFeature(input);if(!geom)return null;
+  const points=[];const walk=value=>{if(Array.isArray(value)&&typeof value[0]==='number')points.push(value);else if(Array.isArray(value))value.forEach(walk);};
+  walk(geom.type==='Point'?[geom.coordinates]:geom.coordinates);
+  if(!points.length||points.some(p=>!Number.isFinite(p[0])||!Number.isFinite(p[1])))return null;
+  const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
 }
 
 /**
  * Exporta la geometría a formato KML para QField / SW Maps / Google Earth
  */
-export function exportToKML(feature, name = 'Lote Forestal') {
-  const geom = feature.geometry || feature;
-  let coordsText = '';
-
-  if (geom.type === 'Polygon') {
-    coordsText = geom.coordinates[0].map(pt => `${pt[0]},${pt[1]},0`).join(' ');
-  } else if (geom.type === 'Point') {
-    coordsText = `${geom.coordinates[0]},${geom.coordinates[1]},0`;
-  }
-
-  const kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>${name}</name>
-    <description>Lote Forestal Exportado desde Agro Consultas - Interoperabilidad Campo/QField</description>
-    <Style id="forestStyle">
-      <LineStyle>
-        <color>ff27ae60</color>
-        <width>3</width>
-      </LineStyle>
-      <PolyStyle>
-        <color>402ecc71</color>
-      </PolyStyle>
-    </Style>
-    <Placemark>
-      <name>${name}</name>
-      <styleUrl>#forestStyle</styleUrl>
-      ${geom.type === 'Polygon' ? `
-      <Polygon>
-        <outerBoundaryIs>
-          <LinearRing>
-            <coordinates>${coordsText}</coordinates>
-          </LinearRing>
-        </outerBoundaryIs>
-      </Polygon>` : `
-      <Point>
-        <coordinates>${coordsText}</coordinates>
-      </Point>`}
-    </Placemark>
-  </Document>
-</kml>`;
-  return kml;
+export function exportToKML(input,name='Lote Forestal') {
+  const geom=unwrapFeature(input),checked=validateGeoJSON(input);if(!checked.valid)throw new Error(checked.error);
+  const esc=v=>String(v??'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+  const ring=r=>r.map(p=>p[0]+','+p[1]+',0').join(' ');
+  const poly=rings=>'<Polygon><outerBoundaryIs><LinearRing><coordinates>'+ring(rings[0])+'</coordinates></LinearRing></outerBoundaryIs>'+rings.slice(1).map(r=>'<innerBoundaryIs><LinearRing><coordinates>'+ring(r)+'</coordinates></LinearRing></innerBoundaryIs>').join('')+'</Polygon>';
+  let body='';if(geom.type==='Point')body='<Point><coordinates>'+geom.coordinates[0]+','+geom.coordinates[1]+',0</coordinates></Point>';
+  else if(geom.type==='LineString')body='<LineString><coordinates>'+ring(geom.coordinates)+'</coordinates></LineString>';
+  else if(geom.type==='Polygon')body=poly(geom.coordinates);else if(geom.type==='MultiPolygon')body='<MultiGeometry>'+geom.coordinates.map(poly).join('')+'</MultiGeometry>';
+  return'<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+esc(name)+'</name><Placemark><name>'+esc(name)+'</name>'+body+'</Placemark></Document></kml>';
 }
 
 /**
  * Exporta la geometría a formato GPX para GPS de mano Garmin en campo
  */
-export function exportToGPX(feature, name = 'Lote Forestal') {
-  const centroid = calculateCentroid(feature);
-  const geom = feature.geometry || feature;
-  let pointsXml = '';
-
-  if (geom.type === 'Polygon') {
-    pointsXml = geom.coordinates[0].map((pt, idx) => `
-    <trkpt lat="${pt[1]}" lon="${pt[0]}">
-      <name>Vértice ${idx + 1}</name>
-    </trkpt>`).join('');
-  } else if (geom.type === 'Point') {
-    pointsXml = `
-    <trkpt lat="${geom.coordinates[1]}" lon="${geom.coordinates[0]}">
-      <name>${name}</name>
-    </trkpt>`;
-  }
-
-  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Agro Consultas - Garmin/Field GPS Export" xmlns="http://www.topografix.com/GPX/1/1">
-  <metadata>
-    <name>${name}</name>
-    <time>${new Date().toISOString()}</time>
-  </metadata>
-  <wpt lat="${centroid.lat}" lon="${centroid.lng}">
-    <name>${name} - Centroide</name>
-    <sym>Forest</sym>
-  </wpt>
-  <trk>
-    <name>${name} - Perímetro Lote</name>
-    <trkseg>${pointsXml}
-    </trkseg>
-  </trk>
-</gpx>`;
-  return gpx;
+export function exportToGPX(input,name='Lote Forestal') {
+  const geom=unwrapFeature(input),checked=validateGeoJSON(input);if(!checked.valid)throw new Error(checked.error);
+  const esc=v=>String(v??'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+  const label=esc(name),centroid=calculateCentroid(geom);
+  const track=(coords,title)=>'<trk><name>'+label+' - '+esc(title)+'</name><trkseg>'+coords.map((p,i)=>'<trkpt lat="'+p[1]+'" lon="'+p[0]+'"><name>Vértice '+(i+1)+'</name></trkpt>').join('')+'</trkseg></trk>';
+  let tracks='';if(geom.type==='LineString')tracks=track(geom.coordinates,'Recorrido');
+  if(geom.type==='Polygon')tracks=geom.coordinates.map((r,i)=>track(r,i?'Anillo interior '+i:'Perímetro')).join('');
+  if(geom.type==='MultiPolygon')tracks=geom.coordinates.flatMap((poly,p)=>poly.map((r,i)=>track(r,'Polígono '+(p+1)+(i?' anillo interior '+i:' perímetro')))).join('');
+  if(geom.type==='Point')tracks='<wpt lat="'+geom.coordinates[1]+'" lon="'+geom.coordinates[0]+'"><name>'+label+'</name></wpt>';
+  const waypoint=centroid?'<wpt lat="'+centroid.lat+'" lon="'+centroid.lng+'"><name>'+label+' - Centroide</name></wpt>':'';
+  return'<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Agro Consultas" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>'+label+'</name><time>'+new Date().toISOString()+'</time></metadata>'+waypoint+tracks+'</gpx>';
 }
 
 /**
