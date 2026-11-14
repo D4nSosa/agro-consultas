@@ -88,7 +88,7 @@ Pruebas:
 ```bash
 python self_created_tools/validate_datasets.py
 python -m pytest tests/ -q
-node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs
+node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs tests/platform-integrity.test.mjs
 ```
 
 ## Licencia
