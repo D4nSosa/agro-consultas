@@ -1,0 +1,26 @@
+name: Platform integrity regression tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'forestal/utils/geo.js'
+      - 'utils/scoring.js'
+      - 'tests/platform-integrity.test.mjs'
+      - '.github/workflows/platform-integrity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  platform-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run geometry and suitability regression tests
+        run: node --experimental-default-type=module --test tests/platform-integrity.test.mjs
