@@ -129,46 +129,32 @@ export function exportToGPX(input,name='Lote Forestal') {
 /**
  * Genera un script Python/PyQGIS para automatización en QGIS y PostGIS
  */
-export function exportToPyQGISScript(feature, name = 'Lote Forestal') {
-  const geojsonStr = JSON.stringify(feature);
-  const centroid = calculateCentroid(feature);
-
-  const pyScript = `# ==============================================================================
-# Script de Automatización PyQGIS / QGIS 3.x - Agro Consultas
-# Procesamiento de Lote Forestal y Carga en PostGIS / QGIS Canvas
-# Generado para: ${name}
-# Centroide: Lat ${centroid.lat.toFixed(5)}, Lng ${centroid.lng.toFixed(5)}
-# ==============================================================================
-
+export function exportToPyQGISScript(input, name = 'Lote Forestal') {
+  const geometry = unwrapFeature(input);
+  const checked = validateGeoJSON(input);
+  if (!checked.valid) throw new Error(checked.error);
+  const feature = input?.type === 'Feature' ? input : toGeoJSONFeature(geometry);
+  const geometryType = geometry.type === 'MultiPolygon' ? 'MultiPolygon'
+    : geometry.type === 'Point' ? 'Point'
+    : geometry.type === 'LineString' ? 'LineString' : 'Polygon';
+  // JSON.stringify genera literales escapados válidos tanto para Python como para datos con comillas.
+  const geojsonLiteral = JSON.stringify(JSON.stringify(feature));
+  const layerTypeLiteral = JSON.stringify(geometryType + '?crs=EPSG:4326');
+  const nameLiteral = JSON.stringify(String(name));
+  return `# Script PyQGIS generado por Agro Consultas
 import json
-from qgis.core import (
-    QgsVectorLayer,
-    QgsFeature,
-    QgsGeometry,
-    QgsProject,
-    QgsCoordinateReferenceSystem
-)
+from qgis.core import QgsVectorLayer, QgsFeature, QgsGeometry, QgsProject
 
-geojson_data = '''${geojsonStr}'''
-
-# 1. Crear capa vectorial temporal WGS84 (EPSG:4326) / POSGAR 2007 (EPSG:5343)
-v_layer = QgsVectorLayer("Polygon?crs=epsg:4326", "${name}", "memory")
-pr = v_layer.dataProvider()
-
-# 2. Parsear geometría
-data = json.loads(geojson_data)
-geom_obj = QgsGeometry.fromGeoJson(json.dumps(data["geometry"]))
-
-feat = QgsFeature()
-feat.setGeometry(geom_obj)
-pr.addFeatures([feat])
-v_layer.updateExtents()
-
-# 3. Agregar a proyecto QGIS actual
-QgsProject.instance().addMapLayer(v_layer)
-
-print("✅ Capa '${name}' cargada con éxito en QGIS.")
-print("ℹ️ Superficie aproximada calculada en canvas WGS84/POSGAR.")
+data = json.loads(${geojsonLiteral})
+layer = QgsVectorLayer(${layerTypeLiteral}, ${nameLiteral}, "memory")
+if not layer.isValid():
+    raise RuntimeError("No se pudo crear la capa vectorial WGS84")
+feature = QgsFeature()
+geometry_json = json.dumps(data["geometry"], separators=(",", ":"))
+feature.setGeometry(QgsGeometry.fromJson(geometry_json.encode("utf-8")))
+layer.dataProvider().addFeatures([feature])
+layer.updateExtents()
+QgsProject.instance().addMapLayer(layer)
+print("Capa cargada. Verificar geometría y CRS antes de usarla.")
 `;
-  return pyScript;
 }
