@@ -35,9 +35,11 @@ export function calcularCompatibilidad(crop, soil, climate) {
     datosFaltantes.push("Cartografía edáfica de alta resolución no disponible en esta coordenada.");
   }
 
-  const hasTemperature = climate?.temperaturaMediaVal !== null && climate?.temperaturaMediaVal !== undefined &&
+  const climateSourceStatus = String(climate?.status || '').toUpperCase();
+  const climateSourceAvailable = !['UNAVAILABLE', 'NO DISPONIBLE'].includes(climateSourceStatus);
+  const hasTemperature = climateSourceAvailable && climate?.temperaturaMediaVal !== null && climate?.temperaturaMediaVal !== undefined &&
     climate?.temperaturaMediaVal !== '' && Number.isFinite(Number(climate.temperaturaMediaVal));
-  const hasPrecipitation = climate?.precipitacionesAnualesVal !== null && climate?.precipitacionesAnualesVal !== undefined &&
+  const hasPrecipitation = climateSourceAvailable && climate?.precipitacionesAnualesVal !== null && climate?.precipitacionesAnualesVal !== undefined &&
     climate?.precipitacionesAnualesVal !== '' && Number.isFinite(Number(climate.precipitacionesAnualesVal));
   const isClimateAvailable = Boolean(climate && (hasTemperature || hasPrecipitation));
 
@@ -241,7 +243,8 @@ export function calcularCompatibilidad(crop, soil, climate) {
   if (deficienciasSeveras > 0) {
     categoria = AptitudCategoria.BAJA;
     nivelAptitud = 'BAJA';
-  } else if (deficienciasModeradas > 0 || incompleteRequirements || !isSoilAvailable || !isClimateAvailable || !hasSoilRequirements || !hasClimateRequirements) {
+  } else if (deficienciasModeradas > 0 || incompleteRequirements || !isSoilAvailable || !isClimateAvailable || !hasSoilRequirements || !hasClimateRequirements ||
+    String(soil?.status || '').toUpperCase() !== 'REAL' || String(climate?.status || '').toUpperCase() !== 'REAL') {
     categoria = AptitudCategoria.MEDIA;
     nivelAptitud = 'MEDIA';
   }
