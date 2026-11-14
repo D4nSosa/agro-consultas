@@ -1,10 +1,30 @@
 /**
- * Contexto territorial compartido entre los módulos de Agro-Consultas.
- * La geometría almacenada es GeoJSON WGS84 [longitud, latitud].
- * No genera ubicaciones ni geometrías por defecto.
+ * Registro y contexto territorial compartido de Agro-Consultas.
+ * GeoJSON WGS84: [longitud, latitud]. El registro local es la fuente persistente
+ * para todas las páginas del mismo navegador/origen.
  */
-const STORAGE_KEY = 'agro_lot_context_v1';
+const STORAGE_KEY = 'agro_lot_registry_v2';
+const LEGACY_STORAGE_KEY = 'agro_lot_context_v1';
 const EVENT_NAME = 'agro:lot-context-changed';
+const REGISTRY_VERSION = 2;
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getStorage() {
+  try {
+    if (!globalThis.localStorage) throw new Error('El almacenamiento local no está disponible.');
+    return globalThis.localStorage;
+  } catch (error) {
+    throw new Error('No se puede acceder al almacenamiento persistente del navegador: ' + error.message);
+  }
+}
+
+function dispatchLotChange(feature) {
+  if (typeof globalThis.dispatchEvent !== 'function' || typeof globalThis.CustomEvent !== 'function') return;
+  globalThis.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: feature ? clone(feature) : null }));
+}
 
 function unwrap(input) {
   if (!input || typeof input !== 'object') throw new Error('GeoJSON vacío o inválido.');
@@ -100,41 +120,161 @@ export function normalizeLotFeature(input, metadata = {}) {
       poly.forEach(validateRing);
     });
   }
+  const properties = { ...(feature.properties || {}), ...metadata };
   return {
     type: 'Feature',
-    geometry: JSON.parse(JSON.stringify(geometry)),
-    properties: { ...(feature.properties || {}), ...metadata, contextVersion: 1, updatedAt: feature.properties?.updatedAt || new Date().toISOString() }
+    geometry: clone(geometry),
+    properties: {
+      ...properties,
+      contextVersion: REGISTRY_VERSION,
+      updatedAt: properties.updatedAt || new Date().toISOString()
+    }
   };
 }
 
-export function getLotContext() {
-  for (const storage of [globalThis.localStorage, globalThis.sessionStorage]) {
-    try {
-      const raw = storage?.getItem(STORAGE_KEY);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw);
-      return normalizeLotFeature(parsed.feature, parsed.metadata || {});
-    } catch (error) {
-      console.warn('[Agro-Consultas] No se pudo recuperar el lote compartido desde un almacenamiento:', error);
+function createLotId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  } catch (_) {}
+  return 'lot-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+}
+
+function emptyRegistry() {
+  return { version: REGISTRY_VERSION, activeLotId: null, lots: [], updatedAt: new Date().toISOString() };
+}
+
+function readLegacy(storage) {
+  const raw = storage.getItem(LEGACY_STORAGE_KEY);
+  if (!raw) return null;
+  const parsed = JSON.parse(raw);
+  const legacyFeature = normalizeLotFeature(parsed.feature, parsed.metadata || {});
+  legacyFeature.properties.lotId = legacyFeature.properties.lotId || createLotId();
+  legacyFeature.properties.createdAt = legacyFeature.properties.createdAt || legacyFeature.properties.updatedAt;
+  return { version: REGISTRY_VERSION, activeLotId: legacyFeature.properties.lotId, lots: [legacyFeature], updatedAt: new Date().toISOString() };
+}
+
+function readRegistry() {
+  const storage = getStorage();
+  const raw = storage.getItem(STORAGE_KEY);
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== REGISTRY_VERSION || !Array.isArray(parsed.lots)) {
+      throw new Error('El registro de lotes tiene un formato desconocido; no se sobrescribió para proteger los datos existentes.');
     }
+    const lots = parsed.lots.map(feature => {
+      const normalized = normalizeLotFeature(feature);
+      if (!normalized.properties.lotId) throw new Error('Hay un lote guardado sin identificador; no se sobrescribió el registro.');
+      return normalized;
+    });
+    return { version: REGISTRY_VERSION, activeLotId: parsed.activeLotId || null, lots, updatedAt: parsed.updatedAt || null };
   }
-  return null;
+  const migrated = readLegacy(storage);
+  return migrated || emptyRegistry();
 }
 
+function writeRegistry(registry) {
+  const storage = getStorage();
+  const payload = { ...registry, version: REGISTRY_VERSION, updatedAt: new Date().toISOString() };
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const check = storage.getItem(STORAGE_KEY);
+    if (!check) throw new Error('El navegador no confirmó la escritura del registro.');
+    const verified = JSON.parse(check);
+    if (verified.activeLotId !== payload.activeLotId || verified.lots.length !== payload.lots.length) {
+      throw new Error('La verificación del registro persistido no coincide con los datos enviados.');
+    }
+  } catch (error) {
+    throw new Error('No se pudo guardar el lote de forma persistente: ' + error.message);
+  }
+  return payload;
+}
+
+function findActive(registry) {
+  return registry.lots.find(lot => lot.properties.lotId === registry.activeLotId) || null;
+}
+
+/** Devuelve el lote activo compartido entre los módulos. */
+export function getLotContext() {
+  try {
+    const registry = readRegistry();
+    const active = findActive(registry);
+    if (active) return clone(active);
+    // Migra el contexto v1 en la primera lectura, sin borrar el original hasta confirmar escritura.
+    if (!globalThis.localStorage?.getItem(STORAGE_KEY) && registry.lots.length) writeRegistry(registry);
+    return null;
+  } catch (error) {
+    console.warn('[Agro-Consultas] No se pudo recuperar el registro de lotes:', error);
+    return null;
+  }
+}
+
+/**
+ * Crea/actualiza un lote guardado y lo establece como AOI activo.
+ * Se conserva el identificador cuando se actualiza el mismo Feature.
+ */
 export function setLotContext(input, metadata = {}) {
-  const feature = normalizeLotFeature(input, metadata);
-  const payload = { feature, metadata: { source: metadata.source || feature.properties.source || 'user-selected' } };
-  const serialized = JSON.stringify(payload);
-  try { globalThis.localStorage?.setItem(STORAGE_KEY, serialized); } catch (_) {}
-  try { globalThis.sessionStorage?.setItem(STORAGE_KEY, serialized); } catch (_) {}
-  globalThis.dispatchEvent?.(new CustomEvent(EVENT_NAME, { detail: feature }));
-  return feature;
+  const registry = readRegistry();
+  const incoming = normalizeLotFeature(input, metadata);
+  const existingId = incoming.properties.lotId;
+  const existing = existingId ? registry.lots.find(lot => lot.properties.lotId === existingId) : null;
+  const lotId = existingId || existing?.properties.lotId || createLotId();
+  const now = new Date().toISOString();
+  const feature = normalizeLotFeature(incoming, {
+    ...metadata,
+    lotId,
+    name: metadata.name || incoming.properties.name || existing?.properties.name || 'Lote sin nombre',
+    createdAt: incoming.properties.createdAt || existing?.properties.createdAt || now,
+    updatedAt: now
+  });
+  const index = registry.lots.findIndex(lot => lot.properties.lotId === lotId);
+  if (index >= 0) registry.lots[index] = feature;
+  else registry.lots.push(feature);
+  registry.activeLotId = lotId;
+  const saved = writeRegistry(registry);
+  dispatchLotChange(feature);
+  return clone(feature);
 }
 
+/** Alias explícito para interfaces que presentan una acción Guardar lote. */
+export function saveLotContext(input, metadata = {}) {
+  return setLotContext(input, metadata);
+}
+
+/** Lista los lotes guardados sin cambiar el AOI activo. */
+export function listSavedLots() {
+  return readRegistry().lots.map(clone);
+}
+
+/** Activa un lote ya guardado sin duplicarlo. */
+export function selectSavedLot(lotId) {
+  if (!lotId) throw new Error('Seleccioná un lote guardado.');
+  const registry = readRegistry();
+  const feature = registry.lots.find(lot => lot.properties.lotId === lotId);
+  if (!feature) throw new Error('El lote seleccionado ya no existe en el registro.');
+  registry.activeLotId = lotId;
+  writeRegistry(registry);
+  dispatchLotChange(feature);
+  return clone(feature);
+}
+
+/** Elimina un lote del registro. No borra otros lotes guardados. */
+export function deleteSavedLot(lotId) {
+  const registry = readRegistry();
+  const before = registry.lots.length;
+  registry.lots = registry.lots.filter(lot => lot.properties.lotId !== lotId);
+  if (registry.lots.length === before) return false;
+  if (registry.activeLotId === lotId) registry.activeLotId = null;
+  writeRegistry(registry);
+  dispatchLotChange(findActive(registry));
+  return true;
+}
+
+/** Desactiva el AOI actual; conserva la biblioteca de lotes guardados. */
 export function clearLotContext() {
-  try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch (_) {}
-  try { globalThis.sessionStorage?.removeItem(STORAGE_KEY); } catch (_) {}
-  globalThis.dispatchEvent?.(new CustomEvent(EVENT_NAME, { detail: null }));
+  const registry = readRegistry();
+  registry.activeLotId = null;
+  writeRegistry(registry);
+  dispatchLotChange(null);
 }
 
 export function onLotContextChange(callback) {
@@ -144,3 +284,4 @@ export function onLotContextChange(callback) {
 }
 
 export const LOT_CONTEXT_STORAGE_KEY = STORAGE_KEY;
+export const LOT_CONTEXT_EVENT_NAME = EVENT_NAME;
