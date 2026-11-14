@@ -5,8 +5,15 @@ on:
     branches: [main]
     paths:
       - 'forestal/utils/geo.js'
+      - 'forestal/components/ForestMap.js'
+      - 'forestal.html'
+      - 'mapa.html'
+      - 'script.js'
+      - 'tracking.html'
+      - 'services/lotContext.js'
       - 'utils/scoring.js'
       - 'tests/platform-integrity.test.mjs'
+      - 'tests/lotContext.test.mjs'
       - '.github/workflows/platform-integrity.yml'
 
 permissions:
@@ -22,5 +29,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run geometry and suitability regression tests
+      - name: Run geometry, shared-lot and drawing regression tests
         run: node --experimental-default-type=module --test tests/platform-integrity.test.mjs
