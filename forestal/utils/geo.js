@@ -21,11 +21,36 @@ export function validateGeoJSON(geojson) {
   const intersects=(a,b,c,d)=>{const o1=orient(a,b,c),o2=orient(a,b,d),o3=orient(c,d,a),o4=orient(c,d,b);return((o1>0&&o2<0)||(o1<0&&o2>0))&&((o3>0&&o4<0)||(o3<0&&o4>0));};
   const ringValid=ring=>{
     if(!Array.isArray(ring)||ring.length<4||!ring.every(pos)||ring[0][0]!==ring.at(-1)[0]||ring[0][1]!==ring.at(-1)[1])return false;
-    const n=ring.length-1;
-    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){if(j===i+1||(i===0&&j===n-1))continue;if(intersects(ring[i],ring[i+1],ring[j],ring[j+1]))return false;}
+    const n=ring.length-1;let signedArea=0;
+    for(let i=0;i<n;i++){
+      signedArea+=ring[i][0]*ring[i+1][1]-ring[i+1][0]*ring[i][1];
+      for(let j=i+1;j<n;j++){if(j===i+1||(i===0&&j===n-1))continue;if(intersects(ring[i],ring[i+1],ring[j],ring[j+1]))return false;}
+    }
+    return Math.abs(signedArea)>1e-12;
+  };
+  const pointInRing=(point,ring)=>{
+    let inside=false;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const a=ring[i],b=ring[j];
+      if(((a[1]>point[1])!==(b[1]>point[1]))&&(point[0]<(b[0]-a[0])*(point[1]-a[1])/((b[1]-a[1])||Number.EPSILON)+a[0]))inside=!inside;
+    }
+    return inside;
+  };
+  const ringsIntersect=(a,b)=>{
+    for(let i=0;i<a.length-1;i++)for(let j=0;j<b.length-1;j++)if(intersects(a[i],a[i+1],b[j],b[j+1]))return true;
+    return false;
+  };
+  const polygonValid=rings=>{
+    if(!Array.isArray(rings)||!rings.length||!rings.every(ringValid))return false;
+    const shell=rings[0],holes=rings.slice(1);
+    for(let i=0;i<holes.length;i++){
+      if(!pointInRing(holes[i][0],shell)||ringsIntersect(holes[i],shell))return false;
+      for(let j=0;j<i;j++){
+        if(ringsIntersect(holes[i],holes[j])||pointInRing(holes[i][0],holes[j])||pointInRing(holes[j][0],holes[i]))return false;
+      }
+    }
     return true;
   };
-  const polygonValid=rings=>Array.isArray(rings)&&rings.length>0&&rings.every(ringValid);
   if(geometry.type==='Point'&&!pos(geometry.coordinates))return{valid:false,error:'Punto fuera del rango WGS84.'};
   if(geometry.type==='LineString'&&(!Array.isArray(geometry.coordinates)||geometry.coordinates.length<2||!geometry.coordinates.every(pos)))return{valid:false,error:'LineString inválida.'};
   if(geometry.type==='Polygon'&&!polygonValid(geometry.coordinates))return{valid:false,error:'Anillos de Polygon inválidos, abiertos o autointersectados.'};
