@@ -1,97 +1,96 @@
-# Agro Consultas — Plataforma de Inteligencia Territorial Agropecuaria y Forestal
+# Agro-Consultas — Plataforma de consulta territorial agropecuaria y forestal
 
-Agro Consultas es una plataforma web profesional de análisis y apoyo a decisiones territoriales que integra datos geoespaciales, climáticos, edáficos, satelitales y de campo para comprender un territorio, evaluar aptitudes, detectar limitantes, monitorear cambios y sustentar proyectos productivos.
+Agro-Consultas es un desarrollo independiente orientado a explorar información territorial y apoyar el análisis preliminar de áreas agropecuarias y forestales. Integra herramientas de georreferenciación, consulta de fuentes climáticas y edáficas, catálogos satelitales, registro GPS y monitoreo exploratorio de anomalías térmicas.
 
----
+**Demo pública:** https://agro-consultas.vercel.app  
+**Repositorio:** https://github.com/D4nSosa/agro-consultas
 
-## 📋 Matriz de Estado de Funcionalidades
+> Estado de referencia: documentación revisada el 14 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
 
-| Funcionalidad | Estado | Descripción / Fuente |
-| :--- | :--- | :--- |
-| **Búsqueda Geográfica y Geocodificación** | ✅ Funcional | Open-Meteo Geocoding API e IGN Georef API con identificación de nivel espacial. |
-| **Posicionamiento GPS en Tiempo Real** | ✅ Funcional | Browser Geolocation API con margen de precisión `coords.accuracy` en metros. |
-| **Base Agronómica (44 Perfiles)** | ✅ Funcional | 44 cultivos extensivos, hortícolas, frutícolas, regionales y forestales con requerimientos INTA/INV. |
-| **Motor Multicriterio de Aptitud** | ✅ Funcional | Aptitud Alta, Media, Baja o No Evaluable con explicaciones de motivos y limitantes. |
-| **Clima Histórico y Comparación** | ✅ Funcional | API Oficial de NASA POWER Climatology con series mensuales y anomalías reales. |
-| **Clima en Vivo** | ✅ Funcional | Open-Meteo Forecast API con caché de resiliencia y datos en directo. |
-| **Suelos y Cartografía Edafológica** | ✅ Funcional | WMS INTA Cartografía de Suelos 1:50.000 / Subregional. |
-| **Fotografías de Campo y EXIF** | ✅ Funcional | Carga batch múltiple, borrado individual, extracción EXIF real y métricas Canvas API. |
-| **Vista Dual (Simple vs. Técnica)** | ✅ Funcional | Alternancia entre semáforo ejecutivo (🟢🟡🔴) y detalle técnico cuantitativo. |
-| **Mapa de Decisiones e Interactivo** | ✅ Funcional | Leaflet con capas basemaps y leyenda de aptitud agro-ecológica. |
-| **Catálogo Satelital Sentinel-2** | ✅ Funcional | Consulta directa en vivo a AWS Earth Search STAC (Sentinel-2 L2A COGs). |
-| **Generación de Informe PDF** | ✅ Funcional | Impresión y descarga de reporte técnico formateado mediante `@media print` CSS. |
-| **Módulo Forestal y Teledetección** | ✅ Funcional | Delimitación de lotes, serie temporal Sentinel-2 L2A STAC y estimación dasométrica. |
-| **Monitoreo de incendios** | 🧪 Inicial | Focos recientes MODIS/VIIRS de CONAE y análisis histórico importando CSV detallados de CONAE o NASA FIRMS, con resumen anual y mensual por sensor. |
-| **Exportación y Compartición de Reportes** | ✅ Funcional | Exportación a PDF, GeoJSON, KML, GPX y enlace para compartir en todos los módulos. |
-| **Diagnóstico Fitopatológico IA** | ❌ Pendiente | Se utiliza análisis visual prudente no diagnóstico (*"síntomas compatibles con..."*). |
-| **Mapa central y lote compartido** | 🧪 En validación | Dibujo manual, importación GeoJSON, edición de vértices y contexto compartido entre Aptitud, Forestal y Tracking. |
+## Alcance y estado de los módulos
 
----
+| Módulo | Alcance implementado | Qué debe tenerse en cuenta |
+|---|---|---|
+| Aptitud de cultivos | Catálogo de perfiles, selección territorial, motor multicriterio y consulta de variables climáticas/edáficas. | Algunas consultas de clima y suelos son puntuales y usan una coordenada representativa del área. No son estadísticas zonales ni sustituyen análisis de laboratorio o asesoramiento agronómico. |
+| Forestal | Delimitación de lotes, búsqueda de escenas Sentinel-2 L2A mediante AWS Earth Search STAC, metadatos, análisis NDVI cuando existen estadísticas ráster válidas, evidencia fotográfica y registro de variables de campo. | La identificación de una escena no significa que el NDVI haya sido calculado. El inventario manual usa supuestos orientativos; no es inventario dasométrico validado. |
+| Incendios | Vista nacional de anomalías térmicas recientes NASA FIRMS MODIS/VIIRS y GOES-19; consulta por lote; importación local de CSV históricos; previsión meteorológica orientativa. | Un foco satelital no confirma un incendio ni representa un perímetro quemado. El indicador meteorológico no es FWI y no predice igniciones o propagación. |
+| Tracking GPS | Geolocalización, registro de recorridos y geometrías, medición de superficie/perímetro y exportación. | La precisión depende del dispositivo, la recepción GNSS y las condiciones de campo. |
+| Selección territorial | Dibujo e importación de polígonos GeoJSON y contexto de lote compartido entre módulos compatibles. | La geometría representa el área de interés; no certifica límites parcelarios ni titularidad. |
 
-## 🔥 Monitoreo de incendios
-El módulo `incendios.html` combina detecciones recientes de los geoservicios WFS de CONAE con análisis histórico local de CSV detallados MODIS/VIIRS. Los datos se filtran por el lote compartido y se resumen por año y mes, manteniendo separados los conteos de cada sensor. Consultá [FIRE_MONITORING.md](FIRE_MONITORING.md) para las fuentes, el método y los límites.
+## Monitoreo de incendios
 
-## 🛡️ Principio Fundamental: Cero Datos Ficticios
+La vista de incendios presenta capas independientes:
 
-Agro Consultas trabaja exclusivamente con fuentes reales identificables, datos abiertos oficiales y cálculos reproducibles.
+- **NASA FIRMS MODIS/VIIRS:** detecciones de los archivos públicos NRT de las últimas 24 horas para Sudamérica, recortadas a Argentina y su entorno.
+- **NOAA GOES-19 ABI L2 FDCF:** última escena disponible, con atributos que pueden incluir categoría, hora, potencia radiativa, temperatura y área de píxel.
+- **Consulta por lote:** intenta utilizar los servicios WFS de CONAE para MODIS y VIIRS. Si ambas consultas fallan, utiliza FIRMS como alternativa y filtra por la geometría del lote. GOES se consulta por separado.
+- **Histórico:** permite importar CSV detallados de CONAE o NASA FIRMS. El procesamiento del archivo se realiza en el navegador; el CSV no se carga al servidor.
+- **Meteorología:** consulta el pronóstico de Open-Meteo para tres días y calcula un indicador orientativo basado en cuatro umbrales transparentes: temperatura máxima, humedad relativa mínima, viento máximo y precipitación.
 
-- **Cero ubicaciones de ejemplo predeterminadas:** Al iniciar, la plataforma comienza limpia solicitando la ubicación o geometría real del usuario (`¿Qué querés analizar?`).
-- **Cero números ni porcentajes inventados:** Cuando una fuente no está disponible o no cubre las coordenadas seleccionadas, el sistema indica explícitamente **"DATOS NO DISPONIBLES"** o **"EVIDENCIA INSUFFICIENT"** explicando el parámetro faltante.
-- **Trazabilidad completa de metadatos:** Cada métrica utilizada reporta su fuente oficial, dataset, API/endpoint, variable, unidad, resolución espacial/temporal, fecha de observación y limitaciones.
+Los sensores se mantienen separados porque sus resoluciones, tiempos de observación y atributos no son equivalentes. Los agrupamientos MODIS/VIIRS son exploratorios: mismo día y distancia máxima de 1 km, sin representar equivalencia física de píxeles ni una metodología oficial.
 
----
+El indicador meteorológico suma hasta 25 puntos por cada condición disponible que supere el umbral configurado. Si faltan todas las variables, devuelve “No evaluable”. No es el Fire Weather Index (FWI), no incorpora humedad del combustible ni topografía y no estima probabilidad de ignición, velocidad o dirección de propagación.
 
-## 🛠️ Instalación y Ejecución Local
+Documentación detallada: [FIRE_MONITORING.md](FIRE_MONITORING.md).
 
-### 1. Servidor Frontend
-Debido a restricciones de seguridad del navegador (CORS) en peticiones `fetch` sobre `file://`, la aplicación debe ejecutarse sobre un servidor web local:
+## Fuentes y servicios identificados en el código
+
+| Fuente | Uso |
+|---|---|
+| NASA FIRMS | Detecciones de anomalías térmicas MODIS/VIIRS y archivos históricos importados por el usuario. |
+| NOAA GOES-19 Open Data | Producto ABI L2 FDCF para alertas térmicas rápidas. |
+| Geoservicios OGC de CONAE | Capas WFS de focos MODIS y VIIRS cuando responden correctamente. |
+| AWS Earth Search STAC | Catálogo público de escenas Sentinel-2 L2A. |
+| Open-Meteo | Geocodificación y pronóstico meteorológico. |
+| NASA POWER | Variables climatológicas e históricas de escala de grilla. |
+| INTA | Servicios cartográficos de suelos consultados mediante WMS, con alcance según la capa disponible. |
+| IGN Georef | Referencias geográficas y geocodificación administrativa. |
+
+La disponibilidad, latencia, cobertura, licencias y condiciones de uso de cada proveedor deben comprobarse para cada caso de aplicación. La presencia de una fuente en el código no constituye aval institucional ni convenio con el organismo proveedor.
+
+## Principios de interpretación
+
+1. No convertir datos faltantes en valores favorables ni completar observaciones ausentes con valores ficticios.
+2. Distinguir observaciones, estimaciones derivadas y datos ingresados por el usuario.
+3. Mostrar fuente, fecha, unidad y limitaciones cuando esos metadatos estén disponibles.
+4. No presentar detecciones satelitales como incendios confirmados.
+5. No presentar índices espectrales como inventarios de campo ni estimaciones como mediciones directas.
+6. Identificar expresamente cuando una consulta puntual representa un área mediante un centroide o coordenada de referencia.
+
+## Validación y estado operativo
+
+El repositorio incluye pruebas automatizadas de integridad de datos, contexto GeoJSON, servicios de incendios, endpoints forestales y sintaxis de módulos del frontend. La ejecución de CI no reemplaza una prueba funcional de punta a punta con datos externos actuales, dispositivos móviles y geometrías reales.
+
+Para una evaluación piloto se recomienda validar:
+- disponibilidad y tiempos de respuesta de cada fuente;
+- consistencia de fechas, coordenadas, unidades y metadatos;
+- comportamiento ante respuestas vacías, parciales y errores HTTP;
+- resultados sobre lotes conocidos y comparaciones con observaciones de campo;
+- usabilidad en teléfonos y conectividad limitada.
+
+## Instalación local
+
+Frontend estático:
 
 ```bash
-# Iniciar servidor web local en puerto 8000
 python3 -m http.server 8000
 ```
-Abrir en el navegador: `http://localhost:8000`
 
-### 2. Backend Geoespacial FastAPI (Opcional)
-Para habilitar endpoints REST geoespaciales de teledetección:
+Backend FastAPI (cuando se necesiten los endpoints geoespaciales):
 
 ```bash
-# Instalar dependencias Python
-pip install fastapi uvicorn shapely httpx pydantic pytest
-
-# Ejecutar servidor FastAPI
+pip install -r requirements.txt
 uvicorn backend.main:app --reload --port 8000
 ```
 
----
-
-## 🧪 Pruebas y Verificación Automática
-
-Ejecutar la suite de pruebas unitarias y de integridad:
+Pruebas:
 
 ```bash
-# Validar esquemas JSON de cultivos y provincias
-python3 self_created_tools/validate_datasets.py
-
-# Ejecutar todos los test suites en pytest
-python3 -m pytest tests/
+python self_created_tools/validate_datasets.py
+python -m pytest tests/ -q
+node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs
 ```
 
----
+## Licencia
 
-## 📚 Documentación Técnica Adicional
-
-Para más detalles sobre la arquitectura intermedia, especificaciones de APIs, guías para agregar nuevos cultivos o fuentes, consultar [ARCHITECTURE.md](ARCHITECTURE.md).
-
----
-
-## 📜 Licencia
-
-Este proyecto se encuentra bajo la Licencia MIT. Consulta el archivo [LICENSE.md](LICENSE.md) para más información.
-
-
-## Selección territorial y lote compartido
-
-Entrá por `mapa.html` para dibujar un polígono, importar GeoJSON o recuperar el último lote guardado. El contexto se comparte entre páginas del mismo navegador. Los módulos mantienen sus motores y capas temáticas; el mapa central administra el área de interés y la navegación.
-
-El lote se valida como GeoJSON Polygon o MultiPolygon WGS84. Los puntos GPS aislados no se interpretan como superficies. En el módulo de Aptitud, las consultas puntuales de clima y suelos se realizan sobre una coordenada representativa del lote y no constituyen estadísticas zonales de toda la geometría.
+El repositorio incluye licencia MIT. Revisar las condiciones de cada fuente de datos y servicio externo por separado.
