@@ -229,3 +229,22 @@ test('módulo forestal no cierra el dibujo automáticamente al tercer vértice',
  assert.match(source,/undoDrawingVertex\(\)/);
  assert.doesNotMatch(source,/if\s*\(this\.drawPolygonPoints\.length\s*>=\s*3\)\s*\{/);
 });
+
+test('migra el lote activo v1 al registro v2 sin perder geometría ni procedencia',()=>{
+ const previous=globalThis.localStorage;
+ const storage=memoryStorage();globalThis.localStorage=storage;
+ try{
+  const legacy=testLot();
+  legacy.properties.source='legacy-import';
+  storage.setItem('agro_lot_context_v1',JSON.stringify({feature:legacy,metadata:{source:'legacy-import'}}));
+  const restored=lotContext.getLotContext();
+  assert.equal(restored.properties.source,'legacy-import');
+  assert.ok(restored.properties.lotId);
+  const registry=JSON.parse(storage.getItem('agro_lot_registry_v2'));
+  assert.equal(registry.lots.length,1);
+  assert.equal(registry.activeLotId,restored.properties.lotId);
+  assert.ok(storage.getItem('agro_lot_context_v1'),'La clave original se conserva tras la migración.');
+ }finally{
+  if(previous===undefined)delete globalThis.localStorage;else globalThis.localStorage=previous;
+ }
+});
