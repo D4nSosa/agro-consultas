@@ -84,3 +84,13 @@ test('consulta puntual conserva un bounding box con margen espacial',()=>{
  const bbox=geo.getBoundingBox({type:'Point',coordinates:[-56,-28]});
  assert.ok(bbox[0]<-56&&bbox[2]>-56&&bbox[1]<-28&&bbox[3]>-28);
 });
+
+test('placeholders de suelo no cuentan como evidencia edáfica disponible',()=>{
+ const crop={nombre:'Cultivo prueba',requerimientos:{suelo:{phMin:5,phMax:7,texturas:['franca']},clima:{temperaturaMin:10,temperaturaMax:25,precipitacionMin:500}}};
+ const soil={status:'REGIONAL',ph:'NO DISPONIBLE',tipo:'Información de suelo no disponible para esta ubicación',textura:'No disponible',drenaje:'NO DISPONIBLE'};
+ const climate={status:'REAL',temperaturaMediaVal:20,precipitacionesAnualesVal:700};
+ const result=scoring.calcularCompatibilidad(crop,soil,climate);
+ assert.notEqual(result.nivelAptitud,'ALTA');
+ assert.ok(result.datosFaltantes.some(item=>item.toLowerCase().includes('cartografía edáfica')));
+ assert.equal(result.calidadEvidencia,'PARCIAL');
+});
