@@ -632,8 +632,9 @@
           document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
           if (['Polygon', 'MultiPolygon'].includes(feature.geometry?.type)) {
             // Si falla la persistencia, propagar el error: no mostrar un lote como guardado cuando no lo está.
-            setLotContext(feature, { source: 'forest-module' });
+            return setLotContext(feature, { source: 'forest-module' });
           }
+          return feature;
         } else {
           document.getElementById('lot-area-val').innerText = area && area.hectares ? area.hectares : "LOTE NO DEFINIDO";
           document.getElementById('lot-coords-val').innerText = centroid && centroid.lat ? `Lat: ${centroid.lat.toFixed(4)}, Lng: ${centroid.lng.toFixed(4)} (PUNTO GPS)` : "Sin lote definido";
