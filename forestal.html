@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Módulo Forestal y Teledetección Satelital — Agro Consultas</title>
 
-  <meta name="description" content="Monitoreo de lotes forestales con imágenes Sentinel-2 L2A, radar Sentinel-1 SAR, ordenamiento territorial de bosques nativos (OTBN Ley 26.331) e inventario dasométrico en Argentina." />
-  <meta name="keywords" content="analisis forestal, teledeteccion satelital, sentinel-2 forestal, otbn bosques nativos, radar sar sentinel-1, inventario dasometrico, dante ivan sosa" />
+  <meta name="description" content="Seguimiento exploratorio de lotes forestales con escenas Sentinel-2 L2A del catálogo público AWS Earth Search, evidencia fotográfica y herramientas de registro de campo." />
+  <meta name="keywords" content="análisis forestal, teledetección satelital, Sentinel-2 L2A, NDVI, inventario forestal de campo, GeoJSON" />
   <meta name="author" content="Dante Iván Sosa" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://agroconsultas.com.ar/forestal.html" />
@@ -15,7 +15,7 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Módulo Forestal y Teledetección Satelital — Agro Consultas" />
-  <meta property="og:description" content="Análisis multitemporal de lotes forestales, cálculo NDVI/EVI real, biomasa SAR y ordenamiento de bosques nativos." />
+  <meta property="og:description" content="Consulta de escenas Sentinel-2 L2A, análisis NDVI cuando hay datos ráster disponibles y registro de evidencia forestal de campo." />
   <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
 
   <script type="application/ld+json">
@@ -23,7 +23,7 @@
     "@context": "https://schema.org",
     "@type": "WebPage",
     "name": "Módulo Forestal y Teledetección Satelital",
-    "description": "Monitoreo satelital e inventario dasométrico de lotes forestales en Argentina.",
+    "description": "Exploración de escenas satelitales y registro de información de lotes forestales en Argentina.",
     "url": "https://agroconsultas.com.ar/forestal.html"
   }
   </script>
@@ -69,8 +69,8 @@
         <span>🌲</span> Módulo de Análisis Forestal y Teledetección
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
-        Herramienta de seguimiento de lotes forestales basada en el catálogo de imágenes satelitales multiespectrales <strong>Sentinel-2 Level-2A (AWS Earth Search STAC)</strong> y evidencia fotográfica de campo.
-        Permite delimitar lotes en GeoJSON, consultar escenas satelitales, incorporar imágenes propias y exportar reportes técnicos.
+        Herramienta de exploración de lotes forestales basada en el catálogo público <strong>AWS Earth Search STAC (Sentinel-2 L2A)</strong> y evidencia fotográfica de campo.
+        Permite delimitar lotes en GeoJSON, consultar escenas disponibles, revisar metadatos y exportar reportes. La disponibilidad de escenas depende de la cobertura, fecha y nubosidad del catálogo.<br><small style="display:block;margin-top:8px;color:var(--texto-secundario)">Alcance: el NDVI solo se informa como calculado cuando el servicio devuelve estadísticas ráster válidas. Si solo se identificó una escena STAC, se muestran sus metadatos y bandas disponibles, sin presentar el índice como calculado. Sentinel-1 SAR, cuando está disponible, aporta observaciones de retrodispersión; no equivale por sí solo a una medición directa de humedad del suelo o biomasa.</small>
       </p>
     </div>
 
@@ -175,7 +175,7 @@
         <span>📋</span> Inventario Forestal de Campo (Modelo Orientativo de Indicadores Silvícolas)
       </h3>
       <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 18px;">
-        Separación transparente entre <strong>Datos Ingresados por Usuario</strong>, <strong>Observaciones Remotas</strong> y <strong>Estimaciones Derivadas</strong> ($V = G \times H \times f$, $f=0.45$). Modelo de orientación técnica basado en referencias silvícolas de INTA.
+        Se distinguen <strong>Datos Ingresados por Usuario</strong>, <strong>Observaciones Remotas</strong> y <strong>Estimaciones Derivadas</strong>. La fórmula de volumen ($V = G \times H \times f$) utiliza $f=0.45$ como supuesto fijo de esta versión; el resultado es orientativo y requiere calibración por especie, sitio y manejo. No reemplaza un inventario forestal ni mediciones de campo.
       </p>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
