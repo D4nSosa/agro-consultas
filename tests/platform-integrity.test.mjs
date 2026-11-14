@@ -79,3 +79,8 @@ test('rechaza huecos fuera del anillo exterior y anillos de área nula',()=>{
  assert.equal(geo.validateGeoJSON(outsideHole).valid,false);
  assert.equal(geo.validateGeoJSON(zeroArea).valid,false);
 });
+
+test('consulta puntual conserva un bounding box con margen espacial',()=>{
+ const bbox=geo.getBoundingBox({type:'Point',coordinates:[-56,-28]});
+ assert.ok(bbox[0]<-56&&bbox[2]>-56&&bbox[1]<-28&&bbox[3]>-28);
+});
