@@ -121,13 +121,13 @@ python3 -m pytest tests/
 
 ## Evolución integrada: contexto de lote compartido
 
-La evolución adopta `services/lotContext.js` como contrato común para el área de interés (AOI). El objeto se representa como GeoJSON Feature Polygon/MultiPolygon en WGS84, con propiedades y metadatos de procedencia. Se persiste en localStorage y sessionStorage para permitir el paso entre páginas clásicas y emite el evento `agro:lot-context-changed`.
+`services/lotContext.js` es el contrato único para el área de interés (AOI) y el registro local de lotes. Cada lote es un GeoJSON Feature Polygon/MultiPolygon en WGS84, con identificador estable (`lotId`), nombre, procedencia y fechas de creación/actualización. El registro versionado `agro_lot_registry_v2` guarda una colección de lotes y un `activeLotId` en localStorage. La API pública incluye `setLotContext` (crear/actualizar y activar), `getLotContext` (leer AOI activo), `listSavedLots`, `selectSavedLot`, `deleteSavedLot` y `clearLotContext` (desactivar sin borrar la biblioteca). Las escrituras se verifican y los errores se informan; sessionStorage no se considera persistencia. La clave v1 se migra al registro nuevo sin borrar el origen si la escritura falla.
 
-El contexto compartido no reemplaza los motores de Aptitud, Forestal, Clima, Suelos ni Tracking. Cada módulo conserva su responsabilidad y puede dibujar capas temáticas propias, pero debe consumir el mismo AOI cuando corresponda. Un punto GPS es una referencia puntual, no un lote con superficie.
+El contexto compartido no reemplaza los motores de Aptitud, Forestal, Clima, Suelos ni Tracking. Cada módulo conserva su responsabilidad y sus capas temáticas, pero consume el mismo AOI activo. Un punto GPS es una referencia puntual, no un lote con superficie. El alcance de persistencia es el mismo navegador y origen; no es sincronización entre dispositivos ni almacenamiento en la nube.
 
-El dibujo del módulo de Aptitud permite agregar vértices hasta que el usuario cierre manualmente el polígono. El botón secundario deshace el último vértice durante el dibujo y permite limpiar la selección cuando no hay un borrador activo. El módulo Forestal consume el AOI compartido y no debe inventar coordenadas de respaldo.
+El dibujo de Aptitud, el mapa central y el módulo Forestal permiten agregar todos los vértices necesarios y cerrar el polígono mediante una acción explícita. Deshacer vértice y cancelar dibujo no alteran la biblioteca guardada. El mapa central permite listar, recuperar y eliminar lotes guardados. El módulo Forestal no cierra automáticamente al tercer vértice.
 
-La futura pantalla de mapa central será una capa de entrada y navegación que cree/seleccione el AOI y entregue el mismo contexto a los módulos. No debe duplicar motores de análisis ni eliminar los mapas temáticos específicos. La interfaz clásica se mantiene como ruta de compatibilidad durante la transición.
+La pantalla de mapa central es la capa de entrada y navegación para crear, importar, seleccionar y guardar el AOI y entregarlo a los módulos. No duplica motores de análisis ni elimina los mapas temáticos específicos. La interfaz clásica se mantiene como ruta de compatibilidad durante la transición.
 
 ### Procedencia y límites
 - Clima en vivo, climatología histórica y referencias regionales deben identificarse por separado.
