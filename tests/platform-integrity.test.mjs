@@ -166,3 +166,66 @@ test('sin WMS ni variables regionales, el fallback permanece no disponible',asyn
   if(previousStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=previousStorage;
  }
 });
+
+
+const lotContext = await importSource('../services/lotContext.js');
+const testLot = () => ({
+ type:'Feature',
+ properties:{name:'Lote de prueba'},
+ geometry:{type:'Polygon',coordinates:[[[ -56,-28],[-55.99,-28],[-55.99,-27.99],[-56,-27.99],[-56,-28]]]}
+});
+
+test('registro compartido persiste varios lotes y mantiene un identificador estable',()=>{
+ const previous=globalThis.localStorage;
+ const storage=memoryStorage();globalThis.localStorage=storage;
+ try{
+  const first=lotContext.setLotContext(testLot(),{source:'test',name:'Lote A'});
+  const second=lotContext.setLotContext({...testLot(),properties:{name:'Lote B'}},{source:'test',name:'Lote B'});
+  assert.ok(first.properties.lotId);
+  assert.ok(second.properties.lotId);
+  assert.notEqual(first.properties.lotId,second.properties.lotId);
+  assert.equal(lotContext.listSavedLots().length,2);
+  const updated=lotContext.setLotContext({...first,properties:{...first.properties,name:'Lote A actualizado'}});
+  assert.equal(updated.properties.lotId,first.properties.lotId);
+  assert.equal(lotContext.listSavedLots().length,2);
+  assert.equal(lotContext.getLotContext().properties.name,'Lote A actualizado');
+ }finally{
+  if(previous===undefined)delete globalThis.localStorage;else globalThis.localStorage=previous;
+ }
+});
+
+test('seleccionar y limpiar el AOI activo no elimina la biblioteca de lotes',()=>{
+ const previous=globalThis.localStorage;
+ const storage=memoryStorage();globalThis.localStorage=storage;
+ try{
+  const a=lotContext.setLotContext(testLot(),{name:'Lote A'});
+  const b=lotContext.setLotContext(testLot(),{name:'Lote B'});
+  assert.equal(lotContext.selectSavedLot(a.properties.lotId).properties.name,'Lote A');
+  assert.equal(lotContext.getLotContext().properties.lotId,a.properties.lotId);
+  lotContext.clearLotContext();
+  assert.equal(lotContext.getLotContext(),null);
+  assert.equal(lotContext.listSavedLots().length,2);
+  assert.equal(lotContext.selectSavedLot(b.properties.lotId).properties.name,'Lote B');
+  assert.equal(lotContext.deleteSavedLot(a.properties.lotId),true);
+  assert.equal(lotContext.listSavedLots().length,1);
+ }finally{
+  if(previous===undefined)delete globalThis.localStorage;else globalThis.localStorage=previous;
+ }
+});
+
+test('si localStorage falla al escribir, setLotContext informa el error y no finge persistencia',()=>{
+ const previous=globalThis.localStorage;
+ globalThis.localStorage={getItem:()=>null,setItem:()=>{throw new Error('quota exceeded');},removeItem:()=>{}};
+ try{
+  assert.throws(()=>lotContext.setLotContext(testLot()),/No se pudo guardar el lote de forma persistente/);
+ }finally{
+  if(previous===undefined)delete globalThis.localStorage;else globalThis.localStorage=previous;
+ }
+});
+
+test('módulo forestal no cierra el dibujo automáticamente al tercer vértice',async()=>{
+ const source=await readFile(new URL('../forestal/components/ForestMap.js',import.meta.url),'utf8');
+ assert.match(source,/finishDrawing\(name/);
+ assert.match(source,/undoDrawingVertex\(\)/);
+ assert.doesNotMatch(source,/if\s*\(this\.drawPolygonPoints\.length\s*>=\s*3\)\s*\{/);
+});
