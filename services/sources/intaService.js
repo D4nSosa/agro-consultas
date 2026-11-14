@@ -3,7 +3,7 @@
  * Proporciona información edafológica y cartografía de suelos con almacenamiento en caché (localStorage) y tolerancia a fallos.
  */
 
-const CACHE_PREFIX = 'agro_cache_inta_';
+const CACHE_PREFIX = 'agro_cache_inta_v2_';
 const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 horas de vigencia de datos de suelo de INTA
 
 /**
@@ -14,6 +14,12 @@ const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 horas de vigencia de datos de su
  * @param {Object} subregionStaticData - Datos estáticos de suelo de la subregión para fallback inmediato.
  * @returns {Promise<Object>} Datos de suelo del territorio.
  */
+const cleanSoilValue = value => {
+  const text = String(value ?? '').trim();
+  if (!text || /no disponible|no especificad[ao]|sin cobertura|sin información|información regional de suelos/i.test(text)) return null;
+  return value;
+};
+
 export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
   const cacheKey = `${CACHE_PREFIX}${lat.toFixed(4)}_${lng.toFixed(4)}`;
 
@@ -28,8 +34,9 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       if (Date.now() - timestamp < CACHE_EXPIRY && (origin === 'wms' || origin === 'regional')) {
         return {
           ...data,
+          escala: origin === 'wms' ? 'No informada por la respuesta WMS' : 'Regional (escala no informada)',
           fuente: origin === 'wms'
-            ? 'INTA Cartografía Oficial (WMS · caché local)'
+            ? 'INTA Cartografía (WMS · caché local)'
             : 'INTA / Cartografía Regional Subregional (caché local)',
           cached: true,
           fallback: origin === 'regional'
@@ -61,29 +68,38 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
     });
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-    const response = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    let response;
+    try {
+      response = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
     const geoJson = await response.json();
 
     if (geoJson && geoJson.features && geoJson.features.length > 0) {
-      const props = geoJson.features[0].properties;
-      const rawPh = props.ph || props.PH;
+      const props = geoJson.features[0].properties || {};
+      const rawPh = props.ph ?? props.PH;
       const data = {
-        tipo: props.tipo_suelo || props.GREATGROUP || "Suelo clasificado WMS",
-        textura: props.textura || props.TEXTURE || "No especificada en capa WMS",
-        drenaje: props.drenaje || props.DRAINAGE || "No especificado en capa WMS",
-        limitantes: props.limitantes || props.LIMITATIONS || "No especificadas en capa WMS",
-        aptitud: props.aptitud || props.APTITUDE || "No especificada en capa WMS",
-        ph: rawPh !== undefined && rawPh !== null && !isNaN(parseFloat(rawPh)) ? parseFloat(rawPh) : null,
-        escala: "1:50.000 (WMS INTA)",
+        tipo: cleanSoilValue(props.tipo_suelo ?? props.GREATGROUP),
+        textura: cleanSoilValue(props.textura ?? props.TEXTURE),
+        drenaje: cleanSoilValue(props.drenaje ?? props.DRAINAGE),
+        limitantes: cleanSoilValue(props.limitantes ?? props.LIMITATIONS),
+        aptitud: cleanSoilValue(props.aptitud ?? props.APTITUDE),
+        ph: rawPh !== undefined && rawPh !== null && rawPh !== '' && Number.isFinite(Number(rawPh)) ? Number(rawPh) : null,
+        escala: "No informada por la respuesta WMS",
         status: "REAL",
-        confidence: "high",
+        confidence: "medium",
         fechaActualizacion: new Date().toISOString()
       };
+      if (![data.tipo, data.textura, data.drenaje, data.limitantes, data.aptitud, data.ph].some(value => value !== null && value !== undefined)) {
+        throw new Error("La capa respondió sin atributos edáficos interpretables");
+      }
+      for (const key of ['tipo', 'textura', 'drenaje', 'limitantes', 'aptitud']) {
+        if (!data[key]) data[key] = 'NO DISPONIBLE';
+      }
 
       try {
         localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now(), origin: 'wms' }));
@@ -98,15 +114,15 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
 
     if (subregionStaticData) {
       const data = {
-        tipo: subregionStaticData.tipo || "Información Regional de Suelos",
-        textura: subregionStaticData.textura || "No disponible en cartografía regional",
-        drenaje: subregionStaticData.drenaje || "No disponible en cartografía regional",
-        limitantes: subregionStaticData.limitantes || "Sin información regional",
-        aptitud: subregionStaticData.aptitud || "No disponible en cartografía regional",
-        ph: subregionStaticData.ph !== undefined && subregionStaticData.ph !== null ? subregionStaticData.ph : null,
-        escala: "1:250.000 (Cartografía Regional INTA)",
-        status: "REGIONAL",
-        confidence: "medium",
+        tipo: cleanSoilValue(subregionStaticData.tipo) || 'NO DISPONIBLE',
+        textura: cleanSoilValue(subregionStaticData.textura) || 'NO DISPONIBLE',
+        drenaje: cleanSoilValue(subregionStaticData.drenaje) || 'NO DISPONIBLE',
+        limitantes: cleanSoilValue(subregionStaticData.limitantes) || 'NO DISPONIBLE',
+        aptitud: cleanSoilValue(subregionStaticData.aptitud) || 'NO DISPONIBLE',
+        ph: subregionStaticData.ph !== undefined && subregionStaticData.ph !== null && subregionStaticData.ph !== '' && Number.isFinite(Number(subregionStaticData.ph)) ? Number(subregionStaticData.ph) : null,
+        escala: subregionStaticData.escala || 'Regional (escala no informada)',
+        status: [subregionStaticData.tipo, subregionStaticData.textura, subregionStaticData.drenaje, subregionStaticData.ph, subregionStaticData.limitantes].some(value => cleanSoilValue(value) !== null) ? 'REGIONAL' : 'UNAVAILABLE',
+        confidence: [subregionStaticData.tipo, subregionStaticData.textura, subregionStaticData.drenaje, subregionStaticData.ph, subregionStaticData.limitantes].some(value => cleanSoilValue(value) !== null) ? 'medium' : 'none',
         fechaActualizacion: new Date().toISOString()
       };
 

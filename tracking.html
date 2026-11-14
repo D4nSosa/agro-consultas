@@ -15,7 +15,7 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Tracking y Perímetros GPS en Campo — Agro Consultas" />
-  <meta property="og:description" content="Trazado de lotes en tiempo real desde el celular con cálculo exacto de hectáreas e integración GIS." />
+  <meta property="og:description" content="Trazado de lotes en tiempo real desde el celular con superficie aproximada sujeta a la calidad de la señal GNSS e integración GIS." />
   <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
 
   <script type="application/ld+json">
@@ -23,7 +23,7 @@
     "@context": "https://schema.org",
     "@type": "WebPage",
     "name": "Tracking y Perímetros GPS en Campo",
-    "description": "Herramienta de medición de perímetros y superficie de lotes mediante GPS en tiempo real.",
+    "description": "Herramienta de registro GNSS móvil para generar recorridos y superficies aproximadas de lotes, sujetas a la precisión del dispositivo.",
     "url": "https://agroconsultas.com.ar/tracking.html"
   }
   </script>
@@ -69,7 +69,7 @@
         <span>🚶</span> Módulo de Caminata y Tracking GPS en Campo
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
-        Trazá el perímetro exacto de tu lote en tiempo real mientras caminás el campo. El sistema registrará tus coordenadas GPS, mostrará la forma del lote en el mapa y calculará la superficie real en hectáreas.
+        Registrá posiciones GNSS mientras caminás el campo. El perímetro y la superficie son aproximados y dependen de la recepción satelital, la precisión del dispositivo y la calidad de los puntos; no constituyen una mensura.
       </p>
     </div>
 
@@ -111,7 +111,7 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div style="background: rgba(39, 174, 96, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(39, 174, 96, 0.25);">
-            <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
+            <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie aproximada:</span>
             <strong id="track-area-ha" style="font-size: 1.3rem; color: var(--verde-principal);">0.00 ha</strong>
             <span id="track-area-m2" style="font-size: 0.75rem; display: block; color: var(--texto-secundario);">0 m²</span>
           </div>
@@ -119,7 +119,7 @@
           <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--borde-suave);">
             <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Perímetro / Recorrido:</span>
             <strong id="track-distance" style="font-size: 1.2rem; color: var(--texto-principal);">0 m</strong>
-            <span id="track-points-count" style="font-size: 0.75rem; display: block; color: var(--texto-secundario);">0 vértices GPS</span>
+            <span id="track-points-count" style="font-size: 0.75rem; display: block; color: var(--texto-secundario);">0 posiciones GPS aceptadas</span>
           </div>
         </div>
 
@@ -128,6 +128,7 @@
           <input type="text" id="track-lot-name" value="Lote Campo - Recorrido GPS" placeholder="Ej: Lote San Martin" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); font-size: 0.88rem;" />
         </div>
 
+        <div id="gps-quality-note" class="muted" style="font-size:.78rem;line-height:1.45">Se descartan puntos con precisión peor a ±35 m, duplicados y saltos improbables. La superficie es aproximada y no equivale a mensura.</div>
         <!-- Acciones Directas con el Lote Creado -->
         <div id="lot-actions-box" style="display: none; flex-direction: column; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--borde-suave);">
           <div style="font-weight: bold; font-size: 0.85rem; color: var(--verde-principal);">🚀 Acciones e Informes del Lote:</div>
@@ -155,7 +156,7 @@
 
         <!-- Instrucciones en Campo -->
         <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-secundario);">
-          <strong>💡 Recomendación de Campo:</strong> Caminá por el borde o las esquinas de tu lote con el GPS activo en tu teléfono. Al regresar al punto de origen, cerrá el recorrido para calcular la superficie exacta.
+          <strong>💡 Recomendación de Campo:</strong> Caminá por el borde o las esquinas de tu lote con el GPS activo en tu teléfono. Al finalizar el recorrido, cerralo para obtener una superficie aproximada a partir de las posiciones GNSS aceptadas.
         </div>
       </div>
 
@@ -189,7 +190,7 @@
 
   <!-- Script del Módulo de Tracking -->
   <script type="module">
-    import { exportToKML, exportToGPX, calculateArea, calculateCentroid, toGeoJSONFeature } from './forestal/utils/geo.js';
+    import { exportToKML, exportToGPX, calculateArea, calculateCentroid, toGeoJSONFeature, validateGeoJSON } from './forestal/utils/geo.js';
     import { findProvinceByCoords, findSubregion } from './services/territoryService.js';
     import { getSoilReport } from './services/soilService.js';
     import { getClimateData } from './services/climateService.js';
@@ -200,6 +201,8 @@
     let map = null;
     let watchId = null;
     let gpsPoints = [];
+    let gpsSamples = [];
+    const MAX_GPS_ACCURACY_METERS = 35;
     let polyline = null;
     let polygonLayer = null;
     let userMarker = null;
@@ -249,67 +252,82 @@
       }
     }
 
+    function haversineMeters(a, b) {
+      const rad = Math.PI / 180, dLat = (b[1] - a[1]) * rad, dLon = (b[0] - a[0]) * rad;
+      const lat1 = a[1] * rad, lat2 = b[1] * rad;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+      return 6371008.8 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    }
+
+    function acceptGpsPosition(pos, source = 'automatico') {
+      const lat = Number(pos?.coords?.latitude), lng = Number(pos?.coords?.longitude);
+      const accuracy = Number(pos?.coords?.accuracy), timestamp = Number(pos?.timestamp) || Date.now();
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        document.getElementById('gps-accuracy-badge').innerText = '⚠️ Posición GPS inválida; punto descartado.';
+        return false;
+      }
+      if (!Number.isFinite(accuracy) || accuracy <= 0 || accuracy > MAX_GPS_ACCURACY_METERS) {
+        document.getElementById('gps-accuracy-badge').innerText = '⚠️ Precisión insuficiente (±' + (Number.isFinite(accuracy) ? Math.round(accuracy) + 'm' : 'sin dato') + '); punto descartado.';
+        return false;
+      }
+      const point = [lng, lat], previous = gpsSamples[gpsSamples.length - 1];
+      if (previous) {
+        const distance = haversineMeters(previous.point, point);
+        const elapsed = Math.max(0.1, (timestamp - previous.timestamp) / 1000);
+        if (distance < 2) {
+          document.getElementById('gps-accuracy-badge').innerText = 'ℹ️ Punto repetido omitido · precisión ±' + Math.round(accuracy) + 'm';
+          return false;
+        }
+        if (distance / elapsed > 8) {
+          document.getElementById('gps-accuracy-badge').innerText = '⚠️ Salto GPS improbable (' + Math.round(distance) + 'm); punto descartado.';
+          return false;
+        }
+      }
+      gpsPoints.push(point);
+      gpsSamples.push({ point, accuracy, timestamp, source });
+      const latLng = [lat, lng];
+      if (!polyline) polyline = L.polyline([latLng], { color: '#e67e22', weight: 4, dashArray: '5, 8' }).addTo(map);
+      else polyline.addLatLng(latLng);
+      if (userMarker) userMarker.setLatLng(latLng);
+      else userMarker = L.circleMarker(latLng, { radius: 8, color: '#d35400', fillColor: '#e67e22', fillOpacity: 1 }).addTo(map);
+      map.setView(latLng, Math.max(map.getZoom(), 16));
+      document.getElementById('gps-accuracy-badge').innerText = '🟢 Punto aceptado · precisión ±' + Math.round(accuracy) + 'm';
+      updateMetricsUI();
+      return true;
+    }
+
     function startTracking() {
       if (!navigator.geolocation) {
-        alert("Geolocalización no soportada en tu dispositivo.");
+        alert('Geolocalización no soportada en tu dispositivo.');
         return;
       }
-
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       gpsPoints = [];
-      if (polyline) map.removeLayer(polyline);
-      if (polygonLayer) map.removeLayer(polygonLayer);
-
+      gpsSamples = [];
+      if (polyline) { map.removeLayer(polyline); polyline = null; }
+      if (polygonLayer) { map.removeLayer(polygonLayer); polygonLayer = null; }
+      if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+      currentFeature = null;
       document.getElementById('btn-start-tracking').style.display = 'none';
       document.getElementById('btn-stop-tracking').style.display = 'inline-block';
       document.getElementById('btn-add-point').style.display = 'inline-block';
       document.getElementById('lot-actions-box').style.display = 'none';
-
+      document.getElementById('gps-accuracy-badge').innerText = 'Buscando una posición GPS con precisión suficiente…';
+      updateMetricsUI();
       watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const acc = Math.round(pos.coords.accuracy);
-
-          document.getElementById('gps-accuracy-badge').innerText = `🟢 GPS Activo (±${acc}m)`;
-
-          const pt = [lng, lat];
-          const latLng = [lat, lng];
-
-          gpsPoints.push(pt);
-
-          if (!polyline) {
-            polyline = L.polyline([latLng], { color: '#e67e22', weight: 4, dashArray: '5, 8' }).addTo(map);
-          } else {
-            polyline.addLatLng(latLng);
-          }
-
-          if (userMarker) {
-            userMarker.setLatLng(latLng);
-          } else {
-            userMarker = L.circleMarker(latLng, { radius: 8, color: '#d35400', fillColor: '#e67e22', fillOpacity: 1 }).addTo(map);
-          }
-
-          map.setView(latLng, 17);
-          updateMetricsUI();
-        },
-        (err) => {
-          document.getElementById('gps-accuracy-badge').innerText = `⚠️ Error GPS: ${err.message}`;
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        pos => acceptGpsPosition(pos),
+        err => { document.getElementById('gps-accuracy-badge').innerText = '⚠️ Error GPS: ' + err.message; },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       );
     }
 
     function addManualPoint() {
       if (!navigator.geolocation) return;
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        gpsPoints.push([lng, lat]);
-        const latLng = [lat, lng];
-        if (polyline) polyline.addLatLng(latLng);
-        L.circleMarker(latLng, { radius: 5, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(map);
-        updateMetricsUI();
-      });
+      navigator.geolocation.getCurrentPosition(
+        pos => acceptGpsPosition(pos, 'manual'),
+        err => { document.getElementById('gps-accuracy-badge').innerText = '⚠️ No se pudo marcar el vértice: ' + err.message; },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+      );
     }
 
     function stopTrackingAndClose() {
@@ -323,17 +341,30 @@
       document.getElementById('btn-add-point').style.display = 'none';
 
       if (gpsPoints.length < 3) {
-        alert(`Se necesitan al menos 3 puntos registrados para cerrar el lote (se registraron ${gpsPoints.length}).`);
+        alert('Se necesitan al menos 3 posiciones GPS aceptadas para cerrar el lote. Se registraron ' + gpsPoints.length + '. Mejorá la recepción y volvé a intentarlo.');
+        document.getElementById('btn-start-tracking').style.display = 'inline-block';
         return;
       }
-
-      if (polyline) map.removeLayer(polyline);
+      if (polyline) { map.removeLayer(polyline); polyline = null; }
 
       const closedCoords = [...gpsPoints, gpsPoints[0]];
       const geom = { type: "Polygon", coordinates: [closedCoords] };
 
-      const lotName = document.getElementById('track-lot-name').value || "Lote Caminado por GPS";
-      currentFeature = toGeoJSONFeature(geom, { name: lotName });
+      const validation = validateGeoJSON(geom);
+      const areaInfo = calculateArea(geom);
+      if (!validation.valid || !areaInfo.valid || areaInfo.squareMeters < 25) {
+        alert('El perímetro no pudo validarse o su superficie es demasiado pequeña. ' + (validation.error || areaInfo.error || 'Revisá los vértices GPS.'));
+        document.getElementById('btn-start-tracking').style.display = 'inline-block';
+        return;
+      }
+      const lotName = document.getElementById('track-lot-name').value || 'Lote Caminado por GPS';
+      currentFeature = toGeoJSONFeature(geom, {
+        name: lotName,
+        gpsPointCount: gpsPoints.length,
+        meanGpsAccuracyMeters: Number((gpsSamples.reduce((sum, sample) => sum + sample.accuracy, 0) / gpsSamples.length).toFixed(1)),
+        measurementMethod: 'GNSS móvil; superficie aproximada, no mensura',
+        recordedAt: new Date().toISOString()
+      });
       try {
         currentFeature = setLotContext(currentFeature, { source: 'gps-tracking', name: lotName });
       } catch (error) {
@@ -347,8 +378,7 @@
 
       map.fitBounds(polygonLayer.getBounds(), { padding: [30, 30] });
 
-      const areaInfo = calculateArea(currentFeature);
-      document.getElementById('track-area-ha').innerText = `${areaInfo.hectares} ha`;
+      document.getElementById('track-area-ha').innerText = `${areaInfo.hectares} ha (estimada)`;
       document.getElementById('track-area-m2').innerText = `${areaInfo.squareMeters.toLocaleString('es-AR')} m²`;
 
       document.getElementById('lot-actions-box').style.display = 'flex';
@@ -405,12 +435,13 @@
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
             <!-- Suelo INTA -->
             <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
-              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Propiedades del Suelo (INTA 1:50.000)</h4>
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Información de suelo consultada</h4>
               <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
                 <div><strong>Tipo y Clasificación:</strong> ${soilReport.tipo || 'NO DISPONIBLE'}</div>
                 <div><strong>Textura:</strong> ${soilReport.textura || 'NO DISPONIBLE'}</div>
                 <div><strong>Drenaje:</strong> ${soilReport.drenaje || 'NO DISPONIBLE'}</div>
-                <div><strong>Limitantes:</strong> ${soilReport.limitantes || 'Sin limitantes severas detectadas'}</div>
+                <div><strong>Limitantes:</strong> ${soilReport.limitantes || 'No informado'}</div>
+                <div><strong>Escala informada:</strong> ${soilReport.escala || 'No informada'}</div>
                 <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Fuente: ${soilReport.fuente}</div>
               </div>
             </div>
@@ -473,6 +504,7 @@
         watchId = null;
       }
       gpsPoints = [];
+      gpsSamples = [];
       if (polyline) { map.removeLayer(polyline); polyline = null; }
       if (polygonLayer) { map.removeLayer(polygonLayer); polygonLayer = null; }
       if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
@@ -491,14 +523,25 @@
     }
 
     function updateMetricsUI() {
-      document.getElementById('track-points-count').innerText = `${gpsPoints.length} vértices GPS`;
-
-      if (gpsPoints.length >= 3) {
-        const closedCoords = [...gpsPoints, gpsPoints[0]];
-        const tempFeat = toGeoJSONFeature({ type: "Polygon", coordinates: [closedCoords] });
-        const areaInfo = calculateArea(tempFeat);
-        document.getElementById('track-area-ha').innerText = `${areaInfo.hectares} ha`;
-        document.getElementById('track-area-m2').innerText = `${areaInfo.squareMeters.toLocaleString('es-AR')} m²`;
+      const count = gpsPoints.length;
+      document.getElementById('track-points-count').innerText = count + ' posiciones GPS aceptadas';
+      const distance = gpsPoints.slice(1).reduce((sum, point, index) => sum + haversineMeters(gpsPoints[index], point), 0);
+      document.getElementById('track-distance').innerText = distance >= 1000 ? (distance / 1000).toFixed(2) + ' km' : Math.round(distance) + ' m';
+      if (count >= 3) {
+        const geometry = { type: 'Polygon', coordinates: [[...gpsPoints, gpsPoints[0]]] };
+        const areaInfo = calculateArea(geometry);
+        document.getElementById('track-area-ha').innerText = areaInfo.valid ? areaInfo.hectares + ' ha (estimada)' : 'No calculable';
+        document.getElementById('track-area-m2').innerText = areaInfo.valid ? areaInfo.squareMeters.toLocaleString('es-AR') + ' m²' : (areaInfo.error || 'Revisar perímetro');
+      } else {
+        document.getElementById('track-area-ha').innerText = '—';
+        document.getElementById('track-area-m2').innerText = 'Se requieren 3 o más posiciones válidas';
+      }
+      const note = document.getElementById('gps-quality-note');
+      if (note) {
+        const mean = gpsSamples.length ? gpsSamples.reduce((sum, sample) => sum + sample.accuracy, 0) / gpsSamples.length : null;
+        note.textContent = mean === null
+          ? 'Se descartan puntos con precisión peor a ±' + MAX_GPS_ACCURACY_METERS + ' m, duplicados y saltos improbables. La precisión real depende del dispositivo y del entorno.'
+          : 'Precisión horizontal media informada por el dispositivo: ±' + mean.toFixed(1) + ' m. Superficie aproximada; verificá el perímetro en un SIG o con relevamiento de campo.';
       }
     }
 
