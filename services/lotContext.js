@@ -176,13 +176,10 @@ function writeRegistry(registry) {
   const storage = getStorage();
   const payload = { ...registry, version: REGISTRY_VERSION, updatedAt: new Date().toISOString() };
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const serialized = JSON.stringify(payload);
+    storage.setItem(STORAGE_KEY, serialized);
     const check = storage.getItem(STORAGE_KEY);
-    if (!check) throw new Error('El navegador no confirmó la escritura del registro.');
-    const verified = JSON.parse(check);
-    if (verified.activeLotId !== payload.activeLotId || verified.lots.length !== payload.lots.length) {
-      throw new Error('La verificación del registro persistido no coincide con los datos enviados.');
-    }
+    if (check !== serialized) throw new Error('La verificación del registro persistido no coincide con los datos enviados.');
   } catch (error) {
     throw new Error('No se pudo guardar el lote de forma persistente: ' + error.message);
   }
