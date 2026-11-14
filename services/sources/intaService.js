@@ -3,7 +3,7 @@
  * Proporciona información edafológica y cartografía de suelos con almacenamiento en caché (localStorage) y tolerancia a fallos.
  */
 
-const CACHE_PREFIX = 'agro_cache_inta_';
+const CACHE_PREFIX = 'agro_cache_inta_v2_';
 const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 horas de vigencia de datos de suelo de INTA
 
 /**
@@ -34,8 +34,9 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       if (Date.now() - timestamp < CACHE_EXPIRY && (origin === 'wms' || origin === 'regional')) {
         return {
           ...data,
+          escala: origin === 'wms' ? 'No informada por la respuesta WMS' : 'Regional (escala no informada)',
           fuente: origin === 'wms'
-            ? 'INTA Cartografía Oficial (WMS · caché local)'
+            ? 'INTA Cartografía (WMS · caché local)'
             : 'INTA / Cartografía Regional Subregional (caché local)',
           cached: true,
           fallback: origin === 'regional'
@@ -67,10 +68,13 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
     });
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-    const response = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    let response;
+    try {
+      response = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
     const geoJson = await response.json();
