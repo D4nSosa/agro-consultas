@@ -94,3 +94,10 @@ test('placeholders de suelo no cuentan como evidencia edáfica disponible',()=>{
  assert.ok(result.datosFaltantes.some(item=>item.toLowerCase().includes('cartografía edáfica')));
  assert.equal(result.calidadEvidencia,'PARCIAL');
 });
+
+test('rechaza componentes MultiPolygon superpuestos o en contacto',()=>{
+ const overlapping={type:'MultiPolygon',coordinates:[square(0,0,2,2).coordinates,square(1,1,3,3).coordinates]};
+ const touching={type:'MultiPolygon',coordinates:[square(0,0,1,1).coordinates,square(1,0,2,1).coordinates]};
+ assert.equal(geo.validateGeoJSON(overlapping).valid,false);
+ assert.equal(geo.validateGeoJSON(touching).valid,false);
+});
