@@ -116,8 +116,12 @@ export function calculateCentroid(input) {
  */
 export function getBoundingBox(input) {
   const geom=unwrapFeature(input);if(!geom)return null;
+  if(geom.type==='Point'&&Array.isArray(geom.coordinates)){
+    const delta=0.01,lon=geom.coordinates[0],lat=geom.coordinates[1];
+    return[Math.max(-180,lon-delta),Math.max(-90,lat-delta),Math.min(180,lon+delta),Math.min(90,lat+delta)];
+  }
   const points=[];const walk=value=>{if(Array.isArray(value)&&typeof value[0]==='number')points.push(value);else if(Array.isArray(value))value.forEach(walk);};
-  walk(geom.type==='Point'?[geom.coordinates]:geom.coordinates);
+  walk(geom.coordinates);
   if(!points.length||points.some(p=>!Number.isFinite(p[0])||!Number.isFinite(p[1])))return null;
   const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
 }
@@ -133,7 +137,7 @@ export function exportToKML(input,name='Lote Forestal') {
   let body='';if(geom.type==='Point')body='<Point><coordinates>'+geom.coordinates[0]+','+geom.coordinates[1]+',0</coordinates></Point>';
   else if(geom.type==='LineString')body='<LineString><coordinates>'+ring(geom.coordinates)+'</coordinates></LineString>';
   else if(geom.type==='Polygon')body=poly(geom.coordinates);else if(geom.type==='MultiPolygon')body='<MultiGeometry>'+geom.coordinates.map(poly).join('')+'</MultiGeometry>';
-  return'<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+esc(name)+'</name><Placemark><name>'+esc(name)+'</name>'+body+'</Placemark></Document></kml>';
+  return'<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+esc(name)+'</name><Style id="lotStyle"><LineStyle><color>ff27ae60</color><width>3</width></LineStyle><PolyStyle><color>402ecc71</color></PolyStyle></Style><Placemark><name>'+esc(name)+'</name><styleUrl>#lotStyle</styleUrl>'+body+'</Placemark></Document></kml>';
 }
 
 /**
