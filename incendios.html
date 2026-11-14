@@ -143,7 +143,7 @@ async function refresh(){
    if(!payload||!Array.isArray(payload.features))throw Error('Respuesta sin colección GeoJSON válida.');
    const features=payload.features.filter(feature=>{
     const c=feature?.geometry?.coordinates;
-    return feature?.geometry?.type==='Point'&&Array.isArray(c)&&c.length>=2&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1]))&&Math.abs(Number(c[0]))<=180&&Math.abs(Number(c[1]))<=90;
+    return feature?.type==='Feature'&&feature?.properties&&typeof feature.properties==='object'&&feature?.geometry?.type==='Point'&&Array.isArray(c)&&c.length>=2&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1]))&&Math.abs(Number(c[0]))<=180&&Math.abs(Number(c[1]))<=90;
    });
    return{...payload,features};
   }finally{clearTimeout(timer);}
