@@ -111,7 +111,7 @@
         Inteligencia Territorial Agropecuaria y Forestal
       </h1>
       <p class="lead" style="font-size: 1.02rem; color: var(--texto-secundario); max-width: 900px; margin-bottom: 25px; line-height: 1.6;">
-        Agro Consultas es el sistema integral de soporte a decisiones agroeconómicas y forestales de Argentina. Integra cartografía territorial, información edáfica, variables meteorológicas y observaciones satelitales de fuentes públicas. Cada consulta debe distinguir datos puntuales, referencias regionales y variables no disponibles para que los resultados puedan interpretarse según su escala y procedencia.
+        Agro Consultas reúne herramientas de apoyo a decisiones agropecuarias, forestales y territoriales en Argentina. Integra cartografía territorial, información edáfica, variables meteorológicas y observaciones satelitales de fuentes públicas. Cada consulta debe distinguir datos puntuales, referencias regionales y variables no disponibles para que los resultados puedan interpretarse según su escala y procedencia.
       </p>
 
       <div style="margin:0 0 22px"><a href="mapa.html" class="btn primary" style="display:inline-block;padding:13px 28px;font-weight:700;font-size:1rem">Iniciar →</a><p style="font-size:.85rem;color:var(--texto-secundario);margin:8px 0 0">Seleccioná tu lote para comenzar y compartir el territorio entre los módulos.</p></div>
@@ -145,7 +145,7 @@
                   <div style="font-size: 2.2rem; margin-bottom: 10px;">🌲</div>
                   <h3 style="margin-top: 0; font-size: 1.22rem; color: #2980b9; font-weight: 700;">2. Módulo Forestal y Teledetección Satelital</h3>
                   <p style="font-size: 0.9rem; color: var(--texto-secundario); line-height: 1.5; margin-bottom: 18px;">
-                    Monitoreo multitemporal de lotes forestales utilizando imágenes multiespectrales reales de Sentinel-2 L2A (AWS Earth Search STAC), cálculo de área foliar/NDVI, inventario dasométrico ($m^3/ha$), bosques nativos OTBN y fotografías de campo.
+                    Monitoreo multitemporal de lotes forestales utilizando imágenes multiespectrales reales de Sentinel-2 L2A (AWS Earth Search STAC), índices de vegetación como NDVI, inventario dasométrico ($m^3/ha$), bosques nativos OTBN y fotografías de campo.
                   </p>
                 </div>
                 <a href="forestal.html" class="btn primary" style="background: #2980b9; border-color: #2980b9; width: 100%; text-align: center; font-size: 0.9rem; padding: 11px; font-weight: 700;">
@@ -204,7 +204,7 @@
     <!-- Preguntas Frecuentes (FAQ) en Acordeón Plegable -->
     <section class="card" style="padding: 28px; margin-bottom: 25px;">
       <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem; margin-bottom: 18px; display: flex; align-items: center; gap: 10px;">
-        <span>💡</span> Preguntas Frecuentes (FAQ) sobre Fuentes Oficiales y Precisión
+        <span>💡</span> Preguntas frecuentes sobre datos, cobertura y metodología
       </h2>
 
       <div class="faq-accordion">
@@ -223,7 +223,7 @@
         </details>
 
         <details class="faq-item">
-          <summary class="faq-question">¿Cuáles son las fuentes de datos oficiales integradas?</summary>
+          <summary class="faq-question">¿Qué fuentes y servicios se consultan?</summary>
           <div class="faq-answer">
             La plataforma integra servicios y conjuntos de datos públicos, entre ellos: <strong>INTA</strong> (consulta WMS de suelos cuando hay cobertura y servicios forestales disponibles), <strong>IGN</strong> (Argenmap y límites políticos), <strong>NASA POWER</strong> (series y climatología de referencia), <strong>Open-Meteo</strong> (meteorología) y <strong>AWS Earth Search STAC</strong> (escenas Sentinel-2 L2A). Los perfiles de subregión incluidos en el catálogo interno son referencias de Agro Consultas y actualmente no tienen una fuente primaria documentada en cada registro; no deben confundirse con cartografía oficial ni con mediciones de lote.
           </div>
@@ -266,7 +266,7 @@
 
       <ol style="font-size: 0.85rem; line-height: 1.6; color: var(--texto-principal); padding-left: 20px; margin-bottom: 20px;">
         <li style="margin-bottom: 8px;">
-          <strong>Seleccioná un Módulo</strong> — Elegí entre <em>Aptitud de Cultivos</em>, <em>Módulo Forestal</em> o <em>Tracking GPS</em>.
+          <strong>Seleccioná un Módulo</strong> — Elegí entre <em>Aptitud de Cultivos</em>, <em>Módulo Forestal</em>, <em>Tracking GPS</em> o <em>Radar de Incendios</em>.
         </li>
         <li style="margin-bottom: 8px;">
           <strong>Ingresá la Ubicación o Lote</strong> — Usá el buscador, tu GPS o caminá el perímetro de tu campo.
@@ -287,7 +287,7 @@
     <div class="card" style="max-width: 650px; width: 100%; max-height: 85vh; overflow-y: auto; position: relative; padding: 25px;">
       <button onclick="document.getElementById('comoFuncionaModal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--texto-principal);">✕</button>
 
-      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem;">ℹ️ Metodología y Fuentes Oficiales</h2>
+      <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem;">ℹ️ Metodología y fuentes de datos</h2>
 
       <div style="font-size: 0.85rem; line-height: 1.5; color: var(--texto-principal); margin-bottom: 15px;">
         <p>Agro Consultas integra servicios geoespaciales y conjuntos de datos públicos. La cobertura y la escala pueden variar según la ubicación y la disponibilidad de cada proveedor:</p>
