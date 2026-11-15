@@ -211,7 +211,7 @@
         <details class="faq-item">
           <summary class="faq-question">¿Cuál es el compromiso de veracidad de datos de la plataforma?</summary>
           <div class="faq-answer">
-            Agro Consultas cumple con la regla estricta de <strong>Cero Datos Inventados o Simulados</strong>. Si un dato ambiental no se encuentra disponible en las APIs oficiales de INTA o NASA POWER para las coordenadas seleccionadas, la plataforma lo indica de forma transparente como <em>"Información pendiente de verificación"</em> o <em>"Dato no disponible"</em> en lugar de mostrar promedios o estadísticas artificiales.
+            La plataforma prioriza datos provenientes de fuentes identificables y distingue las consultas puntuales de las referencias regionales. Cuando una variable no está disponible, la cobertura no alcanza o una fuente no responde, el resultado debe indicarlo. Los perfiles regionales son referencias y no mediciones del lote.
           </div>
         </details>
 
@@ -232,7 +232,7 @@
         <details class="faq-item">
           <summary class="faq-question">¿Cómo se filtran los cultivos recomendados para mi zona?</summary>
           <div class="faq-answer">
-            El motor de evaluación analiza la ubicación geográfica seleccionada y cruza la oferta edáfica y climática local con los requerimientos agronómicos del catálogo oficial (44 especies). Muestra únicamente los cultivos agronómicamente aptos y recomendados para la provincia o subregión, omitiendo fichas no aplicables a tu área.
+            El motor utiliza la ubicación, el perfil agroambiental disponible y los requerimientos de las fichas de cultivo para evaluar candidatos. Cuando las variables comparables o la escala de los datos no alcanzan para sostener una clasificación, el resultado debe quedar pendiente de verificación. Una referencia regional no equivale a un diagnóstico del lote.
           </div>
         </details>
 
@@ -290,10 +290,10 @@
       <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.4rem;">ℹ️ Metodología y Fuentes Oficiales</h2>
 
       <div style="font-size: 0.85rem; line-height: 1.5; color: var(--texto-principal); margin-bottom: 15px;">
-        <p>Agro Consultas integra información geoespacial oficial pública:</p>
+        <p>Agro Consultas integra servicios geoespaciales y conjuntos de datos públicos. La cobertura y la escala pueden variar según la ubicación y la disponibilidad de cada proveedor:</p>
 
         <ul>
-          <li><strong>Cartografía de Suelos:</strong> WMS INTA 1:50.000.</li>
+          <li><strong>Cartografía de Suelos:</strong> servicios WMS de INTA cuando responden y perfiles regionales cuando corresponde; la escala se informa según la fuente disponible.</li>
           <li><strong>Climatología:</strong> NASA POWER API (Series 2001-2020) y Open-Meteo.</li>
           <li><strong>Satelital:</strong> AWS Earth Search (Sentinel-2 L2A STAC).</li>
           <li><strong>Límites Oficiales:</strong> Instituto Geográfico Nacional (IGN).</li>
