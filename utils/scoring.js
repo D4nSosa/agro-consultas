@@ -45,6 +45,15 @@ export function calcularCompatibilidad(crop, soil, climate) {
 
   const reqSuelo = crop.requerimientos?.suelo || {};
   const reqClima = crop.requerimientos?.clima || {};
+  const hasPhRequirement = reqSuelo.phMin !== undefined && reqSuelo.phMin !== null &&
+    reqSuelo.phMax !== undefined && reqSuelo.phMax !== null;
+  const hasTextureRequirement = Array.isArray(reqSuelo.texturas) && reqSuelo.texturas.length > 0;
+  const hasDrainageRequirement = Array.isArray(reqSuelo.drenaje) && reqSuelo.drenaje.length > 0;
+  const hasTemperatureRequirement = reqClima.temperaturaMin !== undefined && reqClima.temperaturaMin !== null &&
+    reqClima.temperaturaMax !== undefined && reqClima.temperaturaMax !== null;
+  const hasPrecipitationRequirement = reqClima.precipitacionMin !== undefined && reqClima.precipitacionMin !== null;
+  const soilRequiredComparisons = [hasPhRequirement, hasTextureRequirement, hasDrainageRequirement].filter(Boolean).length;
+  const climateRequiredComparisons = [hasTemperatureRequirement, hasPrecipitationRequirement].filter(Boolean).length;
 
   let deficienciasSeveras = 0;
   let deficienciasModeradas = 0;
@@ -209,7 +218,9 @@ export function calcularCompatibilidad(crop, soil, climate) {
   const climateStatus = String(climate?.climatologyStatus || climate?.status || '').toUpperCase();
   const hasComparableEvidence = soilStatus === 'REAL' && climateStatus === 'REAL' &&
     isSoilAvailable && isClimateAvailable &&
-    soilComparisons > 0 && climateComparisons > 0;
+    soilRequiredComparisons > 0 && climateRequiredComparisons > 0 &&
+    soilComparisons >= soilRequiredComparisons &&
+    climateComparisons >= climateRequiredComparisons;
 
   const profileText = String(soil?.aptitud || '').toLowerCase();
   const cropName = String(crop?.nombre || '').toLowerCase();
@@ -252,8 +263,10 @@ export function calcularCompatibilidad(crop, soil, climate) {
   } else {
     if (soilStatus !== 'REAL') datosFaltantes.push('Dato edáfico puntual de fuente identificada; el perfil regional no alcanza para clasificar aptitud.');
     if (climateStatus !== 'REAL') datosFaltantes.push('Climatología histórica puntual de fuente identificada.');
-    if (soilComparisons === 0) datosFaltantes.push('Variables de suelo comparables con los requerimientos del cultivo.');
-    if (climateComparisons === 0) datosFaltantes.push('Variables de climatología histórica comparables con los requerimientos del cultivo.');
+    if (soilComparisons < soilRequiredComparisons) datosFaltantes.push('Faltan una o más variables edáficas requeridas por la ficha del cultivo.');
+    if (climateComparisons < climateRequiredComparisons) datosFaltantes.push('Faltan una o más variables climatológicas requeridas por la ficha del cultivo.');
+    if (soilRequiredComparisons === 0) datosFaltantes.push('La ficha del cultivo no declara requerimientos edáficos estructurados para comparar.');
+    if (climateRequiredComparisons === 0) datosFaltantes.push('La ficha del cultivo no declara requerimientos climatológicos estructurados para comparar.');
   }
 
   let calidadEvidencia = 'DATOS PARCIALES';
