@@ -788,6 +788,18 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
       cultivosAEvaluar = await getCropsToEvaluate(key, subregion);
     }
 
+    if (!cultivosAEvaluar.length) {
+      lastRecommendationsCache = [];
+      container.innerHTML = `
+        <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
+          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌱</span>
+          <h3>No hay candidatos territoriales para esta ubicación</h3>
+          <p class="text-muted">No se encontró un perfil de cultivos aplicable a la provincia o subregión seleccionada. No se mostrarán cultivos del catálogo nacional como si fueran recomendaciones locales.</p>
+        </div>`;
+      actualizarCapaAptitudMapa([], lat, lng);
+      return;
+    }
+
     const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateEvidenceForScoring);
     lastRecommendationsCache = recomendaciones;
 
@@ -797,23 +809,13 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 
   } catch (err) {
     console.error("ERROR in renderRecomendaciones:", err);
-    // En caso de error parcial en servicios externos, evaluar los cultivos de forma segura con datos suplementarios
-    try {
-      const cropCatalog = await getCropCatalog();
-      const cultivosAEvaluar = Object.values(cropCatalog).map(item => item.nombre || item.id);
-      const fallbackSoil = { status: 'UNAVAILABLE', message: 'Datos de suelo en verificación' };
-      const fallbackClimate = { status: 'UNAVAILABLE', message: 'Datos climáticos en verificación' };
-      const recomendaciones = await generateRecommendations(cultivosAEvaluar, fallbackSoil, fallbackClimate);
-      renderRecommendationsCards(recomendaciones, fallbackSoil, fallbackClimate, null);
-    } catch (e) {
-      container.innerHTML = `
-        <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px; border-left: 4px solid #f39c12;">
-          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌾</span>
-          <h3>Información Agroambiental en Proceso de Carga</h3>
-          <p class="text-muted" style="font-size:0.88rem;">Seleccioná un punto específico en el mapa para actualizar el análisis territorial de cultivos.</p>
-        </div>
-      `;
-    }
+    lastRecommendationsCache = [];
+    container.innerHTML = `
+      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">⚠️</span>
+        <h3>No se pudo completar la evaluación territorial</h3>
+        <p class="text-muted" style="font-size:0.88rem;">Una o más fuentes o servicios no respondieron. No se reemplazará la ubicación seleccionada por recomendaciones genéricas. Reintentá la consulta más tarde.</p>
+      </div>`;
   }
 }
 
