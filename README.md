@@ -5,7 +5,7 @@ Agro-Consultas es un desarrollo independiente orientado a explorar información 
 **Demo pública:** https://agro-consultas.vercel.app  
 **Repositorio:** https://github.com/D4nSosa/agro-consultas
 
-> Estado de referencia: documentación revisada el 14 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
+> Estado de referencia: documentación revisada el 15 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
 
 ## Alcance y estado de los módulos
 
