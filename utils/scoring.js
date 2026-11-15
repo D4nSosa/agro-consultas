@@ -8,7 +8,8 @@ export const AptitudCategoria = {
   ALTA: 'APTITUD ALTA',
   MEDIA: 'APTITUD MEDIA (PRESENTA LIMITANTES)',
   BAJA: 'APTITUD BAJA (LIMITACIONES SEVERAS)',
-  NO_EVALUABLE: 'INFORMACIÓN PENDIENTE DE VERIFICACIÓN'
+  NO_EVALUABLE: 'INFORMACIÓN PENDIENTE DE VERIFICACIÓN',
+  REGIONAL: 'EVALUACIÓN REGIONAL (NO CONCLUYENTE)'
 };
 
 /**
@@ -194,33 +195,43 @@ export function calcularCompatibilidad(crop, soil, climate) {
     };
   }
 
-  let categoria = AptitudCategoria.ALTA;
-  let nivelAptitud = 'ALTA';
+  // Los valores regionales describen una zona de referencia, no una medición del punto.
+  // No deben convertirse automáticamente en "limitaciones moderadas" ni en aptitud alta/baja.
+  const soilEvidenceStatus = String(soil?.status || '').toUpperCase();
+  const climateEvidenceStatus = String(climate?.climatologyStatus || climate?.status || '').toUpperCase();
+  const hasLocalEvidence = soilEvidenceStatus === 'REAL' && climateEvidenceStatus === 'REAL';
 
-  if (deficienciasSeveras > 0) {
-    categoria = AptitudCategoria.BAJA;
-    nivelAptitud = 'BAJA';
-  } else if (deficienciasModeradas > 0 || !isSoilAvailable || !isClimateAvailable) {
-    categoria = AptitudCategoria.MEDIA;
-    nivelAptitud = 'MEDIA';
+  let categoria = AptitudCategoria.REGIONAL;
+  let nivelAptitud = 'REGIONAL';
+
+  if (hasLocalEvidence) {
+    categoria = AptitudCategoria.ALTA;
+    nivelAptitud = 'ALTA';
+    if (deficienciasSeveras > 0) {
+      categoria = AptitudCategoria.BAJA;
+      nivelAptitud = 'BAJA';
+    } else if (deficienciasModeradas > 0) {
+      categoria = AptitudCategoria.MEDIA;
+      nivelAptitud = 'MEDIA';
+    }
   }
 
   const soilSt = (soil?.status || '').toUpperCase();
   const climSt = (climate?.status || '').toUpperCase();
 
-  let calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
+  let calidadEvidencia = 'BAJA (CONTEXTO REGIONAL; NO CONCLUYENTE)';
   if (!isSoilAvailable || !isClimateAvailable) {
     calidadEvidencia = 'PARCIAL';
-  } else if (soilSt === 'REAL' && climSt === 'REAL') {
+  } else if (soilSt === 'REAL' && climateEvidenceStatus === 'REAL') {
     calidadEvidencia = 'ALTA (DATOS LOCALES VERIFICADOS)';
   } else {
-    calidadEvidencia = 'MEDIA (CONTEXTO REGIONAL)';
+    calidadEvidencia = 'BAJA (CONTEXTO REGIONAL; NO CONCLUYENTE)';
   }
 
   return {
     categoria: categoria,
     nivelAptitud: nivelAptitud,
-    motivos: motivos.length > 0 ? motivos : ["Condiciones agroambientales registradas compatibles."],
+    motivos: motivos.length > 0 ? motivos : ["No hay evidencia local suficiente para afirmar compatibilidad."],
     riesgos: riesgos,
     datosFaltantes: datosFaltantes,
     calidadEvidencia: calidadEvidencia
