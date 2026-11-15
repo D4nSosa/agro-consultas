@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { calcularCompatibilidad, AptitudCategoria } from '../utils/scoring.js';
 import { getCropsToEvaluate } from '../services/recommendationEngine.js';
 
-test('el contexto regional no se etiqueta como limitación moderada', () => {
+test('los perfiles agroambientales permiten clasificar cultivos sin una etiqueta regional genérica', () => {
   const crop = {
     nombre: 'Naranja',
     requerimientos: {
@@ -12,16 +12,25 @@ test('el contexto regional no se etiqueta como limitación moderada', () => {
       clima: { temperaturaMin: 15, temperaturaMax: 28, precipitacionMin: 900 }
     }
   };
-  const soil = { status: 'REGIONAL', textura: 'arenosa', drenaje: 'bueno', tipo: 'Alfisol' };
+  const soil = {
+    status: 'REGIONAL',
+    textura: 'arenosa',
+    drenaje: 'bueno',
+    tipo: 'Alfisol',
+    aptitud: 'Alta para Yerba Mate, Té, Citrus, Pino Elliottii y Eucalyptus Grandis'
+  };
   const climate = {
-    status: 'REAL',
+    status: 'REGIONAL',
     climatologyStatus: 'REGIONAL',
     temperaturaMediaVal: 21,
     precipitacionesAnualesVal: 1400,
     heladas: 'Riesgo muy bajo'
   };
   const result = calcularCompatibilidad(crop, soil, climate);
-  assert.equal(result.categoria, AptitudCategoria.REGIONAL);
+  assert.equal(result.categoria, AptitudCategoria.MEDIA);
+  assert.ok(!String(result.categoria).includes('REGIONAL'));
+  assert.ok(result.motivos.some(reason => reason.includes('zona agroambiental')));
+  assert.ok(result.riesgos.some(reason => reason.includes('Textura arenosa')));
 });
 
 test('la evaluación local puede distinguir limitaciones medidas', () => {
