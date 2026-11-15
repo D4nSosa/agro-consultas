@@ -104,7 +104,7 @@ test('no asigna aptitud alta cuando el perfil regional no identifica el cultivo'
   };
   const result = calcularCompatibilidad(crop, soil, climate);
   assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
-  assert.ok(result.datosFaltantes.some(item => item.includes('no identifica este cultivo')));
+  assert.ok(result.datosFaltantes.some(item => item.includes('Dato edáfico puntual')));
 });
 
 test('no asigna aptitud alta cuando faltan comparaciones edáficas o climáticas', () => {
@@ -163,4 +163,24 @@ test('no confunde la sílaba te dentro de otras palabras con el cultivo Té', ()
   };
   const result = calcularCompatibilidad(crop, soil, climate);
   assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
+});
+
+test('no clasifica si falta una variable climática requerida por la ficha', () => {
+  const crop = {
+    nombre: 'Maíz',
+    requerimientos: {
+      suelo: { texturas: ['franca'], drenaje: ['bueno'] },
+      clima: { temperaturaMin: 15, temperaturaMax: 32, precipitacionMin: 600 }
+    }
+  };
+  const soil = { status: 'REAL', textura: 'franca', drenaje: 'bueno', tipo: 'Molisol' };
+  const climate = {
+    status: 'REAL',
+    climatologyStatus: 'REAL',
+    temperaturaMediaVal: 23,
+    precipitacionesAnualesVal: null
+  };
+  const result = calcularCompatibilidad(crop, soil, climate);
+  assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
+  assert.ok(result.datosFaltantes.some(item => item.includes('climatológicas requeridas')));
 });
