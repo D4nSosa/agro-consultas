@@ -60,7 +60,31 @@ export async function getCropCatalog() {
  * @param {string} [provinciaKey] - Clave opcional de la provincia.
  * @returns {Promise<Array<string>>} Lista de nombres de cultivos a evaluar.
  */
-export async function getCropsToEvaluate(provinciaKey = null) {
+const REGIONAL_CROP_ALIASES = {
+  naranja: ['naranja', 'citrus', 'citricos'],
+  mandarina: ['mandarina', 'citrus', 'citricos'],
+  limon: ['limon', 'citrus', 'citricos'],
+  'pino taeda': ['pino', 'taeda'],
+  'pino elliottii': ['pino', 'elliottii'],
+  'eucalyptus grandis': ['eucalyptus', 'eucalipto', 'grandis'],
+  'yerba mate': ['yerba mate'],
+  te: ['te', 'camellia'],
+  arroz: ['arroz']
+};
+
+function cropIsNamedByRegionalProfile(cropName, regionalText) {
+  const profile = normalizeKey(regionalText || '');
+  const crop = normalizeKey(cropName || '');
+  if (!profile || !crop) return false;
+  const aliases = REGIONAL_CROP_ALIASES[crop] || [crop];
+  return aliases.some(alias => profile.includes(normalizeKey(alias)));
+}
+
+/**
+ * Devuelve candidatos provinciales y, si hay un perfil subregional explícito,
+ * prioriza solo los cultivos mencionados en él. Esto no afirma aptitud puntual.
+ */
+export async function getCropsToEvaluate(provinciaKey = null, subregion = null) {
   const cropCatalog = await getCropCatalog();
   if (provinciaKey) {
     const provKeyNorm = normalizeKey(provinciaKey);
@@ -82,6 +106,13 @@ export async function getCropsToEvaluate(provinciaKey = null) {
           }
         });
         if (nombresValidos.length > 0) {
+          const regionalProfile = subregion?.suelo?.aptitud || '';
+          if (regionalProfile.trim()) {
+            const regionalCandidates = nombresValidos.filter(name =>
+              cropIsNamedByRegionalProfile(name, regionalProfile)
+            );
+            if (regionalCandidates.length > 0) return regionalCandidates;
+          }
           return nombresValidos;
         }
       }
