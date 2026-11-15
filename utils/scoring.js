@@ -198,7 +198,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   // Los valores regionales describen una zona de referencia, no una medición del punto.
   // No deben convertirse automáticamente en "limitaciones moderadas" ni en aptitud alta/baja.
   const soilEvidenceStatus = String(soil?.status || '').toUpperCase();
-  const climateEvidenceStatus = String(climate?.climatologyStatus || climate?.status || '').toUpperCase();
+  const climateEvidenceStatus = String(climate?.climatologyStatus || 'UNAVAILABLE').toUpperCase();
   const hasLocalEvidence = soilEvidenceStatus === 'REAL' && climateEvidenceStatus === 'REAL';
 
   let categoria = AptitudCategoria.REGIONAL;
