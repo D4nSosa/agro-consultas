@@ -226,7 +226,11 @@ export function calcularCompatibilidad(crop, soil, climate) {
     'eucalyptus grandis': ['eucalyptus grandis', 'eucalipto grandis']
   };
   const aliases = cropAliases[cropName] || [cropName];
-  const namedInZoneProfile = aliases.some(alias => profileText.includes(alias));
+  const normalizedProfile = profileText.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const namedInZoneProfile = aliases.some(alias => {
+    const normalizedAlias = alias.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    return normalizedAlias && ((' ' + normalizedProfile + ' ').includes(' ' + normalizedAlias + ' '));
+  });
   const reliesOnRegionalEvidence = soilStatus === 'REGIONAL' || climateStatus === 'REGIONAL';
 
   if (namedInZoneProfile) {
