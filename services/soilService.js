@@ -67,7 +67,7 @@ export async function getSoilReport(lat, lng, subregionStaticSuelo = null) {
     ph: baseSoil.ph !== undefined && baseSoil.ph !== null ? baseSoil.ph : 'NO DISPONIBLE',
     escala: baseSoil.escala || 'NO INFORMADA',
     status: baseSoil.status || (subregionStaticSuelo ? 'REGIONAL' : 'UNAVAILABLE'),
-    confidence: baseSoil.confidence || (subregionStaticSuelo ? 'medium' : 'none'),
+    confidence: baseSoil.confidence || (subregionStaticSuelo ? 'low' : 'none'),
     fuente: baseSoil.fuente || (subregionStaticSuelo ? 'Perfil agroambiental de referencia de Agro Consultas (sin fuente primaria asociada)' : 'Fuente no disponible')
   };
 }
