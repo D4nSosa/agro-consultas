@@ -225,7 +225,7 @@
         <details class="faq-item">
           <summary class="faq-question">¿Cuáles son las fuentes de datos oficiales integradas?</summary>
           <div class="faq-answer">
-            La plataforma integra servicios y conjuntos de datos públicos, entre ellos: <strong>INTA</strong> (GeoServer WMS de suelos y OTBN Ley 26.331), <strong>IGN</strong> (Argenmap y límites políticos), <strong>NASA POWER API</strong> (series climáticas climatológicas 2001-2020), <strong>Open-Meteo</strong> (clima en vivo y cálculo FWI) y <strong>AWS Earth Search STAC</strong> (escenas satelitales de Sentinel-2 L2A).
+            La plataforma integra servicios y conjuntos de datos públicos, entre ellos: <strong>INTA</strong> (consulta WMS de suelos cuando hay cobertura y servicios forestales disponibles), <strong>IGN</strong> (Argenmap y límites políticos), <strong>NASA POWER</strong> (series y climatología de referencia), <strong>Open-Meteo</strong> (meteorología) y <strong>AWS Earth Search STAC</strong> (escenas Sentinel-2 L2A). Los perfiles de subregión incluidos en el catálogo interno son referencias de Agro Consultas y actualmente no tienen una fuente primaria documentada en cada registro; no deben confundirse con cartografía oficial ni con mediciones de lote.
           </div>
         </details>
 
@@ -293,7 +293,7 @@
         <p>Agro Consultas integra servicios geoespaciales y conjuntos de datos públicos. La cobertura y la escala pueden variar según la ubicación y la disponibilidad de cada proveedor:</p>
 
         <ul>
-          <li><strong>Cartografía de Suelos:</strong> servicios WMS de INTA cuando responden y perfiles regionales cuando corresponde; la escala se informa según la fuente disponible.</li>
+          <li><strong>Cartografía de Suelos:</strong> consulta WMS de INTA cuando hay respuesta; en su defecto, perfil de referencia interno sin escala cartográfica ni fuente primaria asociada.</li>
           <li><strong>Climatología:</strong> NASA POWER API (Series 2001-2020) y Open-Meteo.</li>
           <li><strong>Satelital:</strong> AWS Earth Search (Sentinel-2 L2A STAC).</li>
           <li><strong>Límites Oficiales:</strong> Instituto Geográfico Nacional (IGN).</li>
