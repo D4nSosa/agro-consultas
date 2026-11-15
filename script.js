@@ -948,6 +948,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     !c.compatibilidad.includes("NO EVALUABLE") &&
     !c.compatibilidad.includes("DATOS INSUFICIENTES")
   );
+  const pendingCount = recomendaciones.length - filtradasReales.length;
 
   if (filtradasReales.length === 0) {
     container.innerHTML = `
@@ -1012,9 +1013,19 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       `;
     }
 
+    if (pendingCount > 0) {
+      html += `
+        <p class="text-muted" style="grid-column:1/-1;margin-top:12px;font-size:.82rem;">
+          ${pendingCount} candidato(s) quedaron sin clasificar porque la evidencia disponible no alcanza. No se muestran como aptos ni como no aptos.
+        </p>`;
+    }
     container.innerHTML = html;
   } else {
-    container.innerHTML = filtradasReales.map(createSingleRecommendationCardHtml).join('');
+    const cards = filtradasReales.map(createSingleRecommendationCardHtml).join('');
+    container.innerHTML = cards + (pendingCount > 0 ? `
+      <p class="text-muted" style="margin-top:12px;font-size:.82rem;">
+        El cultivo seleccionado no pudo clasificarse porque faltan variables comparables. No se asignó una categoría por defecto.
+      </p>` : '');
   }
 }
 
