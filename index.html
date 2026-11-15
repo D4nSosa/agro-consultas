@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Agro Consultas — Inteligencia Territorial Agropecuaria y Forestal</title>
 
-  <meta name="description" content="Plataforma de inteligencia territorial agropecuaria y forestal de Argentina. Evaluación de aptitud de cultivos, teledetección satelital Sentinel-2/Sentinel-1, WMS INTA 1:50.000, clima en vivo y tracking GPS de lotes sin datos inventados." />
+  <meta name="description" content="Plataforma de inteligencia territorial agropecuaria y forestal de Argentina. Evaluación de aptitud de cultivos, teledetección satelital Sentinel-2/Sentinel-1, cartografía de suelos INTA cuando está disponible, referencias agroambientales, clima y seguimiento GPS de lotes." />
   <meta name="keywords" content="agro consultas, inteligencia territorial, aptitud de cultivos, inta suelos, sentinel-2, tracking gps campo, teledeteccion forestal, mapa edafico argentina, otbn bosques nativos, fwi incendios, dante ivan sosa" />
   <meta name="author" content="Dante Iván Sosa" />
   <meta name="robots" content="index, follow" />
@@ -15,14 +15,14 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://agroconsultas.com.ar/" />
   <meta property="og:title" content="Agro Consultas — Inteligencia Territorial Agropecuaria y Forestal" />
-  <meta property="og:description" content="Sistema de soporte a decisiones agropecuarias, forestales e investigación territorial en Argentina con datos 100% oficiales de INTA, IGN, NASA POWER, Open-Meteo y Sentinel STAC." />
+  <meta property="og:description" content="Herramientas de análisis agropecuario, forestal y territorial que integran cartografía, observaciones meteorológicas y datos satelitales de fuentes públicas." />
   <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
   <meta property="og:locale" content="es_AR" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Agro Consultas — Inteligencia Territorial Agropecuaria y Forestal" />
-  <meta name="twitter:description" content="Evaluación de aptitud de cultivos, teledetección satelital e inventarios de campo con precisión micro-local sin datos inventados." />
+  <meta name="twitter:description" content="Evaluación agroambiental, teledetección satelital y herramientas de relevamiento de lotes." />
   <meta name="twitter:image" content="https://agroconsultas.com.ar/dwnl.png" />
 
   <!-- Schema.org Structured Data (JSON-LD) para Motores de Búsqueda e IA (GEO) -->
@@ -111,7 +111,7 @@
         Inteligencia Territorial Agropecuaria y Forestal
       </h1>
       <p class="lead" style="font-size: 1.02rem; color: var(--texto-secundario); max-width: 900px; margin-bottom: 25px; line-height: 1.6;">
-        Agro Consultas es el sistema integral de soporte a decisiones agroeconómicas y forestales de Argentina. Integra en tiempo real datos espacializados de fuentes oficiales públicas (INTA, IGN, Open-Meteo, NASA POWER, Sentinel-2 STAC y SAGyP) con escalas espaciales explícitas y trazabilidad de fuentes, ofreciendo evaluación de aptitud de cultivos, teledetección satelital e inventarios de campo bajo una estricta política de <strong>cero datos inventados</strong>.
+        Agro Consultas es el sistema integral de soporte a decisiones agroeconómicas y forestales de Argentina. Integra cartografía territorial, información edáfica, variables meteorológicas y observaciones satelitales de fuentes públicas. Cada consulta debe distinguir datos puntuales, referencias regionales y variables no disponibles para que los resultados puedan interpretarse según su escala y procedencia.
       </p>
 
       <div style="margin:0 0 22px"><a href="mapa.html" class="btn primary" style="display:inline-block;padding:13px 28px;font-weight:700;font-size:1rem">Iniciar →</a><p style="font-size:.85rem;color:var(--texto-secundario);margin:8px 0 0">Seleccioná tu lote para comenzar y compartir el territorio entre los módulos.</p></div>
@@ -129,7 +129,7 @@
                   <div style="font-size: 2.2rem; margin-bottom: 10px;">🌾</div>
                   <h3 style="margin-top: 0; font-size: 1.22rem; color: var(--verde-principal); font-weight: 700;">1. Aptitud de Cultivos y Análisis Territorial</h3>
                   <p style="font-size: 0.9rem; color: var(--texto-secundario); line-height: 1.5; margin-bottom: 18px;">
-                    Evaluación multicriterio de compatibilidad agroecológica ajustada a la oferta ambiental específica de tu provincia o municipio. Consulta cartografía de suelos INTA 1:50.000, clima en vivo, riesgo de incendios y recomendaciones regionales.
+                    Explorá la compatibilidad agroambiental de cultivos con las variables disponibles para la ubicación seleccionada. Consultá suelos, clima y referencias territoriales con indicación de su procedencia y escala.
                   </p>
                 </div>
                 <a href="resultados.html" class="btn primary" style="width: 100%; text-align: center; font-size: 0.9rem; padding: 11px; font-weight: 700;">
@@ -161,7 +161,7 @@
                   <div style="font-size: 2.2rem; margin-bottom: 10px;">🚶</div>
                   <h3 style="margin-top: 0; font-size: 1.22rem; color: #d35400; font-weight: 700;">3. Caminata y Tracking GPS en Campo</h3>
                   <p style="font-size: 0.9rem; color: var(--texto-secundario); line-height: 1.5; margin-bottom: 18px;">
-                    Herramienta mobile-first para medir el perímetro y trazado de tu lote mientras caminás la parcela. Registra vértices en tiempo real, calcula la superficie exacta en hectáreas y exporta archivos listos para app QField o GPS Garmin.
+                    Herramienta mobile-first para medir el perímetro y trazado de tu lote mientras caminás la parcela. Registra vértices en tiempo real, estima la superficie en hectáreas y exporta archivos listos para app QField o GPS Garmin.
                   </p>
                 </div>
                 <a href="tracking.html" class="btn primary" style="background: #e67e22; border-color: #e67e22; width: 100%; text-align: center; font-size: 0.9rem; padding: 11px; font-weight: 700;">
@@ -218,14 +218,14 @@
         <details class="faq-item">
           <summary class="faq-question">¿Qué nivel de precisión territorial y escalas geográficas maneja?</summary>
           <div class="faq-answer">
-            La plataforma aplica <strong>Precisión Micro-Local (100m - 500m)</strong> para el análisis de coordenadas de puntos y lotes. Integra cartografía nacional de suelos INTA a escala 1:50.000, límites departamentales IGN, y teledetección multiespectral Sentinel-2 a 10 metros de resolución espacial por píxel.
+            La precisión depende de la fuente y de la capa consultada. Algunas consultas utilizan datos puntuales; otras recurren a cartografía o perfiles regionales. Sentinel-2 ofrece bandas de distinta resolución espacial y no debe interpretarse como una medición directa de todas las variables del lote. La plataforma informa la procedencia y las limitaciones disponibles para cada consulta.
           </div>
         </details>
 
         <details class="faq-item">
           <summary class="faq-question">¿Cuáles son las fuentes de datos oficiales integradas?</summary>
           <div class="faq-answer">
-            Las fuentes son 100% públicas e interoperables: <strong>INTA</strong> (GeoServer WMS de suelos y OTBN Ley 26.331), <strong>IGN</strong> (Argenmap y límites políticos), <strong>NASA POWER API</strong> (series climáticas climatológicas 2001-2020), <strong>Open-Meteo</strong> (clima en vivo y cálculo FWI) y <strong>AWS Earth Search STAC</strong> (escenas satelitales de Sentinel-2 L2A).
+            La plataforma integra servicios y conjuntos de datos públicos, entre ellos: <strong>INTA</strong> (GeoServer WMS de suelos y OTBN Ley 26.331), <strong>IGN</strong> (Argenmap y límites políticos), <strong>NASA POWER API</strong> (series climáticas climatológicas 2001-2020), <strong>Open-Meteo</strong> (clima en vivo y cálculo FWI) y <strong>AWS Earth Search STAC</strong> (escenas satelitales de Sentinel-2 L2A).
           </div>
         </details>
 
