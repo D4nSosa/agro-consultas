@@ -108,10 +108,9 @@ export async function getCropsToEvaluate(provinciaKey = null, subregion = null) 
         if (nombresValidos.length > 0) {
           const regionalProfile = subregion?.suelo?.aptitud || '';
           if (regionalProfile.trim()) {
-            const regionalCandidates = nombresValidos.filter(name =>
+            return nombresValidos.filter(name =>
               cropIsNamedByRegionalProfile(name, regionalProfile)
             );
-            if (regionalCandidates.length > 0) return regionalCandidates;
           }
           return nombresValidos;
         }
