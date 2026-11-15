@@ -155,7 +155,7 @@
 
         <!-- Instrucciones en Campo -->
         <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-secundario);">
-          <strong>💡 Recomendación de Campo:</strong> Caminá por el borde o las esquinas de tu lote con el GPS activo en tu teléfono. Al regresar al punto de origen, cerrá el recorrido para calcular la superficie exacta.
+          <strong>💡 Recomendación de Campo:</strong> Caminá por el borde o las esquinas de tu lote con el GPS activo en tu teléfono. Al regresar al punto de origen, cerrá el recorrido para estimar la superficie a partir de las posiciones GPS registradas.
         </div>
       </div>
 
@@ -405,12 +405,12 @@
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
             <!-- Suelo INTA -->
             <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
-              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Propiedades del Suelo (INTA 1:50.000)</h4>
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Propiedades del Suelo (según cobertura disponible)</h4>
               <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
                 <div><strong>Tipo y Clasificación:</strong> ${soilReport.tipo || 'NO DISPONIBLE'}</div>
                 <div><strong>Textura:</strong> ${soilReport.textura || 'NO DISPONIBLE'}</div>
                 <div><strong>Drenaje:</strong> ${soilReport.drenaje || 'NO DISPONIBLE'}</div>
-                <div><strong>Limitantes:</strong> ${soilReport.limitantes || 'Sin limitantes severas detectadas'}</div>
+                <div><strong>Limitantes:</strong> ${soilReport.limitantes || 'No informado'}</div>
                 <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Fuente: ${soilReport.fuente}</div>
               </div>
             </div>

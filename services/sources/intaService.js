@@ -30,7 +30,8 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
           ...data,
           fuente: origin === 'wms'
             ? 'INTA Cartografía Oficial (WMS · caché local)'
-            : 'INTA / Cartografía Regional Subregional (caché local)',
+            : 'Perfil agroambiental de referencia de Agro Consultas (caché local; sin fuente primaria asociada)',
+          ...(origin === 'regional' ? { escala: 'Punto representativo de subregión (sin escala cartográfica)', confidence: 'low' } : {}),
           cached: true,
           fallback: origin === 'regional'
         };
@@ -79,7 +80,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
         limitantes: props.limitantes || props.LIMITATIONS || "No especificadas en capa WMS",
         aptitud: props.aptitud || props.APTITUDE || "No especificada en capa WMS",
         ph: rawPh !== undefined && rawPh !== null && !isNaN(parseFloat(rawPh)) ? parseFloat(rawPh) : null,
-        escala: "1:50.000 (WMS INTA)",
+        escala: "Escala no informada por la respuesta WMS; consultar metadatos de la capa",
         status: "REAL",
         confidence: "high",
         fechaActualizacion: new Date().toISOString()
@@ -104,9 +105,9 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
         limitantes: subregionStaticData.limitantes || "Sin información regional",
         aptitud: subregionStaticData.aptitud || "No disponible en cartografía regional",
         ph: subregionStaticData.ph !== undefined && subregionStaticData.ph !== null ? subregionStaticData.ph : null,
-        escala: "1:250.000 (Cartografía Regional INTA)",
+        escala: "Punto representativo de subregión (sin escala cartográfica)",
         status: "REGIONAL",
-        confidence: "medium",
+        confidence: "low",
         fechaActualizacion: new Date().toISOString()
       };
 
@@ -114,7 +115,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
         localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now(), origin: 'regional' }));
       } catch (e) {}
 
-      return { ...data, fuente: 'INTA / Cartografía Regional Subregional', cached: false, fallback: true };
+      return { ...data, fuente: 'Perfil agroambiental de referencia de Agro Consultas (sin fuente primaria asociada en el registro)', cached: false, fallback: true };
     }
 
     return {

@@ -110,6 +110,8 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
     estacionalidad: subregionStaticClima?.estacionalidad || "NO DISPONIBLE",
 
     status: overallStatus,
+    // La estación meteorológica actual no equivale a una serie climatológica histórica local.
+    climatologyStatus: subregionStaticClima ? DataStatus.REGIONAL : DataStatus.UNAVAILABLE,
     confidence: overallConfidence,
     fechaActualizacion: new Date().toISOString()
   };

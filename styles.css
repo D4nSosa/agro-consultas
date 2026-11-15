@@ -1005,18 +1005,70 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
     font-size: 0.62rem !important;
   }
   .app-header .right {
-    gap: 4px !important;
+    gap: 6px !important;
     width: 100%;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0 7px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
-  .app-header .btn {
-    padding: 6px 8px;
-    font-size: 0.72rem !important;
+  .app-header .right .btn,
+  .app-header .right button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 38px;
+    padding: 7px 9px;
+    font-size: 0.74rem !important;
   }
 }
 
 /* ============================================================================
    ESTILOS DE IMPRESIÓN Y GENERACIÓN DE INFORME PDF PROFESIONAL
    ============================================================================ */
+/* Ajustes responsive para tarjetas de aptitud y resultados */
+@media (max-width: 850px) {
+  .crop-card { min-width: 0; }
+  .crop-card-header { flex-wrap: wrap; align-items: flex-start; }
+  .crop-card-header > * { min-width: 0; }
+  .crop-grid-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  #crop-results, .crop-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .crop-card {
+    min-width: 0;
+    padding: 14px !important;
+  }
+  .crop-card > div:first-child {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .crop-card .compatibility-badge {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .crop-card > div:last-child {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .crop-grid-details {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .container { padding: 8px; }
+  .crop-card { padding: 12px !important; }
+  .app-header { flex-wrap: wrap; }
+  .app-header .right { flex-wrap: wrap; justify-content: flex-start; }
+}
+
 @media print {
   body {
     background: #ffffff !important;

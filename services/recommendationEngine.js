@@ -60,7 +60,31 @@ export async function getCropCatalog() {
  * @param {string} [provinciaKey] - Clave opcional de la provincia.
  * @returns {Promise<Array<string>>} Lista de nombres de cultivos a evaluar.
  */
-export async function getCropsToEvaluate(provinciaKey = null) {
+const REGIONAL_CROP_ALIASES = {
+  naranja: [['naranja'], ['citrus'], ['citricos']],
+  mandarina: [['mandarina'], ['citrus'], ['citricos']],
+  limon: [['limon'], ['citrus'], ['citricos']],
+  'pino taeda': [['pino', 'taeda']],
+  'pino elliottii': [['pino', 'elliottii']],
+  'eucalyptus grandis': [['eucalyptus', 'grandis'], ['eucalipto', 'grandis']],
+  'yerba mate': [['yerba', 'mate']],
+  te: [['te'], ['camellia']],
+  arroz: [['arroz']]
+};
+
+function cropIsNamedByRegionalProfile(cropName, regionalText) {
+  const profileWords = normalizeKey(regionalText || '').split(/[^a-z0-9]+/).filter(Boolean);
+  const crop = normalizeKey(cropName || '');
+  if (!profileWords.length || !crop) return false;
+  const aliasGroups = REGIONAL_CROP_ALIASES[crop] || [[crop]];
+  return aliasGroups.some(group => group.every(word => profileWords.includes(normalizeKey(word))));
+}
+
+/**
+ * Devuelve candidatos provinciales y, si hay un perfil subregional explícito,
+ * prioriza solo los cultivos mencionados en él. Esto no afirma aptitud puntual.
+ */
+export async function getCropsToEvaluate(provinciaKey = null, subregion = null) {
   const cropCatalog = await getCropCatalog();
   if (provinciaKey) {
     const provKeyNorm = normalizeKey(provinciaKey);
@@ -82,6 +106,12 @@ export async function getCropsToEvaluate(provinciaKey = null) {
           }
         });
         if (nombresValidos.length > 0) {
+          const regionalProfile = subregion?.suelo?.aptitud || '';
+          if (regionalProfile.trim()) {
+            return nombresValidos.filter(name =>
+              cropIsNamedByRegionalProfile(name, regionalProfile)
+            );
+          }
           return nombresValidos;
         }
       }
@@ -89,7 +119,8 @@ export async function getCropsToEvaluate(provinciaKey = null) {
       console.warn("Fallo al consultar provincias.json:", e);
     }
   }
-  return Object.values(cropCatalog).map(item => item.nombre || item.id);
+  // Nunca ampliar silenciosamente a todo el catálogo nacional cuando falta provincia o perfil.
+  return [];
 }
 
 /**
@@ -161,15 +192,17 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       const sostenibilidad = obtenerPracticasSostenibles(key);
 
       const soilStatus = (safeSoil?.status || '').toUpperCase();
-      const climateStatus = (safeClimate?.status || '').toUpperCase();
+      const climateStatus = String(safeClimate?.climatologyStatus || 'UNAVAILABLE').toUpperCase();
 
       const isUnavailable = soilStatus === 'UNAVAILABLE' || climateStatus === 'UNAVAILABLE';
-      const isBothReal = soilStatus === 'REAL' && climateStatus === 'REAL';
+      const isBothReal = soilStatus === 'REAL' && String(safeClimate?.climatologyStatus || '').toUpperCase() === 'REAL';
 
+      const bothRegional = soilStatus === 'REGIONAL' && climateStatus === 'REGIONAL';
+      const hasPartialEvidence = !isUnavailable && !isBothReal && !bothRegional;
       const labelConfianza = isUnavailable
-        ? 'Información pendiente de verificación'
-        : (isBothReal ? 'Datos locales verificados' : 'Contexto regional');
-      const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : 'medium');
+        ? 'Información histórica o edáfica insuficiente'
+        : (isBothReal ? 'Datos puntuales e históricos' : (bothRegional ? 'Referencias agroambientales regionales' : 'Evidencia mixta o parcial'));
+      const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : (hasPartialEvidence ? 'medium' : 'regional'));
 
       return {
         id: key,
