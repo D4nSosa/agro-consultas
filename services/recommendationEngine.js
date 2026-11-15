@@ -119,7 +119,8 @@ export async function getCropsToEvaluate(provinciaKey = null, subregion = null) 
       console.warn("Fallo al consultar provincias.json:", e);
     }
   }
-  return Object.values(cropCatalog).map(item => item.nombre || item.id);
+  // Nunca ampliar silenciosamente a todo el catálogo nacional cuando falta provincia o perfil.
+  return [];
 }
 
 /**
@@ -191,15 +192,17 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       const sostenibilidad = obtenerPracticasSostenibles(key);
 
       const soilStatus = (safeSoil?.status || '').toUpperCase();
-      const climateStatus = (safeClimate?.status || '').toUpperCase();
+      const climateStatus = String(safeClimate?.climatologyStatus || 'UNAVAILABLE').toUpperCase();
 
       const isUnavailable = soilStatus === 'UNAVAILABLE' || climateStatus === 'UNAVAILABLE';
       const isBothReal = soilStatus === 'REAL' && String(safeClimate?.climatologyStatus || '').toUpperCase() === 'REAL';
 
+      const bothRegional = soilStatus === 'REGIONAL' && climateStatus === 'REGIONAL';
+      const hasPartialEvidence = !isUnavailable && !isBothReal && !bothRegional;
       const labelConfianza = isUnavailable
-        ? 'Información pendiente de verificación'
-        : (isBothReal ? 'Datos puntuales e históricos' : 'Perfil agroambiental de la zona');
-      const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : 'medium');
+        ? 'Información histórica o edáfica insuficiente'
+        : (isBothReal ? 'Datos puntuales e históricos' : (bothRegional ? 'Referencias agroambientales regionales' : 'Evidencia mixta o parcial'));
+      const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : (hasPartialEvidence ? 'medium' : 'regional'));
 
       return {
         id: key,

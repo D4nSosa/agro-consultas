@@ -49,6 +49,54 @@ let lastRecommendationsCache = [];
 let lastSoilReportCache = null;
 let lastClimateReportCache = null;
 
+let climateHistoryCache = { key: null, promise: null, result: null };
+
+async function getClimateHistoryCached(lat, lng, months = 12) {
+  const key = `${Number(lat).toFixed(4)}:${Number(lng).toFixed(4)}:${months}`;
+  if (climateHistoryCache.key === key) {
+    if (climateHistoryCache.result) return climateHistoryCache.result;
+    if (climateHistoryCache.promise) return climateHistoryCache.promise;
+  }
+  const promise = getClimateHistory(lat, lng, months);
+  climateHistoryCache = { key, promise, result: null };
+  try {
+    const result = await promise;
+    if (climateHistoryCache.key === key) climateHistoryCache = { key, promise: null, result };
+    return result;
+  } catch (error) {
+    const result = { status: 'UNAVAILABLE', message: error.message, data: null };
+    if (climateHistoryCache.key === key) climateHistoryCache = { key, promise: null, result };
+    return result;
+  }
+}
+
+function buildClimateEvidenceForScoring(climateReport, climateHistory) {
+  const historical = climateHistory?.data?.historicalAverages || {};
+  const temperature = Number(historical.temperaturaMediaHistoricaC);
+  const precipitation = Number(historical.precipitacionMediaAnualMm);
+  const hasHistoricalValues = climateHistory?.status === 'REAL' &&
+    Number.isFinite(temperature) && Number.isFinite(precipitation);
+
+  if (!hasHistoricalValues) {
+    return {
+      ...climateReport,
+      temperaturaMediaVal: null,
+      precipitacionesAnualesVal: null,
+      climatologyStatus: 'UNAVAILABLE',
+      climatologySource: null
+    };
+  }
+
+  return {
+    ...climateReport,
+    temperaturaMediaVal: temperature,
+    precipitacionesAnualesVal: precipitation,
+    climatologyStatus: 'REAL',
+    climatologySource: 'NASA POWER',
+    climatologyBaseline: '2001–2020'
+  };
+}
+
 /**
  * Inicializa el mapa interactivo usando el MapViewer reutilizable
  */
@@ -544,7 +592,7 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
     </div>
   `;
 
-  const climateHistory = await getClimateHistory(lat, lng, months);
+  const climateHistory = await getClimateHistoryCached(lat, lng, months);
 
   if (climateHistory.status === 'UNAVAILABLE' || !climateHistory.data) {
     container.innerHTML = `
@@ -719,8 +767,12 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
     const provDetails = key ? await getProvinceDetails(key) : null;
     const subregion = key ? await findSubregion(key, lat, lng) : null;
 
-    const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
-    const climateReport = await getClimateData(lat, lng, provinciaRaw, subregion?.clima);
+    const [soilReport, climateReport, climateHistory] = await Promise.all([
+      getSoilReport(lat, lng, subregion?.suelo),
+      getClimateData(lat, lng, provinciaRaw, subregion?.clima),
+      getClimateHistoryCached(lat, lng, 12)
+    ]);
+    const climateEvidenceForScoring = buildClimateEvidenceForScoring(climateReport, climateHistory);
 
     const catalogo = await loadCultivosData();
     let cultivosAEvaluar = [];
@@ -736,7 +788,19 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
       cultivosAEvaluar = await getCropsToEvaluate(key, subregion);
     }
 
-    const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateReport);
+    if (!cultivosAEvaluar.length) {
+      lastRecommendationsCache = [];
+      container.innerHTML = `
+        <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
+          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌱</span>
+          <h3>No hay candidatos territoriales para esta ubicación</h3>
+          <p class="text-muted">No se encontró un perfil de cultivos aplicable a la provincia o subregión seleccionada. No se mostrarán cultivos del catálogo nacional como si fueran recomendaciones locales.</p>
+        </div>`;
+      actualizarCapaAptitudMapa([], lat, lng);
+      return;
+    }
+
+    const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateEvidenceForScoring);
     lastRecommendationsCache = recomendaciones;
 
     const filtradas = filtrarRecomendacionesPorCultivo(recomendaciones, selectedCropKey);
@@ -745,23 +809,13 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 
   } catch (err) {
     console.error("ERROR in renderRecomendaciones:", err);
-    // En caso de error parcial en servicios externos, evaluar los cultivos de forma segura con datos suplementarios
-    try {
-      const cropCatalog = await getCropCatalog();
-      const cultivosAEvaluar = Object.values(cropCatalog).map(item => item.nombre || item.id);
-      const fallbackSoil = { status: 'UNAVAILABLE', message: 'Datos de suelo en verificación' };
-      const fallbackClimate = { status: 'UNAVAILABLE', message: 'Datos climáticos en verificación' };
-      const recomendaciones = await generateRecommendations(cultivosAEvaluar, fallbackSoil, fallbackClimate);
-      renderRecommendationsCards(recomendaciones, fallbackSoil, fallbackClimate, null);
-    } catch (e) {
-      container.innerHTML = `
-        <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px; border-left: 4px solid #f39c12;">
-          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌾</span>
-          <h3>Información Agroambiental en Proceso de Carga</h3>
-          <p class="text-muted" style="font-size:0.88rem;">Seleccioná un punto específico en el mapa para actualizar el análisis territorial de cultivos.</p>
-        </div>
-      `;
-    }
+    lastRecommendationsCache = [];
+    container.innerHTML = `
+      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">⚠️</span>
+        <h3>No se pudo completar la evaluación territorial</h3>
+        <p class="text-muted" style="font-size:0.88rem;">Una o más fuentes o servicios no respondieron. No se reemplazará la ubicación seleccionada por recomendaciones genéricas. Reintentá la consulta más tarde.</p>
+      </div>`;
   }
 }
 
@@ -769,18 +823,19 @@ function createSingleRecommendationCardHtml(c) {
   let semaforoIcon = "🟢";
   let semaforoText = "Condiciones Favorables";
   let badgeClass = "badge-alta";
+  const compatibility = String(c.compatibilidad || '').toUpperCase();
 
-  if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
-    semaforoIcon = "🟡";
-    semaforoText = "Limitaciones Moderadas";
-    badgeClass = "badge-media";
-  } else if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
+  if (compatibility.includes("INFORMACIÓN PENDIENTE") || compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT")) {
+    semaforoIcon = "⚪";
+    semaforoText = "Evidencia Insuficiente";
+    badgeClass = "badge-origin no-disponible";
+  } else if (compatibility.includes("BAJA") || compatibility.includes("LIMITACIONES SEVERAS")) {
     semaforoIcon = "🔴";
     semaforoText = "Atención / Restricciones";
     badgeClass = "badge-baja";
-  } else if (c.compatibilidad.includes("INSUFFICIENT") || c.compatibilidad.includes("NO EVALUABLE")) {
-    semaforoIcon = "⚪";
-    semaforoText = "Evidencia Insuficiente";
+  } else if (compatibility.includes("MEDIA") || compatibility.includes("PRESENTA LIMITANTES")) {
+    semaforoIcon = "🟡";
+    semaforoText = "Limitaciones Moderadas";
     badgeClass = "badge-media";
   }
 
@@ -893,13 +948,14 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     !c.compatibilidad.includes("NO EVALUABLE") &&
     !c.compatibilidad.includes("DATOS INSUFICIENTES")
   );
+  const pendingCount = recomendaciones.length - filtradasReales.length;
 
   if (filtradasReales.length === 0) {
     container.innerHTML = `
       <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
-        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌱</span>
-        <h3>No se registraron cultivos específicos recomendados para la selección actual</h3>
-        <p class="text-muted">Elegí "Todos los cultivos" o seleccioná una localidad con producción agrícola registrada.</p>
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">⚪</span>
+        <h3>No hay cultivos que puedan clasificarse con la evidencia disponible</h3>
+        <p class="text-muted">Los candidatos regionales no se presentan como aptos por defecto. Para emitir una categoría se necesita información edáfica puntual con variables comparables y climatología histórica NASA POWER disponible. Los perfiles regionales no sustituyen esas mediciones.</p>
       </div>
     `;
     return;
@@ -957,9 +1013,19 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       `;
     }
 
+    if (pendingCount > 0) {
+      html += `
+        <p class="text-muted" style="grid-column:1/-1;margin-top:12px;font-size:.82rem;">
+          ${pendingCount} candidato(s) quedaron sin clasificar porque la evidencia disponible no alcanza. No se muestran como aptos ni como no aptos.
+        </p>`;
+    }
     container.innerHTML = html;
   } else {
-    container.innerHTML = filtradasReales.map(createSingleRecommendationCardHtml).join('');
+    const cards = filtradasReales.map(createSingleRecommendationCardHtml).join('');
+    container.innerHTML = cards + (pendingCount > 0 ? `
+      <p class="text-muted" style="margin-top:12px;font-size:.82rem;">
+        El cultivo seleccionado no pudo clasificarse porque faltan variables comparables. No se asignó una categoría por defecto.
+      </p>` : '');
   }
 }
 
