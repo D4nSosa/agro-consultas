@@ -48,6 +48,8 @@ export function calcularCompatibilidad(crop, soil, climate) {
 
   let deficienciasSeveras = 0;
   let deficienciasModeradas = 0;
+  let soilComparisons = 0;
+  let climateComparisons = 0;
 
   // 1. EVALUAR SUELO
   if (isSoilAvailable) {
@@ -59,6 +61,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
     // pH
     const phVal = (soil.ph !== null && soil.ph !== undefined && !isNaN(parseFloat(soil.ph))) ? parseFloat(soil.ph) : null;
     if (phVal !== null && reqSuelo.phMin !== undefined && reqSuelo.phMin !== null && reqSuelo.phMax !== undefined && reqSuelo.phMax !== null) {
+      soilComparisons++;
       if (phVal >= reqSuelo.phMin && phVal <= reqSuelo.phMax) {
         motivos.push(`✓ pH del suelo idóneo (${phVal.toFixed(1)}) dentro del rango (${reqSuelo.phMin}-${reqSuelo.phMax}).`);
       } else {
@@ -74,7 +77,8 @@ export function calcularCompatibilidad(crop, soil, climate) {
     }
 
     // Textura
-    if (reqSuelo.texturas && reqSuelo.texturas.length > 0) {
+    if (reqSuelo.texturas && reqSuelo.texturas.length > 0 && texturaSuelo && !texturaSuelo.includes('no disponible') && !texturaSuelo.includes('no especificada')) {
+      soilComparisons++;
       const matchesTextura = reqSuelo.texturas.some(t => texturaSuelo.includes(t.toLowerCase()));
       if (matchesTextura) {
         motivos.push(`✓ Textura de suelo compatible (${soil.textura}).`);
@@ -90,7 +94,8 @@ export function calcularCompatibilidad(crop, soil, climate) {
     }
 
     // Drenaje
-    if (reqSuelo.drenaje && reqSuelo.drenaje.length > 0) {
+    if (reqSuelo.drenaje && reqSuelo.drenaje.length > 0 && drenajeSuelo && !drenajeSuelo.includes('no disponible') && !drenajeSuelo.includes('no especificado')) {
+      soilComparisons++;
       const matchesDrenaje = reqSuelo.drenaje.some(d => drenajeSuelo.includes(d.toLowerCase()));
       if (matchesDrenaje) {
         motivos.push(`✓ Drenaje de suelo adecuado (${soil.drenaje}).`);
@@ -129,6 +134,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
     const tempMedia = climate.temperaturaMediaVal;
 
     if (reqClima.temperaturaMin !== undefined && reqClima.temperaturaMin !== null && reqClima.temperaturaMax !== undefined && reqClima.temperaturaMax !== null) {
+      climateComparisons++;
       if (tempMedia >= reqClima.temperaturaMin && tempMedia <= reqClima.temperaturaMax) {
         motivos.push(`✓ Temperatura media regional idónea (${tempMedia}°C).`);
       } else {
@@ -148,6 +154,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   if (climate && climate.precipitacionesAnualesVal !== undefined && climate.precipitacionesAnualesVal !== null) {
     const precipAnual = climate.precipitacionesAnualesVal;
     if (reqClima.precipitacionMin !== undefined && reqClima.precipitacionMin !== null) {
+      climateComparisons++;
       if (precipAnual >= reqClima.precipitacionMin) {
         motivos.push(`✓ Régimen pluviométrico adecuado (${precipAnual} mm/año >= mínimo ${reqClima.precipitacionMin} mm).`);
       } else {
@@ -170,8 +177,9 @@ export function calcularCompatibilidad(crop, soil, climate) {
     const nom = (crop.nombre || '').toLowerCase();
     const isSensitive = textClimaCrop.includes("sensible a heladas") || textClimaCrop.includes("libre de heladas") || nom.includes("yerba mate") || nom.includes("te") || nom.includes("mandioca") || nom.includes("limon") || nom.includes("naranja");
 
-    if (isSensitive) {
-      if (riesgoHeladas.includes("alto") || riesgoHeladas.includes("frecuentes")) {
+    if (isSensitive && riesgoHeladas && !riesgoHeladas.includes('no disponible')) {
+      climateComparisons++;
+      if.includes("alto") || riesgoHeladas.includes("frecuentes")) {
         deficienciasSeveras++;
         riesgos.push("⚠ Alta frecuencia de heladas en zona para especie sensible.");
       } else if (riesgoHeladas.includes("medio") || riesgoHeladas.includes("moderado")) {
@@ -195,14 +203,15 @@ export function calcularCompatibilidad(crop, soil, climate) {
     };
   }
 
-  // La aptitud se calcula con las variables edáficas y climáticas disponibles,
-  // independientemente de si provienen de una consulta puntual o de un perfil de zona.
-  // La procedencia y escala siguen informándose en el panel territorial.
+  // La procedencia y la escala forman parte de la decisión: una variable meteorológica
+  // actual no reemplaza una serie climática, y un perfil regional no equivale a un dato puntual.
   const soilStatus = String(soil?.status || '').toUpperCase();
   const climateStatus = String(climate?.climatologyStatus || climate?.status || '').toUpperCase();
   const soilHasProfile = soilStatus === 'REAL' || soilStatus === 'REGIONAL';
   const climateHasProfile = climateStatus === 'REAL' || climateStatus === 'REGIONAL';
-  const hasComparableEvidence = soilHasProfile && climateHasProfile && isSoilAvailable && isClimateAvailable;
+  const hasComparableEvidence = soilHasProfile && climateHasProfile &&
+    isSoilAvailable && isClimateAvailable &&
+    soilComparisons > 0 && climateComparisons > 0;
 
   const profileText = String(soil?.aptitud || '').toLowerCase();
   const cropName = String(crop?.nombre || '').toLowerCase();
@@ -218,14 +227,19 @@ export function calcularCompatibilidad(crop, soil, climate) {
   };
   const aliases = cropAliases[cropName] || [cropName];
   const namedInZoneProfile = aliases.some(alias => profileText.includes(alias));
+  const reliesOnRegionalEvidence = soilStatus === 'REGIONAL' || climateStatus === 'REGIONAL';
+
   if (namedInZoneProfile) {
-    motivos.unshift('La zona agroambiental de referencia identifica esta especie entre sus usos productivos compatibles.');
+    motivos.unshift('La ficha agroambiental de referencia menciona este cultivo; no constituye por sí sola una validación del lote.');
   }
 
   let categoria = AptitudCategoria.NO_EVALUABLE;
   let nivelAptitud = 'PENDIENTE';
 
-  if (hasComparableEvidence) {
+  // Si la evidencia es regional, exigimos que el perfil identifique expresamente
+  // el cultivo. Nunca inferimos aptitud alta por ausencia de limitantes registradas.
+  const profileSupportsCrop = !reliesOnRegionalEvidence || namedInZoneProfile;
+  if (hasComparableEvidence && profileSupportsCrop) {
     categoria = AptitudCategoria.ALTA;
     nivelAptitud = 'ALTA';
     if (deficienciasSeveras > 0) {
@@ -234,15 +248,18 @@ export function calcularCompatibilidad(crop, soil, climate) {
     } else if (deficienciasModeradas > 0) {
       categoria = AptitudCategoria.MEDIA;
       nivelAptitud = 'MEDIA';
-    } else if (!namedInZoneProfile && motivos.length < 2) {
-      categoria = AptitudCategoria.NO_EVALUABLE;
-      nivelAptitud = 'PENDIENTE';
+    }
+  } else {
+    if (soilComparisons === 0) datosFaltantes.push('Variables de suelo comparables con los requerimientos del cultivo.');
+    if (climateComparisons === 0) datosFaltantes.push('Variables de climatología histórica comparables con los requerimientos del cultivo.');
+    if (reliesOnRegionalEvidence && !namedInZoneProfile) {
+      datosFaltantes.push('El perfil agroambiental disponible no identifica este cultivo como uso compatible.');
     }
   }
 
   let calidadEvidencia = 'DATOS PARCIALES';
-  if (!isSoilAvailable || !isClimateAvailable) {
-    calidadEvidencia = 'INFORMACIÓN INSUFICIENTE';
+  if (!hasComparableEvidence || !profileSupportsCrop) {
+    calidadEvidencia = 'EVIDENCIA INSUFICIENTE PARA CLASIFICAR';
   } else if (soilStatus === 'REAL' && climateStatus === 'REAL') {
     calidadEvidencia = 'DATOS PUNTUALES E HISTÓRICOS';
   } else {
