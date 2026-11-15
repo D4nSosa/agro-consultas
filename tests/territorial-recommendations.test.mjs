@@ -138,3 +138,28 @@ test('puede clasificar aptitud alta cuando hay comparaciones locales completas y
   const result = calcularCompatibilidad(crop, soil, climate);
   assert.equal(result.categoria, AptitudCategoria.ALTA);
 });
+
+test('no confunde la sílaba te dentro de otras palabras con el cultivo Té', () => {
+  const crop = {
+    nombre: 'Té',
+    requerimientos: {
+      suelo: { texturas: ['franca'], drenaje: ['bueno'] },
+      clima: { temperaturaMin: 15, temperaturaMax: 28, precipitacionMin: 900 }
+    }
+  };
+  const soil = {
+    status: 'REGIONAL',
+    textura: 'franca',
+    drenaje: 'bueno',
+    tipo: 'Alfisol',
+    aptitud: 'Temperatura media adecuada y drenaje bueno para cultivos varios'
+  };
+  const climate = {
+    status: 'REGIONAL',
+    climatologyStatus: 'REGIONAL',
+    temperaturaMediaVal: 21,
+    precipitacionesAnualesVal: 1400
+  };
+  const result = calcularCompatibilidad(crop, soil, climate);
+  assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
+});
