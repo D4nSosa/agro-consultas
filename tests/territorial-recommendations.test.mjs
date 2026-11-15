@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { calcularCompatibilidad, AptitudCategoria } from '../utils/scoring.js';
 import { getCropsToEvaluate } from '../services/recommendationEngine.js';
 
-test('los perfiles agroambientales permiten clasificar cultivos sin una etiqueta regional genérica', () => {
+test('un perfil regional orienta candidatos pero no certifica aptitud', () => {
   const crop = {
     nombre: 'Naranja',
     requerimientos: {
@@ -27,10 +27,11 @@ test('los perfiles agroambientales permiten clasificar cultivos sin una etiqueta
     heladas: 'Riesgo muy bajo'
   };
   const result = calcularCompatibilidad(crop, soil, climate);
-  assert.equal(result.categoria, AptitudCategoria.MEDIA);
+  assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
   assert.ok(!String(result.categoria).includes('REGIONAL'));
-  assert.ok(result.motivos.some(reason => reason.includes('zona agroambiental')));
+  assert.ok(result.motivos.some(reason => reason.includes('perfil agroambiental')));
   assert.ok(result.riesgos.some(reason => reason.includes('Textura arenosa')));
+  assert.equal(result.calidadEvidencia, 'EVIDENCIA INSUFICIENTE PARA CLASIFICAR');
 });
 
 test('la evaluación local puede distinguir limitaciones medidas', () => {
