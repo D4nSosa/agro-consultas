@@ -78,3 +78,63 @@ test('los candidatos se diferencian por el perfil de la subregión', async () =>
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test('no asigna aptitud alta cuando el perfil regional no identifica el cultivo', () => {
+  const crop = {
+    nombre: 'Trigo',
+    requerimientos: {
+      suelo: { texturas: ['franca'], drenaje: ['bueno'] },
+      clima: { temperaturaMin: 10, temperaturaMax: 25, precipitacionMin: 500 }
+    }
+  };
+  const soil = {
+    status: 'REGIONAL',
+    textura: 'franca',
+    drenaje: 'bueno',
+    tipo: 'Molisol',
+    aptitud: 'Perfil regional orientado a yerba mate y forestación'
+  };
+  const climate = {
+    status: 'REAL',
+    climatologyStatus: 'REGIONAL',
+    temperaturaMediaVal: 18,
+    precipitacionesAnualesVal: 900
+  };
+  const result = calcularCompatibilidad(crop, soil, climate);
+  assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
+  assert.ok(result.datosFaltantes.some(item => item.includes('no identifica este cultivo')));
+});
+
+test('no asigna aptitud alta cuando faltan comparaciones edáficas o climáticas', () => {
+  const crop = {
+    nombre: 'Maíz',
+    requerimientos: {
+      suelo: { texturas: ['franca'] },
+      clima: { temperaturaMin: 15, temperaturaMax: 32 }
+    }
+  };
+  const soil = { status: 'REAL', textura: 'franca', tipo: 'Molisol' };
+  const climate = { status: 'REAL', climatologyStatus: 'UNAVAILABLE', temperaturaMediaVal: 23 };
+  const result = calcularCompatibilidad(crop, soil, climate);
+  assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
+});
+
+test('puede clasificar aptitud alta cuando hay comparaciones locales completas y compatibles', () => {
+  const crop = {
+    nombre: 'Maíz',
+    requerimientos: {
+      suelo: { texturas: ['franca'], drenaje: ['bueno'] },
+      clima: { temperaturaMin: 15, temperaturaMax: 32, precipitacionMin: 600 }
+    }
+  };
+  const soil = { status: 'REAL', textura: 'franca', drenaje: 'bueno', tipo: 'Molisol' };
+  const climate = {
+    status: 'REAL',
+    climatologyStatus: 'REAL',
+    temperaturaMediaVal: 23,
+    precipitacionesAnualesVal: 900
+  };
+  const result = calcularCompatibilidad(crop, soil, climate);
+  assert.equal(result.categoria, AptitudCategoria.ALTA);
+});
