@@ -83,7 +83,8 @@ export function calcularCompatibilidad(crop, soil, climate) {
           deficienciasModeradas++;
           riesgos.push(`⚠ Textura arcillosa/pesada: Propensa a encharcamientos y asfixia radicular.`);
         } else if (texturaSuelo.includes("arenos")) {
-          riesgos.push(`⚠ Textura arenosa: Menor retención hídrica y nutricional.`);
+          deficienciasModeradas++;
+          riesgos.push(`⚠ Textura arenosa: Menor retención hídrica y nutricional; requiere manejo de cobertura y reposición de nutrientes.`);
         }
       }
     }
