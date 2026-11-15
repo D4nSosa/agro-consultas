@@ -805,7 +805,6 @@ function createSingleRecommendationCardHtml(c) {
             <span style="font-size: 2rem;">${icon}</span>
             <div>
               <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">${c.nombre}</h3>
-              <span style="font-size: 0.78rem; color: var(--texto-secundario);">${c.confianza}</span>
             </div>
           </div>
           <span class="compatibility-badge ${badgeClass}" style="font-size: 0.8rem; padding: 4px 10px;">
