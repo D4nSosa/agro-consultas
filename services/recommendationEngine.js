@@ -199,7 +199,7 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
 
       const labelConfianza = isUnavailable
         ? 'Información pendiente de verificación'
-        : (isBothReal ? 'Datos locales verificados' : 'Contexto regional');
+        : (isBothReal ? 'Datos puntuales e históricos' : 'Perfil agroambiental de la zona');
       const classConfianza = isUnavailable ? 'none' : (isBothReal ? 'high' : 'medium');
 
       return {
