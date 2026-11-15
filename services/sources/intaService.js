@@ -80,7 +80,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
         limitantes: props.limitantes || props.LIMITATIONS || "No especificadas en capa WMS",
         aptitud: props.aptitud || props.APTITUDE || "No especificada en capa WMS",
         ph: rawPh !== undefined && rawPh !== null && !isNaN(parseFloat(rawPh)) ? parseFloat(rawPh) : null,
-        escala: "1:50.000 (WMS INTA)",
+        escala: "Escala no informada por la respuesta WMS; consultar metadatos de la capa",
         status: "REAL",
         confidence: "high",
         fechaActualizacion: new Date().toISOString()
