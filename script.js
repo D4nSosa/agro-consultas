@@ -49,6 +49,54 @@ let lastRecommendationsCache = [];
 let lastSoilReportCache = null;
 let lastClimateReportCache = null;
 
+let climateHistoryCache = { key: null, promise: null, result: null };
+
+async function getClimateHistoryCached(lat, lng, months = 12) {
+  const key = `${Number(lat).toFixed(4)}:${Number(lng).toFixed(4)}:${months}`;
+  if (climateHistoryCache.key === key) {
+    if (climateHistoryCache.result) return climateHistoryCache.result;
+    if (climateHistoryCache.promise) return climateHistoryCache.promise;
+  }
+  const promise = getClimateHistory(lat, lng, months);
+  climateHistoryCache = { key, promise, result: null };
+  try {
+    const result = await promise;
+    if (climateHistoryCache.key === key) climateHistoryCache = { key, promise: null, result };
+    return result;
+  } catch (error) {
+    const result = { status: 'UNAVAILABLE', message: error.message, data: null };
+    if (climateHistoryCache.key === key) climateHistoryCache = { key, promise: null, result };
+    return result;
+  }
+}
+
+function buildClimateEvidenceForScoring(climateReport, climateHistory) {
+  const historical = climateHistory?.data?.historicalAverages || {};
+  const temperature = Number(historical.temperaturaMediaHistoricaC);
+  const precipitation = Number(historical.precipitacionMediaAnualMm);
+  const hasHistoricalValues = climateHistory?.status === 'REAL' &&
+    Number.isFinite(temperature) && Number.isFinite(precipitation);
+
+  if (!hasHistoricalValues) {
+    return {
+      ...climateReport,
+      temperaturaMediaVal: null,
+      precipitacionesAnualesVal: null,
+      climatologyStatus: 'UNAVAILABLE',
+      climatologySource: null
+    };
+  }
+
+  return {
+    ...climateReport,
+    temperaturaMediaVal: temperature,
+    precipitacionesAnualesVal: precipitation,
+    climatologyStatus: 'REAL',
+    climatologySource: 'NASA POWER',
+    climatologyBaseline: '2001–2020'
+  };
+}
+
 /**
  * Inicializa el mapa interactivo usando el MapViewer reutilizable
  */
@@ -544,7 +592,7 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
     </div>
   `;
 
-  const climateHistory = await getClimateHistory(lat, lng, months);
+  const climateHistory = await getClimateHistoryCached(lat, lng, months);
 
   if (climateHistory.status === 'UNAVAILABLE' || !climateHistory.data) {
     container.innerHTML = `
@@ -719,8 +767,12 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
     const provDetails = key ? await getProvinceDetails(key) : null;
     const subregion = key ? await findSubregion(key, lat, lng) : null;
 
-    const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
-    const climateReport = await getClimateData(lat, lng, provinciaRaw, subregion?.clima);
+    const [soilReport, climateReport, climateHistory] = await Promise.all([
+      getSoilReport(lat, lng, subregion?.suelo),
+      getClimateData(lat, lng, provinciaRaw, subregion?.clima),
+      getClimateHistoryCached(lat, lng, 12)
+    ]);
+    const climateEvidenceForScoring = buildClimateEvidenceForScoring(climateReport, climateHistory);
 
     const catalogo = await loadCultivosData();
     let cultivosAEvaluar = [];
@@ -736,7 +788,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
       cultivosAEvaluar = await getCropsToEvaluate(key, subregion);
     }
 
-    const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateReport);
+    const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateEvidenceForScoring);
     lastRecommendationsCache = recomendaciones;
 
     const filtradas = filtrarRecomendacionesPorCultivo(recomendaciones, selectedCropKey);
