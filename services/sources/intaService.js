@@ -30,7 +30,8 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
           ...data,
           fuente: origin === 'wms'
             ? 'INTA Cartografía Oficial (WMS · caché local)'
-            : 'INTA / Cartografía Regional Subregional (caché local)',
+            : 'Perfil agroambiental de referencia de Agro Consultas (caché local; sin fuente primaria asociada)',
+          ...(origin === 'regional' ? { escala: 'Punto representativo de subregión (sin escala cartográfica)', confidence: 'low' } : {}),
           cached: true,
           fallback: origin === 'regional'
         };
