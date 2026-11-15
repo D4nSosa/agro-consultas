@@ -387,6 +387,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <span style="font-weight: 600; color: var(--verde-principal);">${provincia}</span>
         <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 4px;">Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</span>
         <span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 2px;">Provincia asignada por referencia geográfica más cercana; no es una verificación por límites administrativos.</span>
+        ${subregion?.nombre ? `<span style="font-size: 0.8rem; display: block; color: var(--texto-secundario); margin-top: 3px;">Zona de referencia agroambiental más cercana: <strong>${subregion.nombre}</strong> (perfil regional, no límite cartográfico).</span>` : ""}
       </div>
 
       <div style="background: rgba(2, 119, 189, 0.08); border: 1px solid rgba(2, 119, 189, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.4; color: var(--texto-principal);">
