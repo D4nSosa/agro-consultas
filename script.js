@@ -770,11 +770,7 @@ function createSingleRecommendationCardHtml(c) {
   let semaforoText = "Condiciones Favorables";
   let badgeClass = "badge-alta";
 
-  if (c.compatibilidad.includes("REGIONAL")) {
-    semaforoIcon = "⚪";
-    semaforoText = "Contexto regional · no concluyente";
-    badgeClass = "badge-media";
-  } else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
+  if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
     semaforoIcon = "🟡";
     semaforoText = "Limitaciones Moderadas";
     badgeClass = "badge-media";
@@ -822,7 +818,7 @@ function createSingleRecommendationCardHtml(c) {
         </p>
 
         <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 10px; font-size: 0.82rem; margin-bottom: 10px;">
-          <strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Factores compatibles con el contexto regional.'}
+          <strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Factores agroambientales compatibles.'}
           ${c.riesgos && c.riesgos.length > 0 ? `<div style="margin-top: 4px; color: #c0392b;"><strong>⚠️ Limitante Principal:</strong> ${c.riesgos[0]}</div>` : ''}
         </div>
 
@@ -915,12 +911,9 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     const aptos = [];
     const moderados = [];
     const noAptos = [];
-    const regionales = [];
 
     filtradasReales.forEach(c => {
-      if (c.compatibilidad.includes("REGIONAL")) {
-        regionales.push(c);
-      } else if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
+      if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
         noAptos.push(c);
       } else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
         moderados.push(c);
@@ -953,17 +946,6 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       `;
     }
 
-    if (regionales.length > 0) {
-      html += `
-        <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 5px;">
-          <h3 style="color: #7f8c8d; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #7f8c8d; padding-bottom: 6px; margin: 0;">
-            <span>⚪</span> Contexto regional · requiere validación local
-          </h3>
-          <p style="font-size:.82rem;color:var(--texto-secundario)">Estos cultivos aparecen en el perfil agroambiental de la subregión. La información regional no permite afirmar aptitud ni limitaciones puntuales del lote.</p>
-        </div>
-        ${regionales.map(createSingleRecommendationCardHtml).join("")}
-      `;
-    }
 
     if (noAptos.length > 0) {
       html += `
