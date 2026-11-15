@@ -823,18 +823,19 @@ function createSingleRecommendationCardHtml(c) {
   let semaforoIcon = "🟢";
   let semaforoText = "Condiciones Favorables";
   let badgeClass = "badge-alta";
+  const compatibility = String(c.compatibilidad || '').toUpperCase();
 
-  if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
-    semaforoIcon = "🟡";
-    semaforoText = "Limitaciones Moderadas";
-    badgeClass = "badge-media";
-  } else if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
+  if (compatibility.includes("INFORMACIÓN PENDIENTE") || compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT")) {
+    semaforoIcon = "⚪";
+    semaforoText = "Evidencia Insuficiente";
+    badgeClass = "badge-origin no-disponible";
+  } else if (compatibility.includes("BAJA") || compatibility.includes("LIMITACIONES SEVERAS")) {
     semaforoIcon = "🔴";
     semaforoText = "Atención / Restricciones";
     badgeClass = "badge-baja";
-  } else if (c.compatibilidad.includes("INSUFFICIENT") || c.compatibilidad.includes("NO EVALUABLE")) {
-    semaforoIcon = "⚪";
-    semaforoText = "Evidencia Insuficiente";
+  } else if (compatibility.includes("MEDIA") || compatibility.includes("PRESENTA LIMITANTES")) {
+    semaforoIcon = "🟡";
+    semaforoText = "Limitaciones Moderadas";
     badgeClass = "badge-media";
   }
 
@@ -951,9 +952,9 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
   if (filtradasReales.length === 0) {
     container.innerHTML = `
       <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
-        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🌱</span>
-        <h3>No se registraron cultivos específicos recomendados para la selección actual</h3>
-        <p class="text-muted">Elegí "Todos los cultivos" o seleccioná una localidad con producción agrícola registrada.</p>
+        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">⚪</span>
+        <h3>No hay cultivos que puedan clasificarse con la evidencia disponible</h3>
+        <p class="text-muted">Los candidatos regionales no se presentan como aptos por defecto. Para emitir una categoría se necesita información edáfica puntual con variables comparables y climatología histórica NASA POWER disponible. Los perfiles regionales no sustituyen esas mediciones.</p>
       </div>
     `;
     return;
