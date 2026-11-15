@@ -184,3 +184,22 @@ test('no clasifica si falta una variable climática requerida por la ficha', () 
   assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
   assert.ok(result.datosFaltantes.some(item => item.includes('climatológicas requeridas')));
 });
+
+test('no devuelve el catálogo nacional cuando no reconoce la provincia', async () => {
+  const [crops, provinces] = await Promise.all([
+    readFile(new URL('../data/cultivos.json', import.meta.url), 'utf8'),
+    readFile(new URL('../data/provincias.json', import.meta.url), 'utf8')
+  ]);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async url => ({
+    ok: true,
+    json: async () => String(url).includes('forestales.json') ? {} :
+      String(url).includes('provincias.json') ? JSON.parse(provinces) : JSON.parse(crops)
+  });
+  try {
+    assert.deepEqual(await getCropsToEvaluate('ubicacion-desconocida'), []);
+    assert.deepEqual(await getCropsToEvaluate(null), []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
