@@ -188,7 +188,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
 
     if (isSensitive && riesgoHeladas && !riesgoHeladas.includes('no disponible')) {
       climateComparisons++;
-      if.includes("alto") || riesgoHeladas.includes("frecuentes")) {
+        if (riesgoHeladas.includes("alto") || riesgoHeladas.includes("frecuentes")) {
         deficienciasSeveras++;
         riesgos.push("⚠ Alta frecuencia de heladas en zona para especie sensible.");
       } else if (riesgoHeladas.includes("medio") || riesgoHeladas.includes("moderado")) {
