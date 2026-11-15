@@ -207,9 +207,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   // actual no reemplaza una serie climática, y un perfil regional no equivale a un dato puntual.
   const soilStatus = String(soil?.status || '').toUpperCase();
   const climateStatus = String(climate?.climatologyStatus || climate?.status || '').toUpperCase();
-  const soilHasProfile = soilStatus === 'REAL' || soilStatus === 'REGIONAL';
-  const climateHasProfile = climateStatus === 'REAL' || climateStatus === 'REGIONAL';
-  const hasComparableEvidence = soilHasProfile && climateHasProfile &&
+  const hasComparableEvidence = soilStatus === 'REAL' && climateStatus === 'REAL' &&
     isSoilAvailable && isClimateAvailable &&
     soilComparisons > 0 && climateComparisons > 0;
 
@@ -231,19 +229,17 @@ export function calcularCompatibilidad(crop, soil, climate) {
     const normalizedAlias = alias.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
     return normalizedAlias && ((' ' + normalizedProfile + ' ').includes(' ' + normalizedAlias + ' '));
   });
-  const reliesOnRegionalEvidence = soilStatus === 'REGIONAL' || climateStatus === 'REGIONAL';
-
   if (namedInZoneProfile) {
-    motivos.unshift('La ficha agroambiental de referencia menciona este cultivo; no constituye por sí sola una validación del lote.');
+    motivos.unshift('El perfil agroambiental de referencia menciona este cultivo; esta mención no se utiliza como prueba de aptitud del lote.');
   }
 
   let categoria = AptitudCategoria.NO_EVALUABLE;
   let nivelAptitud = 'PENDIENTE';
 
-  // Si la evidencia es regional, exigimos que el perfil identifique expresamente
-  // el cultivo. Nunca inferimos aptitud alta por ausencia de limitantes registradas.
-  const profileSupportsCrop = !reliesOnRegionalEvidence || namedInZoneProfile;
-  if (hasComparableEvidence && profileSupportsCrop) {
+  // Solo se clasifica aptitud cuando el suelo puntual y la climatología de referencia
+  // tienen procedencia REAL y hay comparaciones efectivas para ambos grupos.
+  // Los perfiles regionales sirven para orientar candidatos, nunca para certificar aptitud.
+  if (hasComparableEvidence) {
     categoria = AptitudCategoria.ALTA;
     nivelAptitud = 'ALTA';
     if (deficienciasSeveras > 0) {
@@ -254,15 +250,14 @@ export function calcularCompatibilidad(crop, soil, climate) {
       nivelAptitud = 'MEDIA';
     }
   } else {
+    if (soilStatus !== 'REAL') datosFaltantes.push('Dato edáfico puntual de fuente identificada; el perfil regional no alcanza para clasificar aptitud.');
+    if (climateStatus !== 'REAL') datosFaltantes.push('Climatología histórica puntual de fuente identificada.');
     if (soilComparisons === 0) datosFaltantes.push('Variables de suelo comparables con los requerimientos del cultivo.');
     if (climateComparisons === 0) datosFaltantes.push('Variables de climatología histórica comparables con los requerimientos del cultivo.');
-    if (reliesOnRegionalEvidence && !namedInZoneProfile) {
-      datosFaltantes.push('El perfil agroambiental disponible no identifica este cultivo como uso compatible.');
-    }
   }
 
   let calidadEvidencia = 'DATOS PARCIALES';
-  if (!hasComparableEvidence || !profileSupportsCrop) {
+  if (!hasComparableEvidence) {
     calidadEvidencia = 'EVIDENCIA INSUFICIENTE PARA CLASIFICAR';
   } else if (soilStatus === 'REAL' && climateStatus === 'REAL') {
     calidadEvidencia = 'DATOS PUNTUALES E HISTÓRICOS';
