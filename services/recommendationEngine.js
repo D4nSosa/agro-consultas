@@ -119,7 +119,8 @@ export async function getCropsToEvaluate(provinciaKey = null, subregion = null) 
       console.warn("Fallo al consultar provincias.json:", e);
     }
   }
-  return Object.values(cropCatalog).map(item => item.nombre || item.id);
+  // Nunca ampliar silenciosamente a todo el catálogo nacional cuando falta provincia o perfil.
+  return [];
 }
 
 /**
