@@ -8,8 +8,7 @@ export const AptitudCategoria = {
   ALTA: 'APTITUD ALTA',
   MEDIA: 'APTITUD MEDIA (PRESENTA LIMITANTES)',
   BAJA: 'APTITUD BAJA (LIMITACIONES SEVERAS)',
-  NO_EVALUABLE: 'INFORMACIÓN PENDIENTE DE VERIFICACIÓN',
-  REGIONAL: 'EVALUACIÓN REGIONAL (NO CONCLUYENTE)'
+  NO_EVALUABLE: 'INFORMACIÓN PENDIENTE DE VERIFICACIÓN'
 };
 
 /**
@@ -195,16 +194,37 @@ export function calcularCompatibilidad(crop, soil, climate) {
     };
   }
 
-  // Los valores regionales describen una zona de referencia, no una medición del punto.
-  // No deben convertirse automáticamente en "limitaciones moderadas" ni en aptitud alta/baja.
-  const soilEvidenceStatus = String(soil?.status || '').toUpperCase();
-  const climateEvidenceStatus = String(climate?.climatologyStatus || 'UNAVAILABLE').toUpperCase();
-  const hasLocalEvidence = soilEvidenceStatus === 'REAL' && climateEvidenceStatus === 'REAL';
+  // La aptitud se calcula con las variables edáficas y climáticas disponibles,
+  // independientemente de si provienen de una consulta puntual o de un perfil de zona.
+  // La procedencia y escala siguen informándose en el panel territorial.
+  const soilStatus = String(soil?.status || '').toUpperCase();
+  const climateStatus = String(climate?.climatologyStatus || climate?.status || '').toUpperCase();
+  const soilHasProfile = soilStatus === 'REAL' || soilStatus === 'REGIONAL';
+  const climateHasProfile = climateStatus === 'REAL' || climateStatus === 'REGIONAL';
+  const hasComparableEvidence = soilHasProfile && climateHasProfile && isSoilAvailable && isClimateAvailable;
 
-  let categoria = AptitudCategoria.REGIONAL;
-  let nivelAptitud = 'REGIONAL';
+  const profileText = String(soil?.aptitud || '').toLowerCase();
+  const cropName = String(crop?.nombre || '').toLowerCase();
+  const cropAliases = {
+    naranja: ['naranja', 'citrus', 'citricos'],
+    mandarina: ['mandarina', 'citrus', 'citricos'],
+    limon: ['limon', 'citrus', 'citricos'],
+    'yerba mate': ['yerba mate'],
+    te: ['te', 'camellia'],
+    'pino elliottii': ['pino elliottii'],
+    'pino taeda': ['pino taeda'],
+    'eucalyptus grandis': ['eucalyptus grandis', 'eucalipto grandis']
+  };
+  const aliases = cropAliases[cropName] || [cropName];
+  const namedInZoneProfile = aliases.some(alias => profileText.includes(alias));
+  if (namedInZoneProfile) {
+    motivos.unshift('La zona agroambiental de referencia identifica esta especie entre sus usos productivos compatibles.');
+  }
 
-  if (hasLocalEvidence) {
+  let categoria = AptitudCategoria.NO_EVALUABLE;
+  let nivelAptitud = 'PENDIENTE';
+
+  if (hasComparableEvidence) {
     categoria = AptitudCategoria.ALTA;
     nivelAptitud = 'ALTA';
     if (deficienciasSeveras > 0) {
@@ -213,25 +233,25 @@ export function calcularCompatibilidad(crop, soil, climate) {
     } else if (deficienciasModeradas > 0) {
       categoria = AptitudCategoria.MEDIA;
       nivelAptitud = 'MEDIA';
+    } else if (!namedInZoneProfile && motivos.length < 2) {
+      categoria = AptitudCategoria.NO_EVALUABLE;
+      nivelAptitud = 'PENDIENTE';
     }
   }
 
-  const soilSt = (soil?.status || '').toUpperCase();
-  const climSt = (climate?.status || '').toUpperCase();
-
-  let calidadEvidencia = 'BAJA (CONTEXTO REGIONAL; NO CONCLUYENTE)';
+  let calidadEvidencia = 'DATOS PARCIALES';
   if (!isSoilAvailable || !isClimateAvailable) {
-    calidadEvidencia = 'PARCIAL';
-  } else if (soilSt === 'REAL' && climateEvidenceStatus === 'REAL') {
-    calidadEvidencia = 'ALTA (DATOS LOCALES VERIFICADOS)';
+    calidadEvidencia = 'INFORMACIÓN INSUFICIENTE';
+  } else if (soilStatus === 'REAL' && climateStatus === 'REAL') {
+    calidadEvidencia = 'DATOS PUNTUALES E HISTÓRICOS';
   } else {
-    calidadEvidencia = 'BAJA (CONTEXTO REGIONAL; NO CONCLUYENTE)';
+    calidadEvidencia = 'PERFIL AGROAMBIENTAL Y CLIMA DE REFERENCIA';
   }
 
   return {
     categoria: categoria,
     nivelAptitud: nivelAptitud,
-    motivos: motivos.length > 0 ? motivos : ["No hay evidencia local suficiente para afirmar compatibilidad."],
+    motivos: motivos.length > 0 ? motivos : ["No hay variables comparables suficientes para clasificar este cultivo."],
     riesgos: riesgos,
     datosFaltantes: datosFaltantes,
     calidadEvidencia: calidadEvidencia
