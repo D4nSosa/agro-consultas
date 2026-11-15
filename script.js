@@ -732,7 +732,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
         cultivosAEvaluar = [selectedCropKey];
       }
     } else {
-      cultivosAEvaluar = await getCropsToEvaluate(key);
+      cultivosAEvaluar = await getCropsToEvaluate(key, subregion);
     }
 
     const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateReport);
