@@ -61,23 +61,23 @@ export async function getCropCatalog() {
  * @returns {Promise<Array<string>>} Lista de nombres de cultivos a evaluar.
  */
 const REGIONAL_CROP_ALIASES = {
-  naranja: ['naranja', 'citrus', 'citricos'],
-  mandarina: ['mandarina', 'citrus', 'citricos'],
-  limon: ['limon', 'citrus', 'citricos'],
-  'pino taeda': ['pino', 'taeda'],
-  'pino elliottii': ['pino', 'elliottii'],
-  'eucalyptus grandis': ['eucalyptus', 'eucalipto', 'grandis'],
-  'yerba mate': ['yerba mate'],
-  te: ['te', 'camellia'],
-  arroz: ['arroz']
+  naranja: [['naranja'], ['citrus'], ['citricos']],
+  mandarina: [['mandarina'], ['citrus'], ['citricos']],
+  limon: [['limon'], ['citrus'], ['citricos']],
+  'pino taeda': [['pino', 'taeda']],
+  'pino elliottii': [['pino', 'elliottii']],
+  'eucalyptus grandis': [['eucalyptus', 'grandis'], ['eucalipto', 'grandis']],
+  'yerba mate': [['yerba', 'mate']],
+  te: [['te'], ['camellia']],
+  arroz: [['arroz']]
 };
 
 function cropIsNamedByRegionalProfile(cropName, regionalText) {
-  const profile = normalizeKey(regionalText || '');
+  const profileWords = normalizeKey(regionalText || '').split(/[^a-z0-9]+/).filter(Boolean);
   const crop = normalizeKey(cropName || '');
-  if (!profile || !crop) return false;
-  const aliases = REGIONAL_CROP_ALIASES[crop] || [crop];
-  return aliases.some(alias => profile.includes(normalizeKey(alias)));
+  if (!profileWords.length || !crop) return false;
+  const aliasGroups = REGIONAL_CROP_ALIASES[crop] || [[crop]];
+  return aliasGroups.some(group => group.every(word => profileWords.includes(normalizeKey(word))));
 }
 
 /**
@@ -195,7 +195,7 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
       const climateStatus = (safeClimate?.status || '').toUpperCase();
 
       const isUnavailable = soilStatus === 'UNAVAILABLE' || climateStatus === 'UNAVAILABLE';
-      const isBothReal = soilStatus === 'REAL' && climateStatus === 'REAL';
+      const isBothReal = soilStatus === 'REAL' && String(safeClimate?.climatologyStatus || '').toUpperCase() === 'REAL';
 
       const labelConfianza = isUnavailable
         ? 'Información pendiente de verificación'
