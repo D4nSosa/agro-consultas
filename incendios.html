@@ -50,7 +50,7 @@
 .fire-table-row{display:grid;grid-template-columns:1fr repeat(3,auto);gap:8px;padding:6px 0;border-bottom:1px solid var(--borde-suave)}
 .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--gris-card);color:var(--texto-principal)}
 .leaflet-popup-content{font-family:Inter,sans-serif;font-size:.78rem;line-height:1.5}
-.leaflet-popup-content small{display:block;color:var(--texto-secundario);margin-top:5px}
+.leaflet-popup-content small{display:block;color:var(--texto-secundario);margin-top:5px}.fire-cluster-label{background:transparent;border:0;box-shadow:none;color:#fff;font-size:11px;font-weight:800;text-shadow:0 1px 3px #222,1px 0 2px #222,-1px 0 2px #222}.fire-cluster-label:before{display:none}
 .theme-dark .leaflet-control-layers,.theme-dark .leaflet-bar a{background:var(--gris-card);color:var(--texto-principal);border-color:var(--borde-suave)}
 @media(max-width:980px){.fire-layout{grid-template-columns:1fr}.fire-side{grid-template-columns:repeat(2,minmax(0,1fr))}.fire-side .wide{grid-column:1/-1}}
 @media(max-width:620px){.fire-side{grid-template-columns:1fr}.fire-side .wide{grid-column:auto}#fire-map{height:56vh;min-height:390px}.fire-map-actions .btn{padding:7px 8px}}
@@ -71,7 +71,7 @@
    <div id="fire-map" role="application" aria-label="Radar interactivo de focos de calor"></div>
    <div class="fire-legend"><span class="fire-key"><i class="fire-dot modis"></i>MODIS · detección</span><span class="fire-key"><i class="fire-dot viirs"></i>VIIRS · detección</span><span class="fire-key"><i class="fire-dot goes"></i>GOES-19 · alerta rápida</span><span class="fire-key">Sin puntos = sin detecciones recibidas en el período, no ausencia confirmada de fuego</span></div>
    <div class="fire-filters"><label><input id="show-modis" type="checkbox" checked>MODIS</label><label><input id="show-viirs" type="checkbox" checked>VIIRS</label><label><input id="show-goes" type="checkbox" checked>GOES-19</label><label><input id="show-lot" type="checkbox" checked>Área del lote</label></div>
-   <p class="fire-note">Los puntos representan anomalías térmicas detectadas por satélite. No son perímetros ni confirmaciones de incendio. Tocá cualquier punto para consultar sus atributos; tocá el mapa para seleccionar una ubicación y calcular la previsión local.</p>
+   <p class="fire-note">Los puntos representan anomalías térmicas detectadas por satélite. No son perímetros ni confirmaciones de incendio. En la vista nacional las detecciones se agrupan por proximidad; acercá el zoom para ver cada punto y consultar sus atributos. Tocá el mapa para seleccionar una ubicación y calcular la previsión local.</p>
   </section>
   <aside class="fire-side">
    <section class="fire-card wide"><h2>Estado de detección</h2><div id="source-status" class="fire-status">Conectando con las fuentes satelitales…</div><div id="source-meta" class="fire-meta">La actualización automática se realiza cada 10 minutos.</div><div class="fire-stats"><div class="fire-stat"><small>MODIS · últimas 24 h</small><strong id="count-modis">—</strong></div><div class="fire-stat"><small>VIIRS · últimas 24 h</small><strong id="count-viirs">—</strong></div><div class="fire-stat"><small>GOES-19 · última escena</small><strong id="count-goes">—</strong></div><div class="fire-stat"><small>Total de elementos recibidos</small><strong id="count-total">—</strong></div></div></section>
@@ -127,7 +127,36 @@ const detectionLayer=L.layerGroup().addTo(map),goesLayer=L.layerGroup().addTo(ma
 let modisViirs=[],goes=[],lot=null,history=[],historySkipped=0,historyManifest=[],selectedPoint=null,forecastMarker=null,forecastController=null,forecastRequest=0;
 const fmt=v=>v===null||v===undefined||v===''?'No informado':Number.isFinite(Number(v))?Number(v).toLocaleString('es-AR',{maximumFractionDigits:1}):String(v);
 function popup(feature){const p=feature.properties||{},isGoes=p.sensor==='GOES';const rows=isGoes?[['Fuente',p.source],['Satélite',p.satellite],['Clase',p.category+' · '+p.maskCode],['Hora UTC',p.observedAt],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura',fmt(p.temperatureK)+' K'],['Área del píxel',fmt(p.areaM2)+' m²']]:[['Fuente',p.source],['Sensor',p.sensor],['Satélite',p.satellite],['Fecha / hora UTC',(p.date||'')+' '+(p.timeUtc||'')],['Confianza',p.confidence??p.confidenceLabel??'No informada'],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura de brillo',fmt(p.brightness)+' K'],['Día / noche',p.daynight]];return '<strong>'+esc(isGoes?'Alerta GOES-19':'Detección '+p.sensor)+'</strong>'+rows.filter(x=>x[1]!==undefined&&x[1]!==null&&x[1]!=='').map(x=>'<div><b>'+esc(x[0])+':</b> '+esc(x[1])+'</div>').join('')+'<small>Anomalía térmica satelital; no equivale a incendio confirmado.</small>';}
-function drawDetections(){detectionLayer.clearLayers();goesLayer.clearLayers();const draw=(items,layer,color,radius)=>items.forEach(f=>{const c=f.geometry.coordinates;L.circleMarker([c[1],c[0]],{radius,color,weight:2,fillColor:color,fillOpacity:.82}).bindPopup(popup(f)).addTo(layer);});draw(modisViirs.filter(f=>f.properties.sensor==='MODIS'&&$('show-modis').checked),detectionLayer,'#c62828',5.5);draw(modisViirs.filter(f=>f.properties.sensor==='VIIRS'&&$('show-viirs').checked),detectionLayer,'#ef6c00',5);draw(goes.filter(()=>$('show-goes').checked),goesLayer,'#8e2424',7);}
+function drawDetections(){
+ detectionLayer.clearLayers();goesLayer.clearLayers();
+ const zoom=map.getZoom();
+ const draw=(items,layer,color,radius,label)=>{
+  if(zoom>=7){
+   items.forEach(f=>{const c=f.geometry.coordinates;L.circleMarker([c[1],c[0]],{radius,color,weight:1.5,fillColor:color,fillOpacity:.78}).bindPopup(popup(f)).addTo(layer);});
+   return;
+  }
+  // Agrupar por celdas de pantalla para que la vista nacional no quede cubierta
+  // por cientos de círculos superpuestos. Al acercar el zoom vuelven los puntos.
+  const cells=new Map(),cellSize=54;
+  items.forEach(f=>{
+   const c=f.geometry.coordinates,point=map.project([c[1],c[0]],zoom);
+   const key=Math.floor(point.x/cellSize)+':'+Math.floor(point.y/cellSize);
+   if(!cells.has(key))cells.set(key,{features:[],lat:0,lng:0});
+   const group=cells.get(key);group.features.push(f);group.lat+=c[1];group.lng+=c[0];
+  });
+  cells.forEach(group=>{
+   const count=group.features.length,lat=group.lat/count,lng=group.lng/count;
+   const size=Math.min(22,8+Math.log2(count+1)*2);
+   const summary='<strong>'+count.toLocaleString('es-AR')+' '+esc(label)+'</strong><small>Acercá el mapa para ver cada detección individual.</small>';
+   L.circleMarker([lat,lng],{radius:size,color,weight:2,fillColor:color,fillOpacity:.78})
+    .bindTooltip(String(count),{permanent:true,direction:'center',className:'fire-cluster-label',opacity:.95})
+    .bindPopup(summary).addTo(layer);
+  });
+ };
+ draw(modisViirs.filter(f=>f.properties.sensor==='MODIS'&&$('show-modis').checked),detectionLayer,'#c62828',5.5,'detecciones MODIS');
+ draw(modisViirs.filter(f=>f.properties.sensor==='VIIRS'&&$('show-viirs').checked),detectionLayer,'#ef6c00',5,'detecciones VIIRS');
+ draw(goes.filter(()=>$('show-goes').checked),goesLayer,'#8e2424',7,'alertas GOES-19');
+}
 function updateCounts(){const m=modisViirs.filter(f=>f.properties.sensor==='MODIS').length,v=modisViirs.filter(f=>f.properties.sensor==='VIIRS').length,g=goes.length;$('count-modis').textContent=m.toLocaleString('es-AR');$('count-viirs').textContent=v.toLocaleString('es-AR');$('count-goes').textContent=g.toLocaleString('es-AR');$('count-total').textContent=(m+v+g).toLocaleString('es-AR');}
 async function refresh(){const b=$('refresh');b.disabled=true;b.textContent='Actualizando…';$('source-status').textContent='Consultando detecciones recientes…';$('source-status').classList.remove('error');const results=await Promise.allSettled([fetch('/api/fires/national',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('NASA FIRMS HTTP '+r.status);return r.json()}),fetch('/api/fires/goes',{cache:'no-store'}).then(async r=>{if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(d.detail||'GOES HTTP '+r.status)}return r.json()})]);const errs=[];if(results[0].status==='fulfilled')modisViirs=results[0].value.features||[];else{modisViirs=[];errs.push(results[0].reason.message);}if(results[1].status==='fulfilled')goes=results[1].value.features||[];else{goes=[];errs.push(results[1].reason.message);}drawDetections();updateCounts();const fm=results[0].status==='fulfilled'?results[0].value.meta:null,gm=results[1].status==='fulfilled'?results[1].value.meta:null;
 const sourceIssues=(fm?.sources||[]).filter(s=>!s.ok).map(s=>s.name+': '+(s.error||'sin respuesta'));
@@ -203,7 +232,7 @@ function applyHistory(){
  $('history-status').textContent=filtered.length.toLocaleString('es-AR')+' detecciones '+(lot?'dentro del lote seleccionado':'en el conjunto importado')+' · '+paired.toLocaleString('es-AR')+' coincidencias MODIS/VIIRS exploratorias · '+historySkipped.toLocaleString('es-AR')+' filas descartadas. No son incendios confirmados.';
 }
 $('history-files').addEventListener('change',loadHistory);$('history-manifest').addEventListener('click',downloadHistoryManifest);$('history-apply').addEventListener('click',applyHistory);$('history-from').addEventListener('change',applyHistory);$('history-to').addEventListener('change',applyHistory);$('history-clear').addEventListener('click',()=>{history=[];historySkipped=0;$('history-files').value='';$('history-status').textContent='Sin registros históricos cargados.';$('history-years').textContent='Sin registros.';$('history-months').textContent='Sin registros.';$('history-clear').disabled=true;$('history-apply').disabled=true;$('history-manifest').disabled=true;historyManifest=[];});
-$('national-view').addEventListener('click',showArgentina);$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));$('show-lot').addEventListener('change',()=>{if($('show-lot').checked)lotLayer.addTo(map);else map.removeLayer(lotLayer);});
+map.on('zoomend',drawDetections);$('national-view').addEventListener('click',showArgentina);$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));$('show-lot').addEventListener('change',()=>{if($('show-lot').checked)lotLayer.addTo(map);else map.removeLayer(lotLayer);});
 $('themeToggle').addEventListener('click',()=>{document.documentElement.classList.toggle('theme-dark');document.body.classList.toggle('theme-dark');try{localStorage.setItem('agro-theme',document.documentElement.classList.contains('theme-dark')?'dark':'light');}catch{}});
 try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
 refresh();window.setInterval(refresh,10*60*1000);
