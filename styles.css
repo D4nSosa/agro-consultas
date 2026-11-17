@@ -1175,3 +1175,49 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   border-color: rgba(115,230,177,.28);
   color: #b8f5d6 !important;
 }
+
+
+/* Navegación móvil: todos los módulos visibles sin desplazamiento horizontal */
+@media (max-width: 600px) {
+  .app-header {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .app-header .left {
+    flex: 1 1 100%;
+  }
+  .app-header .right {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px !important;
+    width: 100%;
+    flex: 1 1 100%;
+    flex-wrap: initial !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    padding: 2px 0 !important;
+    justify-content: initial;
+  }
+  .app-header .right .btn,
+  .app-header .right button {
+    min-width: 0;
+    width: 100%;
+    min-height: 40px;
+    height: auto;
+    padding: 6px 4px;
+    font-size: 0.68rem !important;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    justify-content: center;
+  }
+}
+@media (max-width: 380px) {
+  .app-header .right {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex-wrap: initial !important;
+    overflow: visible !important;
+  }
+}
