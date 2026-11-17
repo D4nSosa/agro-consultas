@@ -3,6 +3,7 @@
   'use strict';
 
   const pages = [
+    ['index.html', 'Inicio', '⌂'],
     ['mapa.html', 'Mapa', '⌖'],
     ['resultados.html', 'Agro', '♧'],
     ['forestal.html', 'Forestal', '♣'],
@@ -27,53 +28,76 @@
     return null;
   }
 
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, char => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[char]);
-  }
-
   function activeLotLabel(feature) {
     return feature?.properties?.name || feature?.properties?.nombre ||
       feature?.properties?.lotName || 'Sin lote activo';
   }
 
+  function makeLink([href, label, icon], mobile = false) {
+    const link = document.createElement('a');
+    link.href = href;
+    if (href === path) link.setAttribute('aria-current', 'page');
+    if (mobile) {
+      const symbol = document.createElement('span');
+      symbol.setAttribute('aria-hidden', 'true');
+      symbol.textContent = icon;
+      const text = document.createElement('span');
+      text.textContent = label;
+      link.append(symbol, text);
+    } else {
+      link.textContent = label;
+    }
+    return link;
+  }
+
+  function renderNavigation() {
+    if (document.querySelector('.ac-workspace-bar')) return;
+    const bar = document.createElement('div');
+    bar.className = 'ac-workspace-bar';
+
+    const brand = document.createElement('a');
+    brand.className = 'ac-brand';
+    brand.href = 'index.html';
+    const mark = document.createElement('span');
+    mark.className = 'ac-brand-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = 'AC';
+    const name = document.createElement('span');
+    name.textContent = 'Agro-Consultas';
+    brand.append(mark, name);
+
+    const desktop = document.createElement('nav');
+    desktop.className = 'ac-workspace-links';
+    desktop.setAttribute('aria-label', 'Navegación principal');
+    pages.forEach(item => desktop.appendChild(makeLink(item)));
+
+    bar.append(brand, desktop);
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    const mobile = document.createElement('nav');
+    mobile.className = 'ac-mobile-nav';
+    mobile.setAttribute('aria-label', 'Navegación principal');
+    pages.forEach(item => mobile.appendChild(makeLink(item, true)));
+    document.body.appendChild(mobile);
+  }
+
   function renderContext() {
     const feature = readLot();
-    const label = activeLotLabel(feature);
     let context = document.querySelector('.ac-project-chip');
     if (!context) {
       context = document.createElement('span');
       context.className = 'ac-project-chip';
       context.setAttribute('role', 'status');
       context.setAttribute('aria-live', 'polite');
-      const header = document.querySelector('.app-header');
-      if (header) {
-        const target = header.querySelector('.right') || header;
-        target.appendChild(context);
-      } else {
-        const main = document.querySelector('main');
-        (main || document.body).insertBefore(context, (main || document.body).firstChild);
-      }
+      const bar = document.querySelector('.ac-workspace-bar');
+      if (bar) bar.appendChild(context);
     }
-    context.textContent = '⌖ ' + label;
+    context.textContent = '⌖ ' + activeLotLabel(feature);
     context.title = feature ? 'Lote activo en este navegador' : 'Seleccioná o importá un lote desde Mapa';
   }
 
-  function renderNavigation() {
-    const nav = document.createElement('nav');
-    nav.className = 'ac-mobile-nav';
-    nav.setAttribute('aria-label', 'Navegación principal');
-    const items = [['index.html', 'Inicio', '⌂'], ...pages];
-    nav.innerHTML = items.map(([href, label, icon]) =>
-      '<a href="' + href + '" ' + (href === path ? 'aria-current="page"' : '') +
-      '><span aria-hidden="true">' + icon + '</span><span>' + label + '</span></a>'
-    ).join('');
-    document.body.appendChild(nav);
-  }
-
-  renderContext();
   renderNavigation();
+  renderContext();
   window.addEventListener('storage', event => {
     if (event.key === storageKey) renderContext();
   });
