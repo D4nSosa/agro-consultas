@@ -31,6 +31,22 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
 
+    def test_map_tracking_and_forest_modules_subscribe_to_shared_lot_changes(self):
+        checks = {
+            "mapa.html": "onLotContextChange(feature=>",
+            "tracking.html": "onLotContextChange(applySharedLot)",
+            "forestal.html": "onLotContextChange(feature =>",
+        }
+        for page, expected in checks.items():
+            with self.subTest(page=page):
+                html = (ROOT / page).read_text(encoding="utf-8")
+                self.assertIn(expected, html)
+
+    def test_forest_map_can_clear_a_shared_lot(self):
+        source = (ROOT / "forestal/components/ForestMap.js").read_text(encoding="utf-8")
+        self.assertIn("clearGeoJSON()", source)
+        self.assertIn("this.currentFeature = null", source)
+
     def test_tracking_navigation_persists_the_current_lot_first(self):
         html = (ROOT / "mapa.html").read_text(encoding="utf-8")
         self.assertIn("$('tracking').onclick=()=>{if(current)$('save').click();location.href='tracking.html';};", html)
