@@ -59,3 +59,24 @@ Este indicador NO es el Fire Weather Index (FWI) oficial, no integra humedad del
 ## Frescura de las fuentes en vivo
 
 La respuesta nacional informa el estado de cada archivo FIRMS cuando el proveedor expone su cabecera de actualización. Las fuentes cuya antigüedad supera el umbral de vigencia configurado se marcan como atrasadas y sus detecciones no se incorporan a la capa en vivo; la interfaz identifica cuáles fueron excluidas. Si el proveedor no informa una fecha de actualización, la frescura se muestra como desconocida y no se interpreta como confirmación de actualidad. GOES-19 se informa por separado porque su última escena disponible tiene otro ciclo y otra metodología. Una fuente atrasada o ausente no equivale a ausencia de focos.
+
+
+## Alcance histórico disponible y evolución prevista
+
+**Estado actual de la aplicación:** el apartado Histórico procesa CSV detallados que el usuario importa desde CONAE o NASA FIRMS. No consulta automáticamente un archivo histórico remoto; por eso el panel aparece vacío hasta que se cargan datos. Los archivos se procesan localmente.
+
+**Fuente abierta adecuada para contexto provincial:** el servicio Global Wildfire Information System (GWIS) / Joint Research Centre publica series mensuales de superficie quemada derivadas de MODIS MCD64A1 para países y unidades administrativas subnacionales (GADM nivel 1), con cobertura 2002–2025 en su descarga global. También publica un conjunto de perímetros individuales de incendios 2002–2025 derivado de MCD64A1. La serie administrativa permite construir gráficos por provincia y año/mes; no permite atribuir hectáreas quemadas a un lote particular. Los perímetros requieren una consulta espacial separada y conservan las limitaciones de resolución y detección del producto.
+
+**Para detecciones históricas de focos activos:** NASA FIRMS ofrece Archive Download para datos de más de siete días; el acceso a los servicios de API requiere una MAP_KEY gratuita y las descargas del archivo requieren registro Earthdata. No se debe asumir que el feed NRT de 24 horas equivale a un archivo histórico.
+
+Implementación recomendada:
+1. Incorporar primero la serie GWIS de superficie quemada por provincia (contexto administrativo), con fuente, producto, rango temporal y fecha de actualización visibles.
+2. Mantener separadas las detecciones MODIS/VIIRS y las superficies/perímetros quemados; son productos distintos y no deben sumarse como si fueran la misma variable.
+3. Añadir consulta por lote únicamente cuando se disponga de geometrías de perímetros o ráster de superficie quemada con cobertura y resolución verificadas. No convertir estadísticas provinciales en resultados del lote.
+4. Ofrecer importación FIRMS/CONAE como vía de detalle para focos históricos, indicando fuente, sensor, período y filas descartadas.
+
+Fuentes:
+- [GWIS — descargas de superficie quemada y perímetros 2002–2025](https://gwis.jrc.ec.europa.eu/apps/country.profile/downloads)
+- [GWIS — metodología de áreas quemadas y eventos](https://gwis.jrc.ec.europa.eu/about-gwis/technical-background/burnt-areas)
+- [NASA FIRMS — archivo histórico](https://firms.modaps.eosdis.nasa.gov/download/)
+- [NASA FIRMS — requisitos de MAP_KEY para API](https://firms.modaps.eosdis.nasa.gov/content/academy/data_api/firms_api_use.html)

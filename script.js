@@ -11,7 +11,7 @@ import {
 import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
-import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate } from './services/recommendationEngine.js';
+import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
 import {
@@ -243,14 +243,23 @@ export async function inicializarSelectorCultivos() {
     const cropCount = Object.keys(cropCatalog).length;
     const totalProfiles = Object.keys(catalogo).length;
 
-    let html = `<option value="todos">🌾 Todos los cultivos agrícolas (${cropCount} agrícolas / ${totalProfiles} perfiles totales)</option>`;
+    const forestCount = Object.values(catalogo).filter(item => item.categoria === "Forestal" || item.pino_eucalyptus).length;
+    let html = `<option value="todos">🌱 Todos los perfiles (${cropCount} agrícolas / ${forestCount} forestales)</option>`;
     const keys = Object.keys(catalogo).sort((a, b) => (catalogo[a].nombre || a).localeCompare(catalogo[b].nombre || b));
+    const agriculturalKeys = keys.filter(k => catalogo[k].categoria !== "Forestal" && !catalogo[k].pino_eucalyptus);
+    const forestryKeys = keys.filter(k => catalogo[k].categoria === "Forestal" || catalogo[k].pino_eucalyptus);
 
-    keys.forEach(k => {
+    html += '<optgroup label="Agrícolas, hortícolas y frutícolas">';
+    agriculturalKeys.forEach(k => {
       const item = catalogo[k];
-      const cat = item.categoria ? ` (${item.categoria})` : '';
-      html += `<option value="${k}">${item.nombre}${cat}</option>`;
+      html += `<option value="${k}">${item.nombre}</option>`;
     });
+    html += '</optgroup><optgroup label="Forestales">';
+    forestryKeys.forEach(k => {
+      const item = catalogo[k];
+      html += `<option value="${k}">${item.nombre}</option>`;
+    });
+    html += '</optgroup>';
 
     select.innerHTML = html;
 
@@ -785,7 +794,11 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
         cultivosAEvaluar = [selectedCropKey];
       }
     } else {
-      cultivosAEvaluar = await getCropsToEvaluate(key, subregion);
+      const [candidatosAgricolas, candidatosForestales] = await Promise.all([
+        getCropsToEvaluate(key, subregion),
+        getForestToEvaluate(key)
+      ]);
+      cultivosAEvaluar = [...new Set([...candidatosAgricolas, ...candidatosForestales])];
     }
 
     if (!cultivosAEvaluar.length) {
@@ -941,95 +954,87 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
   const container = document.getElementById("crop-results");
   if (!container) return;
 
-  const evaluables = recomendaciones.filter(c =>
-    c && c.compatibilidad &&
-    !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
-    !c.compatibilidad.includes("NO EVALUABLE") &&
-    !c.compatibilidad.includes("DATOS INSUFICIENTES")
-  );
-  const pendientes = recomendaciones.filter(c => c && !evaluables.includes(c));
+  const isForestal = item => item?.categoriaCatalogo === "Forestal";
+  const grupos = [
+    { key: "agricola", title: "Orientación agrícola y frutícola", items: recomendaciones.filter(item => !isForestal(item)) },
+    { key: "forestal", title: "Orientación forestal", items: recomendaciones.filter(isForestal) }
+  ].filter(group => group.items.length);
 
-  // La falta de evidencia puntual impide clasificar aptitud, pero no debe ocultar
-  // los candidatos regionales ni sus fichas técnicas.
-  const renderPendientes = () => {
-    if (!pendientes.length) return "";
-    return `
-      <div style="grid-column:1/-1; margin-top:16px; margin-bottom:5px;">
-        <h3 style="color:var(--texto-secundario); font-size:1.05rem; border-bottom:1px solid var(--borde-suave); padding-bottom:7px; margin:0;">
-          ⚪ Candidatos regionales sin clasificación de aptitud (${pendientes.length})
-        </h3>
-        <p class="text-muted" style="margin:8px 0 12px;">
-          Estos cultivos aparecen en el perfil territorial de referencia. Se muestran como opciones para investigar, no como recomendaciones de siembra ni como cultivos aptos. La clasificación requiere evidencia edáfica puntual y variables climáticas comparables.
-        </p>
-      </div>
-      ${pendientes.map(createSingleRecommendationCardHtml).join('')}
-    `;
+  const renderGroup = group => {
+    const evaluables = group.items.filter(c =>
+      c && c.compatibilidad &&
+      !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
+      !c.compatibilidad.includes("NO EVALUABLE") &&
+      !c.compatibilidad.includes("DATOS INSUFICIENTES")
+    );
+    const pendientes = group.items.filter(c => c && !evaluables.includes(c));
+    const title = group.title;
+
+    if (!evaluables.length) {
+      if (!pendientes.length) return "";
+      return `
+        <section style="grid-column:1/-1; margin-top:14px;">
+          <h3 style="color:var(--texto-secundario);font-size:1.05rem;border-bottom:1px solid var(--borde-suave);padding-bottom:7px;margin:0;">⚪ ${title} · candidatos sin clasificación (${pendientes.length})</h3>
+          <p class="text-muted" style="margin:8px 0 12px;">
+            ${group.key === "forestal"
+              ? "Estas especies están incluidas en el catálogo provincial. Se muestran como perfiles para evaluar, no como aptitud forestal confirmada ni como recomendación de plantación."
+              : "Estos cultivos aparecen en el perfil territorial de referencia. Se muestran como opciones para investigar, no como recomendaciones de siembra ni como cultivos aptos."}
+            La clasificación requiere evidencia edáfica puntual y variables climáticas comparables.
+          </p>
+          ${pendientes.map(createSingleRecommendationCardHtml).join('')}
+        </section>
+      `;
+    }
+
+    const aptos = [], moderados = [], noAptos = [];
+    evaluables.forEach(c => {
+      if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) noAptos.push(c);
+      else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) moderados.push(c);
+      else aptos.push(c);
+    });
+
+    let html = `<section style="grid-column:1/-1;margin-top:14px;"><h3 style="font-size:1.1rem;color:var(--verde-principal);border-bottom:1px solid var(--borde-suave);padding-bottom:7px;">${title}</h3></section>`;
+    const noun = group.key === "forestal" ? "Especies forestales" : "Cultivos";
+    if (aptos.length) html += `
+      <div style="grid-column:1/-1;margin-top:8px;"><h4 style="color:#27ae60;margin:0 0 8px;">🟢 ${noun} con aptitud favorable según los datos disponibles (${aptos.length})</h4></div>
+      ${aptos.map(createSingleRecommendationCardHtml).join('')}`;
+    if (moderados.length) html += `
+      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#d35400;margin:0 0 8px;">🟡 ${noun} con aptitud media / condicionada (${moderados.length})</h4></div>
+      ${moderados.map(createSingleRecommendationCardHtml).join('')}`;
+    if (noAptos.length) html += `
+      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#c0392b;margin:0 0 8px;">🔴 ${noun} con limitaciones severas identificadas (${noAptos.length})</h4></div>
+      ${noAptos.map(createSingleRecommendationCardHtml).join('')}`;
+    if (pendientes.length) html += `
+      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:var(--texto-secundario);margin:0 0 8px;">⚪ Otros perfiles sin clasificación (${pendientes.length})</h4></div>
+      ${pendientes.map(createSingleRecommendationCardHtml).join('')}`;
+    return html;
   };
 
-  if (!evaluables.length) {
-    container.innerHTML = pendientes.length
-      ? `
-        <div class="card" style="grid-column:1/-1; border-left:4px solid #7f8c8d;">
-          <h3 style="margin:0 0 6px;">Orientación productiva regional</h3>
-          <p class="text-muted" style="margin:0;">No hay cultivos con aptitud clasificable para este punto con la evidencia disponible. A continuación se muestran los candidatos del perfil regional y sus fichas, sin asignarles una aptitud ficticia.</p>
-        </div>
-        ${renderPendientes()}
-      `
-      : `
-        <div class="empty-state card" style="grid-column:1/-1; text-align:center; padding:25px;">
-          <span style="font-size:2rem; display:block; margin-bottom:8px;">⚪</span>
-          <h3>No hay candidatos territoriales disponibles</h3>
-          <p class="text-muted">No se encontró un perfil regional aplicable a esta ubicación. No se mostrarán cultivos del catálogo nacional como si fueran recomendaciones locales.</p>
-        </div>
-      `;
+  if (!grupos.length) {
+    container.innerHTML = `
+      <div class="empty-state card" style="grid-column:1/-1;text-align:center;padding:25px;">
+        <span style="font-size:2rem;display:block;margin-bottom:8px;">⚪</span>
+        <h3>No hay perfiles agrícolas o forestales para esta provincia</h3>
+        <p class="text-muted">No se encontraron candidatos en el catálogo territorial disponible. No se mostrarán especies de otras regiones como si fueran locales.</p>
+      </div>`;
     return;
   }
 
-  if (!selectedCropKey || selectedCropKey === "todos") {
-    const aptos = [];
-    const moderados = [];
-    const noAptos = [];
+  const evaluablesTotal = recomendaciones.filter(c =>
+    c?.compatibilidad &&
+    !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
+    !c.compatibilidad.includes("NO EVALUABLE") &&
+    !c.compatibilidad.includes("DATOS INSUFICIENTES")
+  ).length;
 
-    evaluables.forEach(c => {
-      if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
-        noAptos.push(c);
-      } else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
-        moderados.push(c);
-      } else {
-        aptos.push(c);
-      }
-    });
-
-    let html = '';
-    if (aptos.length) {
-      html += `
-        <div style="grid-column:1/-1; margin-top:10px; margin-bottom:5px;">
-          <h3 style="color:#27ae60; font-size:1.15rem; border-bottom:2px solid #27ae60; padding-bottom:6px; margin:0;">🟢 Cultivos con aptitud favorable según los datos disponibles (${aptos.length})</h3>
-        </div>
-        ${aptos.map(createSingleRecommendationCardHtml).join('')}
-      `;
-    }
-    if (moderados.length) {
-      html += `
-        <div style="grid-column:1/-1; margin-top:15px; margin-bottom:5px;">
-          <h3 style="color:#d35400; font-size:1.15rem; border-bottom:2px solid #f39c12; padding-bottom:6px; margin:0;">🟡 Aptitud media / con limitaciones (${moderados.length})</h3>
-        </div>
-        ${moderados.map(createSingleRecommendationCardHtml).join('')}
-      `;
-    }
-    if (noAptos.length) {
-      html += `
-        <div style="grid-column:1/-1; margin-top:15px; margin-bottom:5px;">
-          <h3 style="color:#c0392b; font-size:1.15rem; border-bottom:2px solid #e74c3c; padding-bottom:6px; margin:0;">🔴 Cultivos con limitaciones severas identificadas (${noAptos.length})</h3>
-        </div>
-        ${noAptos.map(createSingleRecommendationCardHtml).join('')}
-      `;
-    }
-    html += renderPendientes();
-    container.innerHTML = html;
-  } else {
-    container.innerHTML = evaluables.map(createSingleRecommendationCardHtml).join('') + renderPendientes();
-  }
+  container.innerHTML = evaluablesTotal
+    ? grupos.map(renderGroup).join('')
+    : `
+      <div class="card" style="grid-column:1/-1;border-left:4px solid #7f8c8d;">
+        <h3 style="margin:0 0 6px;">Orientación productiva territorial</h3>
+        <p class="text-muted" style="margin:0;">No hay perfiles con aptitud clasificable para este punto con la evidencia disponible. Se muestran por separado los candidatos agrícolas y forestales del catálogo provincial, sin asignarles una aptitud ficticia.</p>
+      </div>
+      ${grupos.map(renderGroup).join('')}`;
 }
 
 function mostrarErrorUbicacionNoEncontrada(queryTexto) {
