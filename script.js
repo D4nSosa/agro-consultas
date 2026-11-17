@@ -243,14 +243,23 @@ export async function inicializarSelectorCultivos() {
     const cropCount = Object.keys(cropCatalog).length;
     const totalProfiles = Object.keys(catalogo).length;
 
-    let html = `<option value="todos">🌾 Todos los cultivos agrícolas (${cropCount} agrícolas / ${totalProfiles} perfiles totales)</option>`;
+    const forestCount = Object.values(catalogo).filter(item => item.categoria === "Forestal" || item.pino_eucalyptus).length;
+    let html = `<option value="todos">🌱 Todos los perfiles (${cropCount} agrícolas / ${forestCount} forestales)</option>`;
     const keys = Object.keys(catalogo).sort((a, b) => (catalogo[a].nombre || a).localeCompare(catalogo[b].nombre || b));
+    const agriculturalKeys = keys.filter(k => catalogo[k].categoria !== "Forestal" && !catalogo[k].pino_eucalyptus);
+    const forestryKeys = keys.filter(k => catalogo[k].categoria === "Forestal" || catalogo[k].pino_eucalyptus);
 
-    keys.forEach(k => {
+    html += '<optgroup label="Agrícolas, hortícolas y frutícolas">';
+    agriculturalKeys.forEach(k => {
       const item = catalogo[k];
-      const cat = item.categoria ? ` (${item.categoria})` : '';
-      html += `<option value="${k}">${item.nombre}${cat}</option>`;
+      html += `<option value="${k}">${item.nombre}</option>`;
     });
+    html += '</optgroup><optgroup label="Forestales">';
+    forestryKeys.forEach(k => {
+      const item = catalogo[k];
+      html += `<option value="${k}">${item.nombre}</option>`;
+    });
+    html += '</optgroup>';
 
     select.innerHTML = html;
 
