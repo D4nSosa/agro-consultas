@@ -265,6 +265,17 @@ export class ForestMap {
     this.setGeoJSON(feature);
   }
 
+  clearGeoJSON() {
+    if (this.currentLayer) {
+      this.map?.removeLayer(this.currentLayer);
+      this.currentLayer = null;
+    }
+    this.currentFeature = null;
+    this.drawPolygonPoints = [];
+    this.isDrawing = false;
+    if (this.onLotChanged) this.onLotChanged(null, null, null);
+  }
+
   getCurrentFeature() {
     return this.currentFeature;
   }
