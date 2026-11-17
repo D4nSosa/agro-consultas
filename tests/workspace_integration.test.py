@@ -37,6 +37,13 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
 
+    def test_fire_detection_carousel_is_interactive(self):
+        source = (ROOT / "incendios.html").read_text(encoding="utf-8")
+        self.assertIn('id="fire-detection-carousel"', source)
+        self.assertIn("function renderRecentDetections()", source)
+        self.assertIn("data-fire-index", source)
+        self.assertIn("setContent(popup(feature))", source)
+
     def test_fire_and_climate_panels_avoid_generic_unavailable_labels(self):
         fire = (ROOT / "incendios.html").read_text(encoding="utf-8")
         results = (ROOT / "resultados.html").read_text(encoding="utf-8")
