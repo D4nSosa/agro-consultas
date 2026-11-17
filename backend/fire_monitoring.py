@@ -2,6 +2,7 @@
 from fastapi import FastAPI, HTTPException
 import csv
 import datetime
+from email.utils import parsedate_to_datetime
 import io
 import re
 import time
@@ -29,6 +30,28 @@ def _number(value):
         return number if np.isfinite(number) else None
     except (TypeError, ValueError):
         return None
+
+
+def _last_modified_freshness(value, now=None, stale_after_hours=36):
+    """Classify feed freshness from HTTP Last-Modified without treating unknown as fresh."""
+    if not value:
+        return {"lastModifiedAgeHours": None, "stale": None, "freshness": "unknown"}
+    try:
+        modified_at = parsedate_to_datetime(value)
+        if modified_at.tzinfo is None:
+            modified_at = modified_at.replace(tzinfo=datetime.timezone.utc)
+        current = now or datetime.datetime.now(datetime.timezone.utc)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=datetime.timezone.utc)
+        age_hours = max(0.0, (current - modified_at).total_seconds() / 3600)
+    except (TypeError, ValueError, OverflowError):
+        return {"lastModifiedAgeHours": None, "stale": None, "freshness": "unknown"}
+    stale = age_hours > stale_after_hours
+    return {
+        "lastModifiedAgeHours": round(age_hours, 1),
+        "stale": stale,
+        "freshness": "stale" if stale else "fresh",
+    }
 
 
 def _sample_detection_indices(mask, max_points=2500):
@@ -76,7 +99,15 @@ def _fetch_firms(item):
                 "sourceFile": url.rsplit("/", 1)[-1],
             }
         })
-    return {"name": name, "ok": True, "count": len(features), "lastModified": modified, "features": features}
+    freshness = _last_modified_freshness(modified)
+    return {
+        "name": name,
+        "ok": True,
+        "count": len(features),
+        "lastModified": modified,
+        **freshness,
+        "features": features,
+    }
 
 
 @app.get("/api/fires/national")
@@ -95,13 +126,15 @@ def national_fires():
     good = [r for r in results if r["ok"]]
     if not good:
         raise HTTPException(status_code=502, detail="NASA FIRMS no respondió con archivos recientes.")
-    features = [f for r in good for f in r["features"]]
+    # Old feeds remain visible in diagnostics but are excluded from the live detections layer.
+    features = [f for r in good if r.get("stale") is not True for f in r["features"]]
     features.sort(key=lambda f: (f["properties"].get("observedAt") or "", f["properties"].get("sensor") or ""), reverse=True)
     payload = {
         "type": "FeatureCollection", "features": features,
         "meta": {
             "source": "NASA FIRMS", "coverage": "South America 24h CSV clipped to Argentina bounding extent",
             "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "count": len(features),
+            "staleSources": [r["name"] for r in results if r.get("stale") is True],
             "sources": [{k: v for k, v in r.items() if k != "features"} for r in results],
         },
     }
