@@ -227,3 +227,19 @@ def test_nodata_and_cloud_coverage_error():
         stats, err = process_cog_raster_ndvi_cropped(red_path, nir_path, scl_path, geom_wgs84)
         assert stats is None
         assert "No se obtuvieron píxeles válidos" in err
+
+def test_project_roi_geometry_preserves_multipolygon_and_holes():
+    from pyproj import Transformer
+    from shapely.geometry import Polygon, MultiPolygon
+    from backend.main import _project_roi_geometry
+
+    outer_a = [(-56.0, -27.0), (-55.99, -27.0), (-55.99, -26.99), (-56.0, -26.99), (-56.0, -27.0)]
+    hole_a = [(-55.998, -26.998), (-55.997, -26.998), (-55.997, -26.997), (-55.998, -26.997), (-55.998, -26.998)]
+    outer_b = [(-56.02, -27.0), (-56.01, -27.0), (-56.01, -26.99), (-56.02, -26.99), (-56.02, -27.0)]
+    roi = MultiPolygon([Polygon(outer_a, [hole_a]), Polygon(outer_b)])
+    transformer = Transformer.from_crs('EPSG:4326', 'EPSG:32721', always_xy=True)
+    projected = _project_roi_geometry(roi, transformer)
+    assert projected.geom_type == 'MultiPolygon'
+    assert len(projected.geoms) == 2
+    assert len(projected.geoms[0].interiors) == 1
+    assert projected.is_valid
