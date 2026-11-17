@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +30,10 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("ac-workspace-links", js)
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
+
+    def test_tracking_navigation_persists_the_current_lot_first(self):
+        html = (ROOT / "mapa.html").read_text(encoding="utf-8")
+        self.assertIn("$('tracking').onclick=()=>{if(current)$('save').click();location.href='tracking.html';};", html)
 
     def test_report_uses_a_geometry_centroid_and_explains_its_source(self):
         html = (ROOT / "reporte.html").read_text(encoding="utf-8")
