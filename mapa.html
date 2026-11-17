@@ -71,7 +71,7 @@ const themeToggle=document.getElementById("themeToggle");
 themeToggle?.addEventListener("click",()=>{const dark=document.documentElement.classList.toggle("theme-dark");try{localStorage.setItem("agro_theme",dark?"dark":"light");}catch(e){}});
 </script>
 <script type="module">
-import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature } from './services/lotContext.js';
+import { getLotContext, setLotContext, clearLotContext, normalizeLotFeature, onLotContextChange } from './services/lotContext.js';
 import { calculateArea } from './forestal/utils/geo.js';
 const map=L.map('lot-map',{preferCanvas:true}).setView([-38.4,-63.6],4);
 const baseLayers = {
@@ -129,6 +129,16 @@ $('forest').onclick=()=>{if(!current)return;$('save').click();location.href='for
 $('tracking').onclick=()=>{if(current)$('save').click();location.href='tracking.html';};
 $('layer-lot').onchange=()=>{if(!lotLayer)return;if($('layer-lot').checked){lotLayer.addTo(map);}else{map.removeLayer(lotLayer);}};
 const saved=getLotContext();if(saved)showFeature(saved);
+onLotContextChange(feature=>{
+ if(!feature){
+  if(lotLayer)map.removeLayer(lotLayer);
+  lotLayer=null;current=null;clearEditMarkers();editing=false;
+  $('save').disabled=true;$('aptitude').disabled=true;$('forest').disabled=true;
+  status('No hay un lote seleccionado.');
+  return;
+ }
+ showFeature(feature);
+});
 </script>
   <script src="workspace.js" defer></script>
 </body>
