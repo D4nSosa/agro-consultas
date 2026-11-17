@@ -1,0 +1,28 @@
+/* Agro-Consultas unified workspace layer — shared across all modules. */
+:root{--ac-pine:#173b2b;--ac-pine-2:#24563d;--ac-line:var(--borde-suave,rgba(120,140,125,.22));--ac-surface:var(--gris-card,#fff)}
+.ac-workspace-bar{position:sticky;top:0;z-index:1200;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px clamp(12px,2vw,24px);background:var(--bg-principal,#fff);border-bottom:1px solid var(--ac-line);box-shadow:0 2px 12px rgba(0,0,0,.05)}
+.ac-brand{display:flex;align-items:center;gap:10px;color:var(--texto-principal,#173b2b);font-weight:800;text-decoration:none;letter-spacing:-.02em}
+.ac-brand-mark{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--ac-pine);color:#fff;font-size:17px}
+.ac-project-chip{max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--ac-line);border-radius:999px;padding:7px 12px;color:var(--texto-secundario);font-size:13px;background:var(--ac-surface)}
+.ac-workspace-links{display:flex;align-items:center;gap:5px}
+.ac-workspace-links a,.ac-mobile-nav a{color:var(--texto-secundario);text-decoration:none;font-size:13px;font-weight:650;padding:9px 11px;border-radius:10px}
+.ac-workspace-links a[aria-current=page]{background:var(--verde-claro);color:var(--verde-principal)}
+.ac-mobile-nav{display:none}
+.ac-mobile-nav a{display:grid;justify-items:center;gap:3px;min-width:0;padding:8px 3px;font-size:10px}
+.ac-mobile-nav a span:first-child{font-size:18px;line-height:1.2}
+.ac-mobile-nav a[aria-current=page]{color:var(--verde-principal);background:var(--verde-claro)}
+.ac-context-note{font-size:12px;color:var(--texto-secundario);padding:7px 12px;border:1px solid var(--ac-line);border-radius:10px;background:var(--ac-surface)}
+@media(max-width:760px){
+ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+ .ac-workspace-bar{padding:8px 12px;min-height:54px}
+ .ac-brand{font-size:14px}.ac-brand-mark{width:29px;height:29px}
+ .ac-workspace-links{display:none}
+ .ac-project-chip{max-width:54vw;font-size:11px;padding:6px 9px}
+ .ac-mobile-nav{position:fixed;z-index:1400;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding:5px 8px calc(5px + env(safe-area-inset-bottom));background:var(--bg-principal,#fff);border-top:1px solid var(--ac-line);box-shadow:0 -5px 20px rgba(0,0,0,.08)}
+ /* Keep the work surface dominant; supporting controls scroll inside their own panels. */
+ main,.workspace,.container,.page-container{max-width:100%;min-width:0}
+ .workspace-grid,.fire-layout{grid-template-columns:minmax(0,1fr)!important}
+ #map,.map-container,.map-panel{min-height:54vh}
+ .ac-context-note{font-size:11px}
+}
+@media(min-width:761px){.ac-workspace-bar{min-height:58px}}
