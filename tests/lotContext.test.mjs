@@ -140,3 +140,19 @@ test('limpia el lote compartido de ambos almacenamientos', t => {
   assert.equal(local.getItem(LOT_CONTEXT_STORAGE_KEY), null);
   assert.equal(session.getItem(LOT_CONTEXT_STORAGE_KEY), null);
 });
+
+test('prioriza el lote nuevo de sessionStorage frente a una copia local obsoleta', t => {
+  const stale = structuredClone(square);
+  stale.properties.name = 'Lote anterior';
+  stale.properties.updatedAt = '2020-01-01T00:00:00.000Z';
+  const blockedLocal = {
+    getItem() { return JSON.stringify({ feature: stale, metadata: { source: 'old' } }); },
+    setItem() { throw new Error('quota exceeded'); }
+  };
+  const session = memoryStorage();
+  withStorage(t, blockedLocal, session);
+  const fresh = structuredClone(square);
+  fresh.properties.name = 'Lote nuevo';
+  setLotContext(fresh);
+  assert.equal(getLotContext().properties.name, 'Lote nuevo');
+});
