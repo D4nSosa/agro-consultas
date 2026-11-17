@@ -125,9 +125,32 @@ export function setLotContext(input, metadata = {}) {
   const feature = normalizeLotFeature(input, metadata);
   const payload = { feature, metadata: { source: metadata.source || feature.properties.source || 'user-selected' } };
   const serialized = JSON.stringify(payload);
-  try { globalThis.localStorage?.setItem(STORAGE_KEY, serialized); } catch (_) {}
-  try { globalThis.sessionStorage?.setItem(STORAGE_KEY, serialized); } catch (_) {}
-  globalThis.dispatchEvent?.(new CustomEvent(EVENT_NAME, { detail: feature }));
+  let persisted = false;
+  const storageErrors = [];
+
+  for (const storageName of ['localStorage', 'sessionStorage']) {
+    try {
+      const storage = globalThis[storageName];
+      if (!storage) continue;
+      storage.setItem(STORAGE_KEY, serialized);
+      if (storage.getItem(STORAGE_KEY) !== serialized) {
+        throw new Error('La verificación de lectura no coincide con el lote guardado.');
+      }
+      persisted = true;
+      break;
+    } catch (error) {
+      storageErrors.push(error);
+    }
+  }
+
+  if (!persisted) {
+    const reason = storageErrors[0]?.message || 'El navegador no ofrece almacenamiento disponible.';
+    throw new Error(`No se pudo guardar el lote compartido. ${reason}`);
+  }
+
+  if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+    globalThis.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: feature }));
+  }
   return feature;
 }
 
