@@ -216,8 +216,9 @@ export function calcularCompatibilidad(crop, soil, climate) {
   // actual no reemplaza una serie climática, y un perfil regional no equivale a un dato puntual.
   const soilStatus = String(soil?.status || '').toUpperCase();
   const climateStatus = String(climate?.climatologyStatus || climate?.status || '').toUpperCase();
+  const isPointSoilEvidence = soil?.evidenceType !== 'CARTOGRAPHIC' && soil?.evidenceType !== 'REGIONAL_PROFILE';
   const hasComparableEvidence = soilStatus === 'REAL' && climateStatus === 'REAL' &&
-    isSoilAvailable && isClimateAvailable &&
+    isPointSoilEvidence && isSoilAvailable && isClimateAvailable &&
     soilRequiredComparisons > 0 && climateRequiredComparisons > 0 &&
     soilComparisons >= soilRequiredComparisons &&
     climateComparisons >= climateRequiredComparisons;
@@ -261,7 +262,8 @@ export function calcularCompatibilidad(crop, soil, climate) {
       nivelAptitud = 'MEDIA';
     }
   } else {
-    if (soilStatus !== 'REAL') datosFaltantes.push('Dato edáfico puntual de fuente identificada; el perfil regional no alcanza para clasificar aptitud.');
+    if (soil?.evidenceType === 'CARTOGRAPHIC') datosFaltantes.push('La capa WMS aporta una clasificación cartográfica, no una medición edáfica puntual ni un análisis de laboratorio.');
+    else if (soilStatus !== 'REAL' || soil?.evidenceType === 'REGIONAL_PROFILE') datosFaltantes.push('Dato edáfico puntual de fuente identificada; el perfil regional no alcanza para clasificar aptitud.');
     if (climateStatus !== 'REAL') datosFaltantes.push('Climatología histórica puntual de fuente identificada.');
     if (soilComparisons < soilRequiredComparisons) datosFaltantes.push('Faltan una o más variables edáficas requeridas por la ficha del cultivo.');
     if (climateComparisons < climateRequiredComparisons) datosFaltantes.push('Faltan una o más variables climatológicas requeridas por la ficha del cultivo.');
@@ -272,7 +274,7 @@ export function calcularCompatibilidad(crop, soil, climate) {
   let calidadEvidencia = 'DATOS PARCIALES';
   if (!hasComparableEvidence) {
     calidadEvidencia = 'EVIDENCIA INSUFICIENTE PARA CLASIFICAR';
-  } else if (soilStatus === 'REAL' && climateStatus === 'REAL') {
+  } else if (soilStatus === 'REAL' && climateStatus === 'REAL' && isPointSoilEvidence) {
     calidadEvidencia = 'DATOS PUNTUALES E HISTÓRICOS';
   } else {
     calidadEvidencia = 'PERFIL AGROAMBIENTAL Y CLIMA DE REFERENCIA';
