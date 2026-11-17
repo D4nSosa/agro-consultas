@@ -15,17 +15,21 @@
   const storageKey = 'agro_lot_context_v1';
 
   function readLot() {
+    const candidates = [];
     for (const storeName of ['localStorage', 'sessionStorage']) {
       try {
         const raw = window[storeName]?.getItem(storageKey);
         if (!raw) continue;
         const parsed = JSON.parse(raw);
         const feature = parsed?.feature;
-        if (feature?.type === 'Feature' && feature.geometry &&
-            ['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) return feature;
+        if (feature?.type !== 'Feature' || !feature.geometry ||
+            !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) continue;
+        const timestamp = Date.parse(feature.properties?.updatedAt || '') || 0;
+        candidates.push({ feature, timestamp });
       } catch (_) { /* Keep the rest of the workspace usable if storage is blocked. */ }
     }
-    return null;
+    candidates.sort((a, b) => b.timestamp - a.timestamp);
+    return candidates[0]?.feature || null;
   }
 
   function activeLotLabel(feature) {
