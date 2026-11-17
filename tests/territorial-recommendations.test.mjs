@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { calcularCompatibilidad, AptitudCategoria } from '../utils/scoring.js';
-import { getCropsToEvaluate } from '../services/recommendationEngine.js';
+import { getCropsToEvaluate, getForestToEvaluate } from '../services/recommendationEngine.js';
 
 test('un perfil regional orienta candidatos pero no certifica aptitud', () => {
   const crop = {
@@ -230,4 +230,29 @@ test('una respuesta WMS cartográfica no se interpreta como medición edáfica p
   assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
   assert.ok(result.datosFaltantes.some(item => item.includes('clasificación cartográfica')));
   assert.equal(result.calidadEvidencia, 'EVIDENCIA INSUFICIENTE PARA CLASIFICAR');
+});
+
+
+test('Corrientes expone los perfiles forestales provinciales para evaluación separada', async () => {
+  const [forests, provinces] = await Promise.all([
+    readFile(new URL('../data/forestales.json', import.meta.url), 'utf8'),
+    readFile(new URL('../data/provincias.json', import.meta.url), 'utf8')
+  ]);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async url => ({
+    ok: true,
+    json: async () => String(url).includes('forestales.json') ? JSON.parse(forests) :
+      String(url).includes('provincias.json') ? JSON.parse(provinces) : {}
+  });
+  try {
+    const names = await getForestToEvaluate('corrientes');
+    assert.deepEqual(names.sort(), ['Eucalyptus Grandis', 'Pino Elliottii', 'Pino Taeda'].sort());
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('no devuelve perfiles forestales provinciales cuando la provincia no está identificada', async () => {
+  assert.deepEqual(await getForestToEvaluate(null), []);
+  assert.deepEqual(await getForestToEvaluate('provincia-desconocida'), []);
 });
