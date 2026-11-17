@@ -136,3 +136,12 @@ La futura pantalla de mapa central será una capa de entrada y navegación que c
 - Los análisis Sentinel dependen de escenas disponibles, fechas, cobertura de nubes y procesamiento correcto; ausencia de escena debe mostrarse como no disponible.
 - Los datos agrícolas SAGyP locales deben conservar campaña y fecha de actualización visibles.
 - La integración externa y los recorridos end-to-end requieren pruebas en navegador y en Preview; no se consideran aprobados solo por existir código.
+
+
+## Estados de evidencia y calidad de captura
+
+- REAL se reserva para datos puntuales cuya naturaleza y procedencia permiten esa clasificación. Una respuesta de INTA WMS se etiqueta CARTOGRAPHIC y no se trata como análisis de laboratorio ni medición puntual.
+- Una escena Sentinel-2 localizada en STAC es SCENE_IDENTIFIED; solo se informa NDVI disponible cuando el procesamiento devuelve estadísticas ráster válidas.
+- La reproyección de geometrías para bandas B04, B08 y SCL debe conservar la topología del AOI, incluidas las partes de MultiPolygon y los huecos interiores.
+- Las detecciones FIRMS se filtran por frescura cuando el proveedor informa Last-Modified. La antigüedad desconocida se declara, no se convierte en actual.
+- Tracking conserva la precisión GNSS declarada por muestra y la resume en el GeoJSON; no aplica descarte automático por umbrales sin una decisión explícita del usuario.

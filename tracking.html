@@ -121,6 +121,7 @@
             <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Perímetro / Recorrido:</span>
             <strong id="track-distance" style="font-size: 1.2rem; color: var(--texto-principal);">0 m</strong>
             <span id="track-points-count" style="font-size: 0.75rem; display: block; color: var(--texto-secundario);">0 vértices GPS</span>
+            <small id="track-gps-quality" style="display:block;color:var(--texto-secundario);margin-top:5px;line-height:1.35;">Precisión GPS: sin registros</small>
           </div>
         </div>
 
@@ -201,6 +202,7 @@
     let map = null;
     let watchId = null;
     let gpsPoints = [];
+    let gpsAccuracyValues = [];
     let polyline = null;
     let polygonLayer = null;
     let userMarker = null;
@@ -257,6 +259,7 @@
       }
 
       gpsPoints = [];
+      gpsAccuracyValues = [];
       if (polyline) map.removeLayer(polyline);
       if (polygonLayer) map.removeLayer(polygonLayer);
 
@@ -270,6 +273,7 @@
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           const acc = Math.round(pos.coords.accuracy);
+          if (Number.isFinite(pos.coords.accuracy)) gpsAccuracyValues.push(pos.coords.accuracy);
 
           document.getElementById('gps-accuracy-badge').innerText = `🟢 GPS Activo (±${acc}m)`;
 
@@ -306,6 +310,7 @@
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         gpsPoints.push([lng, lat]);
+        if (Number.isFinite(pos.coords.accuracy)) gpsAccuracyValues.push(pos.coords.accuracy);
         const latLng = [lat, lng];
         if (polyline) polyline.addLatLng(latLng);
         L.circleMarker(latLng, { radius: 5, color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 1 }).addTo(map);
@@ -334,7 +339,13 @@
       const geom = { type: "Polygon", coordinates: [closedCoords] };
 
       const lotName = document.getElementById('track-lot-name').value || "Lote Caminado por GPS";
-      currentFeature = toGeoJSONFeature(geom, { name: lotName });
+      const sortedAccuracy = [...gpsAccuracyValues].sort((a, b) => a - b);
+      const medianAccuracy = sortedAccuracy.length ? sortedAccuracy[Math.floor(sortedAccuracy.length / 2)] : null;
+      const maxAccuracy = sortedAccuracy.length ? Math.max(...sortedAccuracy) : null;
+      currentFeature = toGeoJSONFeature(geom, {
+        name: lotName,
+        gps: { samples: gpsPoints.length, accuracySamples: sortedAccuracy.length, medianAccuracyMeters: medianAccuracy, maxAccuracyMeters: maxAccuracy, areaMethod: 'geodesic approximation from recorded GNSS vertices' }
+      });
       try {
         currentFeature = setLotContext(currentFeature, { source: 'gps-tracking', name: lotName });
       } catch (error) {
@@ -351,6 +362,9 @@
       const areaInfo = calculateArea(currentFeature);
       document.getElementById('track-area-ha').innerText = `${areaInfo.hectares} ha`;
       document.getElementById('track-area-m2').innerText = `${areaInfo.squareMeters.toLocaleString('es-AR')} m²`;
+      document.getElementById('track-gps-quality').innerText = medianAccuracy !== null
+        ? `Precisión GPS mediana: ±${medianAccuracy.toFixed(1)} m · peor registro: ±${maxAccuracy.toFixed(1)} m. La precisión declarada por el dispositivo no es un error topográfico certificado.`
+        : 'El dispositivo no informó precisión GPS para las posiciones registradas.';
 
       document.getElementById('lot-actions-box').style.display = 'flex';
 

@@ -57,3 +57,45 @@ test('expone el umbral de nubosidad flexibilizado a 50 por ciento', async t => {
   assert.equal(result.bestProduct.cloudCover, 42);
   assert.equal(calls, 4);
 });
+
+test('una escena STAC sin estadísticas no se presenta como NDVI disponible', async () => {
+  const { analyzeVegetation } = await import('../forestal/services/vegetationService.js');
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 503 });
+  try {
+    const result = await analyzeVegetation(geometry, {
+      id: 'S2_TEST', date: '2026-11-17', cloudCover: 10,
+      assets: { b04: 'https://example.test/B04.tif', b08: 'https://example.test/B08.tif' }
+    });
+    assert.equal(result.available, false);
+    assert.equal(result.state, 'SCENE_IDENTIFIED');
+    assert.equal(result.stats, null);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('la consulta WMS de INTA se identifica como cartográfica y no puntual', async t => {
+  const { fetchINTASoilData } = await import('../services/sources/intaService.js');
+  const originalFetch = globalThis.fetch;
+  const originalStorage = globalThis.localStorage;
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: key => store.get(key) || null,
+    setItem: (key, value) => store.set(key, value),
+    removeItem: key => store.delete(key)
+  };
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ features: [{ properties: { tipo_suelo: 'Clasificación cartográfica' } }] })
+  });
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = originalStorage;
+  });
+  const result = await fetchINTASoilData(-27, -56, null);
+  assert.equal(result.status, 'CARTOGRAPHIC');
+  assert.equal(result.evidenceType, 'CARTOGRAPHIC');
+  assert.notEqual(result.status, 'REAL');
+});

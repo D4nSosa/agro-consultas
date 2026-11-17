@@ -18,6 +18,7 @@ import io
 import numpy as np
 import tifffile
 from shapely.geometry import shape, Point, Polygon
+from shapely.ops import transform as transform_geometry
 
 app = FastAPI(
     title="Agro Consultas - API Geoespacial Forestal",
@@ -220,6 +221,11 @@ def search_stac_catalog(req: STACSearchRequest):
         raise HTTPException(status_code=400, detail=f"Error procesando búsqueda STAC: {str(e)}")
 
 
+def _project_roi_geometry(geometry, transformer):
+    """Reproyecta toda la geometría, conservando MultiPolygon y anillos interiores."""
+    return transform_geometry(lambda x, y, z=None: transformer.transform(x, y), geometry)
+
+
 def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
     """
     Procesa y recorta exactamente los píxeles COG que intersectan con la geometría ROI del lote.
@@ -236,14 +242,7 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
         with rasterio.open(red_url) as src_red, rasterio.open(nir_url) as src_nir:
             # 1. Transformar la geometría GeoJSON a la proyección de la banda RED
             transformer = pyproj.Transformer.from_crs('EPSG:4326', src_red.crs, always_xy=True)
-            if geom_shape.geom_type == 'Polygon':
-                poly_coords = [transformer.transform(x, y) for x, y in geom_shape.exterior.coords]
-                geom_proj = Polygon(poly_coords)
-            elif geom_shape.geom_type == 'Point':
-                pt_x, pt_y = transformer.transform(geom_shape.x, geom_shape.y)
-                geom_proj = Point(pt_x, pt_y)
-            else:
-                geom_proj = geom_shape
+            geom_proj = _project_roi_geometry(geom_shape, transformer)
 
             if geom_shape.geom_type == 'Point':
                 row_r, col_r = src_red.index(geom_proj.x, geom_proj.y)
@@ -301,11 +300,7 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 geom_proj_nir = geom_proj
             else:
                 transformer_nir = pyproj.Transformer.from_crs('EPSG:4326', src_nir.crs, always_xy=True)
-                if geom_shape.geom_type == 'Polygon':
-                    poly_coords_nir = [transformer_nir.transform(x, y) for x, y in geom_shape.exterior.coords]
-                    geom_proj_nir = Polygon(poly_coords_nir)
-                else:
-                    geom_proj_nir = geom_shape
+                geom_proj_nir = _project_roi_geometry(geom_shape, transformer_nir)
 
             # 3. Recortar y reproyectar/alinear banda NIR a la grilla exacta de RED
             out_nir_raw, transform_nir = rasterio_mask(src_nir, [geom_proj_nir], crop=True, nodata=src_nir.nodata)
@@ -343,11 +338,7 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                             geom_proj_scl = geom_proj
                         else:
                             transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
-                            if geom_shape.geom_type == 'Polygon':
-                                poly_coords_scl = [transformer_scl.transform(x, y) for x, y in geom_shape.exterior.coords]
-                                geom_proj_scl = Polygon(poly_coords_scl)
-                            else:
-                                geom_proj_scl = geom_shape
+                            geom_proj_scl = _project_roi_geometry(geom_shape, transformer_scl)
 
                         out_scl_raw, transform_scl = rasterio_mask(src_scl, [geom_proj_scl], crop=True, nodata=src_scl.nodata)
                         scl_raw = out_scl_raw[0]
