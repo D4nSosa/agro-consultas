@@ -126,7 +126,7 @@ $('geojson-file').onchange=async e=>{const file=e.target.files?.[0];if(!file)ret
 $('save').onclick=()=>{if(!current)return;try{const saved=setLotContext(current,{source:current.properties?.source||'central-map',name:$('lot-name').value||'Lote seleccionado'});showFeature(saved);status('Lote guardado y disponible para Aptitud, Forestal y Tracking.');}catch(e){alert(e.message);}};
 $('aptitude').onclick=()=>{if(!current)return;$('save').click();location.href='resultados.html';};
 $('forest').onclick=()=>{if(!current)return;$('save').click();location.href='forestal.html';};
-$('tracking').onclick=()=>location.href='tracking.html';
+$('tracking').onclick=()=>{if(current)$('save').click();location.href='tracking.html';};
 $('layer-lot').onchange=()=>{if(!lotLayer)return;if($('layer-lot').checked){lotLayer.addTo(map);}else{map.removeLayer(lotLayer);}};
 const saved=getLotContext();if(saved)showFeature(saved);
 </script>
