@@ -941,33 +941,56 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
   const container = document.getElementById("crop-results");
   if (!container) return;
 
-  // Filtrar tarjetas con "INFORMACIÓN PENDIENTE DE VERIFICACIÓN" o sin relevancia para la zona
-  const filtradasReales = recomendaciones.filter(c =>
+  const evaluables = recomendaciones.filter(c =>
     c && c.compatibilidad &&
     !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
     !c.compatibilidad.includes("NO EVALUABLE") &&
     !c.compatibilidad.includes("DATOS INSUFICIENTES")
   );
-  const pendingCount = recomendaciones.length - filtradasReales.length;
+  const pendientes = recomendaciones.filter(c => c && !evaluables.includes(c));
 
-  if (filtradasReales.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state card" style="grid-column: 1 / -1; text-align: center; padding: 25px;">
-        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">⚪</span>
-        <h3>No hay cultivos que puedan clasificarse con la evidencia disponible</h3>
-        <p class="text-muted">Los candidatos regionales no se presentan como aptos por defecto. Para emitir una categoría se necesita información edáfica puntual con variables comparables y climatología histórica NASA POWER disponible. Los perfiles regionales no sustituyen esas mediciones.</p>
+  // La falta de evidencia puntual impide clasificar aptitud, pero no debe ocultar
+  // los candidatos regionales ni sus fichas técnicas.
+  const renderPendientes = () => {
+    if (!pendientes.length) return "";
+    return `
+      <div style="grid-column:1/-1; margin-top:16px; margin-bottom:5px;">
+        <h3 style="color:var(--texto-secundario); font-size:1.05rem; border-bottom:1px solid var(--borde-suave); padding-bottom:7px; margin:0;">
+          ⚪ Candidatos regionales sin clasificación de aptitud (${pendientes.length})
+        </h3>
+        <p class="text-muted" style="margin:8px 0 12px;">
+          Estos cultivos aparecen en el perfil territorial de referencia. Se muestran como opciones para investigar, no como recomendaciones de siembra ni como cultivos aptos. La clasificación requiere evidencia edáfica puntual y variables climáticas comparables.
+        </p>
       </div>
+      ${pendientes.map(createSingleRecommendationCardHtml).join('')}
     `;
+  };
+
+  if (!evaluables.length) {
+    container.innerHTML = pendientes.length
+      ? `
+        <div class="card" style="grid-column:1/-1; border-left:4px solid #7f8c8d;">
+          <h3 style="margin:0 0 6px;">Orientación productiva regional</h3>
+          <p class="text-muted" style="margin:0;">No hay cultivos con aptitud clasificable para este punto con la evidencia disponible. A continuación se muestran los candidatos del perfil regional y sus fichas, sin asignarles una aptitud ficticia.</p>
+        </div>
+        ${renderPendientes()}
+      `
+      : `
+        <div class="empty-state card" style="grid-column:1/-1; text-align:center; padding:25px;">
+          <span style="font-size:2rem; display:block; margin-bottom:8px;">⚪</span>
+          <h3>No hay candidatos territoriales disponibles</h3>
+          <p class="text-muted">No se encontró un perfil regional aplicable a esta ubicación. No se mostrarán cultivos del catálogo nacional como si fueran recomendaciones locales.</p>
+        </div>
+      `;
     return;
   }
 
-  // Agrupar por semáforo si se están evaluando todos los cultivos
   if (!selectedCropKey || selectedCropKey === "todos") {
     const aptos = [];
     const moderados = [];
     const noAptos = [];
 
-    filtradasReales.forEach(c => {
+    evaluables.forEach(c => {
       if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) {
         noAptos.push(c);
       } else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) {
@@ -978,54 +1001,34 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     });
 
     let html = '';
-
-    if (aptos.length > 0) {
+    if (aptos.length) {
       html += `
-        <div style="grid-column: 1 / -1; margin-top: 10px; margin-bottom: 5px;">
-          <h3 style="color: #27ae60; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #27ae60; padding-bottom: 6px; margin: 0;">
-            <span>🟢</span> Cultivos Aptos y Recomendados para la Zona (${aptos.length})
-          </h3>
+        <div style="grid-column:1/-1; margin-top:10px; margin-bottom:5px;">
+          <h3 style="color:#27ae60; font-size:1.15rem; border-bottom:2px solid #27ae60; padding-bottom:6px; margin:0;">🟢 Cultivos con aptitud favorable según los datos disponibles (${aptos.length})</h3>
         </div>
         ${aptos.map(createSingleRecommendationCardHtml).join('')}
       `;
     }
-
-    if (moderados.length > 0) {
+    if (moderados.length) {
       html += `
-        <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 5px;">
-          <h3 style="color: #d35400; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #f39c12; padding-bottom: 6px; margin: 0;">
-            <span>🟡</span> Aptitud Media / Con Limitaciones de Manejo Local (${moderados.length})
-          </h3>
+        <div style="grid-column:1/-1; margin-top:15px; margin-bottom:5px;">
+          <h3 style="color:#d35400; font-size:1.15rem; border-bottom:2px solid #f39c12; padding-bottom:6px; margin:0;">🟡 Aptitud media / con limitaciones (${moderados.length})</h3>
         </div>
         ${moderados.map(createSingleRecommendationCardHtml).join('')}
       `;
     }
-
-
-    if (noAptos.length > 0) {
+    if (noAptos.length) {
       html += `
-        <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 5px;">
-          <h3 style="color: #c0392b; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #e74c3c; padding-bottom: 6px; margin: 0;">
-            <span>🔴</span> Cultivos Restringidos / Con Severas Limitaciones (${noAptos.length})
-          </h3>
+        <div style="grid-column:1/-1; margin-top:15px; margin-bottom:5px;">
+          <h3 style="color:#c0392b; font-size:1.15rem; border-bottom:2px solid #e74c3c; padding-bottom:6px; margin:0;">🔴 Cultivos con limitaciones severas identificadas (${noAptos.length})</h3>
         </div>
         ${noAptos.map(createSingleRecommendationCardHtml).join('')}
       `;
     }
-
-    if (pendingCount > 0) {
-      html += `
-        <p class="text-muted" style="grid-column:1/-1;margin-top:12px;font-size:.82rem;">
-          ${pendingCount} candidato(s) quedaron sin clasificar porque la evidencia disponible no alcanza. No se muestran como aptos ni como no aptos.
-        </p>`;
-    }
+    html += renderPendientes();
     container.innerHTML = html;
   } else {
-    const cards = filtradasReales.map(createSingleRecommendationCardHtml).join('');
-    container.innerHTML = cards + (pendingCount > 0 ? `
-      <p class="text-muted" style="margin-top:12px;font-size:.82rem;">
-        El cultivo seleccionado no pudo clasificarse porque faltan variables comparables. No se asignó una categoría por defecto.
-      </p>` : '');
+    container.innerHTML = evaluables.map(createSingleRecommendationCardHtml).join('') + renderPendientes();
   }
 }
 
