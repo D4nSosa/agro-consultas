@@ -76,3 +76,13 @@ test('rechaza una FeatureCollection si alguna geometría es inválida', async ()
   });
   assert.equal(result.valid, false);
 });
+
+test('pondera el centroide de un MultiPolygon por superficie', async () => {
+  const { calculateCentroid } = await import('../forestal/utils/geo.js');
+  const small = [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]];
+  const large = [[10, 10], [20, 10], [20, 20], [10, 20], [10, 10]];
+  const centroid = calculateCentroid({ type: 'MultiPolygon', coordinates: [[small], [large]] });
+  const expected = (0.5 + 15 * 100) / 101;
+  assert.ok(Math.abs(centroid.lng - expected) < 1e-9);
+  assert.ok(Math.abs(centroid.lat - expected) < 1e-9);
+});
