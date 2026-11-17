@@ -174,12 +174,14 @@
       if (geomStr) {
         try {
           parsedGeom = JSON.parse(geomStr);
-          const areaCalc = calculateArea(parsedGeom);
-          if (areaCalc && !areaCalc.isPoint && areaCalc.hectares > 0) {
-            haVal = `${areaCalc.hectares}`;
-            document.getElementById('report-m2').innerText = `${areaCalc.squareMeters.toLocaleString('es-AR')} m²`;
-          }
         } catch (e) {}
+      }
+
+      // Calcular la superficie desde la geometría activa, también cuando proviene del contexto compartido.
+      const geometryArea = parsedGeom ? calculateArea(parsedGeom) : null;
+      if (geometryArea && !geometryArea.isPoint && geometryArea.hectares > 0) {
+        haVal = `${geometryArea.hectares}`;
+        document.getElementById('report-m2').innerText = `${geometryArea.squareMeters.toLocaleString('es-AR')} m²`;
       }
 
       let coordinateMethod = 'Coordenadas recibidas desde el enlace.';
@@ -194,9 +196,12 @@
 
       if (haVal && haVal !== 'N/A' && haVal !== 'null' && haVal !== 'undefined') {
         document.getElementById('report-ha').innerText = `${haVal} ha`;
+      } else if (geometryArea?.isPoint || (!parsedGeom && Number.isFinite(lat) && Number.isFinite(lng))) {
+        document.getElementById('report-ha').innerText = 'Punto GPS';
+        document.getElementById('report-m2').innerText = 'Consulta puntual';
       } else {
-        document.getElementById('report-ha').innerText = `Punto GPS`;
-        document.getElementById('report-m2').innerText = `Consulta puntual`;
+        document.getElementById('report-ha').innerText = '—';
+        document.getElementById('report-m2').innerText = '—';
       }
 
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
