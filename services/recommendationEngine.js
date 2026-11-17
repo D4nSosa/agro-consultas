@@ -137,6 +137,32 @@ export async function getForestCatalog() {
   return res;
 }
 
+
+/**
+ * Devuelve especies forestales declaradas en el catálogo de la provincia.
+ * La pertenencia al catálogo provincial solo habilita su evaluación; no implica
+ * aptitud del sitio ni reemplaza la comprobación de condiciones locales.
+ */
+export async function getForestToEvaluate(provinciaKey = null) {
+  if (!provinciaKey) return [];
+  const [forestCatalog, provinces] = await Promise.all([
+    getForestCatalog(),
+    fetch('/data/provincias.json').then(r => r.ok ? r.json() : {}).catch(() => ({}))
+  ]);
+  const province = provinces[normalizeKey(provinciaKey)];
+  const provinceCandidates = province?.nombre?.cultivos;
+  if (!Array.isArray(provinceCandidates)) return [];
+
+  return provinceCandidates.flatMap(name => {
+    const key = normalizeKey(name);
+    const matchKey = Object.keys(forestCatalog).find(candidate =>
+      normalizeKey(candidate) === key ||
+      normalizeKey(forestCatalog[candidate].nombre) === key
+    );
+    return matchKey ? [forestCatalog[matchKey].nombre || name] : [];
+  });
+}
+
 /**
  * Genera el listado de cultivos recomendados para una provincia y coordenadas dadas.
  * Combina datos locales del suelo y clima de fuentes reales.
@@ -206,6 +232,7 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
 
       return {
         id: key,
+        categoriaCatalogo: cropData.categoria || 'Agrícola',
         nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1),
         descripcion: cropData.descripcion || "Descripción técnica no disponible.",
         siembra: cropData.siembra || "Información pendiente",
