@@ -55,13 +55,14 @@ test('la evaluación local puede distinguir limitaciones medidas', () => {
 });
 
 test('los candidatos se diferencian por el perfil de la subregión', async () => {
-  const [crops, provinces] = await Promise.all([
+  const [crops, forests, provinces] = await Promise.all([
     readFile(new URL('../data/cultivos.json', import.meta.url), 'utf8'),
+    readFile(new URL('../data/forestales.json', import.meta.url), 'utf8'),
     readFile(new URL('../data/provincias.json', import.meta.url), 'utf8')
   ]);
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async url => {
-    const value = String(url).includes('forestales.json') ? '{}' :
+    const value = String(url).includes('forestales.json') ? forests :
       String(url).includes('provincias.json') ? provinces : crops;
     return { ok: true, json: async () => JSON.parse(value) };
   };
