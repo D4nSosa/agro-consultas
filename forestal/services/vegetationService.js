@@ -91,7 +91,7 @@ export async function analyzeVegetation(geometry, productInfo) {
   const bandNirUrl = assets.b08 || assets.B08 || assets.nir || null;
 
   return {
-    available: true,
+    available: false,
     state: 'SCENE_IDENTIFIED',
     indicator: 'NDVI (Normalized Difference Vegetation Index)',
     formula: 'NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)',
@@ -123,12 +123,12 @@ export function getVegetationInterpretation(meanNDVI) {
     return 'NO DISPONIBLE: Se requieren datos ráster reales para determinar la interpretación espectral.';
   }
   if (meanNDVI >= 0.70) {
-    return 'Excelente vigor vegetativo y alta densidad de cobertura foliar. Compatible con masa forestal madura o dosel cerrado.';
+    return 'NDVI alto: respuesta espectral compatible con cobertura vegetal relativamente densa. No permite determinar por sí solo especie, edad, biomasa ni estado sanitario.';
   } else if (meanNDVI >= 0.50) {
-    return 'Vigor vegetativo saludable y cobertura moderada a alta. Típico de plantaciones jóvenes en crecimiento o bosques abiertos.';
+    return 'NDVI moderado-alto: respuesta espectral de vegetación. Interpretar junto con fecha, estacionalidad, nubosidad y uso/cobertura del suelo.';
   } else if (meanNDVI >= 0.30) {
-    return 'Cobertura vegetativa baja o en fase inicial de establecimiento. Presencia de suelo expuesto o rastrojo.';
+    return 'NDVI intermedio: puede corresponder a cobertura parcial, vegetación menos vigorosa o mezcla de vegetación y suelo. Requiere contexto local.';
   } else {
-    return 'Índice de vegetación bajo/limitado. Suelo desnudo, escasa cobertura vegetativa o alteración del suelo.';
+    return 'NDVI bajo: puede asociarse a suelo expuesto, agua, vegetación escasa o estrés; el índice aislado no permite distinguir estas causas.';
   }
 }
