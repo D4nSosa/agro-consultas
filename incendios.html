@@ -193,6 +193,7 @@ function renderRecentDetections(){
   if(!feature)return;
   const [lng,lat]=feature.geometry.coordinates;
   map.setView([lat,lng],Math.max(map.getZoom(),9));
+  L.popup().setLatLng([lat,lng]).setContent(popup(feature)).openOn(map);
  }));
 }
 async function refresh(){const b=$('refresh');b.disabled=true;b.textContent='Actualizando…';$('source-status').textContent='Consultando detecciones recientes…';$('source-status').classList.remove('error');const results=await Promise.allSettled([fetch('/api/fires/national',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('NASA FIRMS HTTP '+r.status);return r.json()}),fetch('/api/fires/goes',{cache:'no-store'}).then(async r=>{if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(d.detail||'GOES HTTP '+r.status)}return r.json()})]);const errs=[];if(results[0].status==='fulfilled')modisViirs=results[0].value.features||[];else{modisViirs=[];errs.push(results[0].reason.message);}if(results[1].status==='fulfilled')goes=results[1].value.features||[];else{goes=[];errs.push(results[1].reason.message);}drawDetections();updateCounts();renderRecentDetections();const fm=results[0].status==='fulfilled'?results[0].value.meta:null,gm=results[1].status==='fulfilled'?results[1].value.meta:null;
