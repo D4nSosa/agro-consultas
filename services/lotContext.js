@@ -168,9 +168,27 @@ export function clearLotContext() {
 }
 
 export function onLotContextChange(callback) {
-  const handler = event => callback(event.detail || null);
-  globalThis.addEventListener?.(EVENT_NAME, handler);
-  return () => globalThis.removeEventListener?.(EVENT_NAME, handler);
+  const customHandler = event => callback(event.detail || null);
+  const storageHandler = event => {
+    if (event.key !== STORAGE_KEY) return;
+    if (!event.newValue) {
+      callback(null);
+      return;
+    }
+    try {
+      const payload = JSON.parse(event.newValue);
+      callback(normalizeLotFeature(payload.feature, payload.metadata || {}));
+    } catch (error) {
+      console.warn('[Agro-Consultas] No se pudo sincronizar el lote desde otra pestaña:', error);
+    }
+  };
+
+  globalThis.addEventListener?.(EVENT_NAME, customHandler);
+  globalThis.addEventListener?.('storage', storageHandler);
+  return () => {
+    globalThis.removeEventListener?.(EVENT_NAME, customHandler);
+    globalThis.removeEventListener?.('storage', storageHandler);
+  };
 }
 
 export const LOT_CONTEXT_STORAGE_KEY = STORAGE_KEY;
