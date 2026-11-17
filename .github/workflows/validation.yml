@@ -20,7 +20,7 @@ jobs:
       - name: Validate browser module syntax
         run: python tests/check_frontend_syntax.py
       - name: Validate unified workspace integration
-        run: python -m unittest discover -s tests -p 'workspace_integration.test.py' -v
+        run: python tests/workspace_integration.test.py -v
       - name: Validate shared lot geometry
         run: node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs tests/forestGeo.test.mjs tests/territorial-recommendations.test.mjs tests/forestry-candidates-ui.test.mjs tests/satelliteService.test.mjs
 
