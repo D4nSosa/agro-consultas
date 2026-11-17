@@ -738,7 +738,7 @@ function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
     textLabel = '🔴 Aptitud Baja / Desfavorable';
   } else if (firstRec.compatibilidad.includes('INFORMACIÓN PENDIENTE') || firstRec.compatibilidad.includes('NO EVALUABLE')) {
     color = '#7f8c8d';
-    textLabel = '⚪ No evaluble / Evidencia insuficiente';
+    textLabel = '⚪ Perfil de referencia; sin capa de aptitud';
   }
 
   // No dibujar círculos transparentes de radio/alcance en el mapa
@@ -837,11 +837,21 @@ function createSingleRecommendationCardHtml(c) {
   let semaforoText = "Condiciones Favorables";
   let badgeClass = "badge-alta";
   const compatibility = String(c.compatibilidad || '').toUpperCase();
+  const isReferenceProfile = compatibility.includes("INFORMACIÓN PENDIENTE") ||
+    compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT") ||
+    compatibility.includes("DATOS INSUFICIENTES");
+  const compatibilityLabel = isReferenceProfile ? "Perfil de referencia" : (c.compatibilidad || semaforoText);
+  const factorText = isReferenceProfile
+    ? "Incluido en el catálogo provincial. La ficha orienta la revisión técnica y no confirma aptitud del sitio."
+    : (c.motivos?.[0] || 'Factores agroambientales compatibles.');
+  const displayedMotives = isReferenceProfile
+    ? ["La ficha técnica resume los requerimientos declarados para esta especie."]
+    : (c.motivos || []);
 
-  if (compatibility.includes("INFORMACIÓN PENDIENTE") || compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT")) {
-    semaforoIcon = "⚪";
-    semaforoText = "Evidencia Insuficiente";
-    badgeClass = "badge-origin no-disponible";
+  if (isReferenceProfile) {
+    semaforoIcon = "📘";
+    semaforoText = "Perfil de referencia";
+    badgeClass = "badge-origin";
   } else if (compatibility.includes("BAJA") || compatibility.includes("LIMITACIONES SEVERAS")) {
     semaforoIcon = "🔴";
     semaforoText = "Atención / Restricciones";
@@ -885,7 +895,7 @@ function createSingleRecommendationCardHtml(c) {
         </p>
 
         <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 10px; font-size: 0.82rem; margin-bottom: 10px;">
-          <strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Factores agroambientales compatibles.'}
+          <strong>💡 Factor Clave:</strong> ${factorText}
           ${c.riesgos && c.riesgos.length > 0 ? `<div style="margin-top: 4px; color: #c0392b;"><strong>⚠️ Limitante Principal:</strong> ${c.riesgos[0]}</div>` : ''}
         </div>
 
@@ -906,7 +916,7 @@ function createSingleRecommendationCardHtml(c) {
             </div>
           </div>
           <div>
-            <span class="compatibility-badge ${badgeClass}">${c.compatibilidad}</span>
+            <span class="compatibility-badge ${badgeClass}">${compatibilityLabel}</span>
           </div>
         </div>
 
@@ -929,7 +939,7 @@ function createSingleRecommendationCardHtml(c) {
           <div class="report-body" style="font-size: 0.82rem;">
             <div class="report-block">
               <strong>💡 Factores Favorables:</strong>
-              <ul>${c.motivos.map(m => `<li>${m}</li>`).join("")}</ul>
+              <ul>${displayedMotives.map(m => `<li>${m}</li>`).join("")}</ul>
             </div>
             ${c.riesgos && c.riesgos.length > 0 ? `
             <div class="report-block" style="color: #c0392b;">
@@ -937,10 +947,10 @@ function createSingleRecommendationCardHtml(c) {
               <ul>${c.riesgos.map(r => `<li>${r}</li>`).join("")}</ul>
             </div>
             ` : ''}
-            ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `
-            <div class="report-block" style="color:#7f8c8d;">
-              <strong>ℹ️ Datos Faltantes:</strong>
-              <ul>${c.datosFaltantes.map(df => `<li>${df}</li>`).join("")}</ul>
+            ${isReferenceProfile ? `
+            <div class="report-block" style="color:var(--texto-secundario);">
+              <strong>Alcance del perfil:</strong>
+              <p>La especie figura en el catálogo provincial. Esta ficha describe sus requerimientos; no constituye una recomendación de implantación.</p>
             </div>
             ` : ''}
           </div>
@@ -974,7 +984,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       if (!pendientes.length) return "";
       return `
         <section style="grid-column:1/-1; margin-top:14px;">
-          <h3 style="color:var(--texto-secundario);font-size:1.05rem;border-bottom:1px solid var(--borde-suave);padding-bottom:7px;margin:0;">⚪ ${title} · candidatos sin clasificación (${pendientes.length})</h3>
+          <h3 style="color:var(--texto-secundario);font-size:1.05rem;border-bottom:1px solid var(--borde-suave);padding-bottom:7px;margin:0;">📘 ${title} · perfiles del catálogo provincial (${pendientes.length})</h3>
           <p class="text-muted" style="margin:8px 0 12px;">
             ${group.key === "forestal"
               ? "Estas especies están incluidas en el catálogo provincial. Se muestran como perfiles para evaluar, no como aptitud forestal confirmada ni como recomendación de plantación."
@@ -1005,7 +1015,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#c0392b;margin:0 0 8px;">🔴 ${noun} con limitaciones severas identificadas (${noAptos.length})</h4></div>
       ${noAptos.map(createSingleRecommendationCardHtml).join('')}`;
     if (pendientes.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:var(--texto-secundario);margin:0 0 8px;">⚪ Otros perfiles sin clasificación (${pendientes.length})</h4></div>
+      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:var(--texto-secundario);margin:0 0 8px;">⚪ Otros perfiles del catálogo provincial (${pendientes.length})</h4></div>
       ${pendientes.map(createSingleRecommendationCardHtml).join('')}`;
     return html;
   };
@@ -1032,7 +1042,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     : `
       <div class="card" style="grid-column:1/-1;border-left:4px solid #7f8c8d;">
         <h3 style="margin:0 0 6px;">Orientación productiva territorial</h3>
-        <p class="text-muted" style="margin:0;">No hay perfiles con aptitud clasificable para este punto con la evidencia disponible. Se muestran por separado los candidatos agrícolas y forestales del catálogo provincial, sin asignarles una aptitud ficticia.</p>
+        <p class="text-muted" style="margin:0;">Los siguientes perfiles figuran en el catálogo provincial. Sus fichas describen requisitos y manejo; no se interpretan como recomendaciones de implantación.</p>
       </div>
       ${grupos.map(renderGroup).join('')}`;
 }
