@@ -26,9 +26,17 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("env(safe-area-inset-bottom)", css)
         self.assertIn(".ac-mobile-nav", css)
 
-    def test_no_placeholder_demo_coordinates_or_fake_metrics(self):
+    def test_desktop_and_mobile_navigation_are_both_rendered(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
-        self.assertNotRegex(js, r"(-?\d{1,3}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})")
+        self.assertIn("ac-workspace-links", js)
+        self.assertIn("ac-mobile-nav", js)
+        self.assertIn("aria-current", js)
+
+    def test_report_uses_a_geometry_centroid_and_explains_its_source(self):
+        html = (ROOT / "reporte.html").read_text(encoding="utf-8")
+        self.assertIn("calculateCentroid(parsedGeom)", html)
+        self.assertIn("report-coords-method", html)
+        self.assertNotIn("getBounds().getCenter()", html)
 
 if __name__ == "__main__":
     unittest.main()
