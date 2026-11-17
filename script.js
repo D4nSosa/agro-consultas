@@ -989,7 +989,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
             ${group.key === "forestal"
               ? "Estas especies están incluidas en el catálogo provincial. Se muestran como perfiles para evaluar, no como aptitud forestal confirmada ni como recomendación de plantación."
               : "Estos cultivos aparecen en el perfil territorial de referencia. Se muestran como opciones para investigar, no como recomendaciones de siembra ni como cultivos aptos."}
-            La clasificación requiere evidencia edáfica puntual y variables climáticas comparables.
+            La ficha resume requerimientos y calendario; contrastalos con las condiciones del sitio y el relevamiento de campo antes de decidir.
           </p>
           ${pendientes.map(createSingleRecommendationCardHtml).join('')}
         </section>
