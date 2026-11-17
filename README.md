@@ -5,16 +5,16 @@ Agro-Consultas es un desarrollo independiente orientado a explorar información 
 **Demo pública:** https://agro-consultas.vercel.app  
 **Repositorio:** https://github.com/D4nSosa/agro-consultas
 
-> Estado de referencia: documentación revisada el 14 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
+> Estado de referencia: documentación revisada el 17 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
 
 ## Alcance y estado de los módulos
 
 | Módulo | Alcance implementado | Qué debe tenerse en cuenta |
 |---|---|---|
-| Aptitud de cultivos | Catálogo de perfiles, selección territorial, motor multicriterio y consulta de variables climáticas/edáficas. | Algunas consultas de clima y suelos son puntuales y usan una coordenada representativa del área. No son estadísticas zonales ni sustituyen análisis de laboratorio o asesoramiento agronómico. |
-| Forestal | Delimitación de lotes, búsqueda de escenas Sentinel-2 L2A mediante AWS Earth Search STAC, metadatos, análisis NDVI cuando existen estadísticas ráster válidas, evidencia fotográfica y registro de variables de campo. | La identificación de una escena no significa que el NDVI haya sido calculado. El inventario manual usa supuestos orientativos; no es inventario dasométrico validado. |
+| Aptitud de cultivos | Catálogo de perfiles, selección territorial, motor multicriterio y consulta de variables climáticas/edáficas. | La respuesta WMS de INTA se clasifica como evidencia cartográfica, no como medición puntual. Los perfiles regionales y las campañas agrícolas históricas no son diagnósticos actuales del lote. |
+| Forestal | Delimitación de lotes, búsqueda de escenas Sentinel-2 L2A mediante AWS Earth Search STAC, metadatos, análisis NDVI cuando existen estadísticas ráster válidas, evidencia fotográfica y registro de variables de campo. | Una escena identificada se informa como tal, con NDVI no disponible hasta contar con estadísticas de píxeles válidos. El recorte reproyecta Polygon y MultiPolygon conservando huecos. El inventario manual usa supuestos orientativos; no es inventario dasométrico validado. |
 | Incendios | Vista nacional de anomalías térmicas recientes NASA FIRMS MODIS/VIIRS y GOES-19; consulta por lote; importación local de CSV históricos; previsión meteorológica orientativa. | Un foco satelital no confirma un incendio ni representa un perímetro quemado. El indicador meteorológico no es FWI y no predice igniciones o propagación. |
-| Tracking GPS | Geolocalización, registro de recorridos y geometrías, medición de superficie/perímetro y exportación. | La precisión depende del dispositivo, la recepción GNSS y las condiciones de campo. |
+| Tracking GPS | Geolocalización, registro de recorridos y geometrías, medición de superficie/perímetro y exportación. | El GeoJSON conserva muestras y precisión GNSS declarada (mediana y máximo) cuando el dispositivo la informa. La superficie es estimada y no es una mensura. |
 | Selección territorial | Dibujo e importación de polígonos GeoJSON y contexto de lote compartido entre módulos compatibles. | La geometría representa el área de interés; no certifica límites parcelarios ni titularidad. |
 
 ## Monitoreo de incendios
@@ -58,6 +58,8 @@ La disponibilidad, latencia, cobertura, licencias y condiciones de uso de cada p
 6. Identificar expresamente cuando una consulta puntual representa un área mediante un centroide o coordenada de referencia.
 
 ## Validación y estado operativo
+
+En Tracking, cada posición aceptada se conserva junto con la precisión que informa el dispositivo; el resumen muestra mediana y máximo. No se eliminan puntos automáticamente por un umbral arbitrario. En Forestal, una escena STAC sin estadísticas ráster no se considera NDVI disponible.
 
 El repositorio incluye pruebas automatizadas de integridad de datos, contexto GeoJSON, servicios de incendios, endpoints forestales y sintaxis de módulos del frontend. La ejecución de CI no reemplaza una prueba funcional de punta a punta con datos externos actuales, dispositivos móviles y geometrías reales.
 
