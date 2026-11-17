@@ -22,7 +22,9 @@
  /* Keep the work surface dominant; supporting controls scroll inside their own panels. */
  main,.workspace,.container,.page-container{max-width:100%;min-width:0}
  .workspace-grid,.fire-layout{grid-template-columns:minmax(0,1fr)!important}
- #map,.map-container,.map-panel{min-height:54vh}
+ .fire-side{grid-template-columns:minmax(0,1fr)!important}
+ .app-header .right{max-width:100%;overflow-x:auto;flex-wrap:nowrap!important}
+ #map,#fire-map,#forest-map,#tracking-map,#report-map,.map-container,.map-panel{min-height:54vh}
  .ac-context-note{font-size:11px}
 }
 @media(min-width:761px){.ac-workspace-bar{min-height:58px}}
