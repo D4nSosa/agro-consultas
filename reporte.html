@@ -114,6 +114,7 @@
   <!-- Script del Reporte -->
   <script type="module">
     import { findProvinceByCoords, findSubregion, getAdministrativeLocationByCoords } from './services/territoryService.js';
+    import { getLotContext } from './services/lotContext.js';
     import { getSoilReport } from './services/soilService.js';
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
@@ -159,16 +160,17 @@
 
       // Parsear URL Params
       const params = new URLSearchParams(window.location.search);
-      const lat = parseFloat(params.get('lat'));
-      const lng = parseFloat(params.get('lng'));
-      const lotName = params.get('nombre') || 'Lote Campo';
+      let lat = parseFloat(params.get('lat'));
+      let lng = parseFloat(params.get('lng'));
+      const sharedLot = getLotContext();
+      const lotName = params.get('nombre') || sharedLot?.properties?.name || sharedLot?.properties?.nombre || 'Lote activo';
       let haVal = params.get('ha');
       const geomStr = params.get('geom');
       const reportType = params.get('type') || 'aptitud';
 
       document.getElementById('report-title').innerText = `Informe Técnico — ${lotName}`;
 
-      let parsedGeom = null;
+      let parsedGeom = sharedLot;
       if (geomStr) {
         try {
           parsedGeom = JSON.parse(geomStr);
@@ -180,6 +182,17 @@
         } catch (e) {}
       }
 
+      if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && parsedGeom) {
+        try {
+          const bounds = L.geoJSON(parsedGeom).getBounds();
+          if (bounds.isValid()) {
+            const center = bounds.getCenter();
+            lat = center.lat;
+            lng = center.lng;
+          }
+        } catch (_) {}
+      }
+
       if (haVal && haVal !== 'N/A' && haVal !== 'null' && haVal !== 'undefined') {
         document.getElementById('report-ha').innerText = `${haVal} ha`;
       } else {
@@ -187,13 +200,14 @@
         document.getElementById('report-m2').innerText = `Consulta puntual`;
       }
 
-      if (!isNaN(lat) && !isNaN(lng)) {
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
         document.getElementById('report-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         document.getElementById('report-source').innerText = parsedGeom?.properties?.source || 'Geometría recibida por enlace; origen no informado';
       }
 
       // Inicializar mapa del reporte
-      const reportMap = L.map('report-map').setView([!isNaN(lat) ? lat : -38.4161, !isNaN(lng) ? lng : -63.6167], 14);
+      const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
+      const reportMap = L.map('report-map').setView(hasCoordinates ? [lat, lng] : [0, 0], hasCoordinates ? 14 : 2);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap | IGN Argentina'
@@ -212,7 +226,7 @@
 
       // Ejecutar análisis territorial
       const analysisContainer = document.getElementById('report-analysis-container');
-      if (isNaN(lat) || isNaN(lng)) {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         analysisContainer.innerHTML = `<p style="color:#c0392b;">No se especificaron coordenadas válidas para generar el análisis.</p>`;
         return;
       }
