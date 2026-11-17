@@ -89,8 +89,9 @@ export async function searchSentinelImagesByTargetDate(geometry, targetDateStr, 
     catalogUrl: 'https://earth-search.aws.element84.com/v1/',
     productsCount: productsWithDelta.length,
     targetDate: targetDateStr,
-    windowDays: windowDays,
+    windowDays: effectiveWindow,
     windowRange: `${startDate} a ${endDate}`,
+    cloudCoverThreshold: searchRes.cloudCoverThreshold ?? maxCloudCover,
     bestProduct: best,
     products: productsWithDelta
   };
@@ -137,6 +138,7 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
       source: PUBLIC_CATALOG_NAME,
       catalogUrl: 'https://earth-search.aws.element84.com/v1/',
       productsCount: productsAws.length,
+      cloudCoverThreshold: maxCloudCover,
       bestProduct: productsAws[0],
       products: productsAws
     };

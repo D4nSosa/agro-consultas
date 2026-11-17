@@ -176,7 +176,7 @@
         <span>📋</span> Inventario Forestal de Campo (Modelo Orientativo de Indicadores Silvícolas)
       </h3>
       <p style="font-size: 0.88rem; color: var(--texto-secundario); margin-bottom: 18px;">
-        Se distinguen <strong>Datos Ingresados por Usuario</strong>, <strong>Observaciones Remotas</strong> y <strong>Estimaciones Derivadas</strong>. La fórmula de volumen ($V = G \times H \times f$) utiliza $f=0.45$ como supuesto fijo de esta versión; el resultado es orientativo y requiere calibración por especie, sitio y manejo. No reemplaza un inventario forestal ni mediciones de campo.
+        Se distinguen <strong>Datos Ingresados por Usuario</strong>, <strong>Observaciones Remotas</strong> y <strong>Estimaciones Derivadas</strong>. La fórmula de volumen ($V = G \times H \times f$) utiliza $f=0.45$ como supuesto fijo de esta versión. La lectura silvícola aplica reglas heurísticas por especie, edad, DAP, área basal y densidad; sus umbrales no están calibrados para cada sitio ni sustituyen tablas locales de rendimiento. El resultado es exploratorio: no prescribe raleos ni turnos de corta y requiere validación profesional y mediciones de campo.
       </p>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
@@ -330,7 +330,7 @@
         if (edad >= 15 || (dap >= 35 && G >= 32)) {
           estadoRodal = 'Rodal adulto maduro / Próximo a madurez de cosecha final';
           intervencion = 'Cercanía a turno de cosecha final / Planificación de corte final';
-          fundamentacion = 'El rodal de Pino Taeda alcanza dimensiones comerciales objetivo (DAP >= 35 cm, edad >= 15 años). Según referencias de INTA EEA Montecarlo y pautas de la Ley 25.080, se sugiere planificar el turno de cosecha maderera y preparación del sitio.';
+          fundamentacion = 'El rodal de Pino Taeda alcanza dimensiones comerciales objetivo (DAP >= 35 cm, edad >= 15 años). El umbral de edad y DAP activa una alerta exploratoria; el turno real debe verificarse con inventario, sitio, manejo y destino industrial.';
         } else if (G >= 30 || (densidad >= 900 && edad >= 8)) {
           estadoRodal = 'Alta competencia de copa y densidad basal elevada (G >= 30 m²/ha)';
           intervencion = 'Raleo comercial preventivo por alta competencia de copa';
@@ -346,13 +346,13 @@
         } else {
           estadoRodal = 'Crecimiento sostenido con densidad equilibrada';
           intervencion = 'Crecimiento sostenido / Monitoreo dasométrico periódico';
-          fundamentacion = 'Los parámetros de Área Basal (G = ' + G.toFixed(1) + ' m²/ha) y densidad (' + densidad + ' pies/ha) se encuentran dentro de las franjas óptimas de manejo silvícola según modelos INTA.';
+          fundamentacion = 'Los parámetros de Área Basal (G = ' + G.toFixed(1) + ' m²/ha) y densidad (' + densidad + ' pies/ha) se ubican dentro de los rangos heurísticos configurados en esta versión; no se valida un óptimo silvícola local.';
         }
       } else if (isPinoElliottii) {
         if (edad >= 15 || (dap >= 35 && G >= 30)) {
           estadoRodal = 'Rodal adulto de Pino Elliottii / Próximo a turno final';
           intervencion = 'Cercanía a turno de cosecha final / Planificación de corte final';
-          fundamentacion = 'Rodal de Pino Elliottii en madurez comercial (edad >= 15 años, DAP >= 35 cm). Según pautas de INTA Bella Vista, se sugiere evaluar turno de cosecha y destino maderero o resinoso.';
+          fundamentacion = 'Rodal de Pino Elliottii en madurez comercial (edad >= 15 años, DAP >= 35 cm). El umbral activa una alerta exploratoria para revisar el turno y el destino maderero o resinoso con datos de campo.';
         } else if (G >= 28 || (densidad >= 900 && edad >= 8)) {
           estadoRodal = 'Alta competencia de copa en Pino Elliottii (G >= 28 m²/ha)';
           intervencion = 'Raleo comercial preventivo por alta competencia de copa';
@@ -374,7 +374,7 @@
         if (edad >= 8 || (dap >= 30 && G >= 28)) {
           estadoRodal = 'Turno de corte corto alcanzado en Eucalyptus Grandis';
           intervencion = 'Cercanía a turno de cosecha final o corte para tronzas/pasta';
-          fundamentacion = 'Rodal de Eucalyptus Grandis de rápido crecimiento que alcanza la edad de turno (>= 8 años) o DAP maderero. Según INTA EEA Concordia, el Incremento Medio Anual (IMA) culmina, recomendándose planificar cosecha y rebrote/replante.';
+          fundamentacion = 'Rodal de Eucalyptus Grandis de rápido crecimiento que alcanza la edad de turno (>= 8 años) o DAP maderero. La edad y el DAP disparan una alerta de revisión del turno; el IMA y la rotación deben calcularse con datos de crecimiento del sitio.';
         } else if (G >= 28 || (densidad >= 800 && edad >= 4)) {
           estadoRodal = 'Competencia severa de dosel en Eucalyptus Grandis (G >= 28 m²/ha)';
           intervencion = 'Raleo comercial preventivo por alta competencia de copa';
@@ -392,7 +392,7 @@
         if (edad >= 10 || (dap >= 30 && G >= 26)) {
           estadoRodal = 'Madurez maderera/papelera en Eucalyptus Globulus';
           intervencion = 'Cercanía a turno de cosecha final / Aprovechamiento maderero o celulósico';
-          fundamentacion = 'Rodal de Eucalyptus Globulus en cuenca templada/costera alcanzando su turno técnico (>= 10 años, DAP >= 30 cm). Se sugiere planificar la cosecha final según referencias de INTA Balcarce.';
+          fundamentacion = 'Rodal de Eucalyptus Globulus en cuenca templada/costera alcanzando su turno técnico (>= 10 años, DAP >= 30 cm). El umbral es una referencia interna y no determina por sí solo el turno de cosecha.';
         } else if (G >= 26 || (densidad >= 850 && edad >= 5)) {
           estadoRodal = 'Alta competencia de copa en Eucalyptus Globulus (G >= 26 m²/ha)';
           intervencion = 'Raleo comercial preventivo por alta competencia de copa';
@@ -410,7 +410,7 @@
         if (edad >= 10 || (dap >= 32 && G >= 28)) {
           estadoRodal = 'Madurez maderera en Eucalyptus Dunnii';
           intervencion = 'Cercanía a turno de cosecha final';
-          fundamentacion = 'Rodal de Eucalyptus Dunnii de edad avanzada (>= 10 años) o DAP maderero >= 32 cm. Según INTA Concordia, se sugiere planificar la cosecha maderera/celulósica.';
+          fundamentacion = 'Rodal de Eucalyptus Dunnii de edad avanzada (>= 10 años) o DAP maderero >= 32 cm. El umbral es una referencia interna; validar el turno y destino con inventario local.';
         } else if (G >= 28 || (densidad >= 850 && edad >= 5)) {
           estadoRodal = 'Alta densidad y competencia de dosel en Eucalyptus Dunnii';
           intervencion = 'Raleo comercial preventivo por alta competencia de copa';
@@ -428,7 +428,7 @@
         if (edad >= 10 || (dap >= 30 && G >= 26)) {
           estadoRodal = 'Madurez comercial en Eucalyptus Benthamii';
           intervencion = 'Cercanía a turno de cosecha final';
-          fundamentacion = 'Plantación de Eucalyptus Benthamii alcanzando madurez de turno maderero (>= 10 años). Según INTA Bella Vista, se sugiere evaluar cosecha y destino industrial.';
+          fundamentacion = 'Plantación de Eucalyptus Benthamii alcanzando madurez de turno maderero (>= 10 años). El umbral es una referencia interna; validar el turno y destino con inventario local.';
         } else if (G >= 26 || (densidad >= 800 && edad >= 4)) {
           estadoRodal = 'Alta ocupación de sitio en Eucalyptus Benthamii';
           intervencion = 'Raleo comercial preventivo por alta competencia de copa';
@@ -440,13 +440,13 @@
         } else {
           estadoRodal = 'Crecimiento sostenido en Eucalyptus Benthamii';
           intervencion = 'Crecimiento sostenido / Monitoreo de desarrollo';
-          fundamentacion = 'Evolución dasométrica acorde a las tablas de rendimiento para la especie (G = ' + G.toFixed(1) + ' m²/ha).';
+          fundamentacion = 'Evolución dasométrica dentro de los rangos heurísticos de esta versión (G = ' + G.toFixed(1) + ' m²/ha).';
         }
       } else if (isEucalyptus) {
         if (edad >= 9 || (dap >= 32 && G >= 28)) {
           estadoRodal = 'Turno de corte corto / Madurez comercial alcanzada en Eucalyptus spp.';
           intervencion = 'Cercanía a turno de cosecha final o corte para tronzas/pasta';
-          fundamentacion = 'Rodal de Eucalyptus spp. de edad avanzada (>= 9 años) o DAP maderero elevado. Se sugiere planificar la cosecha y rotación según pautas de INTA.';
+          fundamentacion = 'Rodal de Eucalyptus spp. de edad avanzada (>= 9 años) o DAP maderero elevado. Se sugiere planificar la cosecha y rotación según umbrales heurísticos internos de esta versión.';
         } else if (G >= 28 || (densidad >= 800 && edad >= 4)) {
           estadoRodal = 'Competencia severa de dosel en latifoliadas rápidas';
           intervencion = 'Raleo comercial preventivo por alta competencia de copa';
@@ -464,7 +464,7 @@
         if (edad >= 10 || dap >= 30) {
           estadoRodal = 'Turno final de Álamo (Populus deltoides)';
           intervencion = 'Cercanía a turno de cosecha (Aprovechamiento maderero/bobinado)';
-          fundamentacion = 'Macizo o cortina de Álamo en edad de turno maderero (DAP >= 30 cm, edad >= 10 años). Adecuado para aprovechamiento en tronzas para bobinado o cajonería según INTA Delta/Mendoza.';
+          fundamentacion = 'Macizo o cortina de Álamo en edad de turno maderero (DAP >= 30 cm, edad >= 10 años). Adecuado para aprovechamiento en tronzas para bobinado o cajonería como referencia exploratoria; verificar con tablas locales de producción.';
         } else if (G >= 22 || densidad >= 500) {
           estadoRodal = 'Alta ocupación de sitio en Álamo aluvial/irrigado';
           intervencion = 'Raleo de selección / Raleo de saneamiento por alta ocupación';
@@ -482,7 +482,7 @@
         if (edad >= 8 || dap >= 28) {
           estadoRodal = 'Turno final de Sauce (Salix spp.)';
           intervencion = 'Cercanía a turno de cosecha (Aprovechamiento maderero/tronzas)';
-          fundamentacion = 'Plantación de Sauce alcanzando madurez de cosecha (DAP >= 28 cm, edad >= 8 años). Orientado a tronzas para envases y pasta según referencias de INTA Delta.';
+          fundamentacion = 'Plantación de Sauce alcanzando madurez de cosecha (DAP >= 28 cm, edad >= 8 años). Orientado a tronzas para envases y pasta como referencia exploratoria; verificar con tablas locales de producción.';
         } else if (G >= 20 || densidad >= 500) {
           estadoRodal = 'Alta densidad en rodal de Sauce aluvial';
           intervencion = 'Raleo de selección / Raleo de saneamiento';
@@ -535,11 +535,11 @@
       }
 
       // Adición imperativa de encuadre regulatorio y formalidad técnica
-      const descargoRegulatorio = ' NOTA DE ENCUADRE NORMATIVO: La prescripción ejecutiva de intervenciones silvícolas (raleos, podas, tala) y el acogimiento formal al régimen de incentivos de la Ley 25.080 o programas de INTA requieren imperativamente un Plan de Manejo Silvícola / Proyecto Técnico firmado por un Profesional Matriculado (Ingeniero Forestal / Agrónomo).';
+      const descargoRegulatorio = ' ALCANCE: esta salida es una alerta exploratoria basada en umbrales internos. No prescribe raleos, podas ni tala, no determina el turno de corta y no evalúa la elegibilidad para la Ley 25.080. Verificar cualquier decisión con inventario de campo, tablas locales y un profesional competente.';
       fundamentacion += descargoRegulatorio;
 
       const nombreEspDisplay = especie || 'Especie Forestal';
-      const evalTexto = `Modelo Orientativo de Indicadores Silvícolas para ${nombreEspDisplay} (${edad} años, DAP ${dap} cm, Altura ${altura} m, Densidad ${densidad} pies/ha, G = ${G.toFixed(1)} m²/ha):\n• ESTADO DEL RODAL: ${estadoRodal}\n• INTERVENCIÓN SUGERIDA: ${intervencion}\n• FUNDAMENTACIÓN TÉCNICA (INTA / Ley 25.080): ${fundamentacion}`;
+      const evalTexto = `Modelo Orientativo de Indicadores Silvícolas para ${nombreEspDisplay} (${edad} años, DAP ${dap} cm, Altura ${altura} m, Densidad ${densidad} pies/ha, G = ${G.toFixed(1)} m²/ha):\n• ESTADO DEL RODAL: ${estadoRodal}\n• ALERTA / ACCIÓN A REVISAR: ${intervencion}\n• FUNDAMENTACIÓN DE LA REGLA INTERNA: ${fundamentacion}`;
 
       return {
         especie: nombreEspDisplay,
@@ -591,12 +591,12 @@
           <div style="font-size: 0.88rem; border-top: 1px dashed var(--borde-suave); padding-top: 10px; background: rgba(39, 174, 96, 0.04); border-radius: 6px; padding: 10px;">
             <div style="font-weight: bold; color: var(--verde-principal); margin-bottom: 4px;">🌲 Modelo Orientativo de Indicadores Silvícolas:</div>
             <div style="margin-bottom: 4px;">• <strong>Estado del Rodal:</strong> ${evalRes.estadoRodal}</div>
-            <div style="margin-bottom: 4px; color: #2980b9;">• <strong>Intervención Sugerida:</strong> <u>${evalRes.intervencion}</u></div>
+            <div style="margin-bottom: 4px; color: #2980b9;">• <strong>Acción a revisar:</strong> <u>${evalRes.intervencion}</u></div>
             <div style="font-size: 0.82rem; color: var(--texto-secundario); line-height: 1.4; margin-top: 6px;">
-              <strong>Fundamentación Técnica (INTA / Ley 25.080):</strong> ${evalRes.fundamentacion}
+              <strong>Fundamentación de la regla interna:</strong> ${evalRes.fundamentacion}
             </div>
             <div style="font-size: 0.78rem; color: #c0392b; font-style: italic; margin-top: 8px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 6px;">
-              ⚠️ <strong>Encuadre Legal y Normativo:</strong> La prescripción ejecutiva de intervenciones (raleos, podas, tala) y el acogimiento formal a la Ley 25.080 o programas de INTA requieren un Plan de Manejo Silvícola / Proyecto Técnico firmado por un Profesional Matriculado (Ing. Forestal / Agrónomo).
+              ⚠️ <strong>Alcance:</strong> esta herramienta genera alertas exploratorias a partir de reglas internas. No prescribe intervenciones, no determina el turno de corta ni evalúa elegibilidad normativa. Confirmá cualquier decisión con inventario de campo, tablas locales y un profesional competente.
             </div>
           </div>
         `;

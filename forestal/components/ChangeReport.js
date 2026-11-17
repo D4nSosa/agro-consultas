@@ -49,8 +49,8 @@ export class ChangeReport {
             <strong>${lot?.geometry?.properties?.name || 'Lote Forestal'}</strong>
           </div>
           <div>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie (Calculada desde geometría):</span>
-            <strong>${lot?.area?.isPoint ? '0 ha (Geometría PUNTO GPS / Consulta puntual)' : `${lot?.area?.hectares || 0} Hectáreas (${lot?.area?.squareMeters || 0} m²)`}</strong>
+            <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Superficie geométrica estimada:</span>
+            <strong>${lot?.area?.isPoint ? 'Sin superficie (punto de consulta)' : `${lot?.area?.hectares || 0} ha (${lot?.area?.squareMeters || 0} m²)`}</strong>
           </div>
           <div>
             <span style="font-size: 0.8rem; color: var(--texto-secundario); display: block;">Ubicación Centroide (Calculada WGS84):</span>
@@ -122,7 +122,7 @@ export class ChangeReport {
                 <li><strong>Fuente:</strong> ${prodA.source || 'Sentinel-2 L2A'}</li>
                 <li><strong>Identificador:</strong> ${prodA.id}</li>
                 <li><strong>Fecha Adquisición:</strong> ${prodA.date}</li>
-                <li><strong>Nubosidad:</strong> ${prodA.cloudCover}%</li>
+                <li><strong>Nubosidad:</strong> ${prodA.cloudCoverDisplay || (Number.isFinite(prodA.cloudCover) ? `${prodA.cloudCover}%` : 'No informada')}</li>
                 <li><strong>Resolución:</strong> 10 metros</li>
               </ul>
             ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: No se encontró escena con nubosidad aceptable.</div>`}
@@ -135,7 +135,7 @@ export class ChangeReport {
                 <li><strong>Fuente:</strong> ${prodB.source || 'Sentinel-2 L2A'}</li>
                 <li><strong>Identificador:</strong> ${prodB.id}</li>
                 <li><strong>Fecha Adquisición:</strong> ${prodB.date}</li>
-                <li><strong>Nubosidad:</strong> ${prodB.cloudCover}%</li>
+                <li><strong>Nubosidad:</strong> ${prodB.cloudCoverDisplay || (Number.isFinite(prodB.cloudCover) ? `${prodB.cloudCover}%` : 'No informada')}</li>
                 <li><strong>Resolución:</strong> 10 metros</li>
               </ul>
             ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: No se encontró escena con nubosidad aceptable.</div>`}
