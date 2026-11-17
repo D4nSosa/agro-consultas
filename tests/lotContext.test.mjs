@@ -5,6 +5,7 @@ import {
   setLotContext,
   getLotContext,
   clearLotContext,
+  onLotContextChange,
   LOT_CONTEXT_STORAGE_KEY
 } from '../services/lotContext.js';
 
@@ -156,3 +157,33 @@ test('prioriza el lote nuevo de sessionStorage frente a una copia local obsoleta
   setLotContext(fresh);
   assert.equal(getLotContext().properties.name, 'Lote nuevo');
 });
+test('sincroniza cambios de lote recibidos desde otra pestaña', t => {
+  const listeners = new Map();
+  const previousAdd = Object.getOwnPropertyDescriptor(globalThis, 'addEventListener');
+  const previousRemove = Object.getOwnPropertyDescriptor(globalThis, 'removeEventListener');
+  Object.defineProperty(globalThis, 'addEventListener', {
+    configurable: true,
+    value: (name, handler) => listeners.set(name, handler)
+  });
+  Object.defineProperty(globalThis, 'removeEventListener', {
+    configurable: true,
+    value: name => listeners.delete(name)
+  });
+  t.after(() => {
+    if (previousAdd) Object.defineProperty(globalThis, 'addEventListener', previousAdd);
+    else delete globalThis.addEventListener;
+    if (previousRemove) Object.defineProperty(globalThis, 'removeEventListener', previousRemove);
+    else delete globalThis.removeEventListener;
+  });
+
+  const local = memoryStorage();
+  withStorage(t, local);
+  let received = null;
+  const unsubscribe = onLotContextChange(feature => { received = feature; });
+  const payload = JSON.stringify({ feature: square, metadata: { source: 'other-tab' } });
+  listeners.get('storage')({ key: LOT_CONTEXT_STORAGE_KEY, newValue: payload });
+  assert.equal(received.properties.name, 'Lote de prueba');
+  unsubscribe();
+  assert.equal(listeners.has('storage'), false);
+});
+
