@@ -12,10 +12,25 @@ export function validateGeoJSON(geojson) {
 
   let geometry = geojson;
   if (geojson.type === 'FeatureCollection') {
-    if (!geojson.features || !geojson.features.length) {
+    if (!Array.isArray(geojson.features) || geojson.features.length === 0) {
       return { valid: false, error: 'FeatureCollection vacía.' };
     }
-    geometry = geojson.features[0].geometry;
+
+    const geometries = geojson.features.map(feature => feature?.type === 'Feature' ? feature.geometry : null);
+    if (geometries.some(item => !item || !['Point', 'Polygon', 'MultiPolygon', 'LineString'].includes(item.type) || !item.coordinates)) {
+      return { valid: false, error: 'FeatureCollection contiene una geometría inválida o no soportada.' };
+    }
+
+    if (geometries.length === 1) {
+      geometry = geometries[0];
+    } else if (geometries.every(item => item.type === 'Polygon' || item.type === 'MultiPolygon')) {
+      geometry = {
+        type: 'MultiPolygon',
+        coordinates: geometries.flatMap(item => item.type === 'Polygon' ? [item.coordinates] : item.coordinates)
+      };
+    } else {
+      return { valid: false, error: 'La FeatureCollection contiene varias geometrías; solo se pueden combinar polígonos en un lote.' };
+    }
   } else if (geojson.type === 'Feature') {
     geometry = geojson.geometry;
   }
@@ -29,7 +44,13 @@ export function validateGeoJSON(geojson) {
     return { valid: false, error: `Tipo de geometría no soportado: ${geometry.type}` };
   }
 
-  return { valid: true, geometry, feature: geojson.type === 'Feature' ? geojson : toGeoJSONFeature(geometry) };
+  return {
+    valid: true,
+    geometry,
+    feature: geojson.type === 'Feature' && geometry === geojson.geometry
+      ? geojson
+      : toGeoJSONFeature(geometry, geojson.type === 'Feature' ? geojson.properties : {})
+  };
 }
 
 /**
