@@ -123,7 +123,7 @@ python3 -m pytest tests/
 
 La evolución adopta `services/lotContext.js` como contrato común para el área de interés (AOI). El objeto se representa como GeoJSON Feature Polygon/MultiPolygon en WGS84, con propiedades y metadatos de procedencia. Se persiste en localStorage y sessionStorage para permitir el paso entre páginas clásicas y emite el evento `agro:lot-context-changed`.
 
-El contexto compartido no reemplaza los motores de Aptitud, Forestal, Clima, Suelos ni Tracking. Cada módulo conserva su responsabilidad y puede dibujar capas temáticas propias, pero debe consumir el mismo AOI cuando corresponda. Un punto GPS es una referencia puntual, no un lote con superficie.
+El motor de Aptitud integra candidatos agrícolas y perfiles forestales declarados para la provincia, y los presenta en grupos separados. La inclusión provincial no representa una recomendación ni una clasificación de aptitud. El contexto compartido no reemplaza los motores de Aptitud, Forestal, Clima, Suelos ni Tracking. Cada módulo conserva su responsabilidad y puede dibujar capas temáticas propias, pero debe consumir el mismo AOI cuando corresponda. Un punto GPS es una referencia puntual, no un lote con superficie.
 
 El dibujo del módulo de Aptitud permite agregar vértices hasta que el usuario cierre manualmente el polígono. El botón secundario deshace el último vértice durante el dibujo y permite limpiar la selección cuando no hay un borrador activo. El módulo Forestal consume el AOI compartido y no debe inventar coordenadas de respaldo.
 
