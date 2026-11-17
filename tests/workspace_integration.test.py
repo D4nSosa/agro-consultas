@@ -13,6 +13,12 @@ class WorkspaceIntegrationTests(unittest.TestCase):
                 self.assertIn('href="workspace.css"', html)
                 self.assertIn('src="workspace.js"', html)
 
+    def test_workspace_label_prefers_the_newest_saved_lot(self):
+        js = (ROOT / "workspace.js").read_text(encoding="utf-8")
+        self.assertIn("const candidates = []", js)
+        self.assertIn("Date.parse(feature.properties?.updatedAt || '')", js)
+        self.assertIn("candidates.sort((a, b) => b.timestamp - a.timestamp)", js)
+
     def test_shared_navigation_has_all_work_modules(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
         for route in ["mapa.html", "resultados.html", "forestal.html",
