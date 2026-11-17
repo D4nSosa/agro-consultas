@@ -103,26 +103,33 @@ export function normalizeLotFeature(input, metadata = {}) {
   return {
     type: 'Feature',
     geometry: JSON.parse(JSON.stringify(geometry)),
-    properties: { ...(feature.properties || {}), ...metadata, contextVersion: 1, updatedAt: feature.properties?.updatedAt || new Date().toISOString() }
+    properties: { ...(feature.properties || {}), ...metadata, contextVersion: 1, updatedAt: metadata.updatedAt || feature.properties?.updatedAt || new Date().toISOString() }
   };
 }
 
 export function getLotContext() {
-  for (const storage of [globalThis.localStorage, globalThis.sessionStorage]) {
+  const candidates = [];
+
+  for (const storageName of ['localStorage', 'sessionStorage']) {
     try {
+      const storage = globalThis[storageName];
       const raw = storage?.getItem(STORAGE_KEY);
       if (!raw) continue;
       const parsed = JSON.parse(raw);
-      return normalizeLotFeature(parsed.feature, parsed.metadata || {});
+      const feature = normalizeLotFeature(parsed.feature, parsed.metadata || {});
+      const timestamp = Date.parse(feature.properties?.updatedAt || '') || 0;
+      candidates.push({ feature, timestamp });
     } catch (error) {
       console.warn('[Agro-Consultas] No se pudo recuperar el lote compartido desde un almacenamiento:', error);
     }
   }
-  return null;
+
+  candidates.sort((a, b) => b.timestamp - a.timestamp);
+  return candidates[0]?.feature || null;
 }
 
 export function setLotContext(input, metadata = {}) {
-  const feature = normalizeLotFeature(input, metadata);
+  const feature = normalizeLotFeature(input, { ...metadata, updatedAt: new Date().toISOString() });
   const payload = { feature, metadata: { source: metadata.source || feature.properties.source || 'user-selected' } };
   const serialized = JSON.stringify(payload);
   let persisted = false;
