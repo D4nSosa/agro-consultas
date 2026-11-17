@@ -37,6 +37,13 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
 
+    def test_fire_and_climate_panels_avoid_generic_unavailable_labels(self):
+        fire = (ROOT / "incendios.html").read_text(encoding="utf-8")
+        results = (ROOT / "resultados.html").read_text(encoding="utf-8")
+        self.assertNotIn("No evaluable", fire)
+        self.assertIn("el indicador no se calcula", fire)
+        self.assertNotIn("DATOS CLIMÁTICOS NO DISPONIBLES", results)
+
     def test_suitability_ui_uses_contextual_reference_labels(self):
         source = (ROOT / "script.js").read_text(encoding="utf-8")
         self.assertIn('const compatibilityLabel = isReferenceProfile ? "Perfil de referencia"', source)
