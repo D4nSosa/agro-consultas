@@ -49,3 +49,30 @@ test('no asigna superficie a un punto', () => {
   assert.equal(result.isPoint, true);
   assert.equal(result.squareMeters, 0);
 });
+
+test('combina todas las Features Polygon de una FeatureCollection', async () => {
+  const { validateGeoJSON } = await import('../forestal/utils/geo.js');
+  const second = square.map(([lng, lat]) => [lng + 0.2, lat]);
+  const result = validateGeoJSON({
+    type: 'FeatureCollection',
+    features: [
+      { type: 'Feature', properties: { name: 'A' }, geometry: { type: 'Polygon', coordinates: [square] } },
+      { type: 'Feature', properties: { name: 'B' }, geometry: { type: 'Polygon', coordinates: [second] } }
+    ]
+  });
+  assert.equal(result.valid, true);
+  assert.equal(result.geometry.type, 'MultiPolygon');
+  assert.equal(result.geometry.coordinates.length, 2);
+});
+
+test('rechaza una FeatureCollection si alguna geometría es inválida', async () => {
+  const { validateGeoJSON } = await import('../forestal/utils/geo.js');
+  const result = validateGeoJSON({
+    type: 'FeatureCollection',
+    features: [
+      { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [square] } },
+      { type: 'Feature', properties: {}, geometry: null }
+    ]
+  });
+  assert.equal(result.valid, false);
+});
