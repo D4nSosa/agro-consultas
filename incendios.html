@@ -55,6 +55,7 @@
 @media(max-width:980px){.fire-layout{grid-template-columns:1fr}.fire-side{grid-template-columns:repeat(2,minmax(0,1fr))}.fire-side .wide{grid-column:1/-1}}
 @media(max-width:620px){.fire-side{grid-template-columns:1fr}.fire-side .wide{grid-column:auto}#fire-map{height:56vh;min-height:390px}.fire-map-actions .btn{padding:7px 8px}}
 </style>
+  <link rel="stylesheet" href="workspace.css">
 </head>
 <body>
 <header class="app-header">
@@ -239,4 +240,5 @@ $('themeToggle').addEventListener('click',()=>{document.documentElement.classLis
 try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
 refresh();window.setInterval(refresh,10*60*1000);
 </script>
+  <script src="workspace.js" defer></script>
 </body></html>
