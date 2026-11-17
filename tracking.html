@@ -198,7 +198,7 @@
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
     import { generateRecommendations, loadCultivosData } from './services/recommendationEngine.js';
-    import { getLotContext, setLotContext, clearLotContext } from './services/lotContext.js';
+    import { getLotContext, setLotContext, clearLotContext, onLotContextChange } from './services/lotContext.js';
 
     let map = null;
     let watchId = null;
@@ -521,19 +521,30 @@
     document.addEventListener('DOMContentLoaded', () => {
       initTrackingMap();
 
-      const sharedLot = getLotContext();
-      if (sharedLot) {
-        currentFeature = sharedLot;
-        polygonLayer = L.geoJSON(sharedLot, {
+      function applySharedLot(feature) {
+        if (watchId !== null) return; // No reemplazar una geometría mientras se registra un recorrido.
+        if (polygonLayer) map.removeLayer(polygonLayer);
+        polygonLayer = null;
+        currentFeature = feature || null;
+        if (!feature) {
+          document.getElementById('lot-actions-box').style.display = 'none';
+          document.getElementById('track-area-ha').innerText = '—';
+          document.getElementById('track-area-m2').innerText = '—';
+          return;
+        }
+        polygonLayer = L.geoJSON(feature, {
           style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
         }).addTo(map);
         map.fitBounds(polygonLayer.getBounds(), { padding: [30, 30] });
-        const areaInfo = calculateArea(sharedLot);
-        document.getElementById('track-lot-name').value = sharedLot.properties?.name || 'Lote compartido';
+        const areaInfo = calculateArea(feature);
+        document.getElementById('track-lot-name').value = feature.properties?.name || 'Lote compartido';
         document.getElementById('track-area-ha').innerText = `${areaInfo.hectares} ha`;
         document.getElementById('track-area-m2').innerText = `${areaInfo.squareMeters.toLocaleString('es-AR')} m²`;
         document.getElementById('lot-actions-box').style.display = 'flex';
       }
+
+      applySharedLot(getLotContext());
+      onLotContextChange(applySharedLot);
 
       document.getElementById('btn-start-tracking').addEventListener('click', startTracking);
       document.getElementById('btn-stop-tracking').addEventListener('click', stopTrackingAndClose);
