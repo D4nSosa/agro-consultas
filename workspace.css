@@ -18,7 +18,7 @@
  .ac-brand{font-size:14px}.ac-brand-mark{width:29px;height:29px}
  .ac-workspace-links{display:none}
  .ac-project-chip{max-width:54vw;font-size:11px;padding:6px 9px}
- .ac-mobile-nav{position:fixed;z-index:1400;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding:5px 8px calc(5px + env(safe-area-inset-bottom));background:var(--bg-principal,#fff);border-top:1px solid var(--ac-line);box-shadow:0 -5px 20px rgba(0,0,0,.08)}
+ .ac-mobile-nav{position:fixed;z-index:1400;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;padding:5px 8px calc(5px + env(safe-area-inset-bottom));background:var(--bg-principal,#fff);border-top:1px solid var(--ac-line);box-shadow:0 -5px 20px rgba(0,0,0,.08)}
  /* Keep the work surface dominant; supporting controls scroll inside their own panels. */
  main,.workspace,.container,.page-container{max-width:100%;min-width:0}
  .workspace-grid,.fire-layout{grid-template-columns:minmax(0,1fr)!important}
