@@ -43,3 +43,13 @@ Se busca recibir observaciones técnicas, orientación sobre fuentes y metodolog
 ## Trazabilidad
 
 La documentación técnica ampliada del radar se encuentra en [FIRE_MONITORING.md](FIRE_MONITORING.md). Las pruebas automatizadas del repositorio pueden ejecutarse con los comandos indicados en el README. La disponibilidad en vivo de fuentes externas debe comprobarse al momento de cada demostración.
+
+
+## Ajustes de calidad incorporados — 17 de noviembre de 2026
+
+- Aptitud: la respuesta WMS de INTA se etiqueta como evidencia cartográfica (CARTOGRAPHIC), no como medición puntual (REAL). La clasificación de aptitud continúa exigiendo evidencia comparable; una capa cartográfica no la habilita por sí sola.
+- Forestal: una escena Sentinel-2 encontrada en STAC sin estadísticas ráster se presenta como escena identificada, no como NDVI disponible. La reproyección del ROI conserva las partes de MultiPolygon y sus anillos interiores.
+- Incendios: la interfaz distingue archivos FIRMS atrasados, fallidos y con antigüedad desconocida; las detecciones de fuentes atrasadas quedan fuera de la capa en vivo. GOES-19 se mantiene como fuente separada.
+- Tracking: el GeoJSON incorpora cantidad de muestras y precisión GNSS declarada (mediana y máximo) cuando el dispositivo la informa. La precisión reportada por el teléfono no es exactitud topográfica certificada.
+
+Estos cambios mejoran trazabilidad y comunicación de incertidumbre; no constituyen validación operativa con lotes de campo.
