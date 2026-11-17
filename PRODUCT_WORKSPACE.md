@@ -21,13 +21,15 @@ The interface should avoid generic blocking warnings and repetitive "insufficien
 
 ## Current implementation in this branch
 - Added shared responsive workspace assets (`workspace.css`, `workspace.js`) to the seven primary HTML entry points.
-- Added a common module navigation and a compact active-territory label sourced from the existing local lot context.
-- Added a mobile bottom navigation and responsive layout rules for map-first use.
-- This is the integration foundation, not completion of every analytical capability listed above. Existing module-specific workflows and data services remain authoritative and require separate functional and visual validation before production release.
+- Added common desktop navigation and mobile bottom navigation across the seven primary entry points.
+- Added a compact active-territory label sourced from the existing local lot context.
+- Central map, forest, fire, and tracking workflows now subscribe to shared-lot changes; tracking does not replace a route while GPS capture is active.
+- Report coordinates derived from a lot use the geometry centroid utility and identify the coordinate source instead of labelling a bounding-box center as a centroid.
+- Preserved existing module-specific analytical services. Remaining analytical, responsive and visual validation is tracked in the pull request; this integration foundation is not a claim that all six product areas are complete.
 
 ## Validation
 Run:
 ```bash
-python -m unittest tests/workspace_integration.test
-python -m unittest discover -s tests
+python tests/workspace_integration.test.py -v
+node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs tests/forestGeo.test.mjs tests/territorial-recommendations.test.mjs tests/forestry-candidates-ui.test.mjs tests/satelliteService.test.mjs
 ```
