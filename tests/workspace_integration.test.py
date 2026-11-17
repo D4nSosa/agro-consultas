@@ -54,6 +54,8 @@ class WorkspaceIntegrationTests(unittest.TestCase):
     def test_report_uses_a_geometry_centroid_and_explains_its_source(self):
         html = (ROOT / "reporte.html").read_text(encoding="utf-8")
         self.assertIn("calculateCentroid(parsedGeom)", html)
+        self.assertIn("calculateArea(parsedGeom)", html)
+        self.assertIn("geometryArea?.isPoint", html)
         self.assertIn("report-coords-method", html)
         self.assertNotIn("getBounds().getCenter()", html)
 
