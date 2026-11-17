@@ -251,9 +251,31 @@
         const climateReport = await getClimateData(lat, lng, administrativeLocation?.provincia || "", subregion?.clima);
         const climateHistory = await getClimateHistory(lat, lng, 12);
 
-        const cultivosNombres = provKey ? await getCropsToEvaluate(provKey) : [];
-        const todasRecomendaciones = provKey ? await generateRecommendations(cultivosNombres, soilReport, climateReport) : [];
-        const recomendaciones = todasRecomendaciones.filter(c => c.compatibilidad !== "INFORMACIÓN PENDIENTE DE VERIFICACIÓN");
+        const cultivosNombres = provKey ? await getCropsToEvaluate(provKey, subregion) : [];
+        const historical = climateHistory?.data?.historicalAverages || {};
+        const historicalTemperature = Number(historical.temperaturaMediaHistoricaC);
+        const historicalPrecipitation = Number(historical.precipitacionMediaAnualMm);
+        const hasHistoricalClimate = climateHistory?.status === 'REAL' &&
+          Number.isFinite(historicalTemperature) && Number.isFinite(historicalPrecipitation);
+        const climateEvidenceForScoring = hasHistoricalClimate
+          ? {
+              ...climateReport,
+              temperaturaMediaVal: historicalTemperature,
+              precipitacionesAnualesVal: historicalPrecipitation,
+              climatologyStatus: 'REAL',
+              climatologySource: 'NASA POWER',
+              climatologyBaseline: '2001–2020'
+            }
+          : {
+              ...climateReport,
+              temperaturaMediaVal: null,
+              precipitacionesAnualesVal: null,
+              climatologyStatus: 'UNAVAILABLE',
+              climatologySource: null
+            };
+        const recomendaciones = provKey
+          ? await generateRecommendations(cultivosNombres, soilReport, climateEvidenceForScoring)
+          : [];
 
         let forestHTML = '';
         if (reportType === 'forestal') {
@@ -389,12 +411,12 @@
               <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                   <strong style="font-size: 0.9rem; color: var(--verde-principal);">${c.nombre}</strong>
-                  <span class="compatibility-badge ${c.compatibilidad.includes('ALTA') ? 'badge-alta' : (c.compatibilidad.includes('MEDIA') ? 'badge-media' : 'badge-baja')}" style="font-size: 0.72rem; padding: 3px 6px;">
-                    ${c.compatibilidad}
+                  <span class="compatibility-badge ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'badge-origin' : (c.compatibilidad.includes('ALTA') ? 'badge-alta' : (c.compatibilidad.includes('MEDIA') ? 'badge-media' : 'badge-baja'))}" style="font-size: 0.72rem; padding: 3px 6px;">
+                    ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'Ficha de referencia' : c.compatibilidad}
                   </span>
                 </div>
                 <p style="margin: 0 0 6px 0; color: var(--texto-secundario); font-size: 0.8rem;">${c.descripcion}</p>
-                <div style="font-size: 0.78rem;"><strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Compatible'}</div>
+                <div style="font-size: 0.78rem;"><strong>💡 Referencia técnica:</strong> ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'La ficha provincial describe los requerimientos del cultivo; no constituye una recomendación de siembra.' : (c.motivos[0] || 'Factores agroambientales comparados con la ficha técnica.')}</div>
               </div>
             `).join('')}
           </div>
