@@ -203,3 +203,31 @@ test('no devuelve el catálogo nacional cuando no reconoce la provincia', async 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('una respuesta WMS cartográfica no se interpreta como medición edáfica puntual', () => {
+  const crop = {
+    nombre: 'Maíz',
+    requerimientos: {
+      suelo: { texturas: ['franca'], drenaje: ['bueno'] },
+      clima: { temperaturaMin: 15, temperaturaMax: 32, precipitacionMin: 600 }
+    }
+  };
+  const soil = {
+    status: 'REAL',
+    evidenceType: 'CARTOGRAPHIC',
+    confidence: 'medium',
+    textura: 'franca',
+    drenaje: 'bueno',
+    tipo: 'Clasificación cartográfica INTA'
+  };
+  const climate = {
+    status: 'REAL',
+    climatologyStatus: 'REAL',
+    temperaturaMediaVal: 23,
+    precipitacionesAnualesVal: 900
+  };
+  const result = calcularCompatibilidad(crop, soil, climate);
+  assert.equal(result.categoria, AptitudCategoria.NO_EVALUABLE);
+  assert.ok(result.datosFaltantes.some(item => item.includes('clasificación cartográfica')));
+  assert.equal(result.calidadEvidencia, 'EVIDENCIA INSUFICIENTE PARA CLASIFICAR');
+});

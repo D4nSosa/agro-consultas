@@ -12,10 +12,25 @@ export function validateGeoJSON(geojson) {
 
   let geometry = geojson;
   if (geojson.type === 'FeatureCollection') {
-    if (!geojson.features || !geojson.features.length) {
+    if (!Array.isArray(geojson.features) || geojson.features.length === 0) {
       return { valid: false, error: 'FeatureCollection vacía.' };
     }
-    geometry = geojson.features[0].geometry;
+
+    const geometries = geojson.features.map(feature => feature?.type === 'Feature' ? feature.geometry : null);
+    if (geometries.some(item => !item || !['Point', 'Polygon', 'MultiPolygon', 'LineString'].includes(item.type) || !item.coordinates)) {
+      return { valid: false, error: 'FeatureCollection contiene una geometría inválida o no soportada.' };
+    }
+
+    if (geometries.length === 1) {
+      geometry = geometries[0];
+    } else if (geometries.every(item => item.type === 'Polygon' || item.type === 'MultiPolygon')) {
+      geometry = {
+        type: 'MultiPolygon',
+        coordinates: geometries.flatMap(item => item.type === 'Polygon' ? [item.coordinates] : item.coordinates)
+      };
+    } else {
+      return { valid: false, error: 'La FeatureCollection contiene varias geometrías; solo se pueden combinar polígonos en un lote.' };
+    }
   } else if (geojson.type === 'Feature') {
     geometry = geojson.geometry;
   }
@@ -29,7 +44,13 @@ export function validateGeoJSON(geojson) {
     return { valid: false, error: `Tipo de geometría no soportado: ${geometry.type}` };
   }
 
-  return { valid: true, geometry, feature: geojson.type === 'Feature' ? geojson : toGeoJSONFeature(geometry) };
+  return {
+    valid: true,
+    geometry,
+    feature: geojson.type === 'Feature' && geometry === geojson.geometry
+      ? geojson
+      : toGeoJSONFeature(geometry, geojson.type === 'Feature' ? geojson.properties : {})
+  };
 }
 
 /**
@@ -50,38 +71,57 @@ export function toGeoJSONFeature(geometry, properties = {}) {
 /**
  * Calcula el área en hectáreas y metros cuadrados de una geometría Polygon/MultiPolygon
  */
+function calculateRingArea(ring) {
+  if (!Array.isArray(ring) || ring.length < 4) return 0;
+
+  const radius = 6378137;
+  let sum = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const current = ring[i];
+    const next = ring[i + 1];
+    if (!Array.isArray(current) || !Array.isArray(next) ||
+        !Number.isFinite(current[0]) || !Number.isFinite(current[1]) ||
+        !Number.isFinite(next[0]) || !Number.isFinite(next[1])) {
+      return 0;
+    }
+    const lat1 = current[1] * Math.PI / 180;
+    const lat2 = next[1] * Math.PI / 180;
+    const deltaLng = (next[0] - current[0]) * Math.PI / 180;
+    sum += deltaLng * (2 + Math.sin(lat1) + Math.sin(lat2));
+  }
+  return Math.abs(sum * radius * radius / 2);
+}
+
+function calculatePolygonArea(rings) {
+  if (!Array.isArray(rings) || rings.length === 0) return 0;
+  const outerArea = calculateRingArea(rings[0]);
+  const holesArea = rings.slice(1).reduce((total, ring) => total + calculateRingArea(ring), 0);
+  return Math.max(0, outerArea - holesArea);
+}
+
+/**
+ * Calcula el área geodésica aproximada de Polygon/MultiPolygon.
+ * Cada polígono se calcula por separado; los anillos interiores se descuentan
+ * como huecos y las partes de un MultiPolygon nunca se conectan entre sí.
+ */
 export function calculateArea(geometry) {
   if (!geometry) return { hectares: 0, squareMeters: 0, isPoint: false };
 
   const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
+  if (!geom) return { hectares: 0, squareMeters: 0, isPoint: false };
+
   if (geom.type === 'Point') {
     return { hectares: 0, squareMeters: 0, isPoint: true, message: 'Un punto de consulta no posee superficie definida.' };
   }
 
-  let coords = [];
-  if (geom.type === 'Polygon') {
-    coords = geom.coordinates[0];
-  } else if (geom.type === 'MultiPolygon') {
-    coords = geom.coordinates.flatMap(p => p[0]);
-  } else {
-    return { hectares: 0, squareMeters: 0 };
-  }
-
-  // Geodesic area approximation (Shoelace formula scaled to meters on WGS84)
-  const RADIUS = 6378137; // Earth radius in meters
   let area = 0;
-
-  if (coords.length > 2) {
-    for (let i = 0; i < coords.length - 1; i++) {
-      const p1 = coords[i];
-      const p2 = coords[i + 1];
-      const rad1 = (p1[1] * Math.PI) / 180;
-      const rad2 = (p2[1] * Math.PI) / 180;
-      const dLng = ((p2[0] - p1[0]) * Math.PI) / 180;
-
-      area += dLng * (2 + Math.sin(rad1) + Math.sin(rad2));
-    }
-    area = Math.abs((area * RADIUS * RADIUS) / 2.0);
+  if (geom.type === 'Polygon') {
+    area = calculatePolygonArea(geom.coordinates);
+  } else if (geom.type === 'MultiPolygon') {
+    if (!Array.isArray(geom.coordinates)) return { hectares: 0, squareMeters: 0, isPoint: false };
+    area = geom.coordinates.reduce((total, polygon) => total + calculatePolygonArea(polygon), 0);
+  } else {
+    return { hectares: 0, squareMeters: 0, isPoint: false };
   }
 
   const squareMeters = Math.round(area * 100) / 100;
@@ -98,38 +138,87 @@ export function calculateArea(geometry) {
 /**
  * Calcula el centroide [lat, lng] de una geometría
  */
+function calculateRingCentroid(ring) {
+  if (!Array.isArray(ring) || ring.length < 4) return null;
+  let crossSum = 0;
+  let xSum = 0;
+  let ySum = 0;
+
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [x1, y1] = ring[i] || [];
+    const [x2, y2] = ring[i + 1] || [];
+    if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+    const cross = x1 * y2 - x2 * y1;
+    crossSum += cross;
+    xSum += (x1 + x2) * cross;
+    ySum += (y1 + y2) * cross;
+  }
+
+  if (Math.abs(crossSum) < 1e-15) return null;
+  return {
+    area: Math.abs(crossSum / 2),
+    lng: xSum / (3 * crossSum),
+    lat: ySum / (3 * crossSum)
+  };
+}
+
+function calculatePolygonCentroid(rings) {
+  if (!Array.isArray(rings) || rings.length === 0) return null;
+  const outer = calculateRingCentroid(rings[0]);
+  if (!outer) return null;
+
+  let weightedArea = outer.area;
+  let weightedLng = outer.lng * outer.area;
+  let weightedLat = outer.lat * outer.area;
+
+  for (const holeRing of rings.slice(1)) {
+    const hole = calculateRingCentroid(holeRing);
+    if (!hole) continue;
+    weightedArea -= hole.area;
+    weightedLng -= hole.lng * hole.area;
+    weightedLat -= hole.lat * hole.area;
+  }
+
+  if (weightedArea <= 1e-15) return null;
+  return { area: weightedArea, lng: weightedLng / weightedArea, lat: weightedLat / weightedArea };
+}
+
+/**
+ * Calcula un centroide ponderado por superficie para Polygon/MultiPolygon.
+ * La ponderación evita que una parte pequeña de un MultiPolygon tenga el
+ * mismo peso que una parte extensa al elegir el punto de consulta territorial.
+ */
 export function calculateCentroid(geometry) {
   if (!geometry) return null;
   const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
   if (!geom) return null;
 
   if (geom.type === 'Point') {
-    if (Array.isArray(geom.coordinates) && geom.coordinates.length >= 2) {
+    if (Array.isArray(geom.coordinates) && geom.coordinates.length >= 2 &&
+        Number.isFinite(geom.coordinates[0]) && Number.isFinite(geom.coordinates[1])) {
       return { lat: geom.coordinates[1], lng: geom.coordinates[0] };
     }
     return null;
   }
 
-  let points = [];
-  if (geom.type === 'Polygon') {
-    points = geom.coordinates[0];
-  } else if (geom.type === 'MultiPolygon') {
-    points = geom.coordinates.flatMap(p => p[0]);
+  const polygons = geom.type === 'Polygon'
+    ? [geom.coordinates]
+    : geom.type === 'MultiPolygon' ? geom.coordinates : null;
+  if (!Array.isArray(polygons) || polygons.length === 0) return null;
+
+  let totalArea = 0;
+  let weightedLng = 0;
+  let weightedLat = 0;
+  for (const polygon of polygons) {
+    const centroid = calculatePolygonCentroid(polygon);
+    if (!centroid) continue;
+    totalArea += centroid.area;
+    weightedLng += centroid.lng * centroid.area;
+    weightedLat += centroid.lat * centroid.area;
   }
 
-  if (!points || !points.length) return null;
-
-  let sumLat = 0;
-  let sumLng = 0;
-  points.forEach(p => {
-    sumLng += p[0];
-    sumLat += p[1];
-  });
-
-  return {
-    lat: sumLat / points.length,
-    lng: sumLng / points.length
-  };
+  if (totalArea <= 1e-15) return null;
+  return { lat: weightedLat / totalArea, lng: weightedLng / totalArea };
 }
 
 /**

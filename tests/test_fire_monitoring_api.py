@@ -93,3 +93,42 @@ def test_goes_sampling_spans_the_full_candidate_index_range():
     assert indices[0, 0] == 0
     assert indices[-1, 0] == 99
     assert len(set(map(tuple, indices.tolist()))) == 100
+
+
+def test_firms_last_modified_freshness_distinguishes_stale_and_fresh():
+    now = fire.datetime.datetime(2026, 11, 17, 14, 0, tzinfo=fire.datetime.timezone.utc)
+    stale = fire._last_modified_freshness("Thu, 12 Nov 2026 15:49:57 GMT", now=now)
+    fresh = fire._last_modified_freshness("Tue, 17 Nov 2026 13:47:19 GMT", now=now)
+    unknown = fire._last_modified_freshness(None, now=now)
+
+    assert stale["stale"] is True
+    assert stale["freshness"] == "stale"
+    assert fresh["stale"] is False
+    assert fresh["freshness"] == "fresh"
+    assert unknown["stale"] is None
+    assert unknown["freshness"] == "unknown"
+
+
+def test_firms_stale_sources_are_excluded_from_live_features(monkeypatch):
+    fire.CACHE["payload"] = None
+    fire.CACHE["expires"] = 0
+
+    def fake_fetch(item):
+        name, _url = item
+        stale = name == "VIIRS_SNPP"
+        feature = {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [-56.0, -27.0]},
+            "properties": {"source": "NASA FIRMS", "sensor": name, "date": "2026-11-17"},
+        }
+        return {
+            "name": name, "ok": True, "count": 1,
+            "lastModified": "Thu, 12 Nov 2026 15:49:57 GMT" if stale else "Tue, 17 Nov 2026 13:47:19 GMT",
+            "stale": stale, "freshness": "stale" if stale else "fresh",
+            "features": [feature],
+        }
+
+    monkeypatch.setattr(fire, "_fetch_firms", fake_fetch)
+    payload = fire.national_fires()
+    assert len(payload["features"]) == 3
+    assert payload["meta"]["staleSources"] == ["VIIRS_SNPP"]

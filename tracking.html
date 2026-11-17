@@ -15,7 +15,7 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Tracking y Perímetros GPS en Campo — Agro Consultas" />
-  <meta property="og:description" content="Trazado de lotes en tiempo real desde el celular con cálculo exacto de hectáreas e integración GIS." />
+  <meta property="og:description" content="Recorrido GPS de lotes en campo, superficie estimada y exportación GIS." />
   <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
 
   <script type="application/ld+json">
@@ -69,7 +69,7 @@
         <span>🚶</span> Módulo de Caminata y Tracking GPS en Campo
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
-        Trazá el perímetro exacto de tu lote en tiempo real mientras caminás el campo. El sistema registrará tus coordenadas GPS, mostrará la forma del lote en el mapa y calculará la superficie real en hectáreas.
+        Registrá el perímetro mientras caminás el campo. El sistema guarda posiciones GPS, muestra el recorrido y estima la superficie a partir de los puntos registrados. La precisión depende de la señal, la frecuencia de muestreo y el trazado realizado.
       </p>
     </div>
 
@@ -111,9 +111,10 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div style="background: rgba(39, 174, 96, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(39, 174, 96, 0.25);">
-            <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie Calculada:</span>
+            <span style="font-size: 0.75rem; color: var(--texto-secundario); display: block;">Superficie estimada:</span>
             <strong id="track-area-ha" style="font-size: 1.3rem; color: var(--verde-principal);">0.00 ha</strong>
             <span id="track-area-m2" style="font-size: 0.75rem; display: block; color: var(--texto-secundario);">0 m²</span>
+            <small style="display:block;color:var(--texto-secundario);margin-top:5px;line-height:1.35;">Estimación GPS; no reemplaza un mensura ni un levantamiento topográfico.</small>
           </div>
 
           <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--borde-suave);">

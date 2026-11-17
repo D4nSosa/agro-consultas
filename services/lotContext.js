@@ -103,31 +103,61 @@ export function normalizeLotFeature(input, metadata = {}) {
   return {
     type: 'Feature',
     geometry: JSON.parse(JSON.stringify(geometry)),
-    properties: { ...(feature.properties || {}), ...metadata, contextVersion: 1, updatedAt: feature.properties?.updatedAt || new Date().toISOString() }
+    properties: { ...(feature.properties || {}), ...metadata, contextVersion: 1, updatedAt: metadata.updatedAt || feature.properties?.updatedAt || new Date().toISOString() }
   };
 }
 
 export function getLotContext() {
-  for (const storage of [globalThis.localStorage, globalThis.sessionStorage]) {
+  const candidates = [];
+
+  for (const storageName of ['localStorage', 'sessionStorage']) {
     try {
+      const storage = globalThis[storageName];
       const raw = storage?.getItem(STORAGE_KEY);
       if (!raw) continue;
       const parsed = JSON.parse(raw);
-      return normalizeLotFeature(parsed.feature, parsed.metadata || {});
+      const feature = normalizeLotFeature(parsed.feature, parsed.metadata || {});
+      const timestamp = Date.parse(feature.properties?.updatedAt || '') || 0;
+      candidates.push({ feature, timestamp });
     } catch (error) {
       console.warn('[Agro-Consultas] No se pudo recuperar el lote compartido desde un almacenamiento:', error);
     }
   }
-  return null;
+
+  candidates.sort((a, b) => b.timestamp - a.timestamp);
+  return candidates[0]?.feature || null;
 }
 
 export function setLotContext(input, metadata = {}) {
-  const feature = normalizeLotFeature(input, metadata);
+  const feature = normalizeLotFeature(input, { ...metadata, updatedAt: new Date().toISOString() });
   const payload = { feature, metadata: { source: metadata.source || feature.properties.source || 'user-selected' } };
   const serialized = JSON.stringify(payload);
-  try { globalThis.localStorage?.setItem(STORAGE_KEY, serialized); } catch (_) {}
-  try { globalThis.sessionStorage?.setItem(STORAGE_KEY, serialized); } catch (_) {}
-  globalThis.dispatchEvent?.(new CustomEvent(EVENT_NAME, { detail: feature }));
+  let persisted = false;
+  const storageErrors = [];
+
+  for (const storageName of ['localStorage', 'sessionStorage']) {
+    try {
+      const storage = globalThis[storageName];
+      if (!storage) continue;
+      storage.setItem(STORAGE_KEY, serialized);
+      if (storage.getItem(STORAGE_KEY) !== serialized) {
+        throw new Error('La verificación de lectura no coincide con el lote guardado.');
+      }
+      persisted = true;
+      break;
+    } catch (error) {
+      storageErrors.push(error);
+    }
+  }
+
+  if (!persisted) {
+    const reason = storageErrors[0]?.message || 'El navegador no ofrece almacenamiento disponible.';
+    throw new Error(`No se pudo guardar el lote compartido. ${reason}`);
+  }
+
+  if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+    globalThis.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: feature }));
+  }
   return feature;
 }
 

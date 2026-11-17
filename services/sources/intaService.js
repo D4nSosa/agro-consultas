@@ -28,6 +28,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       if (Date.now() - timestamp < CACHE_EXPIRY && (origin === 'wms' || origin === 'regional')) {
         return {
           ...data,
+          ...(origin === 'wms' ? { confidence: 'medium', evidenceType: 'CARTOGRAPHIC' } : {}),
           fuente: origin === 'wms'
             ? 'INTA Cartografía Oficial (WMS · caché local)'
             : 'Perfil agroambiental de referencia de Agro Consultas (caché local; sin fuente primaria asociada)',
@@ -82,7 +83,8 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
         ph: rawPh !== undefined && rawPh !== null && !isNaN(parseFloat(rawPh)) ? parseFloat(rawPh) : null,
         escala: "Escala no informada por la respuesta WMS; consultar metadatos de la capa",
         status: "REAL",
-        confidence: "high",
+        confidence: "medium",
+        evidenceType: "CARTOGRAPHIC",
         fechaActualizacion: new Date().toISOString()
       };
 
