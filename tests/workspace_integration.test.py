@@ -31,6 +31,14 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
 
+    def test_suitability_ui_uses_contextual_reference_labels(self):
+        source = (ROOT / "script.js").read_text(encoding="utf-8")
+        self.assertIn('const compatibilityLabel = isReferenceProfile ? "Perfil de referencia"', source)
+        self.assertNotIn("Evidencia Insuficiente", source)
+        self.assertNotIn("Datos Faltantes", source)
+        self.assertNotIn("candidatos sin clasificación", source)
+        self.assertNotIn("Otros perfiles sin clasificación", source)
+
     def test_map_tracking_and_forest_modules_subscribe_to_shared_lot_changes(self):
         checks = {
             "mapa.html": "onLotContextChange(feature=>",
