@@ -54,6 +54,11 @@
 .theme-dark .leaflet-control-layers,.theme-dark .leaflet-bar a{background:var(--gris-card);color:var(--texto-principal);border-color:var(--borde-suave)}
 @media(max-width:980px){.fire-layout{grid-template-columns:1fr}.fire-side{grid-template-columns:repeat(2,minmax(0,1fr))}.fire-side .wide{grid-column:1/-1}}
 @media(max-width:620px){.fire-side{grid-template-columns:1fr}.fire-side .wide{grid-column:auto}#fire-map{height:56vh;min-height:390px}.fire-map-actions .btn{padding:7px 8px}}
+.fire-carousel{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory}
+.fire-event-card{flex:0 0 min(250px,78vw);text-align:left;white-space:normal;display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid var(--borde-suave);border-radius:10px;background:var(--bg-principal);color:var(--texto-principal);scroll-snap-align:start;cursor:pointer}
+.fire-event-card:hover{border-color:var(--verde-principal)}
+.fire-event-card strong{font-size:.9rem;color:var(--verde-principal)}
+.fire-event-card small{font-size:.76rem;color:var(--texto-secundario)}
 </style>
   <link rel="stylesheet" href="workspace.css">
 </head>
@@ -76,6 +81,7 @@
   </section>
   <aside class="fire-side">
    <section class="fire-card wide"><h2>Estado de detección</h2><div id="source-status" class="fire-status">Conectando con las fuentes satelitales…</div><div id="source-meta" class="fire-meta">La actualización automática se realiza cada 10 minutos.</div><div class="fire-stats"><div class="fire-stat"><small>MODIS · últimas 24 h</small><strong id="count-modis">—</strong></div><div class="fire-stat"><small>VIIRS · últimas 24 h</small><strong id="count-viirs">—</strong></div><div class="fire-stat"><small>GOES-19 · última escena</small><strong id="count-goes">—</strong></div><div class="fire-stat"><small>Total de elementos recibidos</small><strong id="count-total">—</strong></div></div></section>
+   <section class="fire-card wide"><h2>Detecciones recientes</h2><p class="fire-note">Seleccioná una tarjeta para centrar el mapa en la detección. Son anomalías térmicas satelitales, no incendios confirmados.</p><div id="fire-detection-carousel" class="fire-carousel" aria-live="polite"><div class="fire-empty">Al actualizar las fuentes, las detecciones recientes aparecerán acá.</div></div></section>
    <section class="fire-card wide"><div class="fire-forecast-head"><h2>Previsión meteorológica de riesgo</h2><span id="forecast-location" class="fire-meta">Seleccioná un punto</span></div><div id="forecast-status" class="fire-status">Tocá una ubicación del mapa o seleccioná un lote para consultar los próximos 3 días.</div><div id="forecast-days" class="fire-days"><div class="fire-empty">La previsión se calculará para la ubicación elegida.</div></div><p class="fire-note">Indicador meteorológico orientativo: suma 25 puntos por cada condición disponible que cumpla el umbral. Cuando no hay variables meteorológicas disponibles, el indicador no se calcula; los datos parciales muestran cuántas variables sí pudieron consultarse. Umbrales: máxima ≥30 °C, humedad mínima ≤30 %, viento máximo ≥20 km/h y lluvia ≤1 mm. No es el FWI oficial ni predice igniciones; sirve para comparar jornadas con condiciones más favorables al fuego.</p></section>
    <section class="fire-card"><h2>Análisis del lote</h2><div id="lot-name" class="fire-meta" style="margin-top:8px">Sin lote seleccionado</div><label class="fire-field" for="confidence">Confianza numérica mínima (cuando está disponible): <b id="confidence-value">0%</b><input id="confidence" type="range" min="0" max="100" step="5" value="0"></label><button id="query-lot" class="btn primary" disabled>Analizar detecciones del lote</button><div id="lot-status" class="fire-status">Compartí un lote desde Mapa y lotes o Forestal.</div><div class="fire-stats"><div class="fire-stat"><small>Detecciones dentro del lote</small><strong id="lot-events">—</strong></div><div class="fire-stat"><small>Coincidencias MODIS / VIIRS</small><strong id="lot-paired">—</strong></div></div></section>
    <section class="fire-card"><h2>Histórico de detecciones</h2><p class="fire-note">Cargá CSV detallados de CONAE o NASA FIRMS. Podés explorar el histórico completo o filtrarlo por el lote seleccionado. El análisis se realiza en el dispositivo; los archivos no se envían al servidor.</p><label class="fire-field" for="history-files">Archivos CSV<input id="history-files" type="file" accept=".csv,text/csv" multiple></label><div class="fire-toolbar"><button id="history-apply" class="btn primary" disabled>Analizar histórico</button><button id="history-clear" class="btn outline" disabled>Limpiar</button><button id="history-manifest" class="btn outline" disabled>Descargar manifiesto</button></div><div id="history-status" class="fire-status">Sin registros históricos cargados.</div><div class="fire-field"><label>Desde<input id="history-from" type="date"></label><label>Hasta<input id="history-to" type="date"></label></div><h3 style="font-size:.85rem;color:var(--verde-principal)">Resumen anual</h3><div id="history-years" class="fire-table">Se calcula al importar datos y seleccionar un lote.</div><h3 style="font-size:.85rem;color:var(--verde-principal);margin-top:12px">Detalle mensual</h3><div id="history-months" class="fire-table">Sin registros.</div></section>
@@ -159,7 +165,37 @@ function drawDetections(){
  draw(goes.filter(()=>$('show-goes').checked),goesLayer,'#8e2424',7,'alertas GOES-19');
 }
 function updateCounts(){const m=modisViirs.filter(f=>f.properties.sensor==='MODIS').length,v=modisViirs.filter(f=>f.properties.sensor==='VIIRS').length,g=goes.length;$('count-modis').textContent=m.toLocaleString('es-AR');$('count-viirs').textContent=v.toLocaleString('es-AR');$('count-goes').textContent=g.toLocaleString('es-AR');$('count-total').textContent=(m+v+g).toLocaleString('es-AR');}
-async function refresh(){const b=$('refresh');b.disabled=true;b.textContent='Actualizando…';$('source-status').textContent='Consultando detecciones recientes…';$('source-status').classList.remove('error');const results=await Promise.allSettled([fetch('/api/fires/national',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('NASA FIRMS HTTP '+r.status);return r.json()}),fetch('/api/fires/goes',{cache:'no-store'}).then(async r=>{if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(d.detail||'GOES HTTP '+r.status)}return r.json()})]);const errs=[];if(results[0].status==='fulfilled')modisViirs=results[0].value.features||[];else{modisViirs=[];errs.push(results[0].reason.message);}if(results[1].status==='fulfilled')goes=results[1].value.features||[];else{goes=[];errs.push(results[1].reason.message);}drawDetections();updateCounts();const fm=results[0].status==='fulfilled'?results[0].value.meta:null,gm=results[1].status==='fulfilled'?results[1].value.meta:null;
+function renderRecentDetections(){
+ const container=$('fire-detection-carousel');
+ if(!container)return;
+ const items=[...modisViirs,...goes].filter(f=>f?.geometry?.type==='Point'&&Array.isArray(f.geometry.coordinates)&&f.geometry.coordinates.length>=2);
+ const timeOf=f=>{
+  const p=f.properties||{};
+  const value=p.observedAt||(p.date?String(p.date)+' '+String(p.timeUtc||'00:00'):'');
+  const parsed=Date.parse(value.endsWith?.('Z')?value:value?value+'Z':'');
+  return Number.isFinite(parsed)?parsed:0;
+ };
+ items.sort((a,b)=>timeOf(b)-timeOf(a));
+ const latest=items.slice(0,12);
+ if(!latest.length){
+  container.innerHTML='<div class="fire-empty">No hay detecciones recientes para mostrar con las fuentes consultadas.</div>';
+  return;
+ }
+ container.innerHTML=latest.map((feature,index)=>{
+  const p=feature.properties||{},coords=feature.geometry.coordinates;
+  const source=p.sensor==='GOES'?'GOES-19':(p.sensor||p.source||'Satélite');
+  const date=p.observedAt||((p.date||'')+' '+(p.timeUtc||'')).trim()||'Hora no informada';
+  const confidence=p.confidence??p.confidenceLabel;
+  return '<button type="button" class="fire-event-card" data-fire-index="'+index+'"><strong>'+esc(source)+' · '+esc(date)+'</strong><span>'+esc(coords[1].toFixed(4))+', '+esc(coords[0].toFixed(4))+'</span>'+(confidence!==undefined&&confidence!==null?'<small>Confianza: '+esc(confidence)+'</small>':'')+'<small>Anomalía térmica; no confirma incendio.</small></button>';
+ }).join('');
+ container.querySelectorAll('[data-fire-index]').forEach(button=>button.addEventListener('click',()=>{
+  const feature=latest[Number(button.dataset.fireIndex)];
+  if(!feature)return;
+  const [lng,lat]=feature.geometry.coordinates;
+  map.setView([lat,lng],Math.max(map.getZoom(),9));
+ }));
+}
+async function refresh(){const b=$('refresh');b.disabled=true;b.textContent='Actualizando…';$('source-status').textContent='Consultando detecciones recientes…';$('source-status').classList.remove('error');const results=await Promise.allSettled([fetch('/api/fires/national',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('NASA FIRMS HTTP '+r.status);return r.json()}),fetch('/api/fires/goes',{cache:'no-store'}).then(async r=>{if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(d.detail||'GOES HTTP '+r.status)}return r.json()})]);const errs=[];if(results[0].status==='fulfilled')modisViirs=results[0].value.features||[];else{modisViirs=[];errs.push(results[0].reason.message);}if(results[1].status==='fulfilled')goes=results[1].value.features||[];else{goes=[];errs.push(results[1].reason.message);}drawDetections();updateCounts();renderRecentDetections();const fm=results[0].status==='fulfilled'?results[0].value.meta:null,gm=results[1].status==='fulfilled'?results[1].value.meta:null;
 const sourceIssues=(fm?.sources||[]).filter(s=>!s.ok).map(s=>s.name+': '+(s.error||'sin respuesta'));
 const staleSources=fm?.staleSources||[];
 const freshnessIssues=(fm?.sources||[]).filter(s=>s.ok&&s.freshness==='unknown').map(s=>s.name+': antigüedad no verificable');
