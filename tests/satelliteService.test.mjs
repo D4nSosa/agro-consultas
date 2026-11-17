@@ -74,3 +74,28 @@ test('una escena STAC sin estadísticas no se presenta como NDVI disponible', as
     globalThis.fetch = originalFetch;
   }
 });
+
+test('la consulta WMS de INTA se identifica como cartográfica y no puntual', async t => {
+  const { fetchINTASoilData } = await import('../services/sources/intaService.js');
+  const originalFetch = globalThis.fetch;
+  const originalStorage = globalThis.localStorage;
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: key => store.get(key) || null,
+    setItem: (key, value) => store.set(key, value),
+    removeItem: key => store.delete(key)
+  };
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ features: [{ properties: { tipo_suelo: 'Clasificación cartográfica' } }] })
+  });
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = originalStorage;
+  });
+  const result = await fetchINTASoilData(-27, -56, null);
+  assert.equal(result.status, 'CARTOGRAPHIC');
+  assert.equal(result.evidenceType, 'CARTOGRAPHIC');
+  assert.notEqual(result.status, 'REAL');
+});
