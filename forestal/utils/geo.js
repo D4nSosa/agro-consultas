@@ -138,38 +138,87 @@ export function calculateArea(geometry) {
 /**
  * Calcula el centroide [lat, lng] de una geometría
  */
+function calculateRingCentroid(ring) {
+  if (!Array.isArray(ring) || ring.length < 4) return null;
+  let crossSum = 0;
+  let xSum = 0;
+  let ySum = 0;
+
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [x1, y1] = ring[i] || [];
+    const [x2, y2] = ring[i + 1] || [];
+    if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+    const cross = x1 * y2 - x2 * y1;
+    crossSum += cross;
+    xSum += (x1 + x2) * cross;
+    ySum += (y1 + y2) * cross;
+  }
+
+  if (Math.abs(crossSum) < 1e-15) return null;
+  return {
+    area: Math.abs(crossSum / 2),
+    lng: xSum / (3 * crossSum),
+    lat: ySum / (3 * crossSum)
+  };
+}
+
+function calculatePolygonCentroid(rings) {
+  if (!Array.isArray(rings) || rings.length === 0) return null;
+  const outer = calculateRingCentroid(rings[0]);
+  if (!outer) return null;
+
+  let weightedArea = outer.area;
+  let weightedLng = outer.lng * outer.area;
+  let weightedLat = outer.lat * outer.area;
+
+  for (const holeRing of rings.slice(1)) {
+    const hole = calculateRingCentroid(holeRing);
+    if (!hole) continue;
+    weightedArea -= hole.area;
+    weightedLng -= hole.lng * hole.area;
+    weightedLat -= hole.lat * hole.area;
+  }
+
+  if (weightedArea <= 1e-15) return null;
+  return { area: weightedArea, lng: weightedLng / weightedArea, lat: weightedLat / weightedArea };
+}
+
+/**
+ * Calcula un centroide ponderado por superficie para Polygon/MultiPolygon.
+ * La ponderación evita que una parte pequeña de un MultiPolygon tenga el
+ * mismo peso que una parte extensa al elegir el punto de consulta territorial.
+ */
 export function calculateCentroid(geometry) {
   if (!geometry) return null;
   const geom = geometry.type === 'Feature' ? geometry.geometry : geometry;
   if (!geom) return null;
 
   if (geom.type === 'Point') {
-    if (Array.isArray(geom.coordinates) && geom.coordinates.length >= 2) {
+    if (Array.isArray(geom.coordinates) && geom.coordinates.length >= 2 &&
+        Number.isFinite(geom.coordinates[0]) && Number.isFinite(geom.coordinates[1])) {
       return { lat: geom.coordinates[1], lng: geom.coordinates[0] };
     }
     return null;
   }
 
-  let points = [];
-  if (geom.type === 'Polygon') {
-    points = geom.coordinates[0];
-  } else if (geom.type === 'MultiPolygon') {
-    points = geom.coordinates.flatMap(p => p[0]);
+  const polygons = geom.type === 'Polygon'
+    ? [geom.coordinates]
+    : geom.type === 'MultiPolygon' ? geom.coordinates : null;
+  if (!Array.isArray(polygons) || polygons.length === 0) return null;
+
+  let totalArea = 0;
+  let weightedLng = 0;
+  let weightedLat = 0;
+  for (const polygon of polygons) {
+    const centroid = calculatePolygonCentroid(polygon);
+    if (!centroid) continue;
+    totalArea += centroid.area;
+    weightedLng += centroid.lng * centroid.area;
+    weightedLat += centroid.lat * centroid.area;
   }
 
-  if (!points || !points.length) return null;
-
-  let sumLat = 0;
-  let sumLng = 0;
-  points.forEach(p => {
-    sumLng += p[0];
-    sumLat += p[1];
-  });
-
-  return {
-    lat: sumLat / points.length,
-    lng: sumLng / points.length
-  };
+  if (totalArea <= 1e-15) return null;
+  return { lat: weightedLat / totalArea, lng: weightedLng / totalArea };
 }
 
 /**
