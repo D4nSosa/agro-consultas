@@ -86,7 +86,7 @@
         </div>
 
         <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--borde-suave); font-size: 0.85rem; line-height: 1.5;">
-          <div><strong>📍 Coordenadas de referencia:</strong> <span id="report-coords">--</span></div>
+          <div><strong>📍 Coordenadas de referencia:</strong> <span id="report-coords">--</span><small id="report-coords-method" style="display:block;color:var(--texto-secundario);margin-top:3px;"></small></div>
           <div><strong>Provincia / Subregión:</strong> <span id="report-prov">--</span></div>
           <div><strong>Fuente de Trazado:</strong> <span id="report-source">Origen no informado en el enlace</span></div>
         </div>
@@ -119,7 +119,7 @@
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
     import { generateRecommendations, loadCultivosData, getCropsToEvaluate } from './services/recommendationEngine.js';
-    import { calculateArea } from './forestal/utils/geo.js';
+    import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -182,15 +182,14 @@
         } catch (e) {}
       }
 
+      let coordinateMethod = 'Coordenadas recibidas desde el enlace.';
       if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && parsedGeom) {
-        try {
-          const bounds = L.geoJSON(parsedGeom).getBounds();
-          if (bounds.isValid()) {
-            const center = bounds.getCenter();
-            lat = center.lat;
-            lng = center.lng;
-          }
-        } catch (_) {}
+        const centroid = calculateCentroid(parsedGeom);
+        if (centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lng)) {
+          lat = centroid.lat;
+          lng = centroid.lng;
+          coordinateMethod = 'Centroide geométrico calculado a partir de la geometría GeoJSON.';
+        }
       }
 
       if (haVal && haVal !== 'N/A' && haVal !== 'null' && haVal !== 'undefined') {
@@ -202,6 +201,7 @@
 
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         document.getElementById('report-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        document.getElementById('report-coords-method').innerText = coordinateMethod;
         document.getElementById('report-source').innerText = parsedGeom?.properties?.source || 'Geometría recibida por enlace; origen no informado';
       }
 
