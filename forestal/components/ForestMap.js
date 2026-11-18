@@ -112,6 +112,27 @@ export class ForestMap {
       attribution: '© OpenStreetMap contributors | Sentinel-2 STAC | IGN Argentina'
     }).addTo(this.map);
 
+    // Cobertura de vegetación boscosa nativa publicada por CONAE para Argentina (mapa 2020).
+    // Es una referencia nacional histórica; no representa plantaciones ni estado forestal actual.
+    const conaeForestCover = L.tileLayer.wms(
+      'https://geoservicios2.conae.gov.ar/geoserver/Bosques/wms',
+      {
+        layers: 'Bosques:CoberturaBosque_Argentina_2020',
+        styles: '',
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        opacity: 0.62,
+        attribution: '© CONAE · Cobertura de bosques Argentina 2020'
+      }
+    );
+    L.control.layers(null, {
+      'Cobertura de bosques nativos · CONAE 2020': conaeForestCover
+    }, { collapsed: true }).addTo(this.map);
+    conaeForestCover.on('tileerror', () => {
+      console.warn('[ForestMap] No se pudo cargar la capa nacional de cobertura de bosques CONAE 2020.');
+    });
+
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);
 
     // Eventos de click para dibujo interactivo
