@@ -42,10 +42,11 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("env(safe-area-inset-bottom)", css)
         self.assertIn(".ac-mobile-nav", css)
 
-    def test_desktop_and_mobile_navigation_are_both_rendered(self):
+    def test_mobile_navigation_and_contextual_workspace_are_rendered(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
         self.assertNotIn("ac-workspace-links", js)
-        self.assertIn("app-header", js)
+        self.assertNotIn("app-header", js)
+        self.assertIn("ac-workspace-entry", js)
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
 
