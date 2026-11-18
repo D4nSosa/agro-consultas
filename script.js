@@ -219,6 +219,12 @@ export async function inicializarMapa(provinciaRaw) {
       if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
       drawnPolygonLayer = null;
       currentAOIPolygon = null;
+      isDrawingMainLot = false;
+      mainDrawPoints = [];
+      mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
+      mainDrawMarkerLayers = [];
+      if (userLocationCircle) leafletMap.removeLayer(userLocationCircle);
+      userLocationCircle = null;
       currentLat = null;
       currentLng = null;
       currentUbicacionNombre = 'Sin seleccionar';
@@ -235,6 +241,12 @@ export async function inicializarMapa(provinciaRaw) {
     }
     if (JSON.stringify(currentAOIPolygon) === JSON.stringify(feature.geometry)) return;
     currentAOIPolygon = feature.geometry;
+    isDrawingMainLot = false;
+    mainDrawPoints = [];
+    mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
+    mainDrawMarkerLayers = [];
+    if (userLocationCircle) leafletMap.removeLayer(userLocationCircle);
+    userLocationCircle = null;
     if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
     drawnPolygonLayer = L.geoJSON(feature, {
       style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.25 }
