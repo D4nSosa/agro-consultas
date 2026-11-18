@@ -6,7 +6,7 @@ Agro-Consultas is an Argentina-wide GIS workspace for producers, technical profe
 ## Shared interaction model
 - Desktop: persistent module navigation, central map/work surface, contextual analysis panels.
 - Mobile: primary map or result first; secondary controls and supporting information remain compact, scrollable or collapsible. A shared bottom navigation provides access to the main work areas.
-- Project context is shared across modules through the existing `agro_lot_context_v1` browser key. The shared shell reads that context for display only; it does not create a default lot or synthetic geometry.
+- Projects and saved lots are stored locally in `agro_workspace_v1`; the active GeoJSON remains available to existing modules through `agro_lot_context_v1`. Users can create projects and switch between saved lots without an account. The initial workspace is empty and never creates a sample lot or synthetic geometry.
 
 ## Product areas
 1. Territorial workspace: projects, lots, GeoJSON, shared geometry and layer context.
@@ -22,14 +22,17 @@ The interface should avoid generic blocking warnings and repetitive "insufficien
 ## Current implementation in this branch
 - Added shared responsive workspace assets (`workspace.css`, `workspace.js`) to the seven primary HTML entry points.
 - Added common desktop navigation and mobile bottom navigation across the seven primary entry points.
-- Added a compact active-territory label sourced from the existing local lot context.
+- Added local multi-project and multi-lot storage, project/lot selectors, and a compact active-territory label. Existing lots are migrated into the default workspace when first opened.
 - Central map, forest, fire, and tracking workflows now subscribe to shared-lot changes; tracking does not replace a route while GPS capture is active.
 - Report coordinates derived from a lot use the geometry centroid utility and identify the coordinate source instead of labelling a bounding-box center as a centroid.
+- The report's crop matrix now uses the same subregional candidate profile and NASA POWER 2001–2020 climate evidence as the main suitability flow.
+- Fire monitoring includes an interactive recent-detections carousel; selecting an item centers the map and opens its source attributes.
 - Preserved existing module-specific analytical services. Remaining analytical, responsive and visual validation is tracked in the pull request; this integration foundation is not a claim that all six product areas are complete.
 
 ## Validation
 Run:
 ```bash
 python tests/workspace_integration.test.py -v
+python tests/check_frontend_syntax.py
 node --experimental-default-type=module --test tests/lotContext.test.mjs tests/fireMonitoring.test.mjs tests/forestGeo.test.mjs tests/territorial-recommendations.test.mjs tests/forestry-candidates-ui.test.mjs tests/satelliteService.test.mjs
 ```
