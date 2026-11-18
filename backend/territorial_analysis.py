@@ -204,6 +204,8 @@ def gaez_analyze(req: LotDatasetRequest):
                 projected = transform_geom("EPSG:4326", dataset.crs, mapping(geom), precision=8)
                 data, out_transform = raster_mask(dataset, [projected], crop=True, filled=False, all_touched=False)
                 band = data[0]
+                if band.size > 2_000_000:
+                    raise ValueError("El lote abarca demasiados píxeles para generar una vista previa en una sola consulta. Reducí el área o dividí el lote.")
                 values = band.compressed()
                 if dataset.nodata is not None:
                     values = values[values != dataset.nodata]
@@ -266,6 +268,7 @@ def gaez_analyze(req: LotDatasetRequest):
     return {
         "success": True,
         "source": "FAO/IIASA GAEZ v5 RES05",
+        "license": "CC-BY-4.0 (confirmar metadatos del producto específico)",
         "source_url": url,
         "dataset": record,
         "statistics": stats,
