@@ -1,4 +1,14 @@
-/* Shared navigation and active lot context for Agro-Consultas. */
+/* Shared navigation, projects and active lot context for Agro-Consultas. */
+import {
+  getLotContext,
+  getWorkspaceState,
+  setLotContext,
+  createWorkspaceProject,
+  selectWorkspaceProject,
+  selectWorkspaceLot,
+  WORKSPACE_STORAGE_KEY
+} from './services/lotContext.js';
+
 (function () {
   'use strict';
 
@@ -12,25 +22,6 @@
     ['reporte.html', 'Informes', '▤']
   ];
   const path = location.pathname.split('/').pop() || 'index.html';
-  const storageKey = 'agro_lot_context_v1';
-
-  function readLot() {
-    const candidates = [];
-    for (const storeName of ['localStorage', 'sessionStorage']) {
-      try {
-        const raw = window[storeName]?.getItem(storageKey);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        const feature = parsed?.feature;
-        if (feature?.type !== 'Feature' || !feature.geometry ||
-            !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) continue;
-        const timestamp = Date.parse(feature.properties?.updatedAt || '') || 0;
-        candidates.push({ feature, timestamp });
-      } catch (_) { /* Keep the rest of the workspace usable if storage is blocked. */ }
-    }
-    candidates.sort((a, b) => b.timestamp - a.timestamp);
-    return candidates[0]?.feature || null;
-  }
 
   function activeLotLabel(feature) {
     return feature?.properties?.name || feature?.properties?.nombre ||
@@ -54,6 +45,13 @@
     return link;
   }
 
+  function makeSelect(className, label) {
+    const select = document.createElement('select');
+    select.className = className;
+    select.setAttribute('aria-label', label);
+    return select;
+  }
+
   function renderNavigation() {
     if (document.querySelector('.ac-workspace-bar')) return;
     const bar = document.createElement('div');
@@ -75,7 +73,25 @@
     desktop.setAttribute('aria-label', 'Navegación principal');
     pages.forEach(item => desktop.appendChild(makeLink(item)));
 
-    bar.append(brand, desktop);
+    const controls = document.createElement('div');
+    controls.className = 'ac-workspace-controls';
+    const projectSelect = makeSelect('ac-project-select', 'Proyecto activo');
+    projectSelect.id = 'ac-project-select';
+    const lotSelect = makeSelect('ac-lot-select', 'Lote activo');
+    lotSelect.id = 'ac-lot-select';
+    const createButton = document.createElement('button');
+    createButton.type = 'button';
+    createButton.className = 'ac-new-project';
+    createButton.textContent = '+ Proyecto';
+    createButton.title = 'Crear un proyecto nuevo';
+    controls.append(projectSelect, lotSelect, createButton);
+
+    const context = document.createElement('span');
+    context.className = 'ac-project-chip';
+    context.setAttribute('role', 'status');
+    context.setAttribute('aria-live', 'polite');
+
+    bar.append(brand, desktop, controls, context);
     document.body.insertBefore(bar, document.body.firstChild);
 
     const mobile = document.createElement('nav');
@@ -83,27 +99,102 @@
     mobile.setAttribute('aria-label', 'Navegación principal');
     pages.forEach(item => mobile.appendChild(makeLink(item, true)));
     document.body.appendChild(mobile);
+
+    projectSelect.addEventListener('change', () => {
+      try {
+        selectWorkspaceProject(projectSelect.value);
+        renderContext();
+      } catch (error) {
+        window.alert(error.message);
+        renderContext();
+      }
+    });
+    lotSelect.addEventListener('change', () => {
+      if (!lotSelect.value) return;
+      try {
+        selectWorkspaceLot(lotSelect.value);
+        renderContext();
+      } catch (error) {
+        window.alert(error.message);
+        renderContext();
+      }
+    });
+    createButton.addEventListener('click', () => {
+      const name = window.prompt('Nombre del nuevo proyecto:');
+      if (!name?.trim()) return;
+      try {
+        createWorkspaceProject(name);
+        renderContext();
+      } catch (error) {
+        window.alert(error.message);
+      }
+    });
+  }
+
+  function migrateLegacyLot(state, feature) {
+    if (!feature) return;
+    const saved = state.projects.some(project =>
+      project.lots.some(lot => lot.id === feature.properties?.workspaceLotId)
+    );
+    if (!saved) {
+      try { setLotContext(feature, { source: feature.properties?.source || 'workspace-migration' }); }
+      catch (error) { console.warn('[Agro-Consultas] No se pudo migrar el lote al espacio de trabajo:', error); }
+    }
   }
 
   function renderContext() {
-    const feature = readLot();
-    let context = document.querySelector('.ac-project-chip');
-    if (!context) {
-      context = document.createElement('span');
-      context.className = 'ac-project-chip';
-      context.setAttribute('role', 'status');
-      context.setAttribute('aria-live', 'polite');
-      const bar = document.querySelector('.ac-workspace-bar');
-      if (bar) bar.appendChild(context);
+    const state = getWorkspaceState();
+    const feature = getLotContext();
+    migrateLegacyLot(state, feature);
+    const refreshedState = getWorkspaceState();
+    const projectSelect = document.getElementById('ac-project-select');
+    const lotSelect = document.getElementById('ac-lot-select');
+    const context = document.querySelector('.ac-project-chip');
+
+    if (projectSelect) {
+      const activeProjectId = refreshedState.activeProjectId;
+      projectSelect.replaceChildren();
+      refreshedState.projects.forEach(project => {
+        const option = document.createElement('option');
+        option.value = project.id;
+        option.textContent = project.name;
+        option.selected = project.id === activeProjectId;
+        projectSelect.appendChild(option);
+      });
     }
-    context.textContent = '⌖ ' + activeLotLabel(feature);
-    context.title = feature ? 'Lote activo en este navegador' : 'Seleccioná o importá un lote desde Mapa';
+
+    if (lotSelect) {
+      const activeProject = refreshedState.projects.find(project => project.id === refreshedState.activeProjectId);
+      const lots = activeProject?.lots || [];
+      lotSelect.replaceChildren();
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = lots.length ? 'Seleccionar lote…' : 'Sin lotes guardados';
+      placeholder.selected = !refreshedState.activeLotId;
+      lotSelect.appendChild(placeholder);
+      lots.forEach(lot => {
+        const option = document.createElement('option');
+        option.value = lot.id;
+        option.textContent = lot.name;
+        option.selected = lot.id === refreshedState.activeLotId;
+        lotSelect.appendChild(option);
+      });
+    }
+
+    if (context) {
+      const activeProject = refreshedState.projects.find(project => project.id === refreshedState.activeProjectId);
+      context.textContent = '⌖ ' + activeLotLabel(feature);
+      context.title = activeProject
+        ? 'Proyecto: ' + activeProject.name + (feature ? ' · Lote activo en este navegador' : ' · Sin lote activo')
+        : 'Seleccioná un proyecto y un lote';
+    }
   }
 
   renderNavigation();
   renderContext();
   window.addEventListener('storage', event => {
-    if (event.key === storageKey) renderContext();
+    if (event.key === WORKSPACE_STORAGE_KEY || event.key === 'agro_lot_context_v1') renderContext();
   });
   window.addEventListener('agro:lot-context-changed', renderContext);
+  window.addEventListener('agro:workspace-changed', renderContext);
 })();
