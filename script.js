@@ -450,7 +450,7 @@ async function inicializarControlesGAEZ(leafletMap) {
         "Rango: " + Number(stats.minimum).toLocaleString("es-AR", { maximumFractionDigits: 2 }) + " – " + Number(stats.maximum).toLocaleString("es-AR", { maximumFractionDigits: 2 }),
         "Celdas válidas intersectadas: " + Number(stats.pixel_count).toLocaleString("es-AR"),
         payload.interpretation_limit
-      ].join("\\n");
+      ].join("\n");
       status.textContent = "Capa GAEZ aplicada al mapa. La resolución del modelo es regional: no describe variaciones internas de parcelas pequeñas.";
     } catch (error) {
       result.textContent = error.message;
