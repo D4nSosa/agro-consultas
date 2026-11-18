@@ -65,7 +65,7 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         fire = (ROOT / "incendios.html").read_text(encoding="utf-8")
         results = (ROOT / "resultados.html").read_text(encoding="utf-8")
         self.assertNotIn("No evaluable", fire)
-        self.assertIn("no es un índice oficial", fire)
+        self.assertIn("No es un índice oficial", fire)
         self.assertNotIn("DATOS CLIMÁTICOS NO DISPONIBLES", results)
 
     def test_location_and_radar_empty_states_are_contextual(self):
