@@ -27,6 +27,16 @@ def test_national_fire_endpoint_returns_feature_collection(monkeypatch):
     assert {f["properties"]["sensor"] for f in payload["features"]} == {"MODIS", "VIIRS"}
 
 
+def test_argentina_mask_uses_official_geometry_to_exclude_neighbouring_countries(monkeypatch):
+    from shapely.geometry import Polygon
+
+    # Small fixture representing only the Argentine side of a border segment.
+    argentina = Polygon([(-60, -30), (-58, -30), (-58, -28), (-60, -28), (-60, -30)])
+    assert fire._inside_argentina(-59.0, -29.0, argentina) is True
+    assert fire._inside_argentina(-57.5, -29.0, argentina) is False
+    assert fire._inside_argentina(-59.0, -27.0, argentina) is False
+
+
 def test_fire_weather_indicator_uses_transparent_weather_thresholds():
     low = fire._fire_weather_indicator(22, 55, 12, 8)
     high = fire._fire_weather_indicator(34, 20, 28, 0)
