@@ -6,7 +6,12 @@ import {
   getLotContext,
   clearLotContext,
   onLotContextChange,
-  LOT_CONTEXT_STORAGE_KEY
+  getWorkspaceState,
+  createWorkspaceProject,
+  selectWorkspaceProject,
+  selectWorkspaceLot,
+  LOT_CONTEXT_STORAGE_KEY,
+  WORKSPACE_STORAGE_KEY
 } from '../services/lotContext.js';
 
 const square = {
@@ -185,5 +190,62 @@ test('sincroniza cambios de lote recibidos desde otra pestaña', t => {
   assert.equal(received.properties.name, 'Lote de prueba');
   unsubscribe();
   assert.equal(listeners.has('storage'), false);
+});
+test('guarda lotes dentro de un proyecto local sin crear geometrías de muestra', t => {
+  const local = memoryStorage();
+  withStorage(t, local);
+  const saved = setLotContext(square, { source: 'test' });
+  const state = getWorkspaceState();
+  assert.equal(state.projects.length, 1);
+  assert.equal(state.projects[0].name, 'Mi espacio');
+  assert.equal(state.projects[0].lots.length, 1);
+  assert.equal(state.projects[0].lots[0].feature.properties.workspaceLotId, saved.properties.workspaceLotId);
+  assert.ok(local.getItem(WORKSPACE_STORAGE_KEY));
+});
+
+test('permite crear proyectos y alternar entre sus lotes guardados', t => {
+  const local = memoryStorage();
+  withStorage(t, local);
+  const first = setLotContext(square, { source: 'test' });
+  const firstProjectId = getWorkspaceState().activeProjectId;
+
+  const project = createWorkspaceProject('Proyecto forestal');
+  assert.equal(project.name, 'Proyecto forestal');
+  assert.equal(getLotContext(), null);
+
+  const secondLot = structuredClone(square);
+  secondLot.properties.name = 'Lote norte';
+  const second = setLotContext(secondLot, { source: 'test' });
+  assert.equal(getWorkspaceState().projects.length, 2);
+  assert.equal(getWorkspaceState().activeProjectId, project.id);
+
+  selectWorkspaceProject(firstProjectId);
+  assert.equal(getLotContext().properties.name, 'Lote de prueba');
+  selectWorkspaceProject(project.id);
+  assert.equal(getLotContext().properties.name, 'Lote norte');
+  assert.equal(getLotContext().properties.workspaceLotId, second.properties.workspaceLotId);
+  assert.notEqual(first.properties.workspaceProjectId, second.properties.workspaceProjectId);
+});
+
+test('permite seleccionar un lote anterior dentro del mismo proyecto', t => {
+  const local = memoryStorage();
+  withStorage(t, local);
+  const first = setLotContext(square, { source: 'test' });
+  const secondFeature = structuredClone(square);
+  secondFeature.properties.name = 'Lote sur';
+  setLotContext(secondFeature, { source: 'test' });
+  selectWorkspaceLot(first.properties.workspaceLotId);
+  assert.equal(getLotContext().properties.name, 'Lote de prueba');
+});
+
+test('limpiar el lote activo conserva los lotes guardados en el proyecto', t => {
+  const local = memoryStorage();
+  withStorage(t, local);
+  setLotContext(square, { source: 'test' });
+  clearLotContext();
+  const state = getWorkspaceState();
+  assert.equal(state.activeLotId, null);
+  assert.equal(state.projects[0].lots.length, 1);
+  assert.equal(getLotContext(), null);
 });
 
