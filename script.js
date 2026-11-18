@@ -1021,8 +1021,7 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
   if (tituloUbicacion) tituloUbicacion.innerText = provinciaRaw;
 
   try {
-    const provinceCandidate = await findProvinceCandidateByCoords(lat, lng);
-    const key = provinceCandidate?.provinceKey || null;
+    const key = await findProvinceByCoords(lat, lng);
     const provDetails = key ? await getProvinceDetails(key) : null;
     const subregion = key ? await findSubregion(key, lat, lng) : null;
 
