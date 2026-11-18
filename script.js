@@ -297,12 +297,12 @@ async function inicializarControlesGAEZ(leafletMap) {
   root.dataset.initialized = "true";
 
   const fields = [
-    { id: "gaez-mapset", key: "mapset_code", option: "mapset_codes", preferred: "RES05-SIX" },
+    { id: "gaez-mapset", key: "mapset_code", option: "mapset_codes", preferred: "RES05-SUT" },
     { id: "gaez-crop", key: "crop", option: "crops", preferred: "MZE" },
     { id: "gaez-period", key: "period", option: "periods", preferred: "HP0120" },
-    { id: "gaez-climate", key: "climate_data_source", option: "climate_data_sources", preferred: "AGERA5" },
+    { id: "gaez-climate", key: "climate_data_source", option: "climate_data_sources", preferred: "AgERA5" },
     { id: "gaez-ssp", key: "ssp", option: "ssps", preferred: "HIST" },
-    { id: "gaez-input", key: "input_level", option: "input_levels", preferred: "HRLM" }
+    { id: "gaez-input", key: "input_level", option: "input_levels", preferred: "L" }
   ];
   const cropLabels = {
     ALF: "Alfalfa", AVOC: "Palta", BAN: "Banana", BCK: "Trigo sarraceno",
@@ -356,14 +356,14 @@ async function inicializarControlesGAEZ(leafletMap) {
 
       // This control is specifically for crop suitability, not evapotranspiration,
       // water deficit or unrelated GAEZ indicators.
-      if (field.id === "gaez-mapset") options = options.filter(value => value === "RES05-SIX");
+      if (field.id === "gaez-mapset") options = options.filter(value => value === "RES05-SUT");
 
       select.replaceChildren();
       options.forEach(value => {
         const option = document.createElement("option");
         option.value = value;
         option.textContent = field.id === "gaez-mapset"
-          ? "RES05-SIX · Índice de aptitud"
+          ? "RES05-SUT · Índice de aptitud"
           : field.id === "gaez-crop"
             ? `${cropLabels[value] || value} (${value})`
             : value;
@@ -412,8 +412,8 @@ async function inicializarControlesGAEZ(leafletMap) {
     fields.forEach(field => {
       body[field.key] = document.getElementById(field.id)?.value || null;
     });
-    if (body.mapset_code !== "RES05-SIX") {
-      result.textContent = "Seleccioná el Índice de aptitud RES05-SIX.";
+    if (body.mapset_code !== "RES05-SUT") {
+      result.textContent = "Seleccioná el Índice de aptitud RES05-SUT.";
       return;
     }
     runButton.disabled = true;
