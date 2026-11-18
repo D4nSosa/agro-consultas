@@ -399,6 +399,37 @@
             <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireResults.some(result=>result.status==='rejected')?'Una o más fuentes no respondieron durante la generación del informe.':'Fuentes consultadas: NASA FIRMS y GOES-19.'} Los conteos de sensores pueden corresponder a observaciones coincidentes.</p>
             <p style="font-size:.78rem;margin:8px 0 0"><a href="https://gwis.jrc.ec.europa.eu/applications/current-situation" target="_blank" rel="noopener noreferrer">Consultar contexto global de peligro y actividad en GWIS</a></p>
           </section>`;
+
+        const territorialAnalysisHTML = isPolygonArea ? `
+          <section id="territorial-data-analysis" style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
+            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌍 Aptitud FAO GAEZ v5 y estadísticas forestales GFW</h2>
+            <p style="font-size:.84rem;color:var(--texto-secundario)">Análisis sobre el polígono del lote. Las fuentes globales incluyen Argentina; cada indicador conserva su escala y limitaciones.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+              <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
+                <strong>🌾 GAEZ v5 · FAO/IIASA</strong>
+                <p style="font-size:.78rem;color:var(--texto-secundario)">Elegí variable, cultivo y escenario para calcular estadísticas sobre los píxeles del lote.</p>
+                <div id="gaez-controls" style="display:grid;gap:7px">
+                  <label>Variable <select id="gaez-mapset" style="width:100%"></select></label>
+                  <label>Cultivo <select id="gaez-crop" style="width:100%"></select></label>
+                  <label>Período <select id="gaez-period" style="width:100%"></select></label>
+                  <label>Clima <select id="gaez-climate" style="width:100%"></select></label>
+                  <label>Escenario SSP <select id="gaez-ssp" style="width:100%"></select></label>
+                  <label>Insumos / manejo <select id="gaez-input" style="width:100%"></select></label>
+                  <button id="gaez-run" class="btn primary" type="button">Analizar lote con GAEZ</button>
+                </div>
+                <div id="gaez-result" role="status" style="font-size:.8rem;margin-top:10px"></div>
+                <small style="color:var(--texto-secundario)">Fuente abierta · GeoTIFF FAO · resolución y escala según producto. <a href="https://github.com/un-fao/gaezv5" target="_blank" rel="noopener noreferrer">Documentación GAEZ v5</a></small>
+              </div>
+              <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
+                <strong>🌳 GFW · Pérdida de cobertura arbórea</strong>
+                <p style="font-size:.78rem;color:var(--texto-secundario)">Calcula estadísticas zonales por año con el indicador global UMD. No representa automáticamente pérdida de bosque nativo.</p>
+                <button id="gfw-run" class="btn primary" type="button">Calcular estadísticas GFW</button>
+                <div id="gfw-result" role="status" style="font-size:.8rem;margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere"></div>
+                <small style="color:var(--texto-secundario)">Requiere GFW_API_KEY configurada como secreto del backend. <a href="https://data-api.globalforestwatch.org/docs" target="_blank" rel="noopener noreferrer">API oficial y registro</a></small>
+              </div>
+            </div>
+          </section>` : '';
+
         const fieldGeometry = parsedGeom?.geometry;
         const fieldVertices = fieldGeometry?.type === 'Polygon'
           ? (fieldGeometry.coordinates?.[0]?.length || 0)
@@ -420,6 +451,7 @@
           ${fieldHTML}
           ${fireHTML}
           ${forestHTML}
+          ${territorialAnalysisHTML}
 
           <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">
             🌱 Evaluación Territorial y Diagnóstico Agroclimático
@@ -484,6 +516,88 @@
             `).join('')}
           </div>
         `;
+
+        if (isPolygonArea) {
+          const geometryPayload = parsedGeom.geometry;
+          const gaezFields = [
+            ["gaez-mapset", "mapset_code", "mapset_codes"],
+            ["gaez-crop", "crop", "crops"],
+            ["gaez-period", "period", "periods"],
+            ["gaez-climate", "climate_data_source", "climate_data_sources"],
+            ["gaez-ssp", "ssp", "ssps"],
+            ["gaez-input", "input_level", "input_levels"]
+          ];
+          const gaezQuery = () => {
+            const params = new URLSearchParams();
+            gaezFields.forEach(([id, key]) => {
+              const value = document.getElementById(id)?.value;
+              if (value) params.set(key, value);
+            });
+            return params;
+          };
+          const refreshGaezOptions = async () => {
+            const params = gaezQuery();
+            try {
+              const response = await fetch('/api/territorial/gaez/catalog?' + params.toString());
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.detail?.message || payload.detail || 'No se pudo consultar el catálogo FAO.');
+              gaezFields.forEach(([id, key, optionKey]) => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                const previous = select.value;
+                select.replaceChildren();
+                (payload.options?.[optionKey] || []).forEach(value => {
+                  const option = document.createElement('option');
+                  option.value = value;
+                  option.textContent = value;
+                  select.appendChild(option);
+                });
+                if ([...select.options].some(option => option.value === previous)) select.value = previous;
+              });
+              document.getElementById('gaez-result').textContent = payload.matching_combinations
+                ? payload.matching_combinations + ' combinaciones disponibles para los filtros actuales.'
+                : 'No hay combinaciones publicadas para esta selección.';
+            } catch (error) {
+              document.getElementById('gaez-result').textContent = error.message;
+            }
+          };
+          gaezFields.forEach(([id]) => document.getElementById(id)?.addEventListener('change', refreshGaezOptions));
+          refreshGaezOptions();
+          document.getElementById('gaez-run')?.addEventListener('click', async () => {
+            const output = document.getElementById('gaez-result');
+            const params = gaezQuery();
+            const body = { geometry: geometryPayload };
+            gaezFields.forEach(([, key]) => body[key] = params.get(key) || null);
+            output.textContent = 'Procesando GeoTIFF FAO sobre el lote…';
+            try {
+              const response = await fetch('/api/territorial/gaez/analyze', {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.detail?.message || payload.detail || 'Falló el análisis GAEZ.');
+              const s = payload.statistics;
+              output.textContent = [
+                'Píxeles válidos: ' + s.pixel_count,
+                'Mínimo: ' + s.minimum.toFixed(3) + ' · Máximo: ' + s.maximum.toFixed(3),
+                'Media: ' + s.mean.toFixed(3) + ' · Mediana: ' + s.median.toFixed(3),
+                'Desvío estándar: ' + s.standard_deviation.toFixed(3),
+                payload.interpretation_limit
+              ].join('\n');
+            } catch (error) { output.textContent = error.message; }
+          });
+          document.getElementById('gfw-run')?.addEventListener('click', async () => {
+            const output = document.getElementById('gfw-result');
+            output.textContent = 'Consultando estadísticas zonales de Global Forest Watch…';
+            try {
+              const response = await fetch('/api/territorial/gfw/analyze', {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.detail?.message || payload.detail || 'Falló el análisis GFW.');
+              output.textContent = JSON.stringify(payload.result, null, 2) + '\n\n' + payload.interpretation_limit;
+            } catch (error) { output.textContent = error.message; }
+          });
+        }
       } catch (err) {
         analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al generar el análisis del reporte: ${err.message}</p>`;
       }
