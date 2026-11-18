@@ -173,6 +173,8 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("geoservicios2.conae.gov.ar/geoserver/Bosques/wms", source)
         self.assertIn("Bosques:CoberturaBosque_Argentina_2020", source)
         self.assertIn("referencia nacional histórica", source)
+        self.assertIn("tiles.globalforestwatch.org/arg_otbn_forest_loss/v2022/dynamic/", source)
+        self.assertIn("Pérdida histórica de bosque nativo · GFW 2007–2022", source)
 
     def test_report_includes_fire_and_field_sections_and_runs_forest_analysis_for_polygons(self):
         source = (ROOT / "reporte.html").read_text(encoding="utf-8")
