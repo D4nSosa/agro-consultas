@@ -38,8 +38,7 @@ import {
 
   function renderNavigation() {
     if (document.querySelector('.ac-mobile-nav')) return;
-    const header = document.querySelector('.app-header');
-    const actions = header?.querySelector('.right');
+    const main = document.querySelector('main');
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'ac-workspace-trigger';
@@ -54,8 +53,11 @@ import {
     dialog.setAttribute('aria-labelledby', 'ac-workspace-title');
     dialog.innerHTML = '<form method="dialog" class="ac-workspace-dialog-head"><strong id="ac-workspace-title">Espacio de trabajo</strong><button class="ac-dialog-close" aria-label="Cerrar">×</button></form><p class="ac-workspace-description">El proyecto y el lote activos se comparten entre los módulos en este dispositivo.</p><label>Proyecto<select id="ac-project-select" class="ac-project-select" aria-label="Proyecto activo"></select></label><label>Lote<select id="ac-lot-select" class="ac-lot-select" aria-label="Lote activo"></select></label><div class="ac-workspace-dialog-actions"><button type="button" id="ac-new-project" class="ac-new-project">＋ Crear proyecto</button><span id="ac-project-chip" role="status" aria-live="polite"></span></div>';
     document.body.appendChild(dialog);
-    if (actions) actions.insertBefore(trigger, actions.querySelector('#themeToggle'));
-    else document.body.insertBefore(trigger, document.querySelector('main'));
+    const workspaceBar = document.createElement('div');
+    workspaceBar.className = 'ac-workspace-entry';
+    workspaceBar.appendChild(trigger);
+    if (main) main.insertBefore(workspaceBar, main.firstChild);
+    else document.body.insertBefore(workspaceBar, document.body.firstChild);
 
     const mobile = document.createElement('nav');
     mobile.className = 'ac-mobile-nav';
@@ -72,18 +74,18 @@ import {
       if (event.target === dialog) dialog.close();
     });
     dialog.querySelector('#ac-project-select').addEventListener('change', event => {
-      try { selectWorkspaceProject(event.target.value); renderContext(); }
+      try { selectWorkspaceProject(event.target.value); renderContext(); if (path === 'reporte.html') window.location.reload(); }
       catch (error) { window.alert(error.message); renderContext(); }
     });
     dialog.querySelector('#ac-lot-select').addEventListener('change', event => {
       if (!event.target.value) return;
-      try { selectWorkspaceLot(event.target.value); renderContext(); }
+      try { selectWorkspaceLot(event.target.value); renderContext(); if (path === 'reporte.html') window.location.reload(); }
       catch (error) { window.alert(error.message); renderContext(); }
     });
     dialog.querySelector('#ac-new-project').addEventListener('click', () => {
       const name = window.prompt('Nombre del nuevo proyecto:');
       if (!name?.trim()) return;
-      try { createWorkspaceProject(name); renderContext(); }
+      try { createWorkspaceProject(name); renderContext(); if (path === 'reporte.html') window.location.reload(); }
       catch (error) { window.alert(error.message); }
     });
   }
