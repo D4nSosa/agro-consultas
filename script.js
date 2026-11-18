@@ -305,7 +305,7 @@ async function inicializarControlesGAEZ(leafletMap) {
     { id: "gaez-input", key: "input_level", option: "input_levels", preferred: "L" }
   ];
   const cropLabels = {
-    ALF: "Alfalfa", AVOC: "Palta", BAN: "Banana", BCK: "Trigo sarraceno",
+    ALF: "Alfalfa", AVOC: "Palta", BAN: "Banana", BCK: "Trigo sarraceno", MAI: "Maíz",
     BRL: "Cebada", CAB: "Repollo", CAR: "Zanahoria", CIT: "Cítricos",
     CSV: "Mandioca", MZE: "Maíz", MZS: "Maíz para silo", OAT: "Avena",
     RCW: "Arroz inundado", RCD: "Arroz de secano", SFL: "Girasol",
@@ -441,7 +441,7 @@ async function inicializarControlesGAEZ(leafletMap) {
       const legend = document.getElementById("gaez-map-legend");
       if (legend) legend.textContent = "Índice de aptitud FAO · valores del ráster";
       result.textContent = [
-        "Fuente: FAO/IIASA GAEZ v5 · RES05-SIX (índice de aptitud).",
+        "Fuente: FAO/IIASA GAEZ v5 · RES05-SUT (índice de aptitud).",
         "Cultivo: " + (cropLabels[body.crop] || body.crop) + " (" + body.crop + ")",
         "Período: " + body.period + " · Clima: " + body.climate_data_source + " · Escenario: " + body.ssp,
         "Manejo / agua: " + body.input_level,
