@@ -24,7 +24,7 @@ import {
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
 import { getSentinel1SarAnalysis } from './forestal/services/satelliteService.js';
 import { MapViewer } from './services/mapViewer.js';
-import { setLotContext, getLotContext, clearLotContext } from './services/lotContext.js';
+import { setLotContext, getLotContext, clearLotContext, onLotContextChange } from './services/lotContext.js';
 
 let mapViewerInstance = null;
 let currentMarker = null;
@@ -212,6 +212,60 @@ export async function inicializarMapa(provinciaRaw) {
       );
     }
   }
+
+  onLotContextChange(async feature => {
+    if (!leafletMap) return;
+    if (!feature) {
+      if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
+      drawnPolygonLayer = null;
+      currentAOIPolygon = null;
+      isDrawingMainLot = false;
+      mainDrawPoints = [];
+      mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
+      mainDrawMarkerLayers = [];
+      if (userLocationCircle) leafletMap.removeLayer(userLocationCircle);
+      userLocationCircle = null;
+      currentLat = null;
+      currentLng = null;
+      currentUbicacionNombre = 'Sin seleccionar';
+      currentSpatialLevel = 'LOCALIDAD / PUNTO DE REFERENCIA';
+      const territoryDetails = document.getElementById('territory-details');
+      if (territoryDetails) territoryDetails.innerHTML = '';
+      lastRecommendationsCache = [];
+      lastSoilReportCache = null;
+      lastClimateReportCache = null;
+      if (currentMarker) leafletMap.removeLayer(currentMarker);
+      currentMarker = null;
+      if (suitabilityOverlayLayer) leafletMap.removeLayer(suitabilityOverlayLayer);
+      suitabilityOverlayLayer = null;
+      await renderRecomendaciones('Sin seleccionar', null, null);
+      await renderHistoriaClimaticaUI(null, null, '');
+      return;
+    }
+    if (JSON.stringify(currentAOIPolygon) === JSON.stringify(feature.geometry)) return;
+    currentAOIPolygon = feature.geometry;
+    isDrawingMainLot = false;
+    mainDrawPoints = [];
+    mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
+    mainDrawMarkerLayers = [];
+    if (userLocationCircle) leafletMap.removeLayer(userLocationCircle);
+    userLocationCircle = null;
+    if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
+    drawnPolygonLayer = L.geoJSON(feature, {
+      style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.25 }
+    }).addTo(leafletMap);
+    const bounds = drawnPolygonLayer.getBounds();
+    if (bounds.isValid()) leafletMap.fitBounds(bounds, { padding: [24, 24] });
+    const centroid = calculateCentroid(feature);
+    if (centroid) {
+      await procesarSeleccionCoordenadas(
+        centroid.lat,
+        centroid.lng,
+        feature.properties?.name || 'Lote seleccionado',
+        'LOTE / POLÍGONO'
+      );
+    }
+  });
 
   // Renderizar panel de control de capas en el contenedor
   const layerContainer = document.getElementById("map-layer-controls-container");
@@ -585,7 +639,7 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
     container.innerHTML = `
       <div class="empty-state" style="text-align: center; padding: 20px;">
         <span style="font-size: 2rem;">📊</span>
-        <p><strong>DATOS CLIMÁTICOS NO DISPONIBLES</strong></p>
+        <p><strong>Serie climática histórica de NASA POWER</strong></p>
         <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la serie climática histórica de NASA POWER.</p>
       </div>
     `;
@@ -604,10 +658,13 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   const climateHistory = await getClimateHistoryCached(lat, lng, months);
 
   if (climateHistory.status === 'UNAVAILABLE' || !climateHistory.data) {
+    const detail = String(climateHistory.message || '')
+      .replace(/^NO DISPONIBLE\\s*[—-]\\s*/i, '')
+      .trim();
     container.innerHTML = `
-      <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
-        <h4 style="margin: 0 0 6px 0; color: #c0392b;">DATOS CLIMÁTICOS NO DISPONIBLES</h4>
-        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">${climateHistory.message || 'No se pudieron recuperar las series temporales de NASA POWER para la ubicación seleccionada.'}</p>
+      <div style="background: var(--gris-card); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 15px;">
+        <h4 style="margin: 0 0 6px 0; color: var(--texto-principal);">Serie histórica de NASA POWER</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">La consulta de la serie histórica para estas coordenadas no pudo completarse. ${detail || 'Reintentá la consulta más tarde.'}</p>
       </div>
     `;
     return;
@@ -656,8 +713,8 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
     container.innerHTML = `
       <div class="empty-state" style="text-align: center; padding: 20px;">
         <span style="font-size: 2rem;">📡</span>
-        <p><strong>DATOS RADAR NO DISPONIBLES</strong></p>
-        <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la respuesta radar Sentinel-1.</p>
+        <p><strong>Consulta radar Sentinel-1</strong></p>
+        <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para iniciar el análisis radar Sentinel-1.</p>
       </div>
     `;
     return;
@@ -738,7 +795,7 @@ function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
     textLabel = '🔴 Aptitud Baja / Desfavorable';
   } else if (firstRec.compatibilidad.includes('INFORMACIÓN PENDIENTE') || firstRec.compatibilidad.includes('NO EVALUABLE')) {
     color = '#7f8c8d';
-    textLabel = '⚪ No evaluble / Evidencia insuficiente';
+    textLabel = '📘 Perfil de referencia';
   }
 
   // No dibujar círculos transparentes de radio/alcance en el mapa
@@ -837,11 +894,21 @@ function createSingleRecommendationCardHtml(c) {
   let semaforoText = "Condiciones Favorables";
   let badgeClass = "badge-alta";
   const compatibility = String(c.compatibilidad || '').toUpperCase();
+  const isReferenceProfile = compatibility.includes("INFORMACIÓN PENDIENTE") ||
+    compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT") ||
+    compatibility.includes("DATOS INSUFICIENTES");
+  const compatibilityLabel = isReferenceProfile ? "Perfil de referencia" : (c.compatibilidad || semaforoText);
+  const factorText = isReferenceProfile
+    ? "Incluido en el catálogo provincial. La ficha orienta la revisión técnica y no confirma aptitud del sitio."
+    : (c.motivos?.[0] || 'Factores agroambientales compatibles.');
+  const displayedMotives = isReferenceProfile
+    ? ["La ficha técnica resume los requerimientos declarados para esta especie."]
+    : (c.motivos || []);
 
-  if (compatibility.includes("INFORMACIÓN PENDIENTE") || compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT")) {
-    semaforoIcon = "⚪";
-    semaforoText = "Evidencia Insuficiente";
-    badgeClass = "badge-origin no-disponible";
+  if (isReferenceProfile) {
+    semaforoIcon = "📘";
+    semaforoText = "Perfil de referencia";
+    badgeClass = "badge-origin";
   } else if (compatibility.includes("BAJA") || compatibility.includes("LIMITACIONES SEVERAS")) {
     semaforoIcon = "🔴";
     semaforoText = "Atención / Restricciones";
@@ -885,7 +952,7 @@ function createSingleRecommendationCardHtml(c) {
         </p>
 
         <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 10px; font-size: 0.82rem; margin-bottom: 10px;">
-          <strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Factores agroambientales compatibles.'}
+          <strong>💡 Factor Clave:</strong> ${factorText}
           ${c.riesgos && c.riesgos.length > 0 ? `<div style="margin-top: 4px; color: #c0392b;"><strong>⚠️ Limitante Principal:</strong> ${c.riesgos[0]}</div>` : ''}
         </div>
 
@@ -906,7 +973,7 @@ function createSingleRecommendationCardHtml(c) {
             </div>
           </div>
           <div>
-            <span class="compatibility-badge ${badgeClass}">${c.compatibilidad}</span>
+            <span class="compatibility-badge ${badgeClass}">${compatibilityLabel}</span>
           </div>
         </div>
 
@@ -929,7 +996,7 @@ function createSingleRecommendationCardHtml(c) {
           <div class="report-body" style="font-size: 0.82rem;">
             <div class="report-block">
               <strong>💡 Factores Favorables:</strong>
-              <ul>${c.motivos.map(m => `<li>${m}</li>`).join("")}</ul>
+              <ul>${displayedMotives.map(m => `<li>${m}</li>`).join("")}</ul>
             </div>
             ${c.riesgos && c.riesgos.length > 0 ? `
             <div class="report-block" style="color: #c0392b;">
@@ -937,10 +1004,10 @@ function createSingleRecommendationCardHtml(c) {
               <ul>${c.riesgos.map(r => `<li>${r}</li>`).join("")}</ul>
             </div>
             ` : ''}
-            ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `
-            <div class="report-block" style="color:#7f8c8d;">
-              <strong>ℹ️ Datos Faltantes:</strong>
-              <ul>${c.datosFaltantes.map(df => `<li>${df}</li>`).join("")}</ul>
+            ${isReferenceProfile ? `
+            <div class="report-block" style="color:var(--texto-secundario);">
+              <strong>Alcance del perfil:</strong>
+              <p>La especie figura en el catálogo provincial. Esta ficha describe sus requerimientos; no constituye una recomendación de implantación.</p>
             </div>
             ` : ''}
           </div>
@@ -974,12 +1041,12 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       if (!pendientes.length) return "";
       return `
         <section style="grid-column:1/-1; margin-top:14px;">
-          <h3 style="color:var(--texto-secundario);font-size:1.05rem;border-bottom:1px solid var(--borde-suave);padding-bottom:7px;margin:0;">⚪ ${title} · candidatos sin clasificación (${pendientes.length})</h3>
+          <h3 style="color:var(--texto-secundario);font-size:1.05rem;border-bottom:1px solid var(--borde-suave);padding-bottom:7px;margin:0;">📘 ${title} · perfiles del catálogo provincial (${pendientes.length})</h3>
           <p class="text-muted" style="margin:8px 0 12px;">
             ${group.key === "forestal"
               ? "Estas especies están incluidas en el catálogo provincial. Se muestran como perfiles para evaluar, no como aptitud forestal confirmada ni como recomendación de plantación."
               : "Estos cultivos aparecen en el perfil territorial de referencia. Se muestran como opciones para investigar, no como recomendaciones de siembra ni como cultivos aptos."}
-            La clasificación requiere evidencia edáfica puntual y variables climáticas comparables.
+            La ficha resume requerimientos y calendario; contrastalos con las condiciones del sitio y el relevamiento de campo antes de decidir.
           </p>
           ${pendientes.map(createSingleRecommendationCardHtml).join('')}
         </section>
@@ -1005,7 +1072,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
       <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#c0392b;margin:0 0 8px;">🔴 ${noun} con limitaciones severas identificadas (${noAptos.length})</h4></div>
       ${noAptos.map(createSingleRecommendationCardHtml).join('')}`;
     if (pendientes.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:var(--texto-secundario);margin:0 0 8px;">⚪ Otros perfiles sin clasificación (${pendientes.length})</h4></div>
+      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:var(--texto-secundario);margin:0 0 8px;">⚪ Otros perfiles del catálogo provincial (${pendientes.length})</h4></div>
       ${pendientes.map(createSingleRecommendationCardHtml).join('')}`;
     return html;
   };
@@ -1032,7 +1099,7 @@ function renderRecommendationsCards(recomendaciones, soilReport, climateReport, 
     : `
       <div class="card" style="grid-column:1/-1;border-left:4px solid #7f8c8d;">
         <h3 style="margin:0 0 6px;">Orientación productiva territorial</h3>
-        <p class="text-muted" style="margin:0;">No hay perfiles con aptitud clasificable para este punto con la evidencia disponible. Se muestran por separado los candidatos agrícolas y forestales del catálogo provincial, sin asignarles una aptitud ficticia.</p>
+        <p class="text-muted" style="margin:0;">Los siguientes perfiles figuran en el catálogo provincial. Sus fichas describen requisitos y manejo; no se interpretan como recomendaciones de implantación.</p>
       </div>
       ${grupos.map(renderGroup).join('')}`;
 }
@@ -1047,9 +1114,9 @@ function mostrarErrorUbicacionNoEncontrada(queryTexto) {
   const msg = `
     <div class="unavailable-card-block" style="grid-column: 1 / -1; padding: 30px; text-align: center;">
       <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">🔍</span>
-      <h3 style="color: var(--texto-principal); margin-top: 0;">NO DISPONIBLE / UBICACIÓN NO ENCONTRADA</h3>
+      <h3 style="color: var(--texto-principal); margin-top: 0;">No encontramos esa ubicación</h3>
       <p class="explanation" style="max-width: 500px; margin: 10px auto;">
-        No se encontraron registros geográficos para <strong>"${queryTexto}"</strong>.
+        Georef no devolvió una jurisdicción para <strong>"${queryTexto}"</strong>. Revisá el nombre o seleccioná un punto directamente en el mapa.
       </p>
     </div>
   `;
@@ -1286,8 +1353,8 @@ function renderBatchEvidenceUI() {
           <div style="font-size: 0.8rem; margin-top: 8px;">
             <strong>${imgItem.filename}</strong> (${imgItem.dimensions})
             <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 2px;">
-              <div>📅 EXIF Fecha: ${imgItem.exif?.date || 'NO DISPONIBLE'}</div>
-              <div>📍 EXIF GPS: ${imgItem.exif?.hasGps ? `Lat ${imgItem.exif.gps.lat.toFixed(4)}, Lng ${imgItem.exif.gps.lng.toFixed(4)}` : 'NO DISPONIBLE'}</div>
+              <div>📅 EXIF Fecha: ${imgItem.exif?.date || 'Sin fecha EXIF'}</div>
+              <div>📍 EXIF GPS: ${imgItem.exif?.hasGps ? `Lat ${imgItem.exif.gps.lat.toFixed(4)}, Lng ${imgItem.exif.gps.lng.toFixed(4)}` : 'Sin coordenadas GPS'}</div>
             </div>
             <div style="margin-top: 6px; font-size: 0.78rem; color: var(--texto-principal); line-height: 1.3;">
               <strong>👁️ Análisis Visual Preliminar:</strong>

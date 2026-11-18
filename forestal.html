@@ -38,6 +38,7 @@
   <link rel="stylesheet" href="styles.css">
 
   <link rel="icon" href="dwnl.png" type="image/png">
+  <link rel="stylesheet" href="workspace.css">
 </head>
 
 <body>
@@ -252,7 +253,7 @@
   <!-- Script Orquestador ES Module para la pantalla Forestal -->
   <script type="module">
     import { ForestMap } from './forestal/components/ForestMap.js';
-    import { getLotContext, setLotContext, normalizeLotFeature } from './services/lotContext.js';
+    import { getLotContext, setLotContext, normalizeLotFeature, onLotContextChange } from './services/lotContext.js';
     import { ForestTimeline } from './forestal/components/ForestTimeline.js';
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
@@ -628,7 +629,12 @@
           document.getElementById('lot-area-val').innerText = `${area.hectares} ha`;
           document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
           document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
-          try { setLotContext(feature, { source: 'forest-module' }); } catch (error) { console.warn('Lote no sincronizado:', error.message); }
+          try {
+            const shared = getLotContext();
+            if (!shared || JSON.stringify(shared.geometry) !== JSON.stringify(feature.geometry)) {
+              setLotContext(feature, { source: 'forest-module' });
+            }
+          } catch (error) { console.warn('Lote no sincronizado:', error.message); }
         } else {
           document.getElementById('lot-area-val').innerText = area && area.hectares ? area.hectares : "LOTE NO DEFINIDO";
           document.getElementById('lot-coords-val').innerText = centroid && centroid.lat ? `Lat: ${centroid.lat.toFixed(4)}, Lng: ${centroid.lng.toFixed(4)} (PUNTO GPS)` : "Sin lote definido";
@@ -640,6 +646,17 @@
       if (sharedLot) {
         try { forestMap.setGeoJSON(sharedLot); } catch (error) { console.warn('No se pudo cargar el lote compartido:', error); }
       }
+
+      onLotContextChange(feature => {
+        if (!feature) {
+          forestMap.clearGeoJSON();
+          return;
+        }
+        const current = forestMap.getCurrentFeature();
+        if (JSON.stringify(current?.geometry) === JSON.stringify(feature.geometry)) return;
+        try { forestMap.setGeoJSON(feature); }
+        catch (error) { console.warn('No se pudo actualizar el lote forestal compartido:', error); }
+      });
 
       // Buscador de Localidades
       const searchForm = document.getElementById('forest-search-form');
@@ -860,5 +877,6 @@
     });
   </script>
 
+  <script type="module" src="workspace.js"></script>
 </body>
 </html>

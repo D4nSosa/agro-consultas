@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="styles.css">
 
   <link rel="icon" href="dwnl.png" type="image/png">
+  <link rel="stylesheet" href="workspace.css">
 </head>
 
 <body>
@@ -85,7 +86,7 @@
         </div>
 
         <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--borde-suave); font-size: 0.85rem; line-height: 1.5;">
-          <div><strong>📍 Coordenadas Centroide:</strong> <span id="report-coords">--</span></div>
+          <div><strong>📍 Coordenadas de referencia:</strong> <span id="report-coords">--</span><small id="report-coords-method" style="display:block;color:var(--texto-secundario);margin-top:3px;"></small></div>
           <div><strong>Provincia / Subregión:</strong> <span id="report-prov">--</span></div>
           <div><strong>Fuente de Trazado:</strong> <span id="report-source">Origen no informado en el enlace</span></div>
         </div>
@@ -113,11 +114,12 @@
   <!-- Script del Reporte -->
   <script type="module">
     import { findProvinceByCoords, findSubregion, getAdministrativeLocationByCoords } from './services/territoryService.js';
+    import { getLotContext } from './services/lotContext.js';
     import { getSoilReport } from './services/soilService.js';
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
     import { generateRecommendations, loadCultivosData, getCropsToEvaluate } from './services/recommendationEngine.js';
-    import { calculateArea } from './forestal/utils/geo.js';
+    import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -158,41 +160,59 @@
 
       // Parsear URL Params
       const params = new URLSearchParams(window.location.search);
-      const lat = parseFloat(params.get('lat'));
-      const lng = parseFloat(params.get('lng'));
-      const lotName = params.get('nombre') || 'Lote Campo';
+      let lat = parseFloat(params.get('lat'));
+      let lng = parseFloat(params.get('lng'));
+      const sharedLot = getLotContext();
+      const lotName = params.get('nombre') || sharedLot?.properties?.name || sharedLot?.properties?.nombre || 'Lote activo';
       let haVal = params.get('ha');
       const geomStr = params.get('geom');
       const reportType = params.get('type') || 'aptitud';
 
       document.getElementById('report-title').innerText = `Informe Técnico — ${lotName}`;
 
-      let parsedGeom = null;
+      let parsedGeom = sharedLot;
       if (geomStr) {
         try {
           parsedGeom = JSON.parse(geomStr);
-          const areaCalc = calculateArea(parsedGeom);
-          if (areaCalc && !areaCalc.isPoint && areaCalc.hectares > 0) {
-            haVal = `${areaCalc.hectares}`;
-            document.getElementById('report-m2').innerText = `${areaCalc.squareMeters.toLocaleString('es-AR')} m²`;
-          }
         } catch (e) {}
+      }
+
+      // Calcular la superficie desde la geometría activa, también cuando proviene del contexto compartido.
+      const geometryArea = parsedGeom ? calculateArea(parsedGeom) : null;
+      if (geometryArea && !geometryArea.isPoint && geometryArea.hectares > 0) {
+        haVal = `${geometryArea.hectares}`;
+        document.getElementById('report-m2').innerText = `${geometryArea.squareMeters.toLocaleString('es-AR')} m²`;
+      }
+
+      let coordinateMethod = 'Coordenadas recibidas desde el enlace.';
+      if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && parsedGeom) {
+        const centroid = calculateCentroid(parsedGeom);
+        if (centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lng)) {
+          lat = centroid.lat;
+          lng = centroid.lng;
+          coordinateMethod = 'Centroide geométrico calculado a partir de la geometría GeoJSON.';
+        }
       }
 
       if (haVal && haVal !== 'N/A' && haVal !== 'null' && haVal !== 'undefined') {
         document.getElementById('report-ha').innerText = `${haVal} ha`;
+      } else if (geometryArea?.isPoint || (!parsedGeom && Number.isFinite(lat) && Number.isFinite(lng))) {
+        document.getElementById('report-ha').innerText = 'Punto GPS';
+        document.getElementById('report-m2').innerText = 'Consulta puntual';
       } else {
-        document.getElementById('report-ha').innerText = `Punto GPS`;
-        document.getElementById('report-m2').innerText = `Consulta puntual`;
+        document.getElementById('report-ha').innerText = '—';
+        document.getElementById('report-m2').innerText = '—';
       }
 
-      if (!isNaN(lat) && !isNaN(lng)) {
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
         document.getElementById('report-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        document.getElementById('report-coords-method').innerText = coordinateMethod;
         document.getElementById('report-source').innerText = parsedGeom?.properties?.source || 'Geometría recibida por enlace; origen no informado';
       }
 
       // Inicializar mapa del reporte
-      const reportMap = L.map('report-map').setView([!isNaN(lat) ? lat : -38.4161, !isNaN(lng) ? lng : -63.6167], 14);
+      const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
+      const reportMap = L.map('report-map').setView(hasCoordinates ? [lat, lng] : [0, 0], hasCoordinates ? 14 : 2);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap | IGN Argentina'
@@ -211,7 +231,7 @@
 
       // Ejecutar análisis territorial
       const analysisContainer = document.getElementById('report-analysis-container');
-      if (isNaN(lat) || isNaN(lng)) {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         analysisContainer.innerHTML = `<p style="color:#c0392b;">No se especificaron coordenadas válidas para generar el análisis.</p>`;
         return;
       }
@@ -231,9 +251,31 @@
         const climateReport = await getClimateData(lat, lng, administrativeLocation?.provincia || "", subregion?.clima);
         const climateHistory = await getClimateHistory(lat, lng, 12);
 
-        const cultivosNombres = provKey ? await getCropsToEvaluate(provKey) : [];
-        const todasRecomendaciones = provKey ? await generateRecommendations(cultivosNombres, soilReport, climateReport) : [];
-        const recomendaciones = todasRecomendaciones.filter(c => c.compatibilidad !== "INFORMACIÓN PENDIENTE DE VERIFICACIÓN");
+        const cultivosNombres = provKey ? await getCropsToEvaluate(provKey, subregion) : [];
+        const historical = climateHistory?.data?.historicalAverages || {};
+        const historicalTemperature = Number(historical.temperaturaMediaHistoricaC);
+        const historicalPrecipitation = Number(historical.precipitacionMediaAnualMm);
+        const hasHistoricalClimate = climateHistory?.status === 'REAL' &&
+          Number.isFinite(historicalTemperature) && Number.isFinite(historicalPrecipitation);
+        const climateEvidenceForScoring = hasHistoricalClimate
+          ? {
+              ...climateReport,
+              temperaturaMediaVal: historicalTemperature,
+              precipitacionesAnualesVal: historicalPrecipitation,
+              climatologyStatus: 'REAL',
+              climatologySource: 'NASA POWER',
+              climatologyBaseline: '2001–2020'
+            }
+          : {
+              ...climateReport,
+              temperaturaMediaVal: null,
+              precipitacionesAnualesVal: null,
+              climatologyStatus: 'UNAVAILABLE',
+              climatologySource: null
+            };
+        const recomendaciones = provKey
+          ? await generateRecommendations(cultivosNombres, soilReport, climateEvidenceForScoring)
+          : [];
 
         let forestHTML = '';
         if (reportType === 'forestal') {
@@ -369,12 +411,12 @@
               <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                   <strong style="font-size: 0.9rem; color: var(--verde-principal);">${c.nombre}</strong>
-                  <span class="compatibility-badge ${c.compatibilidad.includes('ALTA') ? 'badge-alta' : (c.compatibilidad.includes('MEDIA') ? 'badge-media' : 'badge-baja')}" style="font-size: 0.72rem; padding: 3px 6px;">
-                    ${c.compatibilidad}
+                  <span class="compatibility-badge ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'badge-origin' : (c.compatibilidad.includes('ALTA') ? 'badge-alta' : (c.compatibilidad.includes('MEDIA') ? 'badge-media' : 'badge-baja'))}" style="font-size: 0.72rem; padding: 3px 6px;">
+                    ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'Ficha de referencia' : c.compatibilidad}
                   </span>
                 </div>
                 <p style="margin: 0 0 6px 0; color: var(--texto-secundario); font-size: 0.8rem;">${c.descripcion}</p>
-                <div style="font-size: 0.78rem;"><strong>💡 Factor Clave:</strong> ${c.motivos[0] || 'Compatible'}</div>
+                <div style="font-size: 0.78rem;"><strong>💡 Referencia técnica:</strong> ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'La ficha provincial describe los requerimientos del cultivo; no constituye una recomendación de siembra.' : (c.motivos[0] || 'Factores agroambientales comparados con la ficha técnica.')}</div>
               </div>
             `).join('')}
           </div>
@@ -385,5 +427,6 @@
     });
   </script>
 
+  <script type="module" src="workspace.js"></script>
 </body>
 </html>
