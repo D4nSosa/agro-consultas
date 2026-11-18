@@ -1017,91 +1017,31 @@ function createSingleRecommendationCardHtml(c) {
   }
 }
 
-function renderRecommendationsCards(recomendaciones, soilReport, climateReport, geoVal) {
+function renderRecommendationsCards(recomendaciones) {
   const container = document.getElementById("crop-results");
   if (!container) return;
 
-  const isForestal = item => item?.categoriaCatalogo === "Forestal";
-  const grupos = [
-    { key: "agricola", title: "Orientación agrícola y frutícola", items: recomendaciones.filter(item => !isForestal(item)) },
-    { key: "forestal", title: "Orientación forestal", items: recomendaciones.filter(isForestal) }
-  ].filter(group => group.items.length);
+  const evaluables = (recomendaciones || []).filter(c => {
+    const status = String(c?.compatibilidad || "").toUpperCase();
+    return status && !status.includes("INFORMACIÓN PENDIENTE") &&
+      !status.includes("NO EVALUABLE") && !status.includes("DATOS INSUFICIENTES") &&
+      !status.includes("INSUFFICIENT");
+  });
 
-  const renderGroup = group => {
-    const evaluables = group.items.filter(c =>
-      c && c.compatibilidad &&
-      !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
-      !c.compatibilidad.includes("NO EVALUABLE") &&
-      !c.compatibilidad.includes("DATOS INSUFICIENTES")
-    );
-    const pendientes = group.items.filter(c => c && !evaluables.includes(c));
-    const title = group.title;
-
-    if (!evaluables.length) {
-      if (!pendientes.length) return "";
-      return `
-        <section style="grid-column:1/-1; margin-top:14px;">
-          <h3 style="color:var(--texto-secundario);font-size:1.05rem;border-bottom:1px solid var(--borde-suave);padding-bottom:7px;margin:0;">📘 ${title} · perfiles del catálogo provincial (${pendientes.length})</h3>
-          <p class="text-muted" style="margin:8px 0 12px;">
-            ${group.key === "forestal"
-              ? "Estas especies están incluidas en el catálogo provincial. Se muestran como perfiles para evaluar, no como aptitud forestal confirmada ni como recomendación de plantación."
-              : "Estos cultivos aparecen en el perfil territorial de referencia. Se muestran como opciones para investigar, no como recomendaciones de siembra ni como cultivos aptos."}
-            La ficha resume requerimientos y calendario; contrastalos con las condiciones del sitio y el relevamiento de campo antes de decidir.
-          </p>
-          ${pendientes.map(createSingleRecommendationCardHtml).join('')}
-        </section>
-      `;
-    }
-
-    const aptos = [], moderados = [], noAptos = [];
-    evaluables.forEach(c => {
-      if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) noAptos.push(c);
-      else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) moderados.push(c);
-      else aptos.push(c);
-    });
-
-    let html = `<section style="grid-column:1/-1;margin-top:14px;"><h3 style="font-size:1.1rem;color:var(--verde-principal);border-bottom:1px solid var(--borde-suave);padding-bottom:7px;">${title}</h3></section>`;
-    const noun = group.key === "forestal" ? "Especies forestales" : "Cultivos";
-    if (aptos.length) html += `
-      <div style="grid-column:1/-1;margin-top:8px;"><h4 style="color:#27ae60;margin:0 0 8px;">🟢 ${noun} con aptitud favorable según los datos disponibles (${aptos.length})</h4></div>
-      ${aptos.map(createSingleRecommendationCardHtml).join('')}`;
-    if (moderados.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#d35400;margin:0 0 8px;">🟡 ${noun} con aptitud media / condicionada (${moderados.length})</h4></div>
-      ${moderados.map(createSingleRecommendationCardHtml).join('')}`;
-    if (noAptos.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#c0392b;margin:0 0 8px;">🔴 ${noun} con limitaciones severas identificadas (${noAptos.length})</h4></div>
-      ${noAptos.map(createSingleRecommendationCardHtml).join('')}`;
-    if (pendientes.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:var(--texto-secundario);margin:0 0 8px;">⚪ Otros perfiles del catálogo provincial (${pendientes.length})</h4></div>
-      ${pendientes.map(createSingleRecommendationCardHtml).join('')}`;
-    return html;
-  };
-
-  if (!grupos.length) {
+  if (!evaluables.length) {
     container.innerHTML = `
-      <div class="empty-state card" style="grid-column:1/-1;text-align:center;padding:25px;">
-        <span style="font-size:2rem;display:block;margin-bottom:8px;">⚪</span>
-        <h3>No hay perfiles agrícolas o forestales para esta provincia</h3>
-        <p class="text-muted">No se encontraron candidatos en el catálogo territorial disponible. No se mostrarán especies de otras regiones como si fueran locales.</p>
+      <div class="empty-state card" style="grid-column:1/-1;text-align:center;padding:24px;">
+        <span style="font-size:2rem;display:block;margin-bottom:8px;">🌱</span>
+        <h3>No hay una evaluación concluyente para esta selección</h3>
+        <p class="text-muted">No se mostrarán fichas de catálogo como si fueran resultados del sitio. Probá otra variable o ubicación, o consultá el mapa temático cuando haya datos disponibles.</p>
       </div>`;
     return;
   }
 
-  const evaluablesTotal = recomendaciones.filter(c =>
-    c?.compatibilidad &&
-    !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
-    !c.compatibilidad.includes("NO EVALUABLE") &&
-    !c.compatibilidad.includes("DATOS INSUFICIENTES")
-  ).length;
-
-  container.innerHTML = evaluablesTotal
-    ? grupos.map(renderGroup).join('')
-    : `
-      <div class="card" style="grid-column:1/-1;border-left:4px solid #7f8c8d;">
-        <h3 style="margin:0 0 6px;">Orientación productiva territorial</h3>
-        <p class="text-muted" style="margin:0;">Los siguientes perfiles figuran en el catálogo provincial. Sus fichas describen requisitos y manejo; no se interpretan como recomendaciones de implantación.</p>
-      </div>
-      ${grupos.map(renderGroup).join('')}`;
+  container.innerHTML = `
+    <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
+      ${evaluables.map(createSingleRecommendationCardHtml).join("")}
+    </div>`;
 }
 
 function mostrarErrorUbicacionNoEncontrada(queryTexto) {
