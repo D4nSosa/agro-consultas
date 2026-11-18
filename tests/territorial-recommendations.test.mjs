@@ -4,6 +4,23 @@ import { readFile } from 'node:fs/promises';
 import { calcularCompatibilidad, AptitudCategoria } from '../utils/scoring.js';
 import { getCropsToEvaluate, getForestToEvaluate } from '../services/recommendationEngine.js';
 
+test('el catálogo territorial cubre las 23 provincias y CABA', async () => {
+  const provinces = JSON.parse(await readFile(new URL('../data/provincias.json', import.meta.url), 'utf8'));
+  const expected = [
+    'buenos aires', 'ciudad autonoma de buenos aires', 'catamarca', 'chaco',
+    'chubut', 'cordoba', 'corrientes', 'entre rios', 'formosa', 'jujuy',
+    'la pampa', 'la rioja', 'mendoza', 'misiones', 'neuquen', 'rio negro',
+    'salta', 'san juan', 'san luis', 'santa cruz', 'santa fe',
+    'santiago del estero', 'tierra del fuego', 'tucuman'
+  ];
+  assert.deepEqual(Object.keys(provinces).sort(), expected.sort());
+  for (const [province, profile] of Object.entries(provinces)) {
+    assert.ok(Array.isArray(profile.nombre?.cultivos) && profile.nombre.cultivos.length, province);
+    assert.ok(profile.datos?.suelo, province);
+    assert.ok(profile.datos?.clima, province);
+  }
+});
+
 test('un perfil regional orienta candidatos pero no certifica aptitud', () => {
   const crop = {
     nombre: 'Naranja',
