@@ -370,15 +370,23 @@
         const goesPayload = fireResults[1].status === 'fulfilled' ? fireResults[1].value : null;
         const fireFeatures = firePayload?.features || [];
         const goesFeatures = goesPayload?.features || [];
-        const insideFire = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type)
-          ? filterFireDetectionsToGeometry(fireFeatures, parsedGeom.geometry)
-          : fireFeatures;
-        const insideGoes = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type)
-          ? filterFireDetectionsToGeometry(goesFeatures, parsedGeom.geometry)
-          : goesFeatures;
-        const fireScope = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type)
-          ? 'dentro de la geometría del lote'
-          : 'en el recorte nacional consultado';
+        const isPolygonArea = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type);
+        const isPointArea = parsedGeom?.geometry?.type === 'Point';
+        const reportPoint = isPointArea ? parsedGeom.geometry.coordinates : [lng, lat];
+        const nearPoint = features => features.filter(feature => {
+          const coords = feature.geometry?.coordinates;
+          if (!Array.isArray(coords) || coords.length < 2) return false;
+          const rad = Math.PI / 180, dLat = (coords[1] - reportPoint[1]) * rad;
+          const dLon = (coords[0] - reportPoint[0]) * rad;
+          const a = Math.sin(dLat / 2) ** 2 + Math.cos(reportPoint[1] * rad) * Math.cos(coords[1] * rad) * Math.sin(dLon / 2) ** 2;
+          return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= 25;
+        });
+        const insideFire = isPolygonArea ? filterFireDetectionsToGeometry(fireFeatures, parsedGeom.geometry)
+          : isPointArea || Number.isFinite(lat) ? nearPoint(fireFeatures) : [];
+        const insideGoes = isPolygonArea ? filterFireDetectionsToGeometry(goesFeatures, parsedGeom.geometry)
+          : isPointArea || Number.isFinite(lat) ? nearPoint(goesFeatures) : [];
+        const fireScope = isPolygonArea ? 'dentro de la geometría del lote'
+          : 'a 25 km del punto de referencia';
         const fireHTML = `
           <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
             <h2 style="margin:0 0 10px;color:var(--verde-principal)">🔥 Observaciones satelitales de incendios</h2>
