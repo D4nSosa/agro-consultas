@@ -137,5 +137,29 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("report-coords-method", html)
         self.assertNotIn("getBounds().getCenter()", html)
 
+    def test_mobile_shell_reuses_original_brand_and_moves_project_controls_to_dialog(self):
+        js = (ROOT / "workspace.js").read_text(encoding="utf-8")
+        css = (ROOT / "workspace.css").read_text(encoding="utf-8")
+        self.assertNotIn("ac-workspace-bar", js)
+        self.assertIn("ac-workspace-dialog", js)
+        self.assertIn("ac-open-workspace", js)
+        self.assertIn(".app-header .right a{display:none!important}", css)
+        self.assertIn(".ac-mobile-nav", css)
+
+    def test_fire_module_offers_explicit_live_location_and_plain_language_summary(self):
+        source = (ROOT / "incendios.html").read_text(encoding="utf-8")
+        self.assertIn('id="locate-me"', source)
+        self.assertIn("navigator.geolocation.watchPosition", source)
+        self.assertIn("fire-summary", source)
+        self.assertIn("no representan incendios confirmados", source.lower())
+        self.assertIn("Too Many Requests", source)
+
+    def test_report_includes_fire_and_field_sections_and_runs_forest_analysis_for_polygons(self):
+        source = (ROOT / "reporte.html").read_text(encoding="utf-8")
+        self.assertIn("Observaciones satelitales de incendios", source)
+        self.assertIn("Campo y geometría relevada", source)
+        self.assertIn("filterFireDetectionsToGeometry", source)
+        self.assertIn("runFullForestAnalysis(featureToAnalyze", source)
+
 if __name__ == "__main__":
     unittest.main()
