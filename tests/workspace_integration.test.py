@@ -75,6 +75,12 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertNotIn("candidatos sin clasificación", source)
         self.assertNotIn("Otros perfiles sin clasificación", source)
 
+    def test_agro_suitability_subscribes_to_workspace_lot_changes(self):
+        source = (ROOT / "script.js").read_text(encoding="utf-8")
+        self.assertIn("onLotContextChange(async feature =>", source)
+        self.assertIn("await renderRecomendaciones('Sin seleccionar', null, null)", source)
+        self.assertIn("await renderHistoriaClimaticaUI(null, null, '')", source)
+
     def test_map_tracking_and_forest_modules_subscribe_to_shared_lot_changes(self):
         checks = {
             "mapa.html": "onLotContextChange(feature=>",
