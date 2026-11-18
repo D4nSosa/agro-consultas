@@ -208,6 +208,7 @@
     let polygonLayer = null;
     let userMarker = null;
     let currentFeature = null;
+    let applySharedLotRef = null;
 
     function initTrackingMap() {
       map = L.map('tracking-map').setView([-38.4161, -63.6167], 4);
@@ -263,6 +264,7 @@
       gpsAccuracyValues = [];
       if (polyline) map.removeLayer(polyline);
       if (polygonLayer) map.removeLayer(polygonLayer);
+      polygonLayer = null;
 
       document.getElementById('btn-start-tracking').style.display = 'none';
       document.getElementById('btn-stop-tracking').style.display = 'inline-block';
@@ -330,6 +332,7 @@
       document.getElementById('btn-add-point').style.display = 'none';
 
       if (gpsPoints.length < 3) {
+        if (applySharedLotRef) applySharedLotRef(getLotContext());
         alert(`Se necesitan al menos 3 puntos registrados para cerrar el lote (se registraron ${gpsPoints.length}).`);
         return;
       }
@@ -350,13 +353,16 @@
       try {
         currentFeature = setLotContext(currentFeature, { source: 'gps-tracking', name: lotName });
       } catch (error) {
+        if (applySharedLotRef) applySharedLotRef(getLotContext());
         alert(`No se pudo guardar el lote: ${error.message}`);
         return;
       }
 
-      polygonLayer = L.geoJSON(currentFeature, {
-        style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
-      }).addTo(map);
+      if (!polygonLayer || !map.hasLayer(polygonLayer)) {
+        polygonLayer = L.geoJSON(currentFeature, {
+          style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.3 }
+        }).addTo(map);
+      }
 
       map.fitBounds(polygonLayer.getBounds(), { padding: [30, 30] });
 
@@ -522,7 +528,10 @@
       initTrackingMap();
 
       function applySharedLot(feature) {
-        if (watchId !== null) return; // No reemplazar una geometría mientras se registra un recorrido.
+        if (watchId !== null) return; // El cambio se aplica al detener o cerrar el recorrido.
+        if (feature && currentFeature &&
+            JSON.stringify(currentFeature.geometry) === JSON.stringify(feature.geometry) &&
+            polygonLayer && map.hasLayer(polygonLayer)) return;
         if (polygonLayer) map.removeLayer(polygonLayer);
         polygonLayer = null;
         currentFeature = feature || null;
@@ -543,6 +552,7 @@
         document.getElementById('lot-actions-box').style.display = 'flex';
       }
 
+      applySharedLotRef = applySharedLot;
       applySharedLot(getLotContext());
       onLotContextChange(applySharedLot);
 
