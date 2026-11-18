@@ -42,9 +42,11 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("env(safe-area-inset-bottom)", css)
         self.assertIn(".ac-mobile-nav", css)
 
-    def test_desktop_and_mobile_navigation_are_both_rendered(self):
+    def test_mobile_navigation_and_contextual_workspace_are_rendered(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
-        self.assertIn("ac-workspace-links", js)
+        self.assertNotIn("ac-workspace-links", js)
+        self.assertNotIn("app-header", js)
+        self.assertIn("ac-workspace-entry", js)
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
 
@@ -64,7 +66,7 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         fire = (ROOT / "incendios.html").read_text(encoding="utf-8")
         results = (ROOT / "resultados.html").read_text(encoding="utf-8")
         self.assertNotIn("No evaluable", fire)
-        self.assertIn("el indicador no se calcula", fire)
+        self.assertIn("No es un índice oficial de peligro de incendio", fire)
         self.assertNotIn("DATOS CLIMÁTICOS NO DISPONIBLES", results)
 
     def test_location_and_radar_empty_states_are_contextual(self):
@@ -136,6 +138,50 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("geometryArea?.isPoint", html)
         self.assertIn("report-coords-method", html)
         self.assertNotIn("getBounds().getCenter()", html)
+
+    def test_mobile_shell_reuses_original_brand_and_moves_project_controls_to_dialog(self):
+        js = (ROOT / "workspace.js").read_text(encoding="utf-8")
+        css = (ROOT / "workspace.css").read_text(encoding="utf-8")
+        self.assertNotIn("ac-workspace-bar", js)
+        self.assertIn("ac-workspace-dialog", js)
+        self.assertIn("ac-open-workspace", js)
+        self.assertIn("ac-workspace-entry", js)
+        self.assertIn("path === 'reporte.html') window.location.reload()", js)
+        self.assertIn(".app-header .right a{display:none!important}", css)
+        self.assertIn(".ac-mobile-nav", css)
+
+    def test_fire_module_offers_explicit_live_location_and_plain_language_summary(self):
+        source = (ROOT / "incendios.html").read_text(encoding="utf-8")
+        self.assertIn('id="locate-me"', source)
+        self.assertIn("navigator.geolocation.watchPosition", source)
+        self.assertIn("fire-summary", source)
+        self.assertIn("no representan incendios confirmados", source.lower())
+        self.assertIn("Too Many Requests", source)
+
+    def test_national_conae_fire_layers_are_available_as_optional_context(self):
+        source = (ROOT / "incendios.html").read_text(encoding="utf-8")
+        self.assertIn("geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms", source)
+        self.assertIn("EmergenciasCONAE:MODIS_AQM_1", source)
+        self.assertIn("geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms", source)
+        self.assertIn("AlertaTemprana:INC_SIARTIVGEOL89_DC_1", source)
+        self.assertIn("AlertaTemprana:INC_SIARTIVGEOSNPP_DC_6", source)
+        self.assertIn('id="burned-product"', source)
+        self.assertIn('id="fuel-product"', source)
+
+    def test_forest_module_exposes_national_conae_forest_cover_reference_layer(self):
+        source = (ROOT / "forestal/components/ForestMap.js").read_text(encoding="utf-8")
+        self.assertIn("geoservicios2.conae.gov.ar/geoserver/Bosques/wms", source)
+        self.assertIn("Bosques:CoberturaBosque_Argentina_2020", source)
+        self.assertIn("referencia nacional histórica", source)
+        self.assertIn("tiles.globalforestwatch.org/arg_otbn_forest_loss/v2022/dynamic/", source)
+        self.assertIn("Pérdida histórica de bosque nativo · GFW 2007–2022", source)
+
+    def test_report_includes_fire_and_field_sections_and_runs_forest_analysis_for_polygons(self):
+        source = (ROOT / "reporte.html").read_text(encoding="utf-8")
+        self.assertIn("Observaciones satelitales de incendios", source)
+        self.assertIn("Campo y geometría relevada", source)
+        self.assertIn("filterFireDetectionsToGeometry", source)
+        self.assertIn("runFullForestAnalysis(featureToAnalyze", source)
 
 if __name__ == "__main__":
     unittest.main()

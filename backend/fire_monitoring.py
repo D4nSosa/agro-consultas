@@ -4,18 +4,78 @@ import csv
 import datetime
 from email.utils import parsedate_to_datetime
 import io
+import json
 import re
 import time
+import threading
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
+from shapely.geometry import Point, shape
+from shapely.ops import unary_union
 
 app = FastAPI(title="Agro Consultas - Active Fire Monitoring", version="1.0.0")
 CACHE = {"expires": 0.0, "payload": None}
 GOES_CACHE = {"expires": 0.0, "payload": None}
+# Bounding box is only a fast prefilter; official Georef provincial geometries
+# provide the actual national mask so neighbouring countries are not mislabelled.
 ARGENTINA_EXTENT = (-74.0, -56.0, -52.0, -20.0)
+ARGENTINA_GEOREF_URL = "https://apis.datos.gob.ar/georef/api/v2.0/provincias.geojson"
+ARGENTINA_BOUNDARY_CACHE = {"expires": 0.0, "geometry": None, "status": "unknown"}
+ARGENTINA_BOUNDARY_LOCK = threading.Lock()
+
+
+def _get_argentina_boundary():
+    """Load and cache the official Georef province polygons for the national mask."""
+    now = time.monotonic()
+    if now < ARGENTINA_BOUNDARY_CACHE["expires"]:
+        return ARGENTINA_BOUNDARY_CACHE["geometry"]
+    with ARGENTINA_BOUNDARY_LOCK:
+        now = time.monotonic()
+        if now < ARGENTINA_BOUNDARY_CACHE["expires"]:
+            return ARGENTINA_BOUNDARY_CACHE["geometry"]
+        try:
+            request = urllib.request.Request(
+                ARGENTINA_GEOREF_URL,
+                headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/geo+json, application/json"},
+            )
+            with urllib.request.urlopen(request, timeout=10) as response:
+                payload = json.loads(response.read(12_000_000).decode("utf-8"))
+            features = payload.get("features", []) if isinstance(payload, dict) else []
+            geometries = [shape(feature["geometry"]) for feature in features
+                          if feature.get("geometry") and feature.get("geometry").get("type")]
+            if not geometries:
+                raise ValueError("Georef no devolvió geometrías provinciales GeoJSON.")
+            boundary = unary_union(geometries)
+            if boundary.is_empty or not boundary.is_valid:
+                raise ValueError("La geometría nacional de Georef está vacía o no es válida.")
+            ARGENTINA_BOUNDARY_CACHE.update({
+                "expires": now + 86400,
+                "geometry": boundary,
+                "status": "official_georef_provinces",
+            })
+            return boundary
+        except Exception:
+            # Keep the service usable during a Georef outage, but disclose that the
+            # fallback is only a bounding rectangle and may include neighbouring areas.
+            ARGENTINA_BOUNDARY_CACHE.update({
+                "expires": now + 300,
+                "geometry": None,
+                "status": "bounding_box_fallback",
+            })
+            return None
+
+
+def _inside_argentina(lon, lat, boundary=None):
+    west, south, east, north = ARGENTINA_EXTENT
+    if not (west <= lon <= east and south <= lat <= north):
+        return False
+    geometry = boundary if boundary is not None else _get_argentina_boundary()
+    if geometry is None:
+        return True
+    return bool(geometry.covers(Point(lon, lat)))
 FIRMS = {
     "MODIS": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_South_America_24h.csv",
     "VIIRS_SNPP": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_South_America_24h.csv",
@@ -71,11 +131,11 @@ def _fetch_firms(item):
     with urllib.request.urlopen(req, timeout=8) as response:
         raw = response.read(15_000_000).decode("utf-8-sig", errors="replace")
         modified = response.headers.get("Last-Modified")
-    west, south, east, north = ARGENTINA_EXTENT
+    boundary = _get_argentina_boundary()
     features = []
     for row in csv.DictReader(io.StringIO(raw)):
         lat, lon = _number(row.get("latitude")), _number(row.get("longitude"))
-        if lat is None or lon is None or not (west <= lon <= east and south <= lat <= north):
+        if lat is None or lon is None or not _inside_argentina(lon, lat, boundary):
             continue
         code = str(row.get("satellite", "")).strip()
         satellite = {"T": "Terra", "A": "Aqua", "N": "Suomi-NPP", "N20": "NOAA-20", "N21": "NOAA-21"}.get(code, code or name)
@@ -107,6 +167,7 @@ def _fetch_firms(item):
         "lastModified": modified,
         **freshness,
         "features": features,
+        "boundaryPrecision": "official_georef_provinces" if boundary is not None else "bounding_box_fallback",
     }
 
 
@@ -132,7 +193,9 @@ def national_fires():
     payload = {
         "type": "FeatureCollection", "features": features,
         "meta": {
-            "source": "NASA FIRMS", "coverage": "South America 24h CSV clipped to Argentina bounding extent",
+            "source": "NASA FIRMS", "coverage": "South America 24h CSV filtered to Argentina official provincial geometry when Georef is available",
+            "boundaryPrecision": "official_georef_provinces" if all(r.get("boundaryPrecision") == "official_georef_provinces" for r in good) else "bounding_box_fallback",
+            "coverageWarning": None if all(r.get("boundaryPrecision") == "official_georef_provinces" for r in good) else "Georef boundary unavailable for one or more feeds; approximate bounding-box filtering may include neighbouring areas.",
             "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "count": len(features),
             "staleSources": [r["name"] for r in results if r.get("stale") is True],
             "sources": [{k: v for k, v in r.items() if k != "features"} for r in results],
@@ -180,6 +243,7 @@ def goes19_fires():
         forward = Transformer.from_crs("EPSG:4326", geos, always_xy=True)
         inverse = Transformer.from_crs(geos, "EPSG:4326", always_xy=True)
         west, south, east, north = ARGENTINA_EXTENT
+        argentina_boundary = _get_argentina_boundary()
         corners = [forward.transform(lon, lat) for lon in (west, east) for lat in (south, north)]
         xmin, xmax = min(p[0] for p in corners) / height, max(p[0] for p in corners) / height
         ymin, ymax = min(p[1] for p in corners) / height, max(p[1] for p in corners) / height
@@ -200,7 +264,7 @@ def goes19_fires():
         for row, col in indices:
             lon, lat = inverse.transform(float(xv[int(xi.min()) + int(col)]) * height,
                                          float(yv[int(yi.min()) + int(row)]) * height)
-            if not (west <= lon <= east and south <= lat <= north):
+            if not _inside_argentina(float(lon), float(lat), argentina_boundary):
                 continue
             code = int(mask[row, col])
             def value(array):
@@ -226,6 +290,7 @@ def goes19_fires():
                 "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "count": len(features),
                 "maskClasses": "10/11/30/31 (procesado/saturado y sus clases temporalmente filtradas)", "file": key,
                 "totalCandidates": total_candidates, "truncated": truncated,
+                "boundaryPrecision": "official_georef_provinces" if argentina_boundary is not None else "bounding_box_fallback",
                 "returnedLimit": 2500, "sampling": "evenly spaced across candidate index sequence" if truncated else "all candidates",
             },
         }
