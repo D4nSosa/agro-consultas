@@ -171,9 +171,10 @@ function renderRecentDetections(){
  const items=[...modisViirs,...goes].filter(f=>f?.geometry?.type==='Point'&&Array.isArray(f.geometry.coordinates)&&f.geometry.coordinates.length>=2);
  const timeOf=f=>{
   const p=f.properties||{};
-  const value=String(p.observedAt||(p.date?String(p.date)+' '+String(p.timeUtc||'00:00'):''));
-  const hasTimezone=/(?:Z|[+-]\\d{2}:?\\d{2})$/i.test(value);
-  const parsed=Date.parse(value?(hasTimezone?value:value+'Z'):'');
+  const rawTime=String(p.timeUtc||'0000').padStart(4,'0');
+  const fallbackTime=p.date?String(p.date)+'T'+rawTime.slice(0,2)+':'+rawTime.slice(2,4)+':00Z':'';
+  const value=String(p.observedAt||fallbackTime);
+  const parsed=Date.parse(value);
   return Number.isFinite(parsed)?parsed:0;
  };
  items.sort((a,b)=>timeOf(b)-timeOf(a));
