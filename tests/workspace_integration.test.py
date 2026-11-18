@@ -67,6 +67,14 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("el indicador no se calcula", fire)
         self.assertNotIn("DATOS CLIMÁTICOS NO DISPONIBLES", results)
 
+    def test_location_and_radar_empty_states_are_contextual(self):
+        source = (ROOT / "script.js").read_text(encoding="utf-8")
+        self.assertIn("Consulta radar Sentinel-1", source)
+        self.assertIn("No encontramos esa ubicación", source)
+        self.assertIn("Sin coordenadas GPS", source)
+        self.assertNotIn("DATOS RADAR NO DISPONIBLES", source)
+        self.assertNotIn("NO DISPONIBLE / UBICACIÓN NO ENCONTRADA", source)
+
     def test_climate_history_errors_are_contextual(self):
         source = (ROOT / "script.js").read_text(encoding="utf-8")
         self.assertIn("Serie histórica de NASA POWER", source)
