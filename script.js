@@ -219,6 +219,18 @@ export async function inicializarMapa(provinciaRaw) {
       if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
       drawnPolygonLayer = null;
       currentAOIPolygon = null;
+      currentLat = null;
+      currentLng = null;
+      currentUbicacionNombre = 'Sin seleccionar';
+      lastRecommendationsCache = [];
+      lastSoilReportCache = null;
+      lastClimateReportCache = null;
+      if (currentMarker) leafletMap.removeLayer(currentMarker);
+      currentMarker = null;
+      if (suitabilityOverlayLayer) leafletMap.removeLayer(suitabilityOverlayLayer);
+      suitabilityOverlayLayer = null;
+      await renderRecomendaciones('Sin seleccionar', null, null);
+      await renderHistoriaClimaticaUI(null, null, '');
       return;
     }
     if (JSON.stringify(currentAOIPolygon) === JSON.stringify(feature.geometry)) return;
@@ -612,7 +624,7 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
     container.innerHTML = `
       <div class="empty-state" style="text-align: center; padding: 20px;">
         <span style="font-size: 2rem;">📊</span>
-        <p><strong>DATOS CLIMÁTICOS NO DISPONIBLES</strong></p>
+        <p><strong>Serie climática histórica de NASA POWER</strong></p>
         <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la serie climática histórica de NASA POWER.</p>
       </div>
     `;
