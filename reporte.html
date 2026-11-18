@@ -601,7 +601,7 @@
           });
           document.getElementById('gfw-run')?.addEventListener('click', async () => {
             const output = document.getElementById('gfw-result');
-            output.textContent = 'Consultando estadísticas zonales de Global Forest Watch…';
+            output.textContent = 'Procesando el mapa público de drivers de pérdida forestal…';
             try {
               const response = await fetch('/api/territorial/forest/gfw-drivers/analyze', {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
