@@ -104,6 +104,7 @@ import {
       try {
         selectWorkspaceProject(projectSelect.value);
         renderContext();
+        if (path === 'reporte.html') window.location.replace('reporte.html');
       } catch (error) {
         window.alert(error.message);
         renderContext();
@@ -114,6 +115,7 @@ import {
       try {
         selectWorkspaceLot(lotSelect.value);
         renderContext();
+        if (path === 'reporte.html') window.location.replace('reporte.html');
       } catch (error) {
         window.alert(error.message);
         renderContext();
@@ -125,6 +127,7 @@ import {
       try {
         createWorkspaceProject(name);
         renderContext();
+        if (path === 'reporte.html') window.location.replace('reporte.html');
       } catch (error) {
         window.alert(error.message);
       }
