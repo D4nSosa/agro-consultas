@@ -93,6 +93,7 @@ def test_gfw_analysis_uses_server_key_and_polygon_geometry(monkeypatch):
 def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
     import numpy as np
     import rasterio
+    import rasterio.mask
     from affine import Affine
     from rasterio.crs import CRS
 
