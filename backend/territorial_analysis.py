@@ -202,7 +202,7 @@ def gaez_analyze(req: LotDatasetRequest):
                 if dataset.crs is None:
                     raise ValueError("El ráster no declara sistema de coordenadas.")
                 projected = transform_geom("EPSG:4326", dataset.crs, mapping(geom), precision=8)
-                data, out_transform = raster_mask(dataset, [projected], crop=True, filled=False, all_touched=False)
+                data, out_transform = raster_mask(dataset, [projected], crop=True, filled=False, all_touched=True)
                 band = data[0]
                 if band.size > 2_000_000:
                     raise ValueError("El lote abarca demasiados píxeles para generar una vista previa en una sola consulta. Reducí el área o dividí el lote.")
@@ -211,7 +211,13 @@ def gaez_analyze(req: LotDatasetRequest):
                     values = values[values != dataset.nodata]
                 values = values[np.isfinite(values)]
                 if not values.size:
-                    raise ValueError("No hay píxeles válidos del producto dentro del lote.")
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "code": "GAEZ_NO_VALID_PIXELS",
+                            "message": "FAO no aporta valores válidos para este cultivo y escenario en las celdas que intersectan el lote. Probá otro cultivo o el período histórico 2001–2020."
+                        }
+                    )
                 stats = {
                     "pixel_count": int(values.size),
                     "minimum": float(np.min(values)),
@@ -274,8 +280,9 @@ def gaez_analyze(req: LotDatasetRequest):
         "statistics": stats,
         "map_overlay": overlay,
         "raster": {"crs": crs, "resolution_native_units": resolution, "nodata": nodata},
-        "method": "Estadística zonal de los píxeles válidos que intersectan el polígono (sin interpolación).",
-        "interpretation_limit": "Se devuelven valores originales del ráster. La unidad, escala y significado dependen del producto seleccionado y deben leerse en sus metadatos; no son una medición de suelo ni una predicción del rendimiento real del lote.",
+        "method": "Estadística zonal de las celdas válidas del ráster que tocan el polígono (all_touched=True), sin interpolación.",
+        "spatial_resolution": "GAEZ v5 RES05: grilla de 5 minutos de arco, aproximadamente 9 km en latitudes medias.",
+        "interpretation_limit": "Se devuelven valores originales del ráster. La unidad, escala y significado dependen del producto seleccionado y deben leerse en sus metadatos. En lotes pequeños, una o pocas celdas regionales pueden representar toda la consulta: no es una medición intralote ni una predicción del rendimiento real.",
         "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
 
