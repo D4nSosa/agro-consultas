@@ -332,12 +332,17 @@
       document.getElementById('btn-add-point').style.display = 'none';
 
       if (gpsPoints.length < 3) {
+        if (polyline) map.removeLayer(polyline);
+        polyline = null;
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = null;
         if (applySharedLotRef) applySharedLotRef(getLotContext());
         alert(`Se necesitan al menos 3 puntos registrados para cerrar el lote (se registraron ${gpsPoints.length}).`);
         return;
       }
 
       if (polyline) map.removeLayer(polyline);
+      polyline = null;
 
       const closedCoords = [...gpsPoints, gpsPoints[0]];
       const geom = { type: "Polygon", coordinates: [closedCoords] };
