@@ -144,12 +144,12 @@
           <div id="map-layer-controls-container" style="padding: 10px; background: var(--bg-principal);"></div>
           <section id="gaez-map-controls" style="padding:12px;border-top:1px solid var(--borde-suave);background:var(--bg-principal)">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-              <strong style="color:var(--verde-principal)">🌾 Capa agroecológica FAO/IIASA GAEZ v5</strong>
-              <span id="gaez-map-status" class="text-muted" style="font-size:.78rem">Elegí una variable y analizá un lote poligonal.</span>
+              <strong style="color:var(--verde-principal)">🌾 Aptitud agroecológica · FAO/IIASA GAEZ v5</strong>
+              <span id="gaez-map-status" class="text-muted" style="font-size:.78rem">Índice de aptitud FAO · resolución aproximada de 5 minutos de arco (no es una medición intralote).</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:10px">
-              <label style="font-size:.78rem">Variable / producto<select id="gaez-mapset" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
-              <label style="font-size:.78rem">Cultivo<select id="gaez-crop" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+              <label style="font-size:.78rem">Indicador<select id="gaez-mapset" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+              <label style="font-size:.78rem">Cultivo GAEZ<select id="gaez-crop" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
               <label style="font-size:.78rem">Período<select id="gaez-period" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
               <label style="font-size:.78rem">Fuente climática<select id="gaez-climate" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
               <label style="font-size:.78rem">Escenario<select id="gaez-ssp" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
@@ -294,16 +294,12 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script type="module" src="script.js"></script>
   <script>
-    // Splash screen logic (shows once per session, auto-dismisses after 2.5s)
+    // Splash de bienvenida en cada carga de la página.
     (function initSplashScreen() {
       const splash = document.getElementById('splash-screen');
       if (!splash) return;
-      if (sessionStorage.getItem('splash_shown') === 'true') {
-        splash.style.display = 'none';
-        if (splash.parentNode) splash.parentNode.removeChild(splash);
-        return;
-      }
-      sessionStorage.setItem('splash_shown', 'true');
+      splash.style.display = 'flex';
+      splash.classList.remove('splash-hidden');
       setTimeout(() => {
         splash.classList.add('splash-hidden');
         setTimeout(() => {
