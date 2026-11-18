@@ -5,7 +5,6 @@
 import { normalizeKey } from './utils/normalization.js';
 import {
   findProvinceByCoords,
-  findProvinceCandidateByCoords,
   findSubregion,
   getProvinceDetails
 } from './services/territoryService.js';
@@ -670,8 +669,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
   if (!detailsContainer) return;
 
   try {
-    const provinceCandidate = await findProvinceCandidateByCoords(lat, lng);
-    const key = provinceCandidate?.provinceKey || null;
+    const key = await findProvinceByCoords(lat, lng);
     const subregion = key ? await findSubregion(key, lat, lng) : null;
 
     const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
