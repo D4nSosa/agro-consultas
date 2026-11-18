@@ -228,6 +228,9 @@ export async function inicializarMapa(provinciaRaw) {
       currentLat = null;
       currentLng = null;
       currentUbicacionNombre = 'Sin seleccionar';
+      currentSpatialLevel = 'LOCALIDAD / PUNTO DE REFERENCIA';
+      const territoryDetails = document.getElementById('territory-details');
+      if (territoryDetails) territoryDetails.innerHTML = '';
       lastRecommendationsCache = [];
       lastSoilReportCache = null;
       lastClimateReportCache = null;
