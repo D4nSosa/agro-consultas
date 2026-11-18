@@ -265,7 +265,7 @@ export function setLotContext(input, metadata = {}) {
   project.activeLotId = lotId;
   project.updatedAt = new Date().toISOString();
   state.activeLotId = lotId;
-  if (!persistWorkspaceState(state)) throw new Error('No se pudo guardar el lote en el proyecto activo.');
+  if (!persistWorkspaceState(state)) throw new Error('No se pudo guardar el lote compartido en el proyecto activo.');
 
   const payload = { feature, metadata: { source: metadata.source || feature.properties.source || 'user-selected' } };
   const serialized = JSON.stringify(payload);
