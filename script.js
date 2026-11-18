@@ -390,6 +390,7 @@ async function inicializarControlesGAEZ(leafletMap) {
       const legend = document.getElementById("gaez-map-legend");
       if (legend) legend.textContent = "Escala relativa del ráster: bajo → alto";
       result.textContent = [
+        "Fuente: FAO/IIASA GAEZ v5 RES05 · Licencia declarada: " + (payload.license || "consultar metadatos del producto"),
         "Capa GAEZ visible sobre el mapa actual.",
         "Producto: " + (payload.dataset?.MAPSET_CODE || body.mapset_code),
         "Cultivo: " + body.crop,
