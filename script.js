@@ -655,10 +655,13 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   const climateHistory = await getClimateHistoryCached(lat, lng, months);
 
   if (climateHistory.status === 'UNAVAILABLE' || !climateHistory.data) {
+    const detail = String(climateHistory.message || '')
+      .replace(/^NO DISPONIBLE\\s*[—-]\\s*/i, '')
+      .trim();
     container.innerHTML = `
-      <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
-        <h4 style="margin: 0 0 6px 0; color: #c0392b;">DATOS CLIMÁTICOS NO DISPONIBLES</h4>
-        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">${climateHistory.message || 'No se pudieron recuperar las series temporales de NASA POWER para la ubicación seleccionada.'}</p>
+      <div style="background: var(--gris-card); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 15px;">
+        <h4 style="margin: 0 0 6px 0; color: var(--texto-principal);">Serie histórica de NASA POWER</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">La consulta de la serie histórica para estas coordenadas no pudo completarse. ${detail || 'Reintentá la consulta más tarde.'}</p>
       </div>
     `;
     return;
@@ -789,7 +792,7 @@ function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
     textLabel = '🔴 Aptitud Baja / Desfavorable';
   } else if (firstRec.compatibilidad.includes('INFORMACIÓN PENDIENTE') || firstRec.compatibilidad.includes('NO EVALUABLE')) {
     color = '#7f8c8d';
-    textLabel = '⚪ Perfil de referencia; sin capa de aptitud';
+    textLabel = '📘 Perfil de referencia';
   }
 
   // No dibujar círculos transparentes de radio/alcance en el mapa
