@@ -31,6 +31,7 @@ let currentMarker = null;
 let userLocationCircle = null;
 let drawnPolygonLayer = null;
 let suitabilityOverlayLayer = null;
+let gaezMapOverlayLayer = null;
 
 let isDrawingMainLot = false;
 let mainDrawPoints = [];
@@ -244,6 +245,10 @@ export async function inicializarMapa(provinciaRaw) {
     }
     if (JSON.stringify(currentAOIPolygon) === JSON.stringify(feature.geometry)) return;
     currentAOIPolygon = feature.geometry;
+    if (gaezMapOverlayLayer && leafletMap.hasLayer(gaezMapOverlayLayer)) leafletMap.removeLayer(gaezMapOverlayLayer);
+    gaezMapOverlayLayer = null;
+    const gaezResult = document.getElementById("gaez-map-result");
+    if (gaezResult) gaezResult.textContent = "Cambió el lote. Volvé a ejecutar GAEZ para actualizar la capa.";
     isDrawingMainLot = false;
     mainDrawPoints = [];
     mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
@@ -273,6 +278,8 @@ export async function inicializarMapa(provinciaRaw) {
     mapViewerInstance.renderControlPanel("map-layer-controls-container");
   }
 
+  await inicializarControlesGAEZ(leafletMap);
+
   const btnGeo = document.getElementById("btn-geolocalizar");
   if (btnGeo) {
     btnGeo.addEventListener("click", usarGeolocalizacion);
@@ -281,6 +288,139 @@ export async function inicializarMapa(provinciaRaw) {
 
   if (isSpecificUbicacion) {
     await buscarYProcesarUbicacion(provinciaRaw);
+  }
+}
+
+async function inicializarControlesGAEZ(leafletMap) {
+  const root = document.getElementById("gaez-map-controls");
+  if (!root || root.dataset.initialized === "true") return;
+  root.dataset.initialized = "true";
+
+  const fields = [
+    { id: "gaez-mapset", key: "mapset_code", option: "mapset_codes", label: "Variable / producto" },
+    { id: "gaez-crop", key: "crop", option: "crops", label: "Cultivo" },
+    { id: "gaez-period", key: "period", option: "periods", label: "Período" },
+    { id: "gaez-climate", key: "climate_data_source", option: "climate_data_sources", label: "Fuente climática" },
+    { id: "gaez-ssp", key: "ssp", option: "ssps", label: "Escenario" },
+    { id: "gaez-input", key: "input_level", option: "input_levels", label: "Nivel de manejo" }
+  ];
+  const status = document.getElementById("gaez-map-status");
+  const result = document.getElementById("gaez-map-result");
+  const runButton = document.getElementById("gaez-map-run");
+  const clearButton = document.getElementById("gaez-map-clear");
+
+  const clearOverlay = () => {
+    if (gaezMapOverlayLayer && leafletMap.hasLayer(gaezMapOverlayLayer)) leafletMap.removeLayer(gaezMapOverlayLayer);
+    gaezMapOverlayLayer = null;
+    const legend = document.getElementById("gaez-map-legend");
+    if (legend) legend.textContent = "";
+  };
+
+  async function refreshOptions(startIndex = 0) {
+    for (let index = startIndex; index < fields.length; index += 1) {
+      const params = new URLSearchParams();
+      fields.slice(0, index).forEach(field => {
+        const value = document.getElementById(field.id)?.value;
+        if (value) params.set(field.key, value);
+      });
+      const response = await fetch("/api/territorial/gaez/catalog?" + params.toString());
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail?.message || payload.detail || "No se pudo cargar el catálogo agroecológico.");
+      const field = fields[index];
+      const select = document.getElementById(field.id);
+      if (!select) continue;
+      const previous = select.value;
+      const options = payload.options?.[field.option] || [];
+      select.replaceChildren();
+      options.forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+      if (options.includes(previous)) select.value = previous;
+      else if (options.length) select.value = options[0];
+      select.disabled = options.length === 0;
+    }
+  }
+
+  fields.forEach((field, index) => {
+    document.getElementById(field.id)?.addEventListener("change", async () => {
+      try {
+        status.textContent = "Actualizando combinaciones disponibles…";
+        await refreshOptions(index + 1);
+        status.textContent = "Catálogo FAO cargado. Dibujá o seleccioná un lote para visualizar la capa.";
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    });
+  });
+
+  runButton?.addEventListener("click", async () => {
+    if (!currentAOIPolygon || !["Polygon", "MultiPolygon"].includes(currentAOIPolygon.type)) {
+      result.textContent = "Primero dibujá, importá o seleccioná un lote poligonal en este mapa.";
+      return;
+    }
+    const body = { geometry: currentAOIPolygon };
+    fields.forEach(field => {
+      body[field.key] = document.getElementById(field.id)?.value || null;
+    });
+    runButton.disabled = true;
+    status.textContent = "Procesando el ráster GAEZ para el lote…";
+    result.textContent = "Leyendo únicamente la ventana del producto que intersecta el lote.";
+    try {
+      const response = await fetch("/api/territorial/gaez/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail?.message || payload.detail || "No se pudo procesar el producto GAEZ.");
+      if (!payload.map_overlay?.image_data_url || !payload.map_overlay?.bounds) {
+        throw new Error("El análisis respondió sin una imagen cartográfica válida.");
+      }
+      clearOverlay();
+      gaezMapOverlayLayer = L.imageOverlay(
+        payload.map_overlay.image_data_url,
+        payload.map_overlay.bounds,
+        { opacity: 0.78, interactive: false, alt: "Ráster agroecológico FAO GAEZ v5" }
+      ).addTo(leafletMap);
+      if (drawnPolygonLayer?.bringToFront) drawnPolygonLayer.bringToFront();
+      const stats = payload.statistics;
+      const legend = document.getElementById("gaez-map-legend");
+      if (legend) legend.textContent = "Escala relativa del ráster: bajo → alto";
+      result.textContent = [
+        "Fuente: FAO/IIASA GAEZ v5 RES05 · Licencia declarada: " + (payload.license || "consultar metadatos del producto"),
+        "Capa GAEZ visible sobre el mapa actual.",
+        "Producto: " + (payload.dataset?.MAPSET_CODE || body.mapset_code),
+        "Cultivo: " + body.crop,
+        "Media: " + Number(stats.mean).toLocaleString("es-AR", { maximumFractionDigits: 3 }),
+        "Mediana: " + Number(stats.median).toLocaleString("es-AR", { maximumFractionDigits: 3 }),
+        "Rango: " + Number(stats.minimum).toLocaleString("es-AR", { maximumFractionDigits: 3 }) + " – " + Number(stats.maximum).toLocaleString("es-AR", { maximumFractionDigits: 3 }),
+        "Píxeles válidos: " + Number(stats.pixel_count).toLocaleString("es-AR"),
+        payload.interpretation_limit
+      ].join("\n");
+      status.textContent = "Capa aplicada al mapa. La escala es relativa a este lote y no representa por sí sola aptitud ni rendimiento.";
+    } catch (error) {
+      result.textContent = error.message;
+      status.textContent = "No se pudo generar la capa GAEZ.";
+    } finally {
+      runButton.disabled = false;
+    }
+  });
+
+  clearButton?.addEventListener("click", () => {
+    clearOverlay();
+    result.textContent = "Se quitó la capa GAEZ del mapa.";
+    status.textContent = "La capa está desactivada.";
+  });
+
+  try {
+    status.textContent = "Cargando catálogo FAO GAEZ v5…";
+    await refreshOptions(0);
+    status.textContent = "Catálogo cargado. Seleccioná el producto y ejecutá el análisis sobre un lote.";
+  } catch (error) {
+    status.textContent = error.message;
   }
 }
 
@@ -538,10 +678,11 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <span>🌱 Propiedades del Suelo</span>
         <span style="font-size: 0.75rem; color: var(--texto-secundario); font-weight: 600;">${soilBadgeText}</span>
       </div>
+      ${soilReport.fuente && !/perfil agroambiental de referencia de agro consultas|sin fuente primaria asociada|fuente no disponible/i.test(soilReport.fuente) ? `
       <div class="info-item">
         <strong>Fuente:</strong>
         <span style="font-size:0.8rem; color: var(--texto-secundario);">${soilReport.fuente}</span>
-      </div>
+      </div>` : ""}
       <div class="info-item">
         <strong>Tipo y Clasificación:</strong>
         <span>${soilReport.tipo}</span>
@@ -1017,91 +1158,31 @@ function createSingleRecommendationCardHtml(c) {
   }
 }
 
-function renderRecommendationsCards(recomendaciones, soilReport, climateReport, geoVal) {
+function renderRecommendationsCards(recomendaciones) {
   const container = document.getElementById("crop-results");
   if (!container) return;
 
-  const isForestal = item => item?.categoriaCatalogo === "Forestal";
-  const grupos = [
-    { key: "agricola", title: "Orientación agrícola y frutícola", items: recomendaciones.filter(item => !isForestal(item)) },
-    { key: "forestal", title: "Orientación forestal", items: recomendaciones.filter(isForestal) }
-  ].filter(group => group.items.length);
+  const evaluables = (recomendaciones || []).filter(c => {
+    const status = String(c?.compatibilidad || "").toUpperCase();
+    return status && !status.includes("INFORMACIÓN PENDIENTE") &&
+      !status.includes("NO EVALUABLE") && !status.includes("DATOS INSUFICIENTES") &&
+      !status.includes("INSUFFICIENT");
+  });
 
-  const renderGroup = group => {
-    const evaluables = group.items.filter(c =>
-      c && c.compatibilidad &&
-      !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
-      !c.compatibilidad.includes("NO EVALUABLE") &&
-      !c.compatibilidad.includes("DATOS INSUFICIENTES")
-    );
-    const pendientes = group.items.filter(c => c && !evaluables.includes(c));
-    const title = group.title;
-
-    if (!evaluables.length) {
-      if (!pendientes.length) return "";
-      return `
-        <section style="grid-column:1/-1; margin-top:14px;">
-          <h3 style="color:var(--texto-secundario);font-size:1.05rem;border-bottom:1px solid var(--borde-suave);padding-bottom:7px;margin:0;">📘 ${title} · perfiles del catálogo provincial (${pendientes.length})</h3>
-          <p class="text-muted" style="margin:8px 0 12px;">
-            ${group.key === "forestal"
-              ? "Estas especies están incluidas en el catálogo provincial. Se muestran como perfiles para evaluar, no como aptitud forestal confirmada ni como recomendación de plantación."
-              : "Estos cultivos aparecen en el perfil territorial de referencia. Se muestran como opciones para investigar, no como recomendaciones de siembra ni como cultivos aptos."}
-            La ficha resume requerimientos y calendario; contrastalos con las condiciones del sitio y el relevamiento de campo antes de decidir.
-          </p>
-          ${pendientes.map(createSingleRecommendationCardHtml).join('')}
-        </section>
-      `;
-    }
-
-    const aptos = [], moderados = [], noAptos = [];
-    evaluables.forEach(c => {
-      if (c.compatibilidad.includes("BAJA") || c.compatibilidad.includes("LIMITACIONES SEVERAS")) noAptos.push(c);
-      else if (c.compatibilidad.includes("MEDIA") || c.compatibilidad.includes("PRESENTA LIMITANTES")) moderados.push(c);
-      else aptos.push(c);
-    });
-
-    let html = `<section style="grid-column:1/-1;margin-top:14px;"><h3 style="font-size:1.1rem;color:var(--verde-principal);border-bottom:1px solid var(--borde-suave);padding-bottom:7px;">${title}</h3></section>`;
-    const noun = group.key === "forestal" ? "Especies forestales" : "Cultivos";
-    if (aptos.length) html += `
-      <div style="grid-column:1/-1;margin-top:8px;"><h4 style="color:#27ae60;margin:0 0 8px;">🟢 ${noun} con aptitud favorable según los datos disponibles (${aptos.length})</h4></div>
-      ${aptos.map(createSingleRecommendationCardHtml).join('')}`;
-    if (moderados.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#d35400;margin:0 0 8px;">🟡 ${noun} con aptitud media / condicionada (${moderados.length})</h4></div>
-      ${moderados.map(createSingleRecommendationCardHtml).join('')}`;
-    if (noAptos.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:#c0392b;margin:0 0 8px;">🔴 ${noun} con limitaciones severas identificadas (${noAptos.length})</h4></div>
-      ${noAptos.map(createSingleRecommendationCardHtml).join('')}`;
-    if (pendientes.length) html += `
-      <div style="grid-column:1/-1;margin-top:12px;"><h4 style="color:var(--texto-secundario);margin:0 0 8px;">⚪ Otros perfiles del catálogo provincial (${pendientes.length})</h4></div>
-      ${pendientes.map(createSingleRecommendationCardHtml).join('')}`;
-    return html;
-  };
-
-  if (!grupos.length) {
+  if (!evaluables.length) {
     container.innerHTML = `
-      <div class="empty-state card" style="grid-column:1/-1;text-align:center;padding:25px;">
-        <span style="font-size:2rem;display:block;margin-bottom:8px;">⚪</span>
-        <h3>No hay perfiles agrícolas o forestales para esta provincia</h3>
-        <p class="text-muted">No se encontraron candidatos en el catálogo territorial disponible. No se mostrarán especies de otras regiones como si fueran locales.</p>
+      <div class="empty-state card" style="grid-column:1/-1;text-align:center;padding:24px;">
+        <span style="font-size:2rem;display:block;margin-bottom:8px;">🌱</span>
+        <h3>No hay una evaluación concluyente para esta selección</h3>
+        <p class="text-muted">No se mostrarán fichas de catálogo como si fueran resultados del sitio. Probá otra variable o ubicación, o consultá el mapa temático cuando haya datos disponibles.</p>
       </div>`;
     return;
   }
 
-  const evaluablesTotal = recomendaciones.filter(c =>
-    c?.compatibilidad &&
-    !c.compatibilidad.includes("INFORMACIÓN PENDIENTE") &&
-    !c.compatibilidad.includes("NO EVALUABLE") &&
-    !c.compatibilidad.includes("DATOS INSUFICIENTES")
-  ).length;
-
-  container.innerHTML = evaluablesTotal
-    ? grupos.map(renderGroup).join('')
-    : `
-      <div class="card" style="grid-column:1/-1;border-left:4px solid #7f8c8d;">
-        <h3 style="margin:0 0 6px;">Orientación productiva territorial</h3>
-        <p class="text-muted" style="margin:0;">Los siguientes perfiles figuran en el catálogo provincial. Sus fichas describen requisitos y manejo; no se interpretan como recomendaciones de implantación.</p>
-      </div>
-      ${grupos.map(renderGroup).join('')}`;
+  container.innerHTML = `
+    <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
+      ${evaluables.map(createSingleRecommendationCardHtml).join("")}
+    </div>`;
 }
 
 function mostrarErrorUbicacionNoEncontrada(queryTexto) {

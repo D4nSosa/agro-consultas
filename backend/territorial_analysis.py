@@ -5,6 +5,7 @@ GFW requests are proxied server-side; the API key is never exposed to browsers.
 """
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import hashlib
 import io
@@ -201,8 +202,10 @@ def gaez_analyze(req: LotDatasetRequest):
                 if dataset.crs is None:
                     raise ValueError("El ráster no declara sistema de coordenadas.")
                 projected = transform_geom("EPSG:4326", dataset.crs, mapping(geom), precision=8)
-                data, _ = raster_mask(dataset, [projected], crop=True, filled=False, all_touched=False)
+                data, out_transform = raster_mask(dataset, [projected], crop=True, filled=False, all_touched=False)
                 band = data[0]
+                if band.size > 2_000_000:
+                    raise ValueError("El lote abarca demasiados píxeles para generar una vista previa en una sola consulta. Reducí el área o dividí el lote.")
                 values = band.compressed()
                 if dataset.nodata is not None:
                     values = values[values != dataset.nodata]
@@ -222,6 +225,42 @@ def gaez_analyze(req: LotDatasetRequest):
                 resolution = [abs(float(value)) for value in dataset.res]
                 crs = dataset.crs.to_string()
                 nodata = dataset.nodata
+                # Render a bounded PNG preview from the same clipped raster window.
+                # The preview is a relative value stretch, not a universal suitability class.
+                from PIL import Image
+                from rasterio.transform import array_bounds
+                from rasterio.warp import transform_bounds
+
+                raw = band.filled(np.nan).astype("float32")
+                valid_mask = (~np.ma.getmaskarray(band)) & np.isfinite(raw)
+                low, high = np.percentile(values, [2, 98])
+                if not np.isfinite(low) or not np.isfinite(high) or high <= low:
+                    low, high = float(np.min(values)), float(np.max(values))
+                if high <= low:
+                    high = low + 1.0
+                normalized = np.clip((np.nan_to_num(raw, nan=low) - low) / (high - low), 0, 1)
+                # Blue → teal → yellow; deliberately avoids an aptitude/favorability label.
+                stops = np.array([[35, 72, 150], [28, 155, 139], [245, 210, 74]], dtype=np.float32)
+                segment = normalized * 2
+                lower = np.floor(segment).astype(np.int32).clip(0, 1)
+                fraction = (segment - lower)[..., None]
+                rgb = (stops[lower] * (1 - fraction) + stops[lower + 1] * fraction).astype(np.uint8)
+                rgba = np.dstack([rgb, np.where(valid_mask, 190, 0).astype(np.uint8)])
+                image = Image.fromarray(rgba, mode="RGBA")
+                image.thumbnail((512, 512), Image.Resampling.NEAREST)
+                png_buffer = io.BytesIO()
+                image.save(png_buffer, format="PNG", optimize=True)
+                west, south, east, north = array_bounds(raw.shape[0], raw.shape[1], out_transform)
+                overlay_bounds = transform_bounds(crs, "EPSG:4326", west, south, east, north, densify_pts=21)
+                overlay = {
+                    "image_data_url": "data:image/png;base64," + base64.b64encode(png_buffer.getvalue()).decode("ascii"),
+                    "bounds": [[overlay_bounds[1], overlay_bounds[0]], [overlay_bounds[3], overlay_bounds[2]]],
+                    "width": image.width,
+                    "height": image.height,
+                    "stretch_percentiles": [2, 98],
+                    "display_minimum": float(low),
+                    "display_maximum": float(high),
+                }
     except HTTPException:
         raise
     except Exception as exc:
@@ -229,9 +268,11 @@ def gaez_analyze(req: LotDatasetRequest):
     return {
         "success": True,
         "source": "FAO/IIASA GAEZ v5 RES05",
+        "license": "CC-BY-4.0 (confirmar metadatos del producto específico)",
         "source_url": url,
         "dataset": record,
         "statistics": stats,
+        "map_overlay": overlay,
         "raster": {"crs": crs, "resolution_native_units": resolution, "nodata": nodata},
         "method": "Estadística zonal de los píxeles válidos que intersectan el polígono (sin interpolación).",
         "interpretation_limit": "Se devuelven valores originales del ráster. La unidad, escala y significado dependen del producto seleccionado y deben leerse en sus metadatos; no son una medición de suelo ni una predicción del rendimiento real del lote.",

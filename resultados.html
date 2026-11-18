@@ -142,6 +142,26 @@
 
           <!-- Panel de control de capas extensible -->
           <div id="map-layer-controls-container" style="padding: 10px; background: var(--bg-principal);"></div>
+          <section id="gaez-map-controls" style="padding:12px;border-top:1px solid var(--borde-suave);background:var(--bg-principal)">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+              <strong style="color:var(--verde-principal)">🌾 Capa agroecológica FAO/IIASA GAEZ v5</strong>
+              <span id="gaez-map-status" class="text-muted" style="font-size:.78rem">Elegí una variable y analizá un lote poligonal.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:10px">
+              <label style="font-size:.78rem">Variable / producto<select id="gaez-mapset" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+              <label style="font-size:.78rem">Cultivo<select id="gaez-crop" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+              <label style="font-size:.78rem">Período<select id="gaez-period" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+              <label style="font-size:.78rem">Fuente climática<select id="gaez-climate" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+              <label style="font-size:.78rem">Escenario<select id="gaez-ssp" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+              <label style="font-size:.78rem">Nivel de manejo<select id="gaez-input" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+              <button id="gaez-map-run" class="btn primary" type="button">Mostrar capa en este mapa</button>
+              <button id="gaez-map-clear" class="btn outline" type="button">Quitar capa</button>
+              <span id="gaez-map-legend" style="font-size:.78rem;color:var(--texto-secundario)"></span>
+            </div>
+            <div id="gaez-map-result" role="status" style="font-size:.82rem;line-height:1.5;margin-top:8px;white-space:pre-wrap"></div>
+          </section>
           <!-- Leyenda del Mapa interactiva -->
           <div class="map-legend">
             <h4>Mapa de Decisiones y Aptitud</h4>
@@ -256,12 +276,7 @@
       </div>
     </section>
 
-    <section class="card" style="margin:20px 0;padding:18px;border-left:4px solid var(--verde-principal)">
-      <h2 style="margin:0 0 8px;color:var(--verde-principal)">Referencia agroecológica global · FAO/IIASA GAEZ v5</h2>
-      <p style="font-size:.88rem;color:var(--texto-secundario);line-height:1.55">GAEZ v5 permite contrastar aptitud agroecológica y potencial productivo de cultivos bajo distintos niveles de manejo y escenarios climáticos. Sus capas tienen resoluciones y escalas diferentes; no deben interpretarse como una recomendación parcelaria ni como medición de suelo del lote. La consulta directa dentro de Agro-Consultas requiere seleccionar y procesar las capas de Argentina, documentar su licencia y validar la resolución antes de incorporarlas al motor.</p>
-      <a href="https://gaez.fao.org/" target="_blank" rel="noopener noreferrer">Abrir portal FAO/IIASA GAEZ v5 ↗</a> ·
-      <a href="https://www.fao.org/land-water/resources/tools/databases/gaez/en" target="_blank" rel="noopener noreferrer">Metodología y datos ↗</a>
-    </section>
+
   </main>
 
   <footer class="app-footer" style="margin-top: 40px;">
