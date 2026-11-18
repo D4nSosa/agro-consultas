@@ -6,6 +6,120 @@
 const STORAGE_KEY = 'agro_lot_context_v1';
 const EVENT_NAME = 'agro:lot-context-changed';
 
+const WORKSPACE_STORAGE_KEY = 'agro_workspace_v1';
+const WORKSPACE_EVENT_NAME = 'agro:workspace-changed';
+
+function workspaceId(prefix) {
+  return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function emptyWorkspace() {
+  return {
+    version: 1,
+    activeProjectId: 'default',
+    activeLotId: null,
+    updatedAt: new Date(0).toISOString(),
+    projects: [{ id: 'default', name: 'Mi espacio', createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(), lots: [] }]
+  };
+}
+
+function readWorkspaceState() {
+  const candidates = [];
+  for (const storageName of ['localStorage', 'sessionStorage']) {
+    try {
+      const raw = globalThis[storageName]?.getItem(WORKSPACE_STORAGE_KEY);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (parsed?.version !== 1 || !Array.isArray(parsed.projects)) continue;
+      const projects = parsed.projects.filter(project =>
+        project && typeof project.id === 'string' && typeof project.name === 'string' && Array.isArray(project.lots)
+      );
+      if (!projects.length) continue;
+      const activeProjectId = projects.some(project => project.id === parsed.activeProjectId)
+        ? parsed.activeProjectId : projects[0].id;
+      candidates.push({ ...parsed, projects, activeProjectId, activeLotId: parsed.activeLotId || null,
+        updatedAt: parsed.updatedAt || new Date(0).toISOString() });
+    } catch (_) { /* Ignore unavailable or malformed workspace storage. */ }
+  }
+  candidates.sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
+  return candidates[0] || emptyWorkspace();
+}
+
+function persistWorkspaceState(state) {
+  state.updatedAt = new Date().toISOString();
+  const serialized = JSON.stringify(state);
+  for (const storageName of ['localStorage', 'sessionStorage']) {
+    try {
+      const storage = globalThis[storageName];
+      if (!storage) continue;
+      storage.setItem(WORKSPACE_STORAGE_KEY, serialized);
+      if (storage.getItem(WORKSPACE_STORAGE_KEY) !== serialized) continue;
+      if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+        globalThis.dispatchEvent(new CustomEvent(WORKSPACE_EVENT_NAME, { detail: state }));
+      }
+      return true;
+    } catch (_) { /* Try the next available browser storage. */ }
+  }
+  return false;
+}
+
+export function getWorkspaceState() {
+  return JSON.parse(JSON.stringify(readWorkspaceState()));
+}
+
+export function createWorkspaceProject(name) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) throw new Error('Ingresá un nombre para el proyecto.');
+  const state = readWorkspaceState();
+  const now = new Date().toISOString();
+  const project = { id: workspaceId('project'), name: cleanName, createdAt: now, updatedAt: now, lots: [] };
+  state.projects.push(project);
+  state.activeProjectId = project.id;
+  state.activeLotId = null;
+  if (!persistWorkspaceState(state)) throw new Error('No se pudo guardar el proyecto en el almacenamiento del navegador.');
+  clearLotContext();
+  return project;
+}
+
+export function renameWorkspaceProject(projectId, name) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) throw new Error('Ingresá un nombre para el proyecto.');
+  const state = readWorkspaceState();
+  const project = state.projects.find(item => item.id === projectId);
+  if (!project) throw new Error('No se encontró el proyecto seleccionado.');
+  project.name = cleanName;
+  project.updatedAt = new Date().toISOString();
+  if (!persistWorkspaceState(state)) throw new Error('No se pudo actualizar el proyecto.');
+  return project;
+}
+
+export function selectWorkspaceProject(projectId) {
+  const state = readWorkspaceState();
+  const project = state.projects.find(item => item.id === projectId);
+  if (!project) throw new Error('No se encontró el proyecto seleccionado.');
+  state.activeProjectId = project.id;
+  const selectedLot = project.lots.find(item => item.id === project.activeLotId) ||
+    project.lots.find(item => item.id === state.activeLotId) || project.lots[project.lots.length - 1] || null;
+  state.activeLotId = selectedLot?.id || null;
+  if (!persistWorkspaceState(state)) throw new Error('No se pudo cambiar el proyecto activo.');
+  if (selectedLot?.feature) return setLotContext(selectedLot.feature, { source: 'workspace-selection' });
+  clearLotContext();
+  return null;
+}
+
+export function selectWorkspaceLot(lotId) {
+  const state = readWorkspaceState();
+  const project = state.projects.find(item => item.id === state.activeProjectId);
+  const lot = project?.lots.find(item => item.id === lotId);
+  if (!project || !lot?.feature) throw new Error('No se encontró el lote guardado.');
+  state.activeLotId = lot.id;
+  project.activeLotId = lot.id;
+  if (!persistWorkspaceState(state)) throw new Error('No se pudo activar el lote seleccionado.');
+  return setLotContext(lot.feature, { source: 'workspace-selection' });
+}
+
+export const WORKSPACE_STORAGE_KEY = WORKSPACE_STORAGE_KEY;
+
 function unwrap(input) {
   if (!input || typeof input !== 'object') throw new Error('GeoJSON vacío o inválido.');
   if (input.type === 'Feature') return input;
@@ -129,7 +243,30 @@ export function getLotContext() {
 }
 
 export function setLotContext(input, metadata = {}) {
-  const feature = normalizeLotFeature(input, { ...metadata, updatedAt: new Date().toISOString() });
+  const state = readWorkspaceState();
+  let project = state.projects.find(item => item.id === state.activeProjectId);
+  if (!project) {
+    project = state.projects[0] || { id: 'default', name: 'Mi espacio', createdAt: new Date().toISOString(), lots: [] };
+    if (!state.projects.includes(project)) state.projects.push(project);
+    state.activeProjectId = project.id;
+  }
+  const lotId = input?.properties?.workspaceLotId || workspaceId('lot');
+  const feature = normalizeLotFeature(input, {
+    ...metadata,
+    workspaceProjectId: project.id,
+    workspaceLotId: lotId,
+    updatedAt: new Date().toISOString()
+  });
+  const lotName = feature.properties?.name || feature.properties?.nombre || 'Lote sin nombre';
+  const lotRecord = { id: lotId, name: lotName, feature, updatedAt: feature.properties.updatedAt };
+  const existingIndex = project.lots.findIndex(item => item.id === lotId);
+  if (existingIndex >= 0) project.lots[existingIndex] = lotRecord;
+  else project.lots.push(lotRecord);
+  project.activeLotId = lotId;
+  project.updatedAt = new Date().toISOString();
+  state.activeLotId = lotId;
+  if (!persistWorkspaceState(state)) throw new Error('No se pudo guardar el lote en el proyecto activo.');
+
   const payload = { feature, metadata: { source: metadata.source || feature.properties.source || 'user-selected' } };
   const serialized = JSON.stringify(payload);
   let persisted = false;
@@ -162,9 +299,16 @@ export function setLotContext(input, metadata = {}) {
 }
 
 export function clearLotContext() {
+  const state = readWorkspaceState();
+  state.activeLotId = null;
+  const project = state.projects.find(item => item.id === state.activeProjectId);
+  if (project) project.activeLotId = null;
+  persistWorkspaceState(state);
   try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch (_) {}
   try { globalThis.sessionStorage?.removeItem(STORAGE_KEY); } catch (_) {}
-  globalThis.dispatchEvent?.(new CustomEvent(EVENT_NAME, { detail: null }));
+  if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+    globalThis.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: null }));
+  }
 }
 
 export function onLotContextChange(callback) {
