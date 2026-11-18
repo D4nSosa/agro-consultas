@@ -678,10 +678,11 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <span>🌱 Propiedades del Suelo</span>
         <span style="font-size: 0.75rem; color: var(--texto-secundario); font-weight: 600;">${soilBadgeText}</span>
       </div>
+      ${soilReport.fuente && !/perfil agroambiental de referencia de agro consultas|sin fuente primaria asociada|fuente no disponible/i.test(soilReport.fuente) ? `
       <div class="info-item">
         <strong>Fuente:</strong>
         <span style="font-size:0.8rem; color: var(--texto-secundario);">${soilReport.fuente}</span>
-      </div>
+      </div>` : ""}
       <div class="info-item">
         <strong>Tipo y Clasificación:</strong>
         <span>${soilReport.tipo}</span>
