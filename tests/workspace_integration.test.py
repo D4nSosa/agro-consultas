@@ -19,6 +19,16 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("Date.parse(feature.properties?.updatedAt || '')", js)
         self.assertIn("candidates.sort((a, b) => b.timestamp - a.timestamp)", js)
 
+    def test_shared_workspace_exposes_local_project_and_lot_switching(self):
+        js = (ROOT / "workspace.js").read_text(encoding="utf-8")
+        service = (ROOT / "services/lotContext.js").read_text(encoding="utf-8")
+        self.assertIn("ac-project-select", js)
+        self.assertIn("ac-lot-select", js)
+        self.assertIn("createWorkspaceProject(name)", service)
+        self.assertIn("selectWorkspaceProject(projectId)", service)
+        self.assertIn("selectWorkspaceLot(lotId)", service)
+        self.assertIn("agro_workspace_v1", service)
+
     def test_shared_navigation_has_all_work_modules(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
         for route in ["mapa.html", "resultados.html", "forestal.html",
