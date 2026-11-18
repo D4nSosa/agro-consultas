@@ -72,6 +72,40 @@ export async function findProvinceByCoords(lat, lng) {
 }
 
 /**
+ * Resuelve una provincia candidata para análisis exploratorio.
+ * Prioriza Georef; si no responde, usa el centroide provincial más cercano
+ * y conserva explícitamente que la asignación es aproximada.
+ */
+export async function findProvinceCandidateByCoords(lat, lng) {
+  const administrative = await getAdministrativeLocationByCoords(lat, lng);
+  if (administrative?.provinceKey) {
+    return {
+      provinceKey: administrative.provinceKey,
+      provinceName: administrative.provincia,
+      source: 'georef',
+      verified: true
+    };
+  }
+
+  await loadTerritoryData();
+  let nearest = null;
+  let minimumDistance = Infinity;
+  for (const [key, province] of Object.entries(provinciasData || {})) {
+    const coordinates = province?.coordenadas;
+    if (!Number.isFinite(coordinates?.lat) || !Number.isFinite(coordinates?.lng)) continue;
+    const latitudeScale = Math.cos(Number(lat) * Math.PI / 180);
+    const dx = (Number(lng) - coordinates.lng) * latitudeScale;
+    const dy = Number(lat) - coordinates.lat;
+    const distance = dx * dx + dy * dy;
+    if (distance < minimumDistance) {
+      minimumDistance = distance;
+      nearest = { provinceKey: key, provinceName: province?.nombre?.nombre || key };
+    }
+  }
+  return nearest ? { ...nearest, source: 'nearest_reference', verified: false } : null;
+}
+
+/**
  * Busca la subregión más cercana dentro de una provincia.
  * @param {string} provinciaKey - Clave de la provincia.
  * @param {number} lat - Latitud.
