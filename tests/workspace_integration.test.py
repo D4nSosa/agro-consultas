@@ -67,6 +67,12 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("el indicador no se calcula", fire)
         self.assertNotIn("DATOS CLIMÁTICOS NO DISPONIBLES", results)
 
+    def test_climate_history_errors_are_contextual(self):
+        source = (ROOT / "script.js").read_text(encoding="utf-8")
+        self.assertIn("Serie histórica de NASA POWER", source)
+        self.assertIn("La consulta de la serie histórica para estas coordenadas no pudo completarse", source)
+        self.assertNotIn("DATOS CLIMÁTICOS NO DISPONIBLES", source)
+
     def test_suitability_ui_uses_contextual_reference_labels(self):
         source = (ROOT / "script.js").read_text(encoding="utf-8")
         self.assertIn('const compatibilityLabel = isReferenceProfile ? "Perfil de referencia"', source)
