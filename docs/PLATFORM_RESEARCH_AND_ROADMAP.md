@@ -12,6 +12,35 @@ El problema principal no es la ausencia de tecnología. Es la distancia entre ca
 
 **Recomendación:** evolucionar Agro-Consultas como un espacio de trabajo territorial con un núcleo común de proyecto/lote/evidencia y módulos especializados. No reemplazar Leaflet ni reescribir todo. Mejorar primero la jerarquía de información, normalizar resultados y procedencia, y después sumar nuevas fuentes en orden de valor y viabilidad.
 
+### Alcance geográfico obligatorio: Argentina
+
+El producto es nacional. El NEA es un territorio de validación prioritaria por cercanía operativa, pero ninguna regla, catálogo, filtro, endpoint, lista de cultivos ni diseño de interfaz debe asumir que el usuario está en Corrientes o Misiones.
+
+Criterios no negociables:
+- Las consultas espaciales aceptan geometrías WGS84 válidas en cualquier provincia argentina y no aplican recortes provinciales/regionales salvo que el usuario los seleccione.
+- Los feeds regionales (por ejemplo, CSV FIRMS de Sudamérica) deben describir su recorte como aproximado si se usa un bounding box. No presentar ese rectángulo como frontera administrativa exacta de Argentina.
+- Cada fuente declara cobertura real: nacional, global, provincial, ecorregional o sitio específico. Una capa local no se presenta como nacional.
+- La ausencia de cobertura se comunica por fuente y territorio; nunca se reemplaza con datos de otra región ni se extrapola silenciosamente.
+- Los tests espaciales deben incluir extremos norte/sur/este/oeste, Patagonia, Cuyo, NOA, Centro, NEA y región pampeana, además de puntos fuera del país para detectar falsos positivos.
+
+### Fuentes nacionales adicionales verificadas para integrar
+
+| Fuente / producto | Cobertura documentada | Uso en Agro-Consultas | Límite que debe mostrarse |
+|---|---|---|---|
+| CONAE MODIS AQM WMS | Argentina; serie mensual publicada como 13 capas `EmergenciasCONAE:MODIS_AQM_1..13` | Contexto de áreas quemadas, separado de focos activos | El índice de capa no se debe convertir en fecha sin leer metadatos del servicio. Producto derivado de MCD64A1.061. |
+| CONAE disponibilidad de combustibles Landsat 8/9 | Productos publicados por CONAE, capas `AlertaTemprana:INC_SIARTIVGEOL89_DC_1..3` | Contexto de fracciones de vegetación verde, seca/senescente y suelo descubierto | No es FWI ni una predicción de ignición; validar fecha y disponibilidad de cada capa. |
+| CONAE disponibilidad de combustibles SNPP-VIIRS | Productos publicados por CONAE, capas `AlertaTemprana:INC_SIARTIVGEOSNPP_DC_1..6` | Contexto complementario de combustible fino | Resolución/fecha y actualización deben obtenerse de metadatos; no inferirlas del sufijo. |
+| CONAE cobertura de bosques | Mapas anuales de coberturas vegetales nativas para la República Argentina; primer mapa publicado 2020 | Capa nacional de referencia en Forestal | No representa plantaciones ni condición forestal actual; el mapa 2020 es histórico. |
+| GFW `arg_otbn_forest_loss` | Dataset de pérdida de bosque nativo de Argentina, 2007–2022, 30 m, escala nacional | Contraste histórico de cambios de bosque nativo | No equivale a alertas en tiempo real; revisar API key, campos/versiones y restricciones antes de consulta por lote. |
+| GAEZ v5 FAO/IIASA | Marco global de aptitud agroecológica con cobertura de Argentina | Benchmark regional/nacional de aptitud y potencial por cultivo/escenario | La capa descargada debe ser identificada, reproyectada/procesada y validada por resolución; no es recomendación parcelaria directa. |
+
+Servicios CONAE publicados en su catálogo oficial:
+- Áreas quemadas: `https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms`
+- Disponibilidad de combustibles: `https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms`
+- Cobertura de bosques: `https://geoservicios2.conae.gov.ar/geoserver/Bosques/wms`
+
+Fuentes oficiales consultadas: catálogo de [Geoservicios CONAE](https://catalogos.conae.gov.ar/catalogo/catalogoGeoServiciosProsatII.html), [GFW Data API](https://data-api.globalforestwatch.org/docs) y [FAO/IIASA GAEZ](https://gaez.fao.org/).
+
 ### Decisiones recomendadas
 
 1. Mantener Leaflet y GeoJSON como base de la experiencia web durante la siguiente etapa.
