@@ -45,7 +45,7 @@ function readWorkspaceState() {
   return candidates[0] || emptyWorkspace();
 }
 
-function persistWorkspaceState(state) {
+function persistWorkspaceState(state, notify = true) {
   state.updatedAt = new Date().toISOString();
   const serialized = JSON.stringify(state);
   for (const storageName of ['localStorage', 'sessionStorage']) {
@@ -54,7 +54,7 @@ function persistWorkspaceState(state) {
       if (!storage) continue;
       storage.setItem(WORKSPACE_KEY, serialized);
       if (storage.getItem(WORKSPACE_KEY) !== serialized) continue;
-      if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+      if (notify && typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
         globalThis.dispatchEvent(new CustomEvent(WORKSPACE_EVENT_NAME, { detail: state }));
       }
       return true;
@@ -76,7 +76,7 @@ export function createWorkspaceProject(name) {
   state.projects.push(project);
   state.activeProjectId = project.id;
   state.activeLotId = null;
-  if (!persistWorkspaceState(state)) throw new Error('No se pudo guardar el proyecto en el almacenamiento del navegador.');
+  if (!persistWorkspaceState(state, false)) throw new Error('No se pudo guardar el proyecto en el almacenamiento del navegador.');
   clearLotContext();
   return project;
 }
@@ -101,7 +101,7 @@ export function selectWorkspaceProject(projectId) {
   const selectedLot = project.lots.find(item => item.id === project.activeLotId) ||
     project.lots.find(item => item.id === state.activeLotId) || project.lots[project.lots.length - 1] || null;
   state.activeLotId = selectedLot?.id || null;
-  if (!persistWorkspaceState(state)) throw new Error('No se pudo cambiar el proyecto activo.');
+  if (!persistWorkspaceState(state, false)) throw new Error('No se pudo cambiar el proyecto activo.');
   if (selectedLot?.feature) return setLotContext(selectedLot.feature, { source: 'workspace-selection' });
   clearLotContext();
   return null;
@@ -114,7 +114,7 @@ export function selectWorkspaceLot(lotId) {
   if (!project || !lot?.feature) throw new Error('No se encontró el lote guardado.');
   state.activeLotId = lot.id;
   project.activeLotId = lot.id;
-  if (!persistWorkspaceState(state)) throw new Error('No se pudo activar el lote seleccionado.');
+  if (!persistWorkspaceState(state, false)) throw new Error('No se pudo activar el lote seleccionado.');
   return setLotContext(lot.feature, { source: 'workspace-selection' });
 }
 
@@ -265,8 +265,6 @@ export function setLotContext(input, metadata = {}) {
   project.activeLotId = lotId;
   project.updatedAt = new Date().toISOString();
   state.activeLotId = lotId;
-  if (!persistWorkspaceState(state)) throw new Error('No se pudo guardar el lote compartido en el proyecto activo.');
-
   const payload = { feature, metadata: { source: metadata.source || feature.properties.source || 'user-selected' } };
   const serialized = JSON.stringify(payload);
   let persisted = false;
@@ -292,6 +290,8 @@ export function setLotContext(input, metadata = {}) {
     throw new Error(`No se pudo guardar el lote compartido. ${reason}`);
   }
 
+  if (!persistWorkspaceState(state)) throw new Error('No se pudo guardar el lote compartido en el proyecto activo.');
+
   if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
     globalThis.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: feature }));
   }
@@ -299,13 +299,13 @@ export function setLotContext(input, metadata = {}) {
 }
 
 export function clearLotContext() {
+  try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch (_) {}
+  try { globalThis.sessionStorage?.removeItem(STORAGE_KEY); } catch (_) {}
   const state = readWorkspaceState();
   state.activeLotId = null;
   const project = state.projects.find(item => item.id === state.activeProjectId);
   if (project) project.activeLotId = null;
   persistWorkspaceState(state);
-  try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch (_) {}
-  try { globalThis.sessionStorage?.removeItem(STORAGE_KEY); } catch (_) {}
   if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
     globalThis.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: null }));
   }
