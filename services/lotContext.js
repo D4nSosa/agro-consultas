@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'agro_lot_context_v1';
 const EVENT_NAME = 'agro:lot-context-changed';
 
-const WORKSPACE_STORAGE_KEY = 'agro_workspace_v1';
+const WORKSPACE_KEY = 'agro_workspace_v1';
 const WORKSPACE_EVENT_NAME = 'agro:workspace-changed';
 
 function workspaceId(prefix) {
@@ -27,7 +27,7 @@ function readWorkspaceState() {
   const candidates = [];
   for (const storageName of ['localStorage', 'sessionStorage']) {
     try {
-      const raw = globalThis[storageName]?.getItem(WORKSPACE_STORAGE_KEY);
+      const raw = globalThis[storageName]?.getItem(WORKSPACE_KEY);
       if (!raw) continue;
       const parsed = JSON.parse(raw);
       if (parsed?.version !== 1 || !Array.isArray(parsed.projects)) continue;
@@ -52,8 +52,8 @@ function persistWorkspaceState(state) {
     try {
       const storage = globalThis[storageName];
       if (!storage) continue;
-      storage.setItem(WORKSPACE_STORAGE_KEY, serialized);
-      if (storage.getItem(WORKSPACE_STORAGE_KEY) !== serialized) continue;
+      storage.setItem(WORKSPACE_KEY, serialized);
+      if (storage.getItem(WORKSPACE_KEY) !== serialized) continue;
       if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
         globalThis.dispatchEvent(new CustomEvent(WORKSPACE_EVENT_NAME, { detail: state }));
       }
@@ -118,7 +118,7 @@ export function selectWorkspaceLot(lotId) {
   return setLotContext(lot.feature, { source: 'workspace-selection' });
 }
 
-export const WORKSPACE_STORAGE_KEY = WORKSPACE_STORAGE_KEY;
+export const WORKSPACE_STORAGE_KEY = WORKSPACE_KEY;
 
 function unwrap(input) {
   if (!input || typeof input !== 'object') throw new Error('GeoJSON vacío o inválido.');
