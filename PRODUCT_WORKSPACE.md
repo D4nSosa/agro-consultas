@@ -27,7 +27,9 @@ The interface should avoid generic blocking warnings and repetitive "insufficien
 - Report coordinates derived from a lot use the geometry centroid utility and identify the coordinate source instead of labelling a bounding-box center as a centroid.
 - The report's crop matrix now uses the same subregional candidate profile and NASA POWER 2001–2020 climate evidence as the main suitability flow.
 - Fire monitoring includes an interactive recent-detections carousel; selecting an item centers the map and opens its source attributes.
-- Preserved existing module-specific analytical services. Remaining analytical, responsive and visual validation is tracked in the pull request; this integration foundation is not a claim that all six product areas are complete.
+- The six planned integration workstreams are covered: shared territorial workspace; map and fire workflow; forest/environment lot synchronization; agro suitability synchronization and evidence labels; GPS tracking and report consistency; and automated regression/build validation.
+- This release integrates the existing domain modules rather than replacing their scientific services or claiming new analytical models. Source limitations remain visible in context; the integration does not manufacture measurements, recommendations or sample lots.
+- Automated validation is green. Full visual review across device sizes and live-source smoke tests must be completed against the production deployment after merge; the latest Vercel preview build was blocked by the account build-rate limit.
 
 ## Validation
 Run:
