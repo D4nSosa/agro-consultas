@@ -633,6 +633,8 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
 
     currentUbicacionNombre = nombreCustom || `${nombreProvincia} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
     currentSpatialLevel = spatialLevelCustom || "PUNTO / COORDENADA EXACTA";
+    const locationTitle = document.getElementById("resultado_ubicacion");
+    if (locationTitle) locationTitle.innerText = currentUbicacionNombre;
 
     colocarMarcador(lat, lng, currentUbicacionNombre);
 
