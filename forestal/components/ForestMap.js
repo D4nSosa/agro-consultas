@@ -126,11 +126,25 @@ export class ForestMap {
         attribution: '© CONAE · Cobertura de bosques Argentina 2020'
       }
     );
+    // Dataset nacional de pérdida de bosque nativo argentino publicado por GFW.
+    // Cobertura histórica 2007–2022; no es una alerta de pérdida en tiempo real.
+    const gfwArgentinaForestLoss = L.tileLayer(
+      'https://tiles.globalforestwatch.org/arg_otbn_forest_loss/v2022/dynamic/{z}/{x}/{y}.png',
+      {
+        maxZoom: 18,
+        opacity: 0.68,
+        attribution: '© Global Forest Watch · Sistema Nacional de Monitoreo de Bosques Nativos (Argentina, 2007–2022)'
+      }
+    );
     L.control.layers(null, {
-      'Cobertura de bosques nativos · CONAE 2020': conaeForestCover
+      'Cobertura de bosques nativos · CONAE 2020': conaeForestCover,
+      'Pérdida histórica de bosque nativo · GFW 2007–2022': gfwArgentinaForestLoss
     }, { collapsed: true }).addTo(this.map);
     conaeForestCover.on('tileerror', () => {
       console.warn('[ForestMap] No se pudo cargar la capa nacional de cobertura de bosques CONAE 2020.');
+    });
+    gfwArgentinaForestLoss.on('tileerror', () => {
+      console.warn('[ForestMap] No se pudo cargar el mosaico nacional GFW de pérdida de bosque nativo 2007–2022.');
     });
 
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);
