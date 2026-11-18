@@ -11,7 +11,7 @@ class WorkspaceIntegrationTests(unittest.TestCase):
             with self.subTest(page=name):
                 html = (ROOT / name).read_text(encoding="utf-8")
                 self.assertIn('href="workspace.css"', html)
-                self.assertIn('src="workspace.js"', html)
+                self.assertIn('<script type="module" src="workspace.js"></script>', html)
 
     def test_workspace_label_prefers_the_newest_saved_lot(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
