@@ -11,7 +11,7 @@ class WorkspaceIntegrationTests(unittest.TestCase):
             with self.subTest(page=name):
                 html = (ROOT / name).read_text(encoding="utf-8")
                 self.assertIn('href="workspace.css"', html)
-                self.assertRegex(html, r'<script type="module" src="workspace\.js(?:\?[^\"]*)?"></script>')
+                self.assertIn('<script type="module" src="workspace.js"></script>', html)
 
     def test_workspace_shell_reads_the_active_project_and_lot(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
