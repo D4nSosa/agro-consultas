@@ -44,7 +44,8 @@ class WorkspaceIntegrationTests(unittest.TestCase):
 
     def test_desktop_and_mobile_navigation_are_both_rendered(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
-        self.assertIn("ac-workspace-links", js)
+        self.assertNotIn("ac-workspace-links", js)
+        self.assertIn("app-header", js)
         self.assertIn("ac-mobile-nav", js)
         self.assertIn("aria-current", js)
 
@@ -64,7 +65,7 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         fire = (ROOT / "incendios.html").read_text(encoding="utf-8")
         results = (ROOT / "resultados.html").read_text(encoding="utf-8")
         self.assertNotIn("No evaluable", fire)
-        self.assertIn("el indicador no se calcula", fire)
+        self.assertIn("no es un índice oficial", fire)
         self.assertNotIn("DATOS CLIMÁTICOS NO DISPONIBLES", results)
 
     def test_location_and_radar_empty_states_are_contextual(self):
