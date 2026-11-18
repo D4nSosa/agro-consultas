@@ -83,6 +83,9 @@ def _class_area_stats(values, mask, transform, classes):
         if not np.any(valid):
             continue
         row_values = values[row][valid]
+        row_values = row_values[np.isin(row_values, list(classes))]
+        if not row_values.size:
+            continue
         valid_total += int(row_values.size)
         pixel_area = _row_pixel_area_ha(transform, row)
         unique, counts = np.unique(row_values, return_counts=True)
