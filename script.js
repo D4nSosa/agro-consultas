@@ -7,11 +7,11 @@ import {
   findProvinceByCoords,
   findSubregion,
   getProvinceDetails
-} from './services/territoryService.js';
+} from './services/territoryService.js?v=20261118-crops-fix';
 import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
-import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js';
+import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js?v=20261118-crops-fix';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
 import {
