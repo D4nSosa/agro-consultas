@@ -13,11 +13,12 @@ class WorkspaceIntegrationTests(unittest.TestCase):
                 self.assertIn('href="workspace.css"', html)
                 self.assertIn('<script type="module" src="workspace.js"></script>', html)
 
-    def test_workspace_label_prefers_the_newest_saved_lot(self):
+    def test_workspace_shell_reads_the_active_project_and_lot(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
-        self.assertIn("const candidates = []", js)
-        self.assertIn("Date.parse(feature.properties?.updatedAt || '')", js)
-        self.assertIn("candidates.sort((a, b) => b.timestamp - a.timestamp)", js)
+        self.assertIn("getWorkspaceState()", js)
+        self.assertIn("getLotContext()", js)
+        self.assertIn("ac-project-select", js)
+        self.assertIn("ac-lot-select", js)
 
     def test_shared_workspace_exposes_local_project_and_lot_switching(self):
         js = (ROOT / "workspace.js").read_text(encoding="utf-8")
