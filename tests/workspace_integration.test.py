@@ -158,6 +158,22 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("no representan incendios confirmados", source.lower())
         self.assertIn("Too Many Requests", source)
 
+    def test_national_conae_fire_layers_are_available_as_optional_context(self):
+        source = (ROOT / "incendios.html").read_text(encoding="utf-8")
+        self.assertIn("geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms", source)
+        self.assertIn("EmergenciasCONAE:MODIS_AQM_1", source)
+        self.assertIn("geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms", source)
+        self.assertIn("AlertaTemprana:INC_SIARTIVGEOL89_DC_1", source)
+        self.assertIn("AlertaTemprana:INC_SIARTIVGEOSNPP_DC_6", source)
+        self.assertIn('id="burned-product"', source)
+        self.assertIn('id="fuel-product"', source)
+
+    def test_forest_module_exposes_national_conae_forest_cover_reference_layer(self):
+        source = (ROOT / "forestal/components/ForestMap.js").read_text(encoding="utf-8")
+        self.assertIn("geoservicios2.conae.gov.ar/geoserver/Bosques/wms", source)
+        self.assertIn("Bosques:CoberturaBosque_Argentina_2020", source)
+        self.assertIn("referencia nacional histórica", source)
+
     def test_report_includes_fire_and_field_sections_and_runs_forest_analysis_for_polygons(self):
         source = (ROOT / "reporte.html").read_text(encoding="utf-8")
         self.assertIn("Observaciones satelitales de incendios", source)
