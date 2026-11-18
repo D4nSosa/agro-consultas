@@ -57,7 +57,7 @@ class WorkspaceIntegrationTests(unittest.TestCase):
 
     def test_fire_carousel_sorts_iso_and_hhmm_satellite_timestamps(self):
         source = (ROOT / "incendios.html").read_text(encoding="utf-8")
-        self.assertIn("const fallbackTime=p.date?String(p.date)+'T'+rawTime.slice(0,2)+':'+rawTime.slice(2,4)+':00Z:''", source)
+        self.assertIn("const rawTime=String(p.timeUtc||'0000').padStart(4,'0')", source)
         self.assertIn("const parsed=Date.parse(value)", source)
 
     def test_fire_and_climate_panels_avoid_generic_unavailable_labels(self):
