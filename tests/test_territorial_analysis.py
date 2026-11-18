@@ -121,7 +121,11 @@ def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
         mask=[[False, False], [False, True]],
     )
     transform = Affine(0.01, 0, -60.0, 0, -0.01, -29.9)
-    monkeypatch.setattr(rasterio.mask, "mask", lambda *_args, **_kwargs: (np.ma.array([raster]), transform))
+    mask_options = {}
+    def fake_mask(*_args, **kwargs):
+        mask_options.update(kwargs)
+        return np.ma.array([raster]), transform
+    monkeypatch.setattr(rasterio.mask, "mask", fake_mask)
 
     response = client.post("/api/territorial/gaez/analyze", json={
         "geometry": POLYGON,
@@ -141,3 +145,5 @@ def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
     assert payload["map_overlay"]["width"] <= 512
     assert payload["map_overlay"]["height"] <= 512
     assert payload["license"].startswith("CC-BY-4.0")
+    assert mask_options["all_touched"] is True
+    assert "5 minutos de arco" in payload["spatial_resolution"]
