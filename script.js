@@ -24,7 +24,7 @@ import {
 import { getClimateHistory } from './services/sources/nasaPowerService.js';
 import { getSentinel1SarAnalysis } from './forestal/services/satelliteService.js';
 import { MapViewer } from './services/mapViewer.js';
-import { setLotContext, getLotContext, clearLotContext } from './services/lotContext.js';
+import { setLotContext, getLotContext, clearLotContext, onLotContextChange } from './services/lotContext.js';
 
 let mapViewerInstance = null;
 let currentMarker = null;
@@ -212,6 +212,33 @@ export async function inicializarMapa(provinciaRaw) {
       );
     }
   }
+
+  onLotContextChange(async feature => {
+    if (!leafletMap) return;
+    if (!feature) {
+      if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
+      drawnPolygonLayer = null;
+      currentAOIPolygon = null;
+      return;
+    }
+    if (JSON.stringify(currentAOIPolygon) === JSON.stringify(feature.geometry)) return;
+    currentAOIPolygon = feature.geometry;
+    if (drawnPolygonLayer) leafletMap.removeLayer(drawnPolygonLayer);
+    drawnPolygonLayer = L.geoJSON(feature, {
+      style: { color: '#27ae60', weight: 3, fillColor: '#2ecc71', fillOpacity: 0.25 }
+    }).addTo(leafletMap);
+    const bounds = drawnPolygonLayer.getBounds();
+    if (bounds.isValid()) leafletMap.fitBounds(bounds, { padding: [24, 24] });
+    const centroid = calculateCentroid(feature);
+    if (centroid) {
+      await procesarSeleccionCoordenadas(
+        centroid.lat,
+        centroid.lng,
+        feature.properties?.name || 'Lote seleccionado',
+        'LOTE / POLÍGONO'
+      );
+    }
+  });
 
   // Renderizar panel de control de capas en el contenedor
   const layerContainer = document.getElementById("map-layer-controls-container");
