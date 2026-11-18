@@ -5,6 +5,7 @@
 import { normalizeKey } from './utils/normalization.js';
 import {
   findProvinceByCoords,
+  findProvinceCandidateByCoords,
   findSubregion,
   getProvinceDetails
 } from './services/territoryService.js';
@@ -618,7 +619,8 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
   if (!detailsContainer) return;
 
   try {
-    const key = await findProvinceByCoords(lat, lng);
+    const provinceCandidate = await findProvinceCandidateByCoords(lat, lng);
+    const key = provinceCandidate?.provinceKey || null;
     const subregion = key ? await findSubregion(key, lat, lng) : null;
 
     const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
@@ -970,7 +972,8 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
   if (tituloUbicacion) tituloUbicacion.innerText = provinciaRaw;
 
   try {
-    const key = await findProvinceByCoords(lat, lng);
+    const provinceCandidate = await findProvinceCandidateByCoords(lat, lng);
+    const key = provinceCandidate?.provinceKey || null;
     const provDetails = key ? await getProvinceDetails(key) : null;
     const subregion = key ? await findSubregion(key, lat, lng) : null;
 
@@ -1162,26 +1165,36 @@ function renderRecommendationsCards(recomendaciones) {
   const container = document.getElementById("crop-results");
   if (!container) return;
 
-  const evaluables = (recomendaciones || []).filter(c => {
+  const candidates = Array.isArray(recomendaciones) ? recomendaciones : [];
+  const evaluables = candidates.filter(c => {
     const status = String(c?.compatibilidad || "").toUpperCase();
     return status && !status.includes("INFORMACIÓN PENDIENTE") &&
       !status.includes("NO EVALUABLE") && !status.includes("DATOS INSUFICIENTES") &&
       !status.includes("INSUFFICIENT");
   });
+  const pendientes = candidates.filter(c => !evaluables.includes(c));
 
-  if (!evaluables.length) {
+  if (!candidates.length) {
     container.innerHTML = `
       <div class="empty-state card" style="grid-column:1/-1;text-align:center;padding:24px;">
         <span style="font-size:2rem;display:block;margin-bottom:8px;">🌱</span>
-        <h3>No hay una evaluación concluyente para esta selección</h3>
-        <p class="text-muted">No se mostrarán fichas de catálogo como si fueran resultados del sitio. Probá otra variable o ubicación, o consultá el mapa temático cuando haya datos disponibles.</p>
+        <h3>No encontramos cultivos para evaluar en esta referencia territorial</h3>
+        <p class="text-muted">Probá otra ubicación o seleccioná un cultivo concreto. No se completará la lista con especies de regiones no relacionadas.</p>
       </div>`;
     return;
   }
 
+  const pendingNotice = pendientes.length ? `
+    <div class="card" style="grid-column:1/-1;padding:12px 15px;border-left:4px solid #8a9691;">
+      <strong>Perfiles que requieren más evidencia</strong>
+      <p class="text-muted" style="margin:5px 0 0;font-size:.86rem;">Se muestran como referencia territorial, no como recomendaciones de implantación. La aptitud no pudo clasificarse con la evidencia disponible para este punto.</p>
+    </div>` : "";
+
   container.innerHTML = `
+    ${pendingNotice}
     <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
       ${evaluables.map(createSingleRecommendationCardHtml).join("")}
+      ${pendientes.map(createSingleRecommendationCardHtml).join("")}
     </div>`;
 }
 
