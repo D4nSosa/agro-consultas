@@ -131,7 +131,8 @@ function stabilizeNationalView(){
 const satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png',{maxZoom:19,attribution:'Tiles © Esri'});
 const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});satellite.addTo(map);
 const detectionLayer=L.layerGroup().addTo(map),goesLayer=L.layerGroup().addTo(map),lotLayer=L.geoJSON(null,{style:{color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.12}}).addTo(map),lotResultLayer=L.layerGroup().addTo(map);
-let modisViirs=[],goes=[],lot=null,history=[],historySkipped=0,historyManifest=[],selectedPoint=null,forecastMarker=null,forecastController=null,forecastRequest=0;\nlet liveWatchId=null,livePosition=null,liveMarker=null,liveAccuracy=null,lastLiveForecast=null;
+let modisViirs=[],goes=[],lot=null,history=[],historySkipped=0,historyManifest=[],selectedPoint=null,forecastMarker=null,forecastController=null,forecastRequest=0;
+let liveWatchId=null,livePosition=null,liveMarker=null,liveAccuracy=null,lastLiveForecast=null;
 const fmt=v=>v===null||v===undefined||v===''?'No informado':Number.isFinite(Number(v))?Number(v).toLocaleString('es-AR',{maximumFractionDigits:1}):String(v);
 function popup(feature){const p=feature.properties||{},isGoes=p.sensor==='GOES';const rows=isGoes?[['Fuente',p.source],['Satélite',p.satellite],['Clase',p.category+' · '+p.maskCode],['Hora UTC',p.observedAt],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura',fmt(p.temperatureK)+' K'],['Área del píxel',fmt(p.areaM2)+' m²']]:[['Fuente',p.source],['Sensor',p.sensor],['Satélite',p.satellite],['Fecha / hora UTC',(p.date||'')+' '+(p.timeUtc||'')],['Confianza',p.confidence??p.confidenceLabel??'No informada'],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura de brillo',fmt(p.brightness)+' K'],['Día / noche',p.daynight]];return '<strong>'+esc(isGoes?'Alerta GOES-19':'Detección '+p.sensor)+'</strong>'+rows.filter(x=>x[1]!==undefined&&x[1]!==null&&x[1]!=='').map(x=>'<div><b>'+esc(x[0])+':</b> '+esc(x[1])+'</div>').join('')+'<small>Anomalía térmica satelital; no equivale a incendio confirmado.</small>';}
 function drawDetections(){
@@ -224,7 +225,8 @@ const freshnessIssues=(fm?.sources||[]).filter(s=>s.ok&&s.freshness==='unknown')
 $('source-status').textContent='NASA FIRMS: '+(fm?.count??'sin respuesta')+' detecciones · GOES-19: '+(gm?.count??'sin respuesta')+(staleSources.length?' · Fuentes atrasadas excluidas: '+staleSources.join(', '):'')+(errs.length?' · '+errs.join(' · '):'')+(sourceIssues.length?' · Fuentes FIRMS con fallos: '+sourceIssues.join('; '):'');
 if(errs.length||sourceIssues.length||staleSources.length||freshnessIssues.length)$('source-status').classList.add('error');
 $('source-meta').textContent='NASA FIRMS: '+((fm?.sources||[]).map(s=>s.name+' '+(s.ok?(s.freshness==='stale'?'ATRASADA ('+s.lastModifiedAgeHours+' h)':s.freshness==='fresh'?'actualizada ('+s.lastModifiedAgeHours+' h)':'antigüedad desconocida')+' · '+s.count+' detecciones':'ERROR')).join(' · ')||'estado no informado')+' · GOES: '+(gm?.truncated?'muestra parcial; ':'')+(gm?.totalCandidates??gm?.count??'—')+' candidatos / '+(gm?.count??'—')+' devueltos · actualización automática cada 10 minutos.';b.disabled=false;b.textContent='Actualizar datos';}
-function centroid(geometry){const pts=[];const walk=x=>{if(Array.isArray(x)&&typeof x[0]==='number')pts.push(x);else if(Array.isArray(x))x.forEach(walk);};walk(geometry.coordinates);if(!pts.length)return null;return[pts.reduce((a,p)=>a+p[0],0)/pts.length,pts.reduce((a,p)=>a+p[1],0)/pts.length];}\nfunction stopLiveLocation(){if(liveWatchId!==null)navigator.geolocation.clearWatch(liveWatchId);liveWatchId=null;$('locate-me').textContent='◎ Mi ubicación';}
+function centroid(geometry){const pts=[];const walk=x=>{if(Array.isArray(x)&&typeof x[0]==='number')pts.push(x);else if(Array.isArray(x))x.forEach(walk);};walk(geometry.coordinates);if(!pts.length)return null;return[pts.reduce((a,p)=>a+p[0],0)/pts.length,pts.reduce((a,p)=>a+p[1],0)/pts.length];}
+function stopLiveLocation(){if(liveWatchId!==null)navigator.geolocation.clearWatch(liveWatchId);liveWatchId=null;$('locate-me').textContent='◎ Mi ubicación';}
 function startLiveLocation(){
  if(!('geolocation' in navigator)){ $('forecast-status').textContent='Este navegador no ofrece geolocalización.';return; }
  if(liveWatchId!==null){stopLiveLocation();return;}
@@ -269,7 +271,8 @@ async function queryLot(){
  else{$('lot-status').textContent=detections.length+' detecciones MODIS/VIIRS · '+goesInside.length+' alertas GOES-19 · CONAE: '+(conaeResult?.layersAvailable||[]).join(', ')+(conaeResult?.errors?.length?' · Fuentes con error: '+conaeResult.errors.join('; '):' · capas consultadas sin error')+(conaeResult?.truncated?' · resultado truncado por límite de paginación':'');}
  b.disabled=false;b.textContent='Analizar detecciones del lote';
 }
-$('locate-me').addEventListener('click',startLiveLocation);\n$('query-lot').addEventListener('click',queryLot);$('confidence').addEventListener('input',()=>{$('confidence-value').textContent=$('confidence').value+'%';if(history.length)applyHistory();});
+$('locate-me').addEventListener('click',startLiveLocation);
+$('query-lot').addEventListener('click',queryLot);$('confidence').addEventListener('input',()=>{$('confidence-value').textContent=$('confidence').value+'%';if(history.length)applyHistory();});
 async function sha256Hex(file){
  try{const digest=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');}
  catch{return null;}
