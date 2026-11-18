@@ -939,3 +939,8 @@ def calculate_shapely_area(geom_shape):
         meters_per_deg_lat = 111132.92 - 559.82 * math.cos(2 * lat_rad)
         meters_per_deg_lng = 111412.84 * math.cos(lat_rad)
         return abs(geom_shape.area) * meters_per_deg_lat * meters_per_deg_lng
+
+
+# Public FAO GAEZ v5 and Global Forest Watch lot-level analysis endpoints.
+from backend.territorial_analysis import router as territorial_analysis_router
+app.include_router(territorial_analysis_router)
