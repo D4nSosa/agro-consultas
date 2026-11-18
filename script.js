@@ -713,8 +713,8 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
     container.innerHTML = `
       <div class="empty-state" style="text-align: center; padding: 20px;">
         <span style="font-size: 2rem;">📡</span>
-        <p><strong>DATOS RADAR NO DISPONIBLES</strong></p>
-        <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para consultar la respuesta radar Sentinel-1.</p>
+        <p><strong>Consulta radar Sentinel-1</strong></p>
+        <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para iniciar el análisis radar Sentinel-1.</p>
       </div>
     `;
     return;
@@ -1114,9 +1114,9 @@ function mostrarErrorUbicacionNoEncontrada(queryTexto) {
   const msg = `
     <div class="unavailable-card-block" style="grid-column: 1 / -1; padding: 30px; text-align: center;">
       <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">🔍</span>
-      <h3 style="color: var(--texto-principal); margin-top: 0;">NO DISPONIBLE / UBICACIÓN NO ENCONTRADA</h3>
+      <h3 style="color: var(--texto-principal); margin-top: 0;">No encontramos esa ubicación</h3>
       <p class="explanation" style="max-width: 500px; margin: 10px auto;">
-        No se encontraron registros geográficos para <strong>"${queryTexto}"</strong>.
+        Georef no devolvió una jurisdicción para <strong>"${queryTexto}"</strong>. Revisá el nombre o seleccioná un punto directamente en el mapa.
       </p>
     </div>
   `;
@@ -1353,7 +1353,7 @@ function renderBatchEvidenceUI() {
           <div style="font-size: 0.8rem; margin-top: 8px;">
             <strong>${imgItem.filename}</strong> (${imgItem.dimensions})
             <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 2px;">
-              <div>📅 EXIF Fecha: ${imgItem.exif?.date || 'NO DISPONIBLE'}</div>
+              <div>📅 EXIF Fecha: ${imgItem.exif?.date || 'Sin fecha EXIF'}</div>
               <div>📍 EXIF GPS: ${imgItem.exif?.hasGps ? `Lat ${imgItem.exif.gps.lat.toFixed(4)}, Lng ${imgItem.exif.gps.lng.toFixed(4)}` : 'NO DISPONIBLE'}</div>
             </div>
             <div style="margin-top: 6px; font-size: 0.78rem; color: var(--texto-principal); line-height: 1.3;">
