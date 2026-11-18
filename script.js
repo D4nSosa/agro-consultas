@@ -399,7 +399,7 @@ async function inicializarControlesGAEZ(leafletMap) {
         "Rango: " + Number(stats.minimum).toLocaleString("es-AR", { maximumFractionDigits: 3 }) + " – " + Number(stats.maximum).toLocaleString("es-AR", { maximumFractionDigits: 3 }),
         "Píxeles válidos: " + Number(stats.pixel_count).toLocaleString("es-AR"),
         payload.interpretation_limit
-      ].join("\\n");
+      ].join("\n");
       status.textContent = "Capa aplicada al mapa. La escala es relativa a este lote y no representa por sí sola aptitud ni rendimiento.";
     } catch (error) {
       result.textContent = error.message;
