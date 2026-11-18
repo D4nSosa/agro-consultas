@@ -447,3 +447,50 @@ El siguiente paso no es añadir veinte capas a la interfaz. Es convertir la info
 La primera entrega de producto debería ser el rediseño de Incendios y del marco común móvil, seguida por el informe integral. GAEZ, GFW, GWIS y QField aportan capacidades valiosas, pero cada integración debe pasar por pruebas de cobertura, escala, licencia, cuotas y validez temática para Argentina.
 
 **Estado de este documento:** investigación y propuesta. No implica que los cambios de interfaz, fuentes o funcionalidades descritos estén ya implementados.
+
+
+## 13. Integración de fuentes forestales abiertas por lote
+
+Esta entrega incorpora tres fuentes públicas complementarias al análisis por polígono, además del análisis FAO/IIASA GAEZ v5 ya existente:
+
+| Fuente | Producto | Resolución / período | Uso implementado |
+|---|---|---|---|
+| Hansen / UMD / GLAD | Global Forest Change v1.13 | 1 arc-second (~30 m); pérdida 2001–2025; copa base 2000 | Media/mediana/percentil 90 de cobertura de copa 2000 y superficie estimada de pérdida bruta por año |
+| WRI / Google DeepMind (GFW Open Data) | Dominant Drivers of Tree Cover Loss v1.3 | 0.01° (~1 km); período 2001–2025 | Área y proporción del driver dominante por clase dentro del lote |
+| European Commission JRC | Global Forest Cover 2020 v4 | ~10 m; año 2020 | Superficie de bosque/no bosque y proporción forestal de referencia |
+| FAO / IIASA | GAEZ v5 RES05 | Variable según producto; global | Estadísticas zonales de productos de aptitud y productividad seleccionados |
+
+### Acceso público y autenticación
+
+- GAEZ v5 continúa leyendo el catálogo RES05 oficial y sus GeoTIFF públicos; no requiere API key.
+- Hansen lee teselas GeoTIFF públicas de Google Cloud Storage mediante solicitudes parciales.
+- El producto WRI/Google DeepMind se lee desde un COG público de Source Cooperative, espejo de acceso abierto con licencia CC BY 4.0. No se llama a la API autenticada de GFW.
+- JRC GFC2020 v4 se lee desde un COG público de Source Cooperative, espejo byte a byte del producto JRC. El COG es muy grande, pero GDAL/rasterio solicita únicamente ventanas del lote mediante HTTP range requests. No se descarga el mosaico global completo.
+
+### Endpoints
+
+- `POST /api/territorial/gaez/analyze`
+- `POST /api/territorial/forest/hansen/analyze`
+- `POST /api/territorial/forest/gfw-drivers/analyze`
+- `POST /api/territorial/forest/jrc/analyze`
+
+Todos requieren geometría Polygon/MultiPolygon WGS84. Los servicios forestales abiertos no necesitan credenciales.
+
+### Advertencias de interpretación
+
+- Hansen tree cover 2000 representa porcentaje de copa de vegetación de más de 5 m, no cobertura forestal actual.
+- Hansen loss es una perturbación bruta de cobertura arbórea: puede incluir cosecha de plantaciones, incendios y perturbaciones naturales. No es sinónimo automático de deforestación.
+- Los cambios metodológicos de Hansen desde 2011 implican cautela al comparar toda la serie temporal.
+- El producto WRI/Google DeepMind asigna un único driver dominante por celda (~1 km) al período completo; no identifica secuencias ni múltiples causas y no distingue automáticamente bosque natural de plantaciones.
+- JRC GFC2020 es una referencia de presencia/ausencia de bosque para 2020 conforme a su definición armonizada; no es un mapa legal ni identifica por sí solo bosque nativo.
+- GAEZ es un modelo agroecológico a escala de píxel; sus resultados dependen de variable, escenario y resolución del producto. No constituyen mediciones de suelo ni rendimientos reales del lote.
+- Las áreas se estiman con área geodésica por fila de píxeles en WGS84. Se deben conservar como estimaciones zonales, no como mensura catastral.
+
+### Fuentes y atribución
+
+- Hansen/UMD/Google/USGS/NASA, Global Forest Change 2025 v1.13: https://storage.googleapis.com/earthenginepartners-hansen/GFC-2025-v1.13/download.html — CC BY 4.0.
+- WRI/Google DeepMind, Global Drivers of Forest Loss v1.3: https://datasets.wri.org/datasets/dominant-drivers-of-tree-cover-loss-at-1km — CC BY 4.0; espejo COG: https://data.source.coop/epoch/global-forest-loss-drivers/v1_3/drivers_forest_loss_1km_2001_2025_v1_3.tif.
+- European Commission JRC, Global Forest Cover 2020 v4: https://forobs.jrc.ec.europa.eu/GFC/v4 — atribución solicitada; espejo COG: https://data.source.coop/epoch/jrc-global-forest-cover-2020/v4/JRC_GFC2020_V4_COG.tif.
+- FAO/IIASA GAEZ v5: https://www.fao.org/land-water/resources/tools/databases/gaez/en.
+
+**Estado:** endpoints y controles de consulta por lote agregados en la rama de implementación. La lectura real de los COG/teselas remotos, la cobertura de lotes grandes y el rendimiento en Vercel requieren validación de integración con geometrías reales antes de publicar.

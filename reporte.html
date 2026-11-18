@@ -402,7 +402,7 @@
 
         const territorialAnalysisHTML = isPolygonArea ? `
           <section id="territorial-data-analysis" style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
-            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌍 Aptitud FAO GAEZ v5 y estadísticas forestales GFW</h2>
+            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌍 Análisis agroforestal con fuentes públicas</h2>
             <p style="font-size:.84rem;color:var(--texto-secundario)">Análisis sobre el polígono del lote. Las fuentes globales incluyen Argentina; cada indicador conserva su escala y limitaciones.</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
               <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
@@ -421,11 +421,25 @@
                 <small style="color:var(--texto-secundario)">Fuente abierta · GeoTIFF FAO · resolución y escala según producto. <a href="https://github.com/un-fao/gaezv5" target="_blank" rel="noopener noreferrer">Documentación GAEZ v5</a></small>
               </div>
               <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
-                <strong>🌳 GFW · Pérdida de cobertura arbórea</strong>
-                <p style="font-size:.78rem;color:var(--texto-secundario)">Calcula estadísticas zonales por año con el indicador global UMD. No representa automáticamente pérdida de bosque nativo.</p>
-                <button id="gfw-run" class="btn primary" type="button">Calcular estadísticas GFW</button>
+                <strong>🌳 GFW / WRI · Drivers de pérdida</strong>
+                <p style="font-size:.78rem;color:var(--texto-secundario)">Distribución del driver dominante de pérdida de cobertura arbórea por celda (~1 km), período 2001–2025. Sin cuenta ni API key.</p>
+                <button id="gfw-run" class="btn primary" type="button">Analizar drivers GFW/WRI</button>
                 <div id="gfw-result" role="status" style="font-size:.8rem;margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere"></div>
-                <small style="color:var(--texto-secundario)">Requiere GFW_API_KEY configurada como secreto del backend. <a href="https://data-api.globalforestwatch.org/docs" target="_blank" rel="noopener noreferrer">API oficial y registro</a></small>
+                <small style="color:var(--texto-secundario)">Fuente WRI / Google DeepMind · COG público · CC BY 4.0. No distingue por sí solo bosque nativo de plantaciones.</small>
+              </div>
+              <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
+                <strong>🛰️ Hansen / UMD · Global Forest Change 2025</strong>
+                <p style="font-size:.78rem;color:var(--texto-secundario)">Cobertura de copa de referencia del año 2000 y pérdida bruta anual 2001–2025 a aproximadamente 30 m.</p>
+                <button id="hansen-run" class="btn primary" type="button">Analizar cobertura y pérdida</button>
+                <div id="hansen-result" role="status" style="font-size:.8rem;margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere"></div>
+                <small style="color:var(--texto-secundario)">Fuente Hansen/UMD/Google/USGS/NASA · CC BY 4.0. Pérdida no equivale automáticamente a deforestación.</small>
+              </div>
+              <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
+                <strong>🌲 JRC · Cobertura forestal 2020 v4</strong>
+                <p style="font-size:.78rem;color:var(--texto-secundario)">Superficie clasificada como bosque/no bosque en 2020, resolución de 10 m.</p>
+                <button id="jrc-run" class="btn primary" type="button">Analizar cobertura JRC</button>
+                <div id="jrc-result" role="status" style="font-size:.8rem;margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere"></div>
+                <small style="color:var(--texto-secundario)">Comisión Europea · Joint Research Centre. Referencia histórica; no es una clasificación legal ni identifica por sí sola bosque nativo.</small>
               </div>
             </div>
           </section>` : '';
@@ -587,14 +601,51 @@
           });
           document.getElementById('gfw-run')?.addEventListener('click', async () => {
             const output = document.getElementById('gfw-result');
-            output.textContent = 'Consultando estadísticas zonales de Global Forest Watch…';
+            output.textContent = 'Procesando el mapa público de drivers de pérdida forestal…';
             try {
-              const response = await fetch('/api/territorial/gfw/analyze', {
+              const response = await fetch('/api/territorial/forest/gfw-drivers/analyze', {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
               });
               const payload = await response.json();
               if (!response.ok) throw new Error(payload.detail?.message || payload.detail || 'Falló el análisis GFW.');
-              output.textContent = JSON.stringify(payload.result, null, 2) + '\n\n' + payload.interpretation_limit;
+              output.textContent = (payload.drivers || []).map(item => item.driver + ': ' + item.area_ha.toLocaleString('es-AR') + ' ha (' + item.share_percent + '%)').join('\n') + '\n\n' + (payload.limitations || []).join(' ');
+            } catch (error) { output.textContent = error.message; }
+          });
+          document.getElementById('hansen-run')?.addEventListener('click', async () => {
+            const output = document.getElementById('hansen-result');
+            output.textContent = 'Leyendo teselas públicas Hansen para el polígono…';
+            try {
+              const response = await fetch('/api/territorial/forest/hansen/analyze', {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.detail || 'Falló el análisis Hansen.');
+              const losses = Object.entries(payload.loss_by_year || {}).map(([year, item]) => year + ': ' + item.area_ha.toLocaleString('es-AR') + ' ha');
+              output.textContent = [
+                'Cobertura de copa 2000 · media: ' + (payload.tree_cover_2000.mean_percent ?? '—') + '%',
+                'Mediana: ' + (payload.tree_cover_2000.median_percent ?? '—') + '%',
+                'Pérdida bruta anual:',
+                ...(losses.length ? losses : ['Sin píxeles de pérdida registrados en el polígono']),
+                ...(payload.limitations || [])
+              ].join('\n');
+            } catch (error) { output.textContent = error.message; }
+          });
+          document.getElementById('jrc-run')?.addEventListener('click', async () => {
+            const output = document.getElementById('jrc-result');
+            output.textContent = 'Leyendo COG público JRC 2020 a 10 m para el polígono…';
+            try {
+              const response = await fetch('/api/territorial/forest/jrc/analyze', {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.detail || 'Falló el análisis JRC.');
+              output.textContent = [
+                'Bosque en 2020: ' + payload.forest_area_ha.toLocaleString('es-AR') + ' ha',
+                'No bosque: ' + payload.nonforest_area_ha.toLocaleString('es-AR') + ' ha',
+                'Proporción de bosque: ' + (payload.forest_share_percent ?? '—') + '%',
+                'Píxeles válidos: ' + payload.valid_pixels.toLocaleString('es-AR'),
+                ...(payload.limitations || [])
+              ].join('\n');
             } catch (error) { output.textContent = error.message; }
           });
         }
