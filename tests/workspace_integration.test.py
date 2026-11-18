@@ -103,6 +103,12 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("clearGeoJSON()", source)
         self.assertIn("this.currentFeature = null", source)
 
+    def test_tracking_defers_lot_switches_during_gps_capture(self):
+        html = (ROOT / "tracking.html").read_text(encoding="utf-8")
+        self.assertIn("if (watchId !== null) return; // El cambio se aplica al detener o cerrar el recorrido.", html)
+        self.assertIn("applySharedLotRef(getLotContext())", html)
+        self.assertIn("if (!polygonLayer || !map.hasLayer(polygonLayer))", html)
+
     def test_tracking_navigation_persists_the_current_lot_first(self):
         html = (ROOT / "mapa.html").read_text(encoding="utf-8")
         self.assertIn("$('tracking').onclick=()=>{if(current)$('save').click();location.href='tracking.html';};", html)
