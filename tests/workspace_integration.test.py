@@ -55,10 +55,10 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("data-fire-index", source)
         self.assertIn("setContent(popup(feature))", source)
 
-    def test_fire_carousel_sorts_timestamps_with_utc_offsets(self):
+    def test_fire_carousel_sorts_iso_and_hhmm_satellite_timestamps(self):
         source = (ROOT / "incendios.html").read_text(encoding="utf-8")
-        self.assertIn("const hasTimezone=/(?:Z|[+-]\\\\d{2}:?\\\\d{2})$/i.test(value)", source)
-        self.assertIn("Date.parse(value?(hasTimezone?value:value+'Z'):'')", source)
+        self.assertIn("const fallbackTime=p.date?String(p.date)+'T'+rawTime.slice(0,2)+':'+rawTime.slice(2,4)+':00Z:''", source)
+        self.assertIn("const parsed=Date.parse(value)", source)
 
     def test_fire_and_climate_panels_avoid_generic_unavailable_labels(self):
         fire = (ROOT / "incendios.html").read_text(encoding="utf-8")
