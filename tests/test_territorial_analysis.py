@@ -87,3 +87,56 @@ def test_gfw_analysis_uses_server_key_and_polygon_geometry(monkeypatch):
     assert captured["origin"] == "https://agro-consultas.vercel.app"
     assert captured["body"]["sum"] == ["area__ha"]
     assert captured["body"]["group_by"] == ["umd_tree_cover_loss__year"]
+
+
+
+def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
+    import numpy as np
+    import rasterio
+    from affine import Affine
+    from rasterio.crs import CRS
+
+    record = {
+        "MAPSET_CODE": "RES05-SUT", "PERIOD": "HP0120",
+        "CLIMATE_DATA_SOURCE": "AGERA5", "SSP": "HIST",
+        "CROP": "MZE", "INPUT": "L", "FILE_NAME": "maize"
+    }
+    monkeypatch.setattr(territorial, "_gaez_catalog", lambda: [record])
+
+    class FakeDataset:
+        crs = CRS.from_epsg(4326)
+        res = (0.01, 0.01)
+        nodata = -9999
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(rasterio, "open", lambda *_args, **_kwargs: FakeDataset())
+    raster = np.ma.array(
+        [[1.0, 2.0], [3.0, 4.0]],
+        mask=[[False, False], [False, True]],
+    )
+    transform = Affine(0.01, 0, -60.0, 0, -0.01, -29.9)
+    monkeypatch.setattr(rasterio.mask, "mask", lambda *_args, **_kwargs: (np.ma.array([raster]), transform))
+
+    response = client.post("/api/territorial/gaez/analyze", json={
+        "geometry": POLYGON,
+        "mapset_code": "RES05-SUT",
+        "crop": "MZE",
+        "period": "HP0120",
+        "climate_data_source": "AGERA5",
+        "ssp": "HIST",
+        "input_level": "L",
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["map_overlay"]["image_data_url"].startswith("data:image/png;base64,")
+    assert len(payload["map_overlay"]["bounds"]) == 2
+    assert payload["map_overlay"]["width"] <= 512
+    assert payload["map_overlay"]["height"] <= 512
+    assert payload["license"].startswith("CC-BY-4.0")
