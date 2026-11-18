@@ -1354,7 +1354,7 @@ function renderBatchEvidenceUI() {
             <strong>${imgItem.filename}</strong> (${imgItem.dimensions})
             <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 2px;">
               <div>📅 EXIF Fecha: ${imgItem.exif?.date || 'Sin fecha EXIF'}</div>
-              <div>📍 EXIF GPS: ${imgItem.exif?.hasGps ? `Lat ${imgItem.exif.gps.lat.toFixed(4)}, Lng ${imgItem.exif.gps.lng.toFixed(4)}` : 'NO DISPONIBLE'}</div>
+              <div>📍 EXIF GPS: ${imgItem.exif?.hasGps ? `Lat ${imgItem.exif.gps.lat.toFixed(4)}, Lng ${imgItem.exif.gps.lng.toFixed(4)}` : 'Sin coordenadas GPS'}</div>
             </div>
             <div style="margin-top: 6px; font-size: 0.78rem; color: var(--texto-principal); line-height: 1.3;">
               <strong>👁️ Análisis Visual Preliminar:</strong>
