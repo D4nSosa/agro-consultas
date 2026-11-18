@@ -144,6 +144,8 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertNotIn("ac-workspace-bar", js)
         self.assertIn("ac-workspace-dialog", js)
         self.assertIn("ac-open-workspace", js)
+        self.assertIn("ac-workspace-entry", js)
+        self.assertIn("path === 'reporte.html') window.location.reload()", js)
         self.assertIn(".app-header .right a{display:none!important}", css)
         self.assertIn(".ac-mobile-nav", css)
 
