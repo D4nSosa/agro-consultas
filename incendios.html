@@ -76,7 +76,7 @@
    <div class="fire-map-head"><h2>Mapa operativo · Argentina y entorno</h2><div class="fire-map-actions"><button id="national-view" class="btn outline">Argentina</button><button id="locate-me" class="btn outline">◎ Mi ubicación</button><button id="refresh" class="btn primary">Actualizar</button><button id="satellite" class="btn outline">Satélite</button><button id="streets" class="btn outline">Calles</button></div></div>
    <div id="fire-map" role="application" aria-label="Radar interactivo de focos de calor"></div>
    <div class="fire-legend"><span class="fire-key"><i class="fire-dot modis"></i>MODIS · detección</span><span class="fire-key"><i class="fire-dot viirs"></i>VIIRS · detección</span><span class="fire-key"><i class="fire-dot goes"></i>GOES-19 · alerta rápida</span><span class="fire-key">Las detecciones son observaciones satelitales, no incendios confirmados</span></div>
-   <div class="fire-filters"><label><input id="show-modis" type="checkbox" checked>MODIS</label><label><input id="show-viirs" type="checkbox" checked>VIIRS</label><label><input id="show-goes" type="checkbox" checked>GOES-19</label><label><input id="show-fwi" type="checkbox">GWIS · Peligro FWI</label><label><input id="show-lot" type="checkbox" checked>Área del lote</label></div>
+   <div class="fire-filters"><label><input id="show-modis" type="checkbox" checked>MODIS</label><label><input id="show-viirs" type="checkbox" checked>VIIRS</label><label><input id="show-goes" type="checkbox" checked>GOES-19</label><label><input id="show-fwi" type="checkbox">GWIS · Peligro FWI</label><label><input id="show-lot" type="checkbox" checked>Área del lote</label><label><input id="show-burned" type="checkbox">CONAE · Áreas quemadas MODIS</label><label><input id="show-fuel" type="checkbox">CONAE · Disponibilidad de combustibles</label></div>
    <p class="fire-note" id="fire-summary" aria-live="polite">Cargando observaciones satelitales para Argentina… Seleccioná un punto, usá tu ubicación o elegí un lote para consultar el entorno.</p>
   </section>
   <aside class="fire-side">
@@ -133,6 +133,22 @@ const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 // Capa WMS de peligro FWI publicada por el Global Wildfire Information System (JRC).
 const gwisFwi=L.tileLayer.wms('https://ies-ows.jrc.ec.europa.eu/gwis',{layers:'ecmwf.fwi',styles:'',format:'image/png',transparent:true,version:'1.1.1',opacity:.58,attribution:'© European Commission JRC · GWIS'});
 gwisFwi.on('tileerror',()=>{$('source-status').textContent='La capa cartográfica FWI de GWIS no respondió. Las detecciones FIRMS/GOES siguen disponibles.';$('source-status').classList.add('error');});
+// Productos oficiales CONAE con cobertura nacional publicada en el catálogo PROSAT II.
+// Se muestran como capas de contexto independientes: área quemada no es foco activo,
+// y disponibilidad de combustible no es un índice de peligro ni una predicción.
+const conaeBurned=L.tileLayer.wms('https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms',{
+ layers:'EmergenciasCONAE:MODIS_AQM_13',styles:'',format:'image/png',transparent:true,
+ version:'1.1.1',opacity:.62,attribution:'© CONAE · Producto MODIS AQM'
+});
+const conaeFuel=L.tileLayer.wms('https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms',{
+ layers:'AlertaTemprana:INC_SIARTIVGEOL89_DC_3',styles:'',format:'image/png',transparent:true,
+ version:'1.1.1',opacity:.58,attribution:'© CONAE · Disponibilidad de combustibles'
+});
+[conaeBurned,conaeFuel].forEach((layer,index)=>layer.on('tileerror',()=>{
+ const name=index===0?'áreas quemadas MODIS':'disponibilidad de combustibles';
+ $('source-status').textContent='La capa CONAE de '+name+' no respondió. Las detecciones FIRMS/GOES siguen disponibles.';
+ $('source-status').classList.add('error');
+}));
 const detectionLayer=L.layerGroup().addTo(map),goesLayer=L.layerGroup().addTo(map),lotLayer=L.geoJSON(null,{style:{color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.12}}).addTo(map),lotResultLayer=L.layerGroup().addTo(map);
 let modisViirs=[],goes=[],lot=null,history=[],historySkipped=0,historyManifest=[],selectedPoint=null,forecastMarker=null,forecastController=null,forecastRequest=0;
 let liveWatchId=null,livePosition=null,liveMarker=null,liveAccuracy=null,lastLiveForecast=null;
@@ -321,6 +337,8 @@ function applyHistory(){
 $('history-files').addEventListener('change',loadHistory);$('history-manifest').addEventListener('click',downloadHistoryManifest);$('history-apply').addEventListener('click',applyHistory);$('history-from').addEventListener('change',applyHistory);$('history-to').addEventListener('change',applyHistory);$('history-clear').addEventListener('click',()=>{history=[];historySkipped=0;$('history-files').value='';$('history-status').textContent='Sin registros históricos cargados.';$('history-years').textContent='Sin registros.';$('history-months').textContent='Sin registros.';$('history-clear').disabled=true;$('history-apply').disabled=true;$('history-manifest').disabled=true;historyManifest=[];});
 map.on('zoomend',drawDetections);$('national-view').addEventListener('click',showArgentina);$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));
 $('show-fwi').addEventListener('change',()=>{if($('show-fwi').checked)gwisFwi.addTo(map);else map.removeLayer(gwisFwi);});$('show-lot').addEventListener('change',()=>{if($('show-lot').checked)lotLayer.addTo(map);else map.removeLayer(lotLayer);});
+$('show-burned').addEventListener('change',()=>{if($('show-burned').checked)conaeBurned.addTo(map);else map.removeLayer(conaeBurned);});
+$('show-fuel').addEventListener('change',()=>{if($('show-fuel').checked)conaeFuel.addTo(map);else map.removeLayer(conaeFuel);});
 $('themeToggle')?.addEventListener('click',()=>{document.documentElement.classList.toggle('theme-dark');document.body.classList.toggle('theme-dark');try{localStorage.setItem('agro-theme',document.documentElement.classList.contains('theme-dark')?'dark':'light');}catch{}});
 try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
 refresh();window.setInterval(refresh,10*60*1000);
