@@ -28,3 +28,19 @@
  .ac-context-note{font-size:11px}
 }
 @media(min-width:761px){.ac-workspace-bar{min-height:58px}}
+
+.ac-workspace-controls{display:flex;align-items:center;gap:6px;min-width:0}
+.ac-workspace-controls select{max-width:160px;min-width:92px;padding:7px 9px;border:1px solid var(--ac-line);border-radius:9px;background:var(--ac-surface);color:var(--texto-principal);font-size:12px}
+.ac-workspace-controls .ac-lot-select{max-width:180px}
+.ac-new-project{border:1px solid var(--ac-line);border-radius:9px;background:var(--ac-pine);color:#fff;font-size:12px;font-weight:700;padding:8px 10px;white-space:nowrap;cursor:pointer}
+.ac-new-project:hover{background:var(--ac-pine-2)}
+@media(max-width:980px){.ac-workspace-controls select{max-width:125px}.ac-workspace-controls .ac-lot-select{max-width:140px}}
+@media(max-width:760px){
+ .ac-workspace-bar{flex-wrap:wrap;justify-content:space-between}
+ .ac-brand{order:1}
+ .ac-project-chip{order:2;max-width:48vw}
+ .ac-workspace-controls{order:3;flex-basis:100%;width:100%}
+ .ac-workspace-controls select{flex:1;min-width:0;max-width:none;font-size:11px}
+ .ac-workspace-controls .ac-lot-select{max-width:none}
+ .ac-new-project{font-size:11px;padding:8px}
+}
