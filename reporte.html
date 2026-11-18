@@ -121,6 +121,7 @@
     import { generateRecommendations, loadCultivosData, getCropsToEvaluate } from './services/recommendationEngine.js';
     import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
+     import { filterFireDetectionsToGeometry } from './services/fireMonitoringService.mjs';
 
     document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('report-date').innerText = `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`;
@@ -278,7 +279,7 @@
           : [];
 
         let forestHTML = '';
-        if (reportType === 'forestal') {
+        if (parsedGeom && ['Polygon', 'MultiPolygon'].includes(parsedGeom.geometry?.type)) {
           const now = new Date();
           const yearNow = now.getFullYear();
           const dateBStr = now.toISOString().split('T')[0];
@@ -355,7 +356,61 @@
           `;
         }
 
+        const fireResults = await Promise.allSettled([
+          fetch('/api/fires/national', { cache: 'no-store' }).then(async response => {
+            if (!response.ok) throw new Error('NASA FIRMS HTTP ' + response.status);
+            return response.json();
+          }),
+          fetch('/api/fires/goes', { cache: 'no-store' }).then(async response => {
+            if (!response.ok) throw new Error('GOES HTTP ' + response.status);
+            return response.json();
+          })
+        ]);
+        const firePayload = fireResults[0].status === 'fulfilled' ? fireResults[0].value : null;
+        const goesPayload = fireResults[1].status === 'fulfilled' ? fireResults[1].value : null;
+        const fireFeatures = firePayload?.features || [];
+        const goesFeatures = goesPayload?.features || [];
+        const insideFire = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type)
+          ? filterFireDetectionsToGeometry(fireFeatures, parsedGeom.geometry)
+          : fireFeatures;
+        const insideGoes = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type)
+          ? filterFireDetectionsToGeometry(goesFeatures, parsedGeom.geometry)
+          : goesFeatures;
+        const fireScope = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type)
+          ? 'dentro de la geometría del lote'
+          : 'en el recorte nacional consultado';
+        const fireHTML = `
+          <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
+            <h2 style="margin:0 0 10px;color:var(--verde-principal)">🔥 Observaciones satelitales de incendios</h2>
+            <p style="font-size:.85rem;color:var(--texto-secundario)">Consulta de NASA FIRMS y GOES-19 al generar el informe; ${fireScope}. Son anomalías térmicas, no incendios confirmados ni perímetros quemados.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+              <div><strong>${insideFire.filter(f=>f.properties?.sensor==='MODIS').length}</strong><br><small>Observaciones MODIS</small></div>
+              <div><strong>${insideFire.filter(f=>f.properties?.sensor==='VIIRS').length}</strong><br><small>Observaciones VIIRS</small></div>
+              <div><strong>${insideGoes.length}</strong><br><small>Alertas GOES-19</small></div>
+            </div>
+            <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireResults.some(result=>result.status==='rejected')?'Una o más fuentes no respondieron durante la generación del informe.':'Fuentes consultadas: NASA FIRMS y GOES-19.'} Los conteos de sensores pueden corresponder a observaciones coincidentes.</p>
+            <p style="font-size:.78rem;margin:8px 0 0"><a href="https://gwis.jrc.ec.europa.eu/applications/current-situation" target="_blank" rel="noopener noreferrer">Consultar contexto global de peligro y actividad en GWIS</a></p>
+          </section>`;
+        const fieldGeometry = parsedGeom?.geometry;
+        const fieldVertices = fieldGeometry?.type === 'Polygon'
+          ? (fieldGeometry.coordinates?.[0]?.length || 0)
+          : fieldGeometry?.type === 'MultiPolygon'
+            ? fieldGeometry.coordinates.reduce((sum, polygon) => sum + (polygon?.[0]?.length || 0), 0)
+            : 0;
+        const fieldHTML = `
+          <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
+            <h2 style="margin:0 0 10px;color:var(--verde-principal)">🧭 Campo y geometría relevada</h2>
+            <div style="font-size:.85rem;line-height:1.7">
+              <div><strong>Origen:</strong> ${parsedGeom?.properties?.source || 'No informado'}</div>
+              <div><strong>Tipo de geometría:</strong> ${fieldGeometry?.type || 'Sin geometría asociada'}</div>
+              <div><strong>Vértices del contorno:</strong> ${fieldVertices || 'No aplica / no registrado'}</div>
+              <div><strong>Área calculada:</strong> ${geometryArea && !geometryArea.isPoint ? geometryArea.hectares.toLocaleString('es-AR',{maximumFractionDigits:2})+' ha' : 'No corresponde a un polígono'}</div>
+            </div>
+            <p style="font-size:.78rem;color:var(--texto-secundario);margin:8px 0 0">La geometría compartida desde Tracking GPS se incluye como relevamiento territorial. Este informe no incorpora un historial de recorridos: el módulo actual comparte el polígono/lote, no una bitácora persistente de posiciones.</p>
+          </section>`;
         analysisContainer.innerHTML = `
+          ${fieldHTML}
+          ${fireHTML}
           ${forestHTML}
 
           <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">
