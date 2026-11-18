@@ -67,7 +67,7 @@ const REGIONAL_CROP_ALIASES = {
   'pino taeda': [['pino', 'taeda']],
   'pino elliottii': [['pino', 'elliottii']],
   'eucalyptus grandis': [['eucalyptus', 'grandis'], ['eucalipto', 'grandis']],
-  'yerba mate': [['yerba', 'mate']],
+  'yerba mate': [['yerba', 'mate'], ['yerba']],
   te: [['te'], ['camellia']],
   arroz: [['arroz']]
 };
@@ -108,10 +108,20 @@ export async function getCropsToEvaluate(provinciaKey = null, subregion = null) 
         if (nombresValidos.length > 0) {
           const regionalProfile = subregion?.suelo?.aptitud || '';
           if (regionalProfile.trim()) {
-            return nombresValidos.filter(name =>
+            const regionalCandidates = Object.values(cropCatalog)
+              .map(item => item.nombre)
+              .filter(name => name && cropIsNamedByRegionalProfile(name, regionalProfile));
+            const provincialMatches = nombresValidos.filter(name =>
               cropIsNamedByRegionalProfile(name, regionalProfile)
             );
+            // The regional profile can explicitly name crops omitted from the
+            // provincial shortlist (e.g. yerba mate in northern Corrientes).
+            const matched = [...new Set([...provincialMatches, ...regionalCandidates])];
+            if (matched.length) return matched;
           }
+          // A regional text profile is indicative, not an exclusion rule.
+          // If it does not match the provincial shortlist, retain the shortlist
+          // rather than returning an empty set and hiding all crop candidates.
           return nombresValidos;
         }
       }
