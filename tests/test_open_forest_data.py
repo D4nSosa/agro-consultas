@@ -25,10 +25,10 @@ def test_hansen_tile_codes_match_argentina_naming():
 
 def test_hansen_tile_origins_include_both_sides_of_boundary():
     origins = forest._hansen_tile_origins((-60.1, -30.1, -59.9, -29.9))
-    assert (-70, -40) in origins
     assert (-70, -30) in origins
-    assert (-60, -40) in origins
+    assert (-70, -20) in origins
     assert (-60, -30) in origins
+    assert (-60, -20) in origins
 
 
 def test_public_forest_endpoints_reject_point_geometry():
