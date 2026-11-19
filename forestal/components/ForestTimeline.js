@@ -44,12 +44,14 @@ export class ForestTimeline {
 
       <div class="timeline-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
         ${this.timelineData.map(item => {
+          const preview = typeof item.thumbnail === 'string' && /^https?:\\/\\//i.test(item.thumbnail) ? item.thumbnail : null;
           return `
-            <div class="card timeline-card" style="padding: 12px; border-radius: 8px;">
+            <div class="card timeline-card" style="padding: 12px; border-radius: 8px; min-width:0; overflow-wrap:anywhere;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <strong style="font-size: 0.9rem;">📅 ${item.date}</strong>
               </div>
-              <div style="font-size: 0.82rem; margin-top: 4px;">☁️ Nubosidad: <strong>${item.cloudCover}%</strong></div>
+              ${preview ? `<img loading="lazy" src="${preview}" alt="Vista previa de escena Sentinel-2 ${item.date}" style="display:block;width:100%;max-height:170px;object-fit:contain;border-radius:6px;margin:6px 0">` : `<div style="font-size:.75rem;color:var(--texto-secundario);padding:12px 0">El catálogo no entregó una miniatura para esta escena.</div>`}
+              <div style="font-size: 0.82rem; margin-top: 4px;">☁️ Nubosidad: <strong>${typeof item.cloudCover === 'number' ? item.cloudCover + '%' : 'No informada'}</strong></div>
               <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px; word-break: break-all;">🆔 ${item.product}</div>
             </div>
           `;
