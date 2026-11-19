@@ -60,3 +60,16 @@ test('production HTML and module imports are cache-busted after UI fixes', async
   assert.ok(config.headers.some(item => item.source === '/resultados.html'));
   assert.ok(config.headers.some(item => item.source === '/forestal.html'));
 });
+
+test('fire-weather heuristic is not presented as official FWI in user-facing modules', async () => {
+  const [report, tracking, openMeteo] = await Promise.all([
+    readFile(new URL('../reporte.html', import.meta.url), 'utf8'),
+    readFile(new URL('../tracking.html', import.meta.url), 'utf8'),
+    readFile(new URL('../services/sources/openMeteoService.js', import.meta.url), 'utf8')
+  ]);
+  assert.match(script, /Indicador meteorológico interno \(no FWI\)/);
+  assert.match(report, /Indicador meteorológico interno \(no FWI\)/);
+  assert.match(tracking, /Indicador meteorológico interno \(no FWI\)/);
+  assert.match(openMeteo, /status: DataStatus\.ESTIMATED/);
+  assert.match(openMeteo, /modelo meteorológico, no observación directa/);
+});
