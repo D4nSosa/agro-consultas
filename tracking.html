@@ -451,7 +451,8 @@
                 <div><strong>Condición:</strong> ${climateReport.condicionActualTexto}</div>
                 ${climateReport.peligroIncendio ? `
                   <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--borde-suave);">
-                    <strong>🔥 Riesgo de Incendios:</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}">${climateReport.peligroIncendio.nivel}</span>
+                    <strong>🔥 Indicador meteorológico interno (no FWI):</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}">${climateReport.peligroIncendio.nivel}</span>
+                    <small style="display:block;color:var(--texto-secundario);margin-top:5px">Heurística basada en variables actuales de Open-Meteo; no estima ignición ni sustituye alertas oficiales.</small>
                   </div>
                 ` : ''}
               </div>
