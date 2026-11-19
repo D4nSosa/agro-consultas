@@ -36,6 +36,12 @@ test('the inactive GAEZ workflow is removed while historical climate periods rem
   assert.match(script, /periodLabel/);
   assert.match(script, /climateHistory\.traceability\?\.periodoMensual/);
   assert.match(nasaService, /periodoMensual/);
+  assert.match(nasaService, /status: "ESTIMATED"/);
+  assert.doesNotMatch(nasaService, /status: "REAL"/);
+  assert.match(script, /climateHistory\?\.status === 'ESTIMATED'/);
+  assert.match(script, /climatologyStatus: 'ESTIMATED'/);
+  assert.match(report, /climateHistory\?\.status === 'ESTIMATED'/);
+  assert.match(report, /climatologyStatus: 'ESTIMATED'/);
   assert.match(results, /class="map-legend" style="display:none;"/);
 });
 
