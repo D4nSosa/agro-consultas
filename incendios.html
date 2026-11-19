@@ -215,9 +215,9 @@ function drawDetections(){
     .bindPopup(summary).addTo(layer);
   });
  };
- draw(modisViirs.filter(f=>f.properties.sensor==='MODIS'&&$('show-modis').checked),detectionLayer,'#c62828',5.5,'detecciones MODIS');
- draw(modisViirs.filter(f=>f.properties.sensor==='VIIRS'&&$('show-viirs').checked),detectionLayer,'#ef6c00',5,'detecciones VIIRS');
- draw(goes.filter(()=>$('show-goes').checked),goesLayer,'#8e2424',7,'alertas GOES-19');
+ draw(modisViirs.filter(f=>f.properties.sensor==='MODIS'&&$('show-modis').checked),detectionLayer,'#e53935',5.5,'detecciones MODIS');
+ draw(modisViirs.filter(f=>f.properties.sensor==='VIIRS'&&$('show-viirs').checked),detectionLayer,'#ff9800',5,'detecciones VIIRS');
+ draw(goes.filter(()=>$('show-goes').checked),goesLayer,'#6a1b9a',7,'alertas GOES-19');
 }
 function updateCounts(){
  const m=modisViirs.filter(f=>f.properties.sensor==='MODIS').length;
