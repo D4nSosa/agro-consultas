@@ -34,6 +34,7 @@ test('GAEZ uses the crop suitability index and historical baseline by default', 
   assert.match(script, /preferred: "HRLM"/);
   assert.match(script, /RES05-SIX/);
   assert.match(script, /periodLabel/);
+  assert.match(script, /climateHistory\.traceability\?\.periodoMensual/);
   assert.match(script, /GAEZ_NO_VALID_PIXELS/);
   assert.match(script, /alternatives/);
   assert.match(script, /hasClassifiedResult/);
