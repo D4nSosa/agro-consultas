@@ -326,8 +326,8 @@ def gfw_drivers_analyze(req: ForestLotRequest):
         "license": "CC-BY-4.0",
         "period": "2001–2025",
         "resolution": "0.01° (approximately 1 km)",
-        "area_method": "Área ponderada por fracción de intersección píxel-polígono; no suma píxeles completos.",
         "valid_pixels": valid,
+        "area_ha_total": round(total_ha, 4),
         "area_method": "Área ponderada por fracción de intersección píxel-polígono; no suma píxeles completos.",
         "drivers": drivers,
         "limitations": [
