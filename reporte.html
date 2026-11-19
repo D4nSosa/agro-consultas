@@ -496,7 +496,8 @@
                 <div><strong>Condición Met:</strong> ${climateReport.condicionActualTexto}</div>
                 ${climateReport.peligroIncendio ? `
                   <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--borde-suave);">
-                    <strong>🔥 Peligro de Incendios (FWI):</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}">${climateReport.peligroIncendio.nivel}</span>
+                    <strong>🔥 Indicador meteorológico interno (no FWI):</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}">${climateReport.peligroIncendio.nivel}</span>
+                    <small style="display:block;color:var(--texto-secundario);margin-top:5px">Indicador heurístico con temperatura, viento y condición meteorológica actual. No es FWI oficial ni pronostica ignición; consultar alertas del SMN.</small>
                   </div>
                 ` : ''}
               </div>
