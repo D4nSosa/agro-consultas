@@ -43,9 +43,9 @@ def test_public_forest_endpoints_reject_point_geometry():
 
 
 def test_gfw_drivers_returns_open_data_zonal_statistics(monkeypatch):
-    values = np.array([[1, 1, 4], [5, 5, 255]], dtype=np.uint8)
+    values = np.array([[1, 4, 4], [5, 5, 255]], dtype=np.uint8)
     mask = np.array([[False, False, False], [False, False, True]])
-    transform = Affine(0.01, 0, -60, 0, -0.01, -30)
+    transform = Affine(0.005, 0, -60, 0, -0.005, -29.99)
     monkeypatch.setattr(
         forest, "_read_single_cog",
         lambda *_args, **_kwargs: (values, mask, transform, "EPSG:4326", (0.01, 0.01)),
@@ -62,10 +62,10 @@ def test_gfw_drivers_returns_open_data_zonal_statistics(monkeypatch):
 def test_jrc_returns_2020_forest_share_without_treating_zero_as_nodata(monkeypatch):
     values = np.array([[1, 0], [1, 0]], dtype=np.uint8)
     mask = np.array([[False, False], [False, False]])
-    transform = Affine(1 / 12000, 0, -60, 0, -1 / 12000, -30)
+    transform = Affine(0.005, 0, -60, 0, -0.005, -29.99)
     monkeypatch.setattr(
         forest, "_read_single_cog",
-        lambda *_args, **_kwargs: (values, mask, transform, "EPSG:4326", (1 / 12000, 1 / 12000)),
+        lambda *_args, **_kwargs: (values, mask, transform, "EPSG:4326", (0.005, 0.005)),
     )
     response = client.post("/api/territorial/forest/jrc/analyze", json={"geometry": POLYGON})
     assert response.status_code == 200
