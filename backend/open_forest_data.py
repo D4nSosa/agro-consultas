@@ -188,7 +188,8 @@ def _read_hansen_layer(geometry, layer: str):
     for x, y, hemisphere in origins:
         tile = _hansen_tile_bbox(x, y, hemisphere)
         part = geometry.intersection(tile)
-        if part.is_empty:
+        if part.is_empty or part.area <= 0:
+            # Evita procesar tiles que solo tocan el borde del polígono sin área real.
             continue
         lat_code = _hansen_tile_code(y, "lat", hemisphere)
         lon_code = _hansen_tile_code(x, "lon")
