@@ -88,3 +88,20 @@ def test_hansen_endpoint_returns_source_period_and_limits(monkeypatch):
     assert payload["loss_by_year"]["2024"]["area_ha"] == 0.18
     assert payload["tree_cover_2000"]["mean_percent"] == 65.0
     assert any("plantaciones" in item for item in payload["limitations"])
+
+
+
+def test_class_area_stats_weights_partial_pixels_to_lot_intersection():
+    from shapely.geometry import box
+
+    values = np.array([[1]], dtype=np.uint8)
+    mask = np.array([[False]])
+    transform = Affine(0.01, 0, -60, 0, -0.01, -30)
+    # A quarter of the pixel footprint, not the full 0.01° cell.
+    geometry = box(-60.0, -30.01, -59.995, -30.005)
+    stats, valid = forest._class_area_stats(
+        values, mask, transform, {1}, geometry, "EPSG:4326"
+    )
+    full_pixel_area = forest._row_pixel_area_ha(transform, 0)
+    assert valid == 1
+    assert 0 < stats[1]["area_ha"] < full_pixel_area * 0.30
