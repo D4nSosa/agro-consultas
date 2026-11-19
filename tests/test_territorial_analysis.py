@@ -18,12 +18,12 @@ POLYGON = {
 
 def test_gaez_catalog_returns_live_catalog_options_without_credentials(monkeypatch):
     records = [
-        {"MAPSET_CODE": "RES05-SUT", "PERIOD": "HP0120", "CLIMATE_DATA_SOURCE": "AgERA5",
-         "SSP": "HIST", "CROP": "MAI", "INPUT": "L", "FILE_NAME": "maize"},
-        {"MAPSET_CODE": "RES05-SUT", "PERIOD": "HP0120", "CLIMATE_DATA_SOURCE": "AgERA5",
-         "SSP": "HIST", "CROP": "WHE", "INPUT": "L", "FILE_NAME": "wheat"},
-        {"MAPSET_CODE": "RES05-SUT", "PERIOD": "HP0120", "CLIMATE_DATA_SOURCE": "AgERA5",
-         "SSP": "HIST", "CROP": "MAI", "INPUT": "H", "FILE_NAME": "maize-high"},
+        {"MAPSET_CODE": "RES05-SIX", "PERIOD": "HP0120", "CLIMATE_DATA_SOURCE": "AgERA5",
+         "SSP": "HIST", "CROP": "MAI", "INPUT": "LRLM", "FILE_NAME": "maize"},
+        {"MAPSET_CODE": "RES05-SIX", "PERIOD": "HP0120", "CLIMATE_DATA_SOURCE": "AgERA5",
+         "SSP": "HIST", "CROP": "WHE", "INPUT": "LRLM", "FILE_NAME": "wheat"},
+        {"MAPSET_CODE": "RES05-SIX", "PERIOD": "HP0120", "CLIMATE_DATA_SOURCE": "AgERA5",
+         "SSP": "HIST", "CROP": "MAI", "INPUT": "HRLM", "FILE_NAME": "maize-high"},
     ]
     monkeypatch.setattr(territorial, "_gaez_catalog", lambda: records)
     response = client.get("/api/territorial/gaez/catalog?crop=MAI")
@@ -38,8 +38,8 @@ def test_gaez_catalog_returns_live_catalog_options_without_credentials(monkeypat
 def test_gaez_rejects_point_geometry():
     response = client.post("/api/territorial/gaez/analyze", json={
         "geometry": {"type": "Point", "coordinates": [-60, -30]},
-        "mapset_code": "RES05-SUT", "crop": "MAI", "period": "HP0120",
-        "climate_data_source": "AgERA5", "ssp": "HIST", "input_level": "L",
+        "mapset_code": "RES05-SIX", "crop": "MAI", "period": "HP0120",
+        "climate_data_source": "AgERA5", "ssp": "HIST", "input_level": "LRLM",
     })
     assert response.status_code == 422
 
@@ -98,9 +98,9 @@ def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
     from rasterio.crs import CRS
 
     record = {
-        "MAPSET_CODE": "RES05-SUT", "PERIOD": "HP0120",
+        "MAPSET_CODE": "RES05-SIX", "PERIOD": "HP0120",
         "CLIMATE_DATA_SOURCE": "AGERA5", "SSP": "HIST",
-        "CROP": "MZE", "INPUT": "L", "FILE_NAME": "maize"
+        "CROP": "MZE", "INPUT": "LRLM", "FILE_NAME": "maize"
     }
     monkeypatch.setattr(territorial, "_gaez_catalog", lambda: [record])
 
@@ -129,12 +129,12 @@ def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
 
     response = client.post("/api/territorial/gaez/analyze", json={
         "geometry": POLYGON,
-        "mapset_code": "RES05-SUT",
+        "mapset_code": "RES05-SIX",
         "crop": "MZE",
         "period": "HP0120",
         "climate_data_source": "AGERA5",
         "ssp": "HIST",
-        "input_level": "L",
+        "input_level": "LRLM",
     })
 
     assert response.status_code == 200
