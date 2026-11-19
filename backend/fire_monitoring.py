@@ -5,6 +5,7 @@ import datetime
 from email.utils import parsedate_to_datetime
 import io
 import json
+import os
 import re
 import time
 import threading
@@ -357,6 +358,206 @@ def _fire_weather_indicator(temp_max, humidity_min, wind_max, precipitation):
         label, risk_class = "Bajo", "bajo"
     return {"score": score, "riskLabel": label, "riskClass": risk_class, "conditions": checks,
             "availableConditions": available, "requiredConditions": 4}
+
+
+HISTORY_CACHE = {}
+HISTORY_CACHE_LOCK = threading.Lock()
+HISTORY_SOURCES = ("MODIS_SP", "VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_NOAA21_SP")
+HISTORY_MAX_DAYS = 31
+
+
+def _history_date_chunks(start_date, end_date):
+    current = start_date
+    while current <= end_date:
+        chunk_end = min(end_date, current + datetime.timedelta(days=4))
+        yield current, (chunk_end - current).days + 1
+        current = chunk_end + datetime.timedelta(days=1)
+
+
+def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
+    west, south, east, north = bounds
+    features, errors = [], []
+    area = ",".join(str(round(value, 6)) for value in (west, south, east, north))
+    for date, day_range in _history_date_chunks(start_date, end_date):
+        url = (
+            "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
+            + urllib.parse.quote(map_key, safe="")
+            + "/" + source + "/" + area + "/" + str(day_range) + "/" + date.isoformat()
+        )
+        request = urllib.request.Request(
+            url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "text/csv"}
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                raw = response.read(20_000_000).decode("utf-8-sig", errors="replace")
+            for row in csv.DictReader(io.StringIO(raw)):
+                lat, lon = _number(row.get("latitude")), _number(row.get("longitude"))
+                if lat is None or lon is None:
+                    continue
+                observed_date = row.get("acq_date")
+                try:
+                    parsed_date = datetime.date.fromisoformat(observed_date)
+                except (TypeError, ValueError):
+                    continue
+                if not (start_date <= parsed_date <= end_date):
+                    continue
+                sensor = "MODIS" if source.startswith("MODIS") else "VIIRS"
+                hhmm = str(row.get("acq_time", "")).zfill(4)[:4]
+                observed_at = None
+                try:
+                    observed_at = datetime.datetime.strptime(
+                        observed_date + hhmm, "%Y-%m-%d%H%M"
+                    ).replace(tzinfo=datetime.timezone.utc).isoformat()
+                except ValueError:
+                    pass
+                confidence = row.get("confidence")
+                features.append({
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [lon, lat]},
+                    "properties": {
+                        "source": "NASA FIRMS", "sensor": sensor, "product": source,
+                        "satellite": row.get("satellite"), "date": observed_date,
+                        "timeUtc": hhmm, "observedAt": observed_at,
+                        "confidence": confidence, "confidenceNumeric": _number(confidence),
+                        "powerMw": _number(row.get("frp")),
+                        "brightness": _number(row.get("brightness", row.get("bright_ti4"))),
+                        "daynight": row.get("daynight"), "version": row.get("version"),
+                    },
+                })
+        except Exception as exc:
+            errors.append(source + " " + date.isoformat() + ": " + str(exc)[:140])
+    return features, errors
+
+
+CONAE_METADATA_CACHE = {}
+CONAE_METADATA_CACHE_LOCK = threading.Lock()
+
+
+@app.get("/api/fires/conae/metadata")
+def conae_wms_metadata(kind: str):
+    """Proxy CONAE WMS capabilities and expose human-readable layer metadata."""
+    services = {
+        "burned": "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms",
+        "fuel": "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms",
+    }
+    if kind not in services:
+        raise HTTPException(status_code=400, detail="Tipo de producto CONAE inválido. Usá burned o fuel.")
+    now = time.monotonic()
+    with CONAE_METADATA_CACHE_LOCK:
+        cached = CONAE_METADATA_CACHE.get(kind)
+        if cached and now < cached["expires"]:
+            return cached["payload"]
+    url = services[kind] + "?service=WMS&request=GetCapabilities&version=1.1.1"
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/xml,text/xml"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            document = ET.fromstring(response.read(8_000_000))
+        layers = []
+        for layer in document.findall(".//{*}Layer"):
+            name = layer.findtext("{*}Name")
+            if not name:
+                continue
+            legend_url = None
+            online = layer.find(".//{*}LegendURL/{*}OnlineResource")
+            if online is not None:
+                legend_url = online.attrib.get("{http://www.w3.org/1999/xlink}href") or online.attrib.get("href")
+            layers.append({
+                "name": name,
+                "title": layer.findtext("{*}Title") or name,
+                "abstract": layer.findtext("{*}Abstract") or "",
+                "legend": legend_url,
+            })
+        if not layers:
+            raise ValueError("El documento WMS no publicó capas identificables.")
+        payload = {
+            "kind": kind,
+            "service": services[kind],
+            "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "layers": layers,
+        }
+        with CONAE_METADATA_CACHE_LOCK:
+            CONAE_METADATA_CACHE[kind] = {"payload": payload, "expires": now + 3600}
+        return payload
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="No se pudieron consultar los metadatos WMS de CONAE: " + str(exc)[:180])
+
+
+@app.post("/api/fires/history")
+def historical_fires(payload: dict):
+    """Query archived NASA FIRMS standard-processing detections for a lot and date range."""
+    map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
+    if not map_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Histórico remoto no configurado: falta la variable segura FIRMS_MAP_KEY en el servidor."
+        )
+    geometry_data = payload.get("geometry") if isinstance(payload, dict) else None
+    if geometry_data and geometry_data.get("type") == "Feature":
+        geometry_data = geometry_data.get("geometry")
+    if not geometry_data or geometry_data.get("type") not in ("Polygon", "MultiPolygon"):
+        raise HTTPException(status_code=400, detail="Seleccioná un lote Polygon o MultiPolygon para consultar el histórico.")
+    try:
+        geometry = shape(geometry_data)
+        if geometry.is_empty or not geometry.is_valid:
+            geometry = geometry.buffer(0)
+        if geometry.is_empty or not geometry.is_valid:
+            raise ValueError("Geometría no válida.")
+        start_date = datetime.date.fromisoformat(str(payload.get("from", "")))
+        end_date = datetime.date.fromisoformat(str(payload.get("to", "")))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Geometría o fechas inválidas: " + str(exc)[:140])
+    if end_date < start_date:
+        raise HTTPException(status_code=400, detail="La fecha final debe ser igual o posterior a la inicial.")
+    if (end_date - start_date).days + 1 > HISTORY_MAX_DAYS:
+        raise HTTPException(status_code=400, detail=f"Consultá períodos de hasta {HISTORY_MAX_DAYS} días por solicitud para controlar el volumen.")
+    west, south, east, north = geometry.bounds
+    cache_key = (geometry.wkb_hex, start_date.isoformat(), end_date.isoformat())
+    now = time.monotonic()
+    with HISTORY_CACHE_LOCK:
+        cached = HISTORY_CACHE.get(cache_key)
+        if cached and now < cached["expires"]:
+            return cached["payload"]
+    results = []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [
+            pool.submit(_fetch_firms_history_source, map_key, source,
+                        (west, south, east, north), start_date, end_date)
+            for source in HISTORY_SOURCES
+        ]
+        for source, future in zip(HISTORY_SOURCES, futures):
+            try:
+                rows, errors = future.result(timeout=150)
+                results.append({"source": source, "features": rows, "errors": errors})
+            except Exception as exc:
+                results.append({"source": source, "features": [], "errors": [str(exc)[:180]]})
+    features, errors = [], []
+    for result in results:
+        errors.extend(result["errors"])
+        for feature in result["features"]:
+            lon, lat = feature["geometry"]["coordinates"]
+            if geometry.covers(Point(lon, lat)):
+                features.append(feature)
+    features.sort(key=lambda item: item["properties"].get("observedAt") or "")
+    payload_out = {
+        "type": "FeatureCollection", "features": features,
+        "meta": {
+            "source": "NASA FIRMS · Standard Processing archive",
+            "from": start_date.isoformat(), "to": end_date.isoformat(),
+            "count": len(features), "scope": "detections intersecting selected lot geometry",
+            "products": HISTORY_SOURCES, "errors": errors,
+            "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "limitations": [
+                "Son detecciones térmicas satelitales, no incendios confirmados ni perímetros quemados.",
+                "El archivo Standard Processing tiene latencia y disponibilidad según sensor.",
+                "La consulta está limitada a 31 días por solicitud y requiere FIRMS_MAP_KEY.",
+            ],
+        },
+    }
+    with HISTORY_CACHE_LOCK:
+        HISTORY_CACHE[cache_key] = {"payload": payload_out, "expires": now + 900}
+    return payload_out
 
 
 @app.get("/api/fires/forecast")

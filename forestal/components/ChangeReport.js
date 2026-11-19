@@ -12,8 +12,11 @@ export class ChangeReport {
     if (!container || !analysisData) return;
 
     const { lot, dates, products, ndvi, changes, aptitude } = analysisData;
+    const search = analysisData.search || {};
     const prodA = products?.productA || null;
     const prodB = products?.productB || null;
+    const previewA = [prodA?.assets?.thumbnail, prodA?.assets?.visual].find(url => typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) || null;
+    const previewB = [prodB?.assets?.thumbnail, prodB?.assets?.visual].find(url => typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) || null;
     const statsA = ndvi?.analysisA?.stats || null;
     const statsB = ndvi?.analysisB?.stats || null;
 
@@ -110,6 +113,13 @@ export class ChangeReport {
           </div>
         </div>
 
+        <div style="margin:12px 0;padding:12px;border:1px solid var(--borde-suave);border-radius:8px;background:var(--gris-fondo);font-size:.82rem;line-height:1.5">
+          <strong>Estado de consulta STAC:</strong>
+          <div>Fecha A: ${search.dateA?.message || (prodA ? 'Escena identificada.' : 'No se obtuvo escena para la fecha A.')}</div>
+          <div>Fecha B: ${search.dateB?.message || (prodB ? 'Escena identificada.' : 'No se obtuvo escena para la fecha B.')}</div>
+          <small style="color:var(--texto-secundario)">La búsqueda se realiza por intersección con la geometría del lote. La miniatura es una vista previa del catálogo; el NDVI requiere procesamiento ráster válido.</small>
+        </div>
+
         <!-- Trazabilidad Satelital -->
         <h3 style="color: var(--verde-principal); border-bottom: 1px solid var(--borde-suave); padding-bottom: 5px; margin-top: 25px;">
           📡 Trazabilidad de Escenas Satelitales (AWS Earth Search STAC)
@@ -125,7 +135,8 @@ export class ChangeReport {
                 <li><strong>Nubosidad:</strong> ${prodA.cloudCoverDisplay || (Number.isFinite(prodA.cloudCover) ? `${prodA.cloudCover}%` : 'No informada')}</li>
                 <li><strong>Resolución:</strong> 10 metros</li>
               </ul>
-            ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: No se encontró escena con nubosidad aceptable.</div>`}
+              ${previewA ? `<img loading="lazy" src="${previewA}" alt="Vista previa Sentinel-2 Fecha A" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : `<div style="font-size:.78rem;color:var(--texto-secundario);margin-top:8px">Escena identificada, pero el catálogo no entregó una miniatura o visualización.</div>`}
+            ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: ${search.dateA?.message || 'No se encontró escena en la ventana temporal consultada.'}</div>`}
           </div>
 
           <div style="border: 1px solid var(--borde-suave); padding: 12px; border-radius: 8px;">
@@ -138,7 +149,8 @@ export class ChangeReport {
                 <li><strong>Nubosidad:</strong> ${prodB.cloudCoverDisplay || (Number.isFinite(prodB.cloudCover) ? `${prodB.cloudCover}%` : 'No informada')}</li>
                 <li><strong>Resolución:</strong> 10 metros</li>
               </ul>
-            ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: No se encontró escena con nubosidad aceptable.</div>`}
+              ${previewB ? `<img loading="lazy" src="${previewB}" alt="Vista previa Sentinel-2 Fecha B" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : `<div style="font-size:.78rem;color:var(--texto-secundario);margin-top:8px">Escena identificada, pero el catálogo no entregó una miniatura o visualización.</div>`}
+            ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: ${search.dateB?.message || 'No se encontró escena en la ventana temporal consultada.'}</div>`}
           </div>
         </div>
 

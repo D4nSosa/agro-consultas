@@ -3,8 +3,6 @@
  * Endpoint: https://earth-search.aws.element84.com/v1/
  */
 
-import { getBoundingBox } from '../utils/geo.js';
-
 const EARTH_SEARCH_STAC_URL = 'https://earth-search.aws.element84.com/v1/search';
 const PUBLIC_CATALOG_NAME = 'AWS Earth Search (Sentinel-2 L2A COGs Public Catalog)';
 
@@ -99,11 +97,14 @@ export async function searchSentinelImagesByTargetDate(geometry, targetDateStr, 
 
 export async function searchSentinelImages(geometry, startDate, endDate, maxCloudCover = 30) {
   try {
-    const bbox = getBoundingBox(geometry);
+    const geojson = geometry?.type === 'Feature' ? geometry.geometry : geometry;
+    if (!geojson || !['Polygon', 'MultiPolygon'].includes(geojson.type)) {
+      return unavailableResult('La búsqueda Sentinel-2 requiere un polígono GeoJSON válido.');
+    }
 
     const searchBody = {
       collections: ['sentinel-2-l2a'],
-      bbox: bbox,
+      intersects: geojson,
       datetime: `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
       limit: 10,
       query: {
@@ -113,11 +114,19 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
       }
     };
 
-    const respAws = await fetch(EARTH_SEARCH_STAC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(searchBody)
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    let respAws;
+    try {
+      respAws = await fetch(EARTH_SEARCH_STAC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json' },
+        body: JSON.stringify(searchBody),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!respAws.ok) {
       return unavailableResult(`Error de servicio STAC (HTTP ${respAws.status})`);
@@ -145,7 +154,8 @@ export async function searchSentinelImages(geometry, startDate, endDate, maxClou
 
   } catch (err) {
     console.error('[satelliteService] Error al consultar catálogo STAC:', err);
-    return unavailableResult(`Error de conexión al consultar el catálogo satelital: ${err.message}`);
+    const detail = err?.name === 'AbortError' ? 'La consulta STAC superó el límite de 20 segundos.' : `Error de conexión: ${err.message}`;
+    return unavailableResult(`No se pudo consultar el catálogo Sentinel-2. ${detail}`);
   }
 }
 

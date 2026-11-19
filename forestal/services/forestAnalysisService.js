@@ -16,16 +16,12 @@ export async function runFullForestAnalysis(geometry, dateA, dateB, cloudMax = 3
   const areaInfo = calculateArea(geometry);
 
   // 1. Buscar imágenes satelitales Sentinel-2 en catálogo STAC usando ventana temporal alrededor de fecha objetivo
-  const searchPromiseA = Promise.race([
+  // No descartar respuestas STAC válidas por una carrera artificial de 6 s.
+  // satelliteService aplica un timeout explícito de 20 s y devuelve el motivo de fallo.
+  const [searchResA, searchResB] = await Promise.all([
     searchSentinelImagesByTargetDate(geometry, dateA, windowDays, cloudMax),
-    new Promise(res => setTimeout(() => res({ bestProduct: null, products: [], productsCount: 0, targetDate: dateA, windowDays }), 6000))
+    searchSentinelImagesByTargetDate(geometry, dateB, windowDays, cloudMax)
   ]);
-  const searchPromiseB = Promise.race([
-    searchSentinelImagesByTargetDate(geometry, dateB, windowDays, cloudMax),
-    new Promise(res => setTimeout(() => res({ bestProduct: null, products: [], productsCount: 0, targetDate: dateB, windowDays }), 6000))
-  ]);
-
-  const [searchResA, searchResB] = await Promise.all([searchPromiseA, searchPromiseB]);
 
   const prodA = searchResA.bestProduct;
   const prodB = searchResB.bestProduct;
@@ -50,6 +46,7 @@ export async function runFullForestAnalysis(geometry, dateA, dateB, cloudMax = 3
       area: areaInfo
     },
     dates: { dateA, dateB },
+    search: { dateA: searchResA, dateB: searchResB },
     products: { productA: prodA, productB: prodB },
     ndvi: { analysisA: vegA, analysisB: vegB },
     changes: changes,
@@ -74,6 +71,7 @@ function buildRealForestTimeline(searchResults) {
             product: prod.id,
             cloudCover: prod.cloudCover,
             source: prod.source,
+            thumbnail: prod.assets?.thumbnail || prod.assets?.visual || null,
             status: 'REAL'
           });
         }
