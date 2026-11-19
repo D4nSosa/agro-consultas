@@ -136,15 +136,30 @@ export class ForestMap {
         attribution: '© Global Forest Watch · Sistema Nacional de Monitoreo de Bosques Nativos (Argentina, 2007–2022)'
       }
     );
+    // Unión nacional de los OTBN provinciales publicada por MAyDS; versión histórica julio 2016.
+    // Es una capa de contexto visual, no permite identificar la categoría legal vigente de un lote.
+    const otbnArgentina2016 = L.tileLayer(
+      'https://tiles.arcgis.com/tiles/RTK5Unh1Z71JKIiR/arcgis/rest/services/OTBN_MAyDS2016/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxNativeZoom: 13,
+        maxZoom: 18,
+        opacity: 0.55,
+        attribution: '© Ministerio de Ambiente y Desarrollo Sustentable · OTBN Argentina (julio 2016; referencia histórica)'
+      }
+    );
     L.control.layers(null, {
       'Cobertura de bosques nativos · CONAE 2020': conaeForestCover,
-      'Pérdida histórica de bosque nativo · GFW 2007–2022': gfwArgentinaForestLoss
+      'Pérdida histórica de bosque nativo · GFW 2007–2022': gfwArgentinaForestLoss,
+      'OTBN nacional · referencia histórica 2016': otbnArgentina2016
     }, { collapsed: true }).addTo(this.map);
     conaeForestCover.on('tileerror', () => {
       console.warn('[ForestMap] No se pudo cargar la capa nacional de cobertura de bosques CONAE 2020.');
     });
     gfwArgentinaForestLoss.on('tileerror', () => {
       console.warn('[ForestMap] No se pudo cargar el mosaico nacional GFW de pérdida de bosque nativo 2007–2022.');
+    });
+    otbnArgentina2016.on('tileerror', () => {
+      console.warn('[ForestMap] No se pudo cargar la capa OTBN nacional histórica 2016.');
     });
 
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);
