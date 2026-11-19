@@ -194,31 +194,42 @@ def _read_hansen_layer(geometry, layer: str):
             if dataset.crs.to_string() != "EPSG:4326":
                 from rasterio.warp import transform_geom
                 projected = transform_geom("EPSG:4326", dataset.crs, projected)
+            from shapely.geometry import shape as make_shape, box as make_box
+            aoi_raster = make_shape(projected)
             data, transform = raster_mask(dataset, [projected], crop=True, filled=False)
             band = data[0]
-            values = band.compressed()
-            if not values.size:
+            valid_mask = ~np.ma.getmaskarray(band)
+            if not np.any(valid_mask):
                 continue
             successful_tiles += 1
-            total_pixels += int(values.size)
             if layer == "treecover2000":
-                valid = values[np.isfinite(values)]
-                if valid.size:
-                    canopy_values.extend(valid.tolist())
-            elif layer == "lossyear":
-                for row in range(band.shape[0]):
-                    row_values = band.data[row][~np.ma.getmaskarray(band)[row]]
-                    if not row_values.size:
+                for row, col in zip(*np.where(valid_mask)):
+                    value = float(band.data[row, col])
+                    if not math.isfinite(value):
                         continue
-                    pixel_area = _row_pixel_area_ha(transform, row)
-                    unique, counts = np.unique(row_values, return_counts=True)
-                    for code, count in zip(unique, counts):
-                        year_code = int(code)
-                        if 1 <= year_code <= 25:
-                            year = 2000 + year_code
-                            item = loss_by_year.setdefault(year, {"pixels": 0, "area_ha": 0.0})
-                            item["pixels"] += int(count)
-                            item["area_ha"] += float(count) * pixel_area
+                    x0, y0 = transform * (int(col), int(row))
+                    x1, y1 = transform * (int(col) + 1, int(row) + 1)
+                    pixel = make_box(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+                    fraction = pixel.intersection(aoi_raster).area / pixel.area if pixel.area else 0
+                    if fraction > 0:
+                        canopy_values.append((value, min(1.0, fraction)))
+                        total_pixels += 1
+            elif layer == "lossyear":
+                for row, col in zip(*np.where(valid_mask)):
+                    code = int(band.data[row, col])
+                    if not 1 <= code <= 25:
+                        continue
+                    x0, y0 = transform * (int(col), int(row))
+                    x1, y1 = transform * (int(col) + 1, int(row) + 1)
+                    pixel = make_box(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+                    fraction = pixel.intersection(aoi_raster).area / pixel.area if pixel.area else 0
+                    if fraction <= 0:
+                        continue
+                    total_pixels += 1
+                    year = 2000 + code
+                    item = loss_by_year.setdefault(year, {"pixels": 0, "area_ha": 0.0})
+                    item["pixels"] += 1
+                    item["area_ha"] += _row_pixel_area_ha(transform, int(row)) * min(1.0, fraction)
         except Exception:
             # Missing ocean/edge granules are skipped; the endpoint fails if none intersect.
             continue
@@ -233,9 +244,9 @@ def _read_hansen_layer(geometry, layer: str):
         item["area_ha"] = round(item["area_ha"], 4)
     canopy = {
         "pixel_count": len(canopy_values),
-        "mean_percent": round(float(np.mean(canopy_values)), 2) if canopy_values else None,
-        "median_percent": round(float(np.median(canopy_values)), 2) if canopy_values else None,
-        "p90_percent": round(float(np.percentile(canopy_values, 90)), 2) if canopy_values else None,
+        "mean_percent": round(float(np.average([v for v, _ in canopy_values], weights=[w for _, w in canopy_values])), 2) if canopy_values else None,
+        "median_percent": round(float(np.median([v for v, _ in canopy_values])), 2) if canopy_values else None,
+        "p90_percent": round(float(np.percentile([v for v, _ in canopy_values], 90)), 2) if canopy_values else None,
     }
     return {"loss_by_year": dict(sorted(loss_by_year.items())), "tree_cover_2000": canopy,
             "valid_pixels": total_pixels, "tiles_read": successful_tiles}
