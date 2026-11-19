@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [script, styles] = await Promise.all([
+const [script, styles, nasaService] = await Promise.all([
   readFile(new URL('../script.js', import.meta.url), 'utf8'),
-  readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  readFile(new URL('../styles.css', import.meta.url), 'utf8'),
+  readFile(new URL('../services/sources/nasaPowerService.js', import.meta.url), 'utf8')
 ]);
 
 test('crop candidates remain visible without being mislabeled as recommendations', () => {
@@ -31,6 +32,9 @@ test('GAEZ uses the crop suitability index and historical baseline by default', 
   assert.match(script, /preferred: "AgERA5"/);
   assert.match(script, /preferred: "HIST"/);
   assert.match(script, /preferred: "HRLM"/);
+  assert.match(script, /RES05-SIX/);
+  assert.match(script, /periodLabel/);
+  assert.match(nasaService, /periodoMensual/);
   assert.doesNotMatch(results, /Abrir portal FAO\/IIASA GAEZ/);
   assert.match(script, /L\.imageOverlay/);
   assert.match(script, /api\/territorial\/gaez\/analyze/);
