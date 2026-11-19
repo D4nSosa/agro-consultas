@@ -405,15 +405,13 @@
         };
 
         const fireResults = await Promise.allSettled([
-          fetch('/api/fires/national', { cache: 'no-store' }).then(async response => {
-            return parseApiResponse(response);
-          }),
-          fetch('/api/fires/goes', { cache: 'no-store' }).then(async response => {
-            return parseApiResponse(response);
-          })
+          fetch('/api/fires/national', { cache: 'no-store' }).then(parseApiResponse),
+          fetch('/api/fires/goes', { cache: 'no-store' }).then(parseApiResponse),
+          fetch('/api/fires/forecast?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng), { cache: 'no-store' }).then(parseApiResponse)
         ]);
         const firePayload = fireResults[0].status === 'fulfilled' ? fireResults[0].value : null;
         const goesPayload = fireResults[1].status === 'fulfilled' ? fireResults[1].value : null;
+        const fireForecast = fireResults[2].status === 'fulfilled' ? fireResults[2].value : null;
         const fireFeatures = firePayload?.features || [];
         const goesFeatures = goesPayload?.features || [];
         const isPolygonArea = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type);
@@ -442,8 +440,13 @@
               <div><strong>${insideFire.filter(f=>f.properties?.sensor==='VIIRS').length}</strong><br><small>Observaciones VIIRS</small></div>
               <div><strong>${insideGoes.length}</strong><br><small>Alertas GOES-19</small></div>
             </div>
-            <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireResults.some(result=>result.status==='rejected')?'Una o más fuentes no respondieron durante la generación del informe.':'Fuentes consultadas: NASA FIRMS y GOES-19.'} Los conteos de sensores pueden corresponder a observaciones coincidentes.</p>
-            <p style="font-size:.78rem;margin:8px 0 0;color:var(--texto-secundario)">Contexto global: GWIS/JRC. Esta sección conserva el análisis dentro de Agro Consultas y no redirige a plataformas externas.</p>
+            <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireResults.slice(0,2).some(result=>result.status==='rejected')?'Una o más fuentes satelitales no respondieron durante la generación del informe.':'Fuentes consultadas: NASA FIRMS y GOES-19.'} Los conteos de sensores pueden corresponder a observaciones coincidentes.</p>
+            <p style="font-size:.75rem;color:var(--texto-secundario)">Actualización FIRMS: ${firePayload?.meta?.updatedAt || 'No informada'} · Escena GOES: ${goesPayload?.meta?.updatedAt || 'No informada'}.</p>
+            <h3 style="font-size:.92rem;margin:12px 0 6px;color:var(--verde-principal)">Detecciones recientes en el alcance consultado</h3>
+            ${insideFire.slice(0,8).map(feature=>{const p=feature.properties||{},coords=feature.geometry?.coordinates||[];return '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:6px 0;border-bottom:1px solid var(--borde-suave);font-size:.76rem"><strong>'+String(p.sensor||'Sensor').replace(/[&<>"']/g,'')+'</strong><span>'+String(p.date||'Fecha N/D').replace(/[&<>"']/g,'')+'</span><span>'+Number(coords[1]).toFixed(4)+', '+Number(coords[0]).toFixed(4)+'</span><span>'+String(p.satellite||'Satélite N/D').replace(/[&<>"']/g,'')+'</span></div>';}).join('') || '<p style="font-size:.78rem;color:var(--texto-secundario)">No hay detecciones FIRMS dentro del alcance consultado en la respuesta actual. Esto no confirma ausencia de incendios.</p>'}
+            <h3 style="font-size:.92rem;margin:14px 0 6px;color:var(--verde-principal)">Pronóstico meteorológico local · Open-Meteo</h3>
+            ${fireForecast?.days?.length ? fireForecast.days.map(day=>'<div style="display:grid;grid-template-columns:1fr repeat(4,minmax(0,1fr));gap:6px;padding:7px 0;border-bottom:1px solid var(--borde-suave);font-size:.76rem"><strong>'+day.label+'</strong><span>Máx. '+(day.temperatureMax??'N/D')+' °C</span><span>Humedad mín. '+(day.humidityMin??'N/D')+'%</span><span>Viento '+(day.windMax??'N/D')+' km/h</span><span>Lluvia '+(day.precipitation??'N/D')+' mm</span></div>').join('') : '<p style="font-size:.78rem;color:var(--texto-secundario)">Pronóstico local no disponible durante esta consulta.</p>'}
+            <p style="font-size:.75rem;color:var(--texto-secundario)">El indicador meteorológico es orientativo y no equivale al FWI oficial ni predice igniciones. Contexto global GWIS/JRC: no se atribuyen sus indicadores al lote sin intersección espacial verificada.</p>
           </section>`;
 
         const territorialAnalysisHTML = isPolygonArea ? `
@@ -618,6 +621,9 @@
               ].join('\n');
             } catch (error) { output.textContent = error.message; }
           });
+          document.getElementById('gfw-run')?.click();
+          document.getElementById('hansen-run')?.click();
+          document.getElementById('jrc-run')?.click();
         }
       } catch (err) {
         analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al generar el análisis del reporte: ${err.message}</p>`;
