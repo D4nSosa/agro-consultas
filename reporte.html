@@ -406,19 +406,9 @@
             <p style="font-size:.84rem;color:var(--texto-secundario)">Análisis sobre el polígono del lote. Las fuentes globales incluyen Argentina; cada indicador conserva su escala y limitaciones.</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
               <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
-                <strong>🌾 GAEZ v5 · FAO/IIASA</strong>
-                <p style="font-size:.78rem;color:var(--texto-secundario)">Elegí variable, cultivo y escenario para calcular estadísticas sobre los píxeles del lote.</p>
-                <div id="gaez-controls" style="display:grid;gap:7px">
-                  <label>Variable <select id="gaez-mapset" style="width:100%"></select></label>
-                  <label>Cultivo <select id="gaez-crop" style="width:100%"></select></label>
-                  <label>Período <select id="gaez-period" style="width:100%"></select></label>
-                  <label>Clima <select id="gaez-climate" style="width:100%"></select></label>
-                  <label>Escenario SSP <select id="gaez-ssp" style="width:100%"></select></label>
-                  <label>Insumos / manejo <select id="gaez-input" style="width:100%"></select></label>
-                  <button id="gaez-run" class="btn primary" type="button">Analizar lote con GAEZ</button>
-                </div>
-                <div id="gaez-result" role="status" style="font-size:.8rem;margin-top:10px"></div>
-                <small style="color:var(--texto-secundario)">Fuente abierta · GeoTIFF FAO · resolución y escala según producto. <a href="https://github.com/un-fao/gaezv5" target="_blank" rel="noopener noreferrer">Documentación GAEZ v5</a></small>
+                <strong>🌾 Evaluación productiva territorial</strong>
+                <p style="font-size:.78rem;color:var(--texto-secundario)">La aptitud de cultivos y especies forestales se presenta en el módulo Cultivos mediante fichas técnicas y evidencia disponible. No se calcula una aptitud de lote mientras falten capas edáficas y criterios regionales verificables.</p>
+                <div role="status" style="font-size:.8rem">Evaluación multicriterio del lote: pendiente de integrar cartografía de suelo validada, relieve y requerimientos productivos por región.</div>
               </div>
               <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px">
                 <strong>🌳 GFW / WRI · Drivers de pérdida</strong>
@@ -474,13 +464,13 @@
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
             <!-- Suelo INTA -->
             <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
-              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Propiedades del Suelo (INTA 1:50.000)</h4>
+              <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Cartografía de Suelos disponible</h4>
               <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
                 <div><strong>Tipo y Clasificación:</strong> ${soilReport.tipo || 'NO DISPONIBLE'}</div>
                 <div><strong>Textura Predominante:</strong> ${soilReport.textura || 'NO DISPONIBLE'}</div>
                 <div><strong>Drenaje / Escurrimiento:</strong> ${soilReport.drenaje || 'NO DISPONIBLE'}</div>
-                <div><strong>Limitantes Edáficas:</strong> ${soilReport.limitantes || 'Sin limitantes severas detectadas'}</div>
-                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Fuente declarada: ${soilReport.fuente || 'No informada'}${soilReport.fallback ? ' · Información regional de referencia; no equivale a una medición puntual.' : ''}</div>
+                <div><strong>Limitantes Edáficas:</strong> ${soilReport.limitantes || 'No evaluado'}</div>
+                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Estado de evidencia: ${soilReport.status || 'UNAVAILABLE'} · ${soilReport.fuente || 'Fuente no informada'}</div>
               </div>
             </div>
 
@@ -533,72 +523,6 @@
 
         if (isPolygonArea) {
           const geometryPayload = parsedGeom.geometry;
-          const gaezFields = [
-            ["gaez-mapset", "mapset_code", "mapset_codes"],
-            ["gaez-crop", "crop", "crops"],
-            ["gaez-period", "period", "periods"],
-            ["gaez-climate", "climate_data_source", "climate_data_sources"],
-            ["gaez-ssp", "ssp", "ssps"],
-            ["gaez-input", "input_level", "input_levels"]
-          ];
-          const gaezQuery = () => {
-            const params = new URLSearchParams();
-            gaezFields.forEach(([id, key]) => {
-              const value = document.getElementById(id)?.value;
-              if (value) params.set(key, value);
-            });
-            return params;
-          };
-          const refreshGaezOptions = async () => {
-            const params = gaezQuery();
-            try {
-              const response = await fetch('/api/territorial/gaez/catalog?' + params.toString());
-              const payload = await response.json();
-              if (!response.ok) throw new Error(payload.detail?.message || payload.detail || 'No se pudo consultar el catálogo FAO.');
-              gaezFields.forEach(([id, key, optionKey]) => {
-                const select = document.getElementById(id);
-                if (!select) return;
-                const previous = select.value;
-                select.replaceChildren();
-                (payload.options?.[optionKey] || []).forEach(value => {
-                  const option = document.createElement('option');
-                  option.value = value;
-                  option.textContent = value;
-                  select.appendChild(option);
-                });
-                if ([...select.options].some(option => option.value === previous)) select.value = previous;
-              });
-              document.getElementById('gaez-result').textContent = payload.matching_combinations
-                ? payload.matching_combinations + ' combinaciones disponibles para los filtros actuales.'
-                : 'No hay combinaciones publicadas para esta selección.';
-            } catch (error) {
-              document.getElementById('gaez-result').textContent = error.message;
-            }
-          };
-          gaezFields.forEach(([id]) => document.getElementById(id)?.addEventListener('change', refreshGaezOptions));
-          refreshGaezOptions();
-          document.getElementById('gaez-run')?.addEventListener('click', async () => {
-            const output = document.getElementById('gaez-result');
-            const params = gaezQuery();
-            const body = { geometry: geometryPayload };
-            gaezFields.forEach(([, key]) => body[key] = params.get(key) || null);
-            output.textContent = 'Procesando GeoTIFF FAO sobre el lote…';
-            try {
-              const response = await fetch('/api/territorial/gaez/analyze', {
-                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
-              });
-              const payload = await response.json();
-              if (!response.ok) throw new Error(payload.detail?.message || payload.detail || 'Falló el análisis GAEZ.');
-              const s = payload.statistics;
-              output.textContent = [
-                'Píxeles válidos: ' + s.pixel_count,
-                'Mínimo: ' + s.minimum.toFixed(3) + ' · Máximo: ' + s.maximum.toFixed(3),
-                'Media: ' + s.mean.toFixed(3) + ' · Mediana: ' + s.median.toFixed(3),
-                'Desvío estándar: ' + s.standard_deviation.toFixed(3),
-                payload.interpretation_limit
-              ].join('\n');
-            } catch (error) { output.textContent = error.message; }
-          });
           document.getElementById('gfw-run')?.addEventListener('click', async () => {
             const output = document.getElementById('gfw-result');
             output.textContent = 'Procesando el mapa público de drivers de pérdida forestal…';
