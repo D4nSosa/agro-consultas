@@ -44,7 +44,7 @@ export class ForestTimeline {
 
       <div class="timeline-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
         ${this.timelineData.map(item => {
-          const preview = typeof item.thumbnail === 'string' && /^https?:\\/\\//i.test(item.thumbnail) ? item.thumbnail : null;
+          const preview = typeof item.thumbnail === 'string' && (item.thumbnail.startsWith('https://') || item.thumbnail.startsWith('http://')) ? item.thumbnail : null;
           return `
             <div class="card timeline-card" style="padding: 12px; border-radius: 8px; min-width:0; overflow-wrap:anywhere;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
