@@ -14,8 +14,8 @@ test('incendios keeps source provenance inside the application without a separat
 });
 
 test('incendios does not send users to external provider portals', () => {
-  const anchors = [...page.matchAll(/<a\\b[^>]*href=["']([^"']+)["'][^>]*>/gi)];
-  const external = anchors.map(([, href]) => href).filter(href => /^https?:\\/\\//i.test(href));
+  const anchors = [...page.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi)];
+  const external = anchors.map(([, href]) => href).filter(href => /^https?:\/\//i.test(href));
   assert.deepEqual(external, []);
 });
 
