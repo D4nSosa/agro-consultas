@@ -242,11 +242,24 @@ def _read_hansen_layer(geometry, layer: str):
         raise HTTPException(status_code=502, detail="No se pudieron leer teselas públicas Hansen para la geometría.")
     for item in loss_by_year.values():
         item["area_ha"] = round(item["area_ha"], 4)
+    def weighted_percentile(samples, percentile):
+        ordered = sorted(samples, key=lambda item: item[0])
+        total_weight = sum(weight for _, weight in ordered)
+        if not total_weight:
+            return None
+        threshold = total_weight * percentile / 100.0
+        cumulative = 0.0
+        for value, weight in ordered:
+            cumulative += weight
+            if cumulative >= threshold:
+                return float(value)
+        return float(ordered[-1][0])
+
     canopy = {
         "pixel_count": len(canopy_values),
         "mean_percent": round(float(np.average([v for v, _ in canopy_values], weights=[w for _, w in canopy_values])), 2) if canopy_values else None,
-        "median_percent": round(float(np.median([v for v, _ in canopy_values])), 2) if canopy_values else None,
-        "p90_percent": round(float(np.percentile([v for v, _ in canopy_values], 90)), 2) if canopy_values else None,
+        "median_percent": round(weighted_percentile(canopy_values, 50), 2) if canopy_values else None,
+        "p90_percent": round(weighted_percentile(canopy_values, 90), 2) if canopy_values else None,
     }
     return {"loss_by_year": dict(sorted(loss_by_year.items())), "tree_cover_2000": canopy,
             "valid_pixels": total_pixels, "tiles_read": successful_tiles}
