@@ -19,33 +19,33 @@ test('crop candidates remain visible without being mislabeled as recommendations
   assert.doesNotMatch(script, /no como recomendaciones de siembra ni como cultivos aptos/);
 });
 
-test('GAEZ uses the crop suitability index and historical baseline by default', async () => {
+test('the inactive GAEZ workflow is removed while historical climate periods remain explicit', async () => {
   const results = await readFile(new URL('../resultados.html', import.meta.url), 'utf8');
-  assert.match(results, /id="gaez-map-controls"/);
+  const report = await readFile(new URL('../reporte.html', import.meta.url), 'utf8');
   assert.match(results, /12 meses consolidados/);
   assert.doesNotMatch(results, /Últimos 12 meses/);
-  assert.match(results, /id="gaez-map-run"/);
+  assert.doesNotMatch(results, /gaez-map-controls|gaez-map-run|GAEZ v5/);
+  assert.equal(results.includes('/api/territorial/gaez/'), false);
+  assert.doesNotMatch(script, /GAEZ|gaez-map/);
+  assert.doesNotMatch(report, /GAEZ|gaez-map/);
+  assert.equal(report.includes('/api/territorial/gaez/'), false);
+  assert.match(results, /id="crop-map-analysis-status"/);
   assert.match(results, /initSplashScreen/);
   assert.match(results, /splash\.style\.display = 'flex'/);
   assert.doesNotMatch(results, /sessionStorage\.getItem\('splash_shown'\)/);
-  assert.match(script, /preferred: "RES05-SIX"/);
-  assert.match(script, /value === "RES05-SIX"/);
-  assert.match(script, /body.mapset_code !== "RES05-SIX"/);
-  assert.match(script, /preferred: "HP0120"/);
-  assert.match(script, /preferred: "AgERA5"/);
-  assert.match(script, /preferred: "HIST"/);
-  assert.match(script, /preferred: "HRLM"/);
-  assert.match(script, /RES05-SIX/);
   assert.match(script, /periodLabel/);
   assert.match(script, /climateHistory\.traceability\?\.periodoMensual/);
-  assert.match(script, /GAEZ_NO_VALID_PIXELS/);
-  assert.match(script, /alternatives/);
-  assert.match(script, /hasClassifiedResult/);
   assert.match(nasaService, /periodoMensual/);
+  assert.match(nasaService, /status: "ESTIMATED"/);
+  assert.doesNotMatch(nasaService, /status: "REAL"/);
+  assert.match(nasaService, /reanálisis\/modelado espacial/);
+  assert.match(script, /reanálisis\/modelado espacial/);
+  assert.match(report, /Período mensual reciente \(reanálisis\)/);
+  assert.match(script, /climateHistory\?\.status === 'ESTIMATED'/);
+  assert.match(script, /climatologyStatus: 'ESTIMATED'/);
+  assert.match(report, /climateHistory\?\.status === 'ESTIMATED'/);
+  assert.match(report, /climatologyStatus: 'ESTIMATED'/);
   assert.match(results, /class="map-legend" style="display:none;"/);
-  assert.doesNotMatch(results, /Abrir portal FAO\/IIASA GAEZ/);
-  assert.match(script, /L\.imageOverlay/);
-  assert.match(script, /api\/territorial\/gaez\/analyze/);
 });
 
 test('mobile module navigation wraps into a grid without horizontal scrolling', () => {
@@ -68,4 +68,17 @@ test('production HTML and module imports are cache-busted after UI fixes', async
   assert.match(scriptText, /recommendationEngine\.js\?v=20261118-crops-fix/);
   assert.ok(config.headers.some(item => item.source === '/resultados.html'));
   assert.ok(config.headers.some(item => item.source === '/forestal.html'));
+});
+
+test('fire-weather heuristic is not presented as official FWI in user-facing modules', async () => {
+  const [report, tracking, openMeteo] = await Promise.all([
+    readFile(new URL('../reporte.html', import.meta.url), 'utf8'),
+    readFile(new URL('../tracking.html', import.meta.url), 'utf8'),
+    readFile(new URL('../services/sources/openMeteoService.js', import.meta.url), 'utf8')
+  ]);
+  assert.match(script, /Indicador meteorológico interno \(no FWI\)/);
+  assert.match(report, /Indicador meteorológico interno \(no FWI\)/);
+  assert.match(tracking, /Indicador meteorológico interno \(no FWI\)/);
+  assert.match(openMeteo, /status: DataStatus\.ESTIMATED/);
+  assert.match(openMeteo, /modelo meteorológico, no observación directa/);
 });

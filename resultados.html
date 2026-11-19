@@ -142,25 +142,9 @@
 
           <!-- Panel de control de capas extensible -->
           <div id="map-layer-controls-container" style="padding: 10px; background: var(--bg-principal);"></div>
-          <section id="gaez-map-controls" style="padding:12px;border-top:1px solid var(--borde-suave);background:var(--bg-principal)">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-              <strong style="color:var(--verde-principal)">🌾 Aptitud agroecológica · FAO/IIASA GAEZ v5</strong>
-              <span id="gaez-map-status" class="text-muted" style="font-size:.78rem">Índice de aptitud FAO · resolución aproximada de 5 minutos de arco (no es una medición intralote).</span>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:10px">
-              <label style="font-size:.78rem">Indicador<select id="gaez-mapset" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
-              <label style="font-size:.78rem">Cultivo GAEZ<select id="gaez-crop" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
-              <label style="font-size:.78rem">Período<select id="gaez-period" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
-              <label style="font-size:.78rem">Fuente climática<select id="gaez-climate" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
-              <label style="font-size:.78rem">Escenario<select id="gaez-ssp" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
-              <label style="font-size:.78rem">Nivel de manejo<select id="gaez-input" style="display:block;width:100%;margin-top:4px;padding:8px"></select></label>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
-              <button id="gaez-map-run" class="btn primary" type="button">Mostrar capa en este mapa</button>
-              <button id="gaez-map-clear" class="btn outline" type="button">Quitar capa</button>
-              <span id="gaez-map-legend" style="font-size:.78rem;color:var(--texto-secundario)"></span>
-            </div>
-            <div id="gaez-map-result" role="status" style="font-size:.82rem;line-height:1.5;margin-top:8px;white-space:pre-wrap"></div>
+          <section id="crop-map-analysis-status" style="padding:12px;border-top:1px solid var(--borde-suave);background:var(--bg-principal)">
+            <strong style="color:var(--verde-principal)">🌾 Evaluación productiva territorial</strong>
+            <p style="font-size:.8rem;color:var(--texto-secundario);margin:6px 0 0">Las capas productivas se incorporarán cuando exista cobertura territorial validada. Las fichas de Cultivos describen requerimientos técnicos; no equivalen a una aptitud calculada del lote.</p>
           </section>
           <!-- Leyenda del Mapa interactiva -->
           <div class="map-legend" style="display:none;">

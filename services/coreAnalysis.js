@@ -1,55 +1,106 @@
 /**
- * services/coreAnalysis.js — Núcleo de Análisis Agroambiental y Forestal
- * Funciones puras desacopladas de la UI, estructuradas en formato JSON para consumo directo o futuras APIs.
+ * Núcleo de análisis territorial por ubicación.
+ * Los candidatos se limitan al catálogo de la provincia identificada; no se
+ * amplían silenciosamente al catálogo nacional cuando falta cobertura territorial.
  */
-
 import { findProvinceByCoords, findSubregion, getProvinceDetails } from './territoryService.js';
 import { getSoilReport } from './soilService.js';
 import { getClimateData } from './climateService.js';
-import { generateRecommendations, loadCultivosData } from './recommendationEngine.js';
-import { analyzeForestLocation } from '../forestal/services/forestAnalysisService.js';
+import { generateRecommendations, getCropsToEvaluate, getForestToEvaluate } from './recommendationEngine.js';
 import { DataStatus, ConfidenceLevel } from '../utils/dataModel.js';
 
+const upper = value => String(value || '').toUpperCase();
+
+export function summarizeEvidenceQuality(soilData = {}, climateData = {}) {
+  const soilStatus = upper(soilData.status);
+  const climateStatus = upper(climateData.climatologyStatus || climateData.status);
+  const soilAvailable = soilStatus !== DataStatus.UNAVAILABLE &&
+    Boolean(soilData.ph !== null && soilData.ph !== undefined ||
+      soilData.tipo && !/no disponible/i.test(String(soilData.tipo)) ||
+      soilData.textura && !/no disponible/i.test(String(soilData.textura)));
+  const climateAvailable = climateStatus !== DataStatus.UNAVAILABLE &&
+    (climateData.temperaturaMediaVal !== null && climateData.temperaturaMediaVal !== undefined ||
+      climateData.precipitacionesAnualesVal !== null && climateData.precipitacionesAnualesVal !== undefined);
+  const liveWeatherAvailable = Boolean(climateData.liveWeatherPoint?.available);
+  const anyEvidence = soilAvailable || climateAvailable || liveWeatherAvailable;
+  const pointSoilEvidence = soilStatus === DataStatus.REAL &&
+    !['CARTOGRAPHIC', 'REGIONAL_PROFILE'].includes(upper(soilData.evidenceType));
+  const completeComparableEvidence = pointSoilEvidence &&
+    climateStatus === DataStatus.REAL && soilAvailable && climateAvailable;
+
+  let status = DataStatus.UNAVAILABLE;
+  if (anyEvidence) {
+    if (soilStatus === DataStatus.REGIONAL || climateStatus === DataStatus.REGIONAL) {
+      status = DataStatus.REGIONAL;
+    } else if (completeComparableEvidence) {
+      status = DataStatus.REAL;
+    } else {
+      status = DataStatus.ESTIMATED;
+    }
+  }
+
+  let confidence = ConfidenceLevel.NONE;
+  if (completeComparableEvidence) confidence = ConfidenceLevel.HIGH;
+  else if (soilAvailable && climateAvailable) confidence = ConfidenceLevel.MEDIUM;
+  else if (anyEvidence) confidence = ConfidenceLevel.LOW;
+
+  return {
+    status,
+    confidence,
+    components: {
+      soil: { status: soilStatus || DataStatus.UNAVAILABLE, evidenceType: soilData.evidenceType || 'UNSPECIFIED', available: soilAvailable },
+      climateReference: { status: climateStatus || DataStatus.UNAVAILABLE, available: climateAvailable },
+      currentWeather: { available: liveWeatherAvailable }
+    },
+    recommendationEligibility: completeComparableEvidence,
+    sources: [soilData.fuente, climateData.fuenteClimaVivo, climateData.fuenteAlertas].filter(Boolean)
+  };
+}
+
 /**
- * Analiza una ubicación por coordenadas (Punto + Radio de Alcance).
- *
- * @param {Object} params
- * @param {number} params.lat - Latitud.
- * @param {number} params.lng - Longitud.
- * @param {number} [params.radiusKm=15] - Radio de alcance en kilómetros.
- * @returns {Promise<Object>} Análisis territorial completo estructurado.
+ * Analiza una ubicación por coordenadas. Las recomendaciones son candidatas
+ * provinciales, no aptitud del lote; la clasificación final depende de evidencia
+ * comparable y suficiente en el motor agronómico.
  */
 export async function analyzeLocation({ lat, lng, radiusKm = 15 }) {
+  const query = { lat, lng, radiusKm };
   try {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      throw new Error('Coordenadas inválidas. Se espera latitud [-90, 90] y longitud [-180, 180].');
+    }
+
     const provinciaKey = await findProvinceByCoords(lat, lng);
     const provDetails = provinciaKey ? await getProvinceDetails(provinciaKey) : null;
-    const provinciaNombre = provDetails ? provDetails.nombre || provinciaKey : "Argentina";
-
+    const provinciaNombre = provDetails ? provDetails.nombre || provinciaKey : 'Argentina';
     const subregion = provinciaKey ? await findSubregion(provinciaKey, lat, lng) : null;
 
-    const soilData = await getSoilReport(lat, lng, subregion?.suelo);
-    const climateData = await getClimateData(lat, lng, provinciaNombre, subregion?.clima);
+    const [soilData, climateData] = await Promise.all([
+      getSoilReport(lat, lng),
+      getClimateData(lat, lng, provinciaNombre, subregion?.clima || null)
+    ]);
 
-    const allCropsCatalog = await loadCultivosData();
-    const todosCultivosNombres = Object.values(allCropsCatalog).map(item => item.nombre || item.id);
+    const [cropNames, forestNames] = await Promise.all([
+      getCropsToEvaluate(provinciaKey, subregion),
+      getForestToEvaluate(provinciaKey)
+    ]);
 
-    const cropRecommendations = await generateRecommendations(todosCultivosNombres, soilData, climateData);
-    const forestRecommendations = await analyzeForestLocation({
-      geometry: { type: 'Point', coordinates: [lng, lat] },
-      soil: soilData,
-      climate: climateData,
-      lat,
-      lng
-    });
+    const [cropRecommendations, forestRecommendations] = await Promise.all([
+      generateRecommendations(cropNames, soilData, climateData),
+      generateRecommendations(forestNames, soilData, climateData)
+    ]);
 
     return {
       success: true,
-      query: { lat, lng, radiusKm },
+      query,
       territory: {
         provinceKey: provinciaKey,
         provinceName: provinciaNombre,
         subregion: subregion?.nombre || null,
-        geography: subregion?.geografia || null
+        geography: subregion?.geografia || null,
+        candidateScope: provinciaKey ? 'PROVINCIAL_CATALOG' : 'UNRESOLVED',
+        candidateScopeMessage: provinciaKey
+          ? 'La lista identifica cultivos y especies declarados para la provincia; no representa aptitud del lote.'
+          : 'No se identificó una provincia argentina; no se generaron candidatos nacionales genéricos.'
       },
       soil: soilData,
       climate: climateData,
@@ -57,11 +108,7 @@ export async function analyzeLocation({ lat, lng, radiusKm = 15 }) {
         crops: cropRecommendations,
         forest: forestRecommendations
       },
-      quality: {
-        status: soilData.status === DataStatus.REAL && climateData.status === DataStatus.REAL ? DataStatus.REAL : DataStatus.REGIONAL,
-        confidence: soilData.confidence === ConfidenceLevel.HIGH ? ConfidenceLevel.HIGH : ConfidenceLevel.MEDIUM,
-        sources: [soilData.fuente, climateData.fuenteClimaVivo, climateData.fuenteAlertas].filter(Boolean)
-      },
+      quality: summarizeEvidenceQuality(soilData, climateData),
       analyzedAt: new Date().toISOString()
     };
   } catch (err) {
@@ -69,23 +116,17 @@ export async function analyzeLocation({ lat, lng, radiusKm = 15 }) {
     return {
       success: false,
       error: err.message,
-      query: { lat, lng, radiusKm },
+      query,
       status: DataStatus.UNAVAILABLE,
       confidence: ConfidenceLevel.NONE
     };
   }
 }
 
-/**
- * Alias de compatibilidad para consultar suelo.
- */
 export async function getSoilData(lat, lng) {
   return await getSoilReport(lat, lng);
 }
 
-/**
- * Alias de compatibilidad para consultar territorio.
- */
 export async function getTerritoryData(provincia, lat, lng) {
   const key = await findProvinceByCoords(lat, lng);
   const subregion = await findSubregion(key, lat, lng);

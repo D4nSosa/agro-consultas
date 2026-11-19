@@ -25,19 +25,16 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       const { data, timestamp, origin } = entry;
       // Las entradas antiguas no registran procedencia: se descartan para no presentar
       // un fallback regional como si fuera una consulta puntual al GeoServer.
-      if (Date.now() - timestamp < CACHE_EXPIRY && (origin === 'wms' || origin === 'regional')) {
+      if (Date.now() - timestamp < CACHE_EXPIRY && origin === 'wms') {
         return {
           ...data,
-          ...(origin === 'wms' ? { status: 'CARTOGRAPHIC', confidence: 'medium', evidenceType: 'CARTOGRAPHIC' } : {}),
-          fuente: origin === 'wms'
-            ? 'INTA Cartografía Oficial (WMS · caché local)'
-            : 'Perfil agroambiental de referencia de Agro Consultas (caché local; sin fuente primaria asociada)',
-          ...(origin === 'regional' ? { escala: 'Punto representativo de subregión (sin escala cartográfica)', confidence: 'low' } : {}),
+          status: 'CARTOGRAPHIC', confidence: 'medium', evidenceType: 'CARTOGRAPHIC',
+          fuente: 'INTA Cartografía Oficial (WMS · caché local)',
           cached: true,
-          fallback: origin === 'regional'
+          fallback: false
         };
       }
-      if (origin !== 'wms' && origin !== 'regional') localStorage.removeItem(cacheKey);
+      if (origin !== 'wms') localStorage.removeItem(cacheKey);
     }
   } catch (err) {
     console.warn("[INTA] Error al leer caché edafológico:", err);
@@ -97,42 +94,13 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       throw new Error("No se encontraron features en la coordenada");
     }
   } catch (err) {
-    console.log("[INTA] Consulta de mapa de suelo en tiempo real no disponible, activando adaptador estático:", err.message);
-
-    if (subregionStaticData) {
-      const data = {
-        tipo: subregionStaticData.tipo || "Información Regional de Suelos",
-        textura: subregionStaticData.textura || "No disponible en cartografía regional",
-        drenaje: subregionStaticData.drenaje || "No disponible en cartografía regional",
-        limitantes: subregionStaticData.limitantes || "Sin información regional",
-        aptitud: subregionStaticData.aptitud || "No disponible en cartografía regional",
-        ph: subregionStaticData.ph !== undefined && subregionStaticData.ph !== null ? subregionStaticData.ph : null,
-        escala: "Punto representativo de subregión (sin escala cartográfica)",
-        status: "REGIONAL",
-        confidence: "low",
-        fechaActualizacion: new Date().toISOString()
-      };
-
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now(), origin: 'regional' }));
-      } catch (e) {}
-
-      return { ...data, fuente: 'Perfil agroambiental de referencia de Agro Consultas (sin fuente primaria asociada en el registro)', cached: false, fallback: true };
-    }
+    console.log("[INTA] Consulta de mapa de suelo en tiempo real no disponible, sin utilizar perfiles regionales como datos del lote:", err.message);
 
     return {
-      tipo: "Información de suelo no disponible para esta ubicación",
-      textura: "No disponible",
-      drenaje: "No disponible",
-      limitantes: "No disponible",
-      aptitud: "No disponible para esta coordenada",
-      ph: null,
-      escala: "Sin cobertura puntual",
-      status: "UNAVAILABLE",
-      confidence: "none",
-      fuente: 'INTA Cartografía (Sin Cobertura Puntual / Servicio No Disponible)',
-      cached: false,
-      fallback: false
+      tipo: null, textura: null, drenaje: null, limitantes: null, aptitud: null,
+      ph: null, escala: null, status: "UNAVAILABLE", confidence: "none",
+      evidenceType: "UNAVAILABLE", fuente: "Consulta cartográfica INTA no disponible",
+      cached: false, fallback: false, error: err.message
     };
   }
 }

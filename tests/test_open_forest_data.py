@@ -25,10 +25,10 @@ def test_hansen_tile_codes_match_argentina_naming():
 
 def test_hansen_tile_origins_include_both_sides_of_boundary():
     origins = forest._hansen_tile_origins((-60.1, -30.1, -59.9, -29.9))
-    assert (-70, -30) in origins
-    assert (-70, -20) in origins
-    assert (-60, -30) in origins
-    assert (-60, -20) in origins
+    assert (-70, -30, "S") in origins
+    assert (-70, -20, "S") in origins
+    assert (-60, -30, "S") in origins
+    assert (-60, -20, "S") in origins
 
 
 def test_public_forest_endpoints_reject_point_geometry():
@@ -43,9 +43,9 @@ def test_public_forest_endpoints_reject_point_geometry():
 
 
 def test_gfw_drivers_returns_open_data_zonal_statistics(monkeypatch):
-    values = np.array([[1, 1, 4], [5, 5, 255]], dtype=np.uint8)
+    values = np.array([[1, 4, 4], [5, 5, 255]], dtype=np.uint8)
     mask = np.array([[False, False, False], [False, False, True]])
-    transform = Affine(0.01, 0, -60, 0, -0.01, -30)
+    transform = Affine(0.005, 0, -60, 0, -0.005, -29.99)
     monkeypatch.setattr(
         forest, "_read_single_cog",
         lambda *_args, **_kwargs: (values, mask, transform, "EPSG:4326", (0.01, 0.01)),
@@ -62,10 +62,10 @@ def test_gfw_drivers_returns_open_data_zonal_statistics(monkeypatch):
 def test_jrc_returns_2020_forest_share_without_treating_zero_as_nodata(monkeypatch):
     values = np.array([[1, 0], [1, 0]], dtype=np.uint8)
     mask = np.array([[False, False], [False, False]])
-    transform = Affine(1 / 12000, 0, -60, 0, -1 / 12000, -30)
+    transform = Affine(0.005, 0, -60, 0, -0.005, -29.99)
     monkeypatch.setattr(
         forest, "_read_single_cog",
-        lambda *_args, **_kwargs: (values, mask, transform, "EPSG:4326", (1 / 12000, 1 / 12000)),
+        lambda *_args, **_kwargs: (values, mask, transform, "EPSG:4326", (0.005, 0.005)),
     )
     response = client.post("/api/territorial/forest/jrc/analyze", json={"geometry": POLYGON})
     assert response.status_code == 200
@@ -88,3 +88,41 @@ def test_hansen_endpoint_returns_source_period_and_limits(monkeypatch):
     assert payload["loss_by_year"]["2024"]["area_ha"] == 0.18
     assert payload["tree_cover_2000"]["mean_percent"] == 65.0
     assert any("plantaciones" in item for item in payload["limitations"])
+
+
+
+def test_class_area_stats_weights_partial_pixels_to_lot_intersection():
+    from shapely.geometry import box
+
+    values = np.array([[1]], dtype=np.uint8)
+    mask = np.array([[False]])
+    transform = Affine(0.01, 0, -60, 0, -0.01, -30)
+    # A quarter of the pixel footprint, not the full 0.01° cell.
+    geometry = box(-60.0, -30.01, -59.995, -30.005)
+    stats, valid = forest._class_area_stats(
+        values, mask, transform, {1}, geometry, "EPSG:4326"
+    )
+    full_pixel_area = forest._row_pixel_area_ha(transform, 0)
+    assert valid == 1
+    assert 0 < stats[1]["area_ha"] < full_pixel_area * 0.30
+
+
+def test_hansen_tile_origins_support_single_tile_small_lot():
+    origins = forest._hansen_tile_origins((-60.10, -30.10, -60.05, -30.05))
+    assert origins == [(-70, -30, "S")]
+
+
+def test_hansen_tile_origins_support_single_tile_northern_hemisphere():
+    origins = forest._hansen_tile_origins((-65.10, 10.10, -65.05, 10.05))
+    assert origins == [(-70, 10, "N")]
+
+
+def test_hansen_tile_bbox_respects_northern_and_southern_tile_conventions():
+    assert forest._hansen_tile_bbox(-70, -30, "S").bounds == (-70, -40, -60, -30)
+    assert forest._hansen_tile_bbox(-70, 10, "N").bounds == (-70, 10, -60, 20)
+
+
+def test_hansen_origins_distinguish_both_tiles_at_the_equator():
+    origins = forest._hansen_tile_origins((-60.1, -0.1, -60.05, 0.1))
+    assert (-70, 0, "S") in origins
+    assert (-70, 0, "N") in origins

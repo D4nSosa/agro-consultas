@@ -17,3 +17,19 @@ test('forest candidate list is merged only for the all-profiles view', async () 
   assert.match(script, /getForestToEvaluate\(key\)/);
   assert.match(script, /candidatosAgricolas, \.\.\.candidatosForestales/);
 });
+
+test('technical report includes provincial forestry candidates without equating catalog membership with lot suitability', async () => {
+  const report = await readFile(new URL('../reporte.html', import.meta.url), 'utf8');
+  assert.match(report, /getForestToEvaluate/);
+  assert.match(report, /Especies forestales del catálogo provincial/);
+  assert.match(report, /Su inclusión no implica aptitud del lote/);
+  assert.match(report, /recomendacionesForestales/);
+});
+
+test('forest map exposes the national OTBN 2016 layer only as historical context', async () => {
+  const map = await readFile(new URL('../forestal/components/ForestMap.js', import.meta.url), 'utf8');
+  assert.match(map, /OTBN nacional · referencia histórica 2016/);
+  assert.match(map, /OTBN_MAyDS2016\/MapServer\/tile/);
+  assert.match(map, /julio 2016/);
+  assert.match(map, /no permite identificar la categoría legal vigente de un lote/);
+});

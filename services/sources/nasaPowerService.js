@@ -218,7 +218,7 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
     }
 
     return {
-      status: "REAL",
+      status: "ESTIMATED",
       data: {
         periodMetrics: {
           precipitacionAcumuladaMm: precValidCount > 0 ? Math.round(precTotalPeriodMm * 10) / 10 : "NO DISPONIBLE",
@@ -249,14 +249,14 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
           fin: selectedKeys[selectedKeys.length - 1] || null,
           cantidadRegistros: selectedKeys.length
         },
-        fuente: "REAL — NASA POWER (Prediction Of Worldwide Energy Resources)",
+        fuente: "ESTIMATED — NASA POWER (reanálisis/modelado espacial)",
         apiEndpoint: "https://power.larc.nasa.gov/",
         coordenadas: { lat: parseFloat(lat.toFixed(4)), lng: parseFloat(lng.toFixed(4)) },
         periodo: `${startYear}–${endYear}`,
         mesesAnalizados: selectedKeys.length,
         variablesConsultadas: ['PRECTOTCORR', 'T2M', 'T2M_MAX', 'T2M_MIN', 'RH2M', 'WS2M', 'ALLSKY_SFC_SW_DWN'],
         fechaConsulta: new Date().toISOString().split('T')[0],
-        disclaimer: "Estos datos representan reanálisis espacial/modelado de NASA POWER y no sustituyen una estación meteorológica local."
+        disclaimer: "Datos de reanálisis/modelado espacial de NASA POWER; no son mediciones de estación ni sustituyen registros meteorológicos locales."
       }
     };
 

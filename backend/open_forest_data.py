@@ -74,38 +74,67 @@ def _row_pixel_area_ha(transform, row: int) -> float:
     return abs(area) / 10000.0
 
 
-def _class_area_stats(values, mask, transform, classes):
+def _class_area_stats(values, mask, transform, classes, geometry=None, crs="EPSG:4326"):
+    """Zonal class areas weighted by the fraction of each pixel inside the AOI.
+
+    Counting every touched pixel as a full pixel overstates small/irregular lots and
+    can report more hectares than the parcel itself. Fractions are computed in the
+    raster CRS; geographic pixel areas are then measured geodesically.
+    """
     import numpy as np
+    from pyproj import CRS, Geod, Transformer
+    from shapely.geometry import box
+    from shapely.ops import transform as transform_geometry
+
+    raster_crs = CRS.from_user_input(crs)
+    aoi = geometry
+    if aoi is not None and not raster_crs.equals(CRS.from_epsg(4326)):
+        transformer = Transformer.from_crs("EPSG:4326", raster_crs, always_xy=True)
+        aoi = transform_geometry(transformer.transform, aoi)
+
+    geod = Geod(ellps="WGS84") if raster_crs.is_geographic else None
+    unit_factor = (raster_crs.axis_info[0].unit_conversion_factor
+                   if raster_crs.axis_info else 1.0)
     result = {int(code): {"pixels": 0, "area_ha": 0.0} for code in classes}
     valid_total = 0
     for row in range(values.shape[0]):
-        valid = ~mask[row]
-        if not np.any(valid):
-            continue
-        row_values = values[row][valid]
-        row_values = row_values[np.isin(row_values, list(classes))]
-        if not row_values.size:
-            continue
-        valid_total += int(row_values.size)
-        pixel_area = _row_pixel_area_ha(transform, row)
-        unique, counts = np.unique(row_values, return_counts=True)
-        for raw_code, count in zip(unique, counts):
-            code = int(raw_code)
-            if code in result:
-                result[code]["pixels"] += int(count)
-                result[code]["area_ha"] += float(count) * pixel_area
+        for col in range(values.shape[1]):
+            if mask[row, col]:
+                continue
+            code = int(values[row, col])
+            if code not in result:
+                continue
+            x0, y0 = transform * (col, row)
+            x1, y1 = transform * (col + 1, row + 1)
+            pixel = box(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+            fraction = 1.0
+            if aoi is not None:
+                overlap = pixel.intersection(aoi)
+                if overlap.is_empty or pixel.area <= 0:
+                    continue
+                fraction = min(1.0, max(0.0, overlap.area / pixel.area))
+                if fraction <= 0:
+                    continue
+            if geod:
+                pixel_area_m2, _ = geod.geometry_area_perimeter(pixel)
+                pixel_area_ha = abs(pixel_area_m2) / 10000.0
+            else:
+                pixel_area_ha = pixel.area * (unit_factor ** 2) / 10000.0
+            result[code]["pixels"] += 1
+            result[code]["area_ha"] += pixel_area_ha * fraction
+            valid_total += 1
     for item in result.values():
         item["area_ha"] = round(item["area_ha"], 4)
     return result, valid_total
 
 
-def _hansen_tile_code(value: float, axis: str) -> str:
+def _hansen_tile_code(value: float, axis: str, hemisphere: str | None = None) -> str:
     if axis == "lat":
-        if value >= 0:
-            origin = int(math.floor(value / 10) * 10)
-            return f"{origin:02d}N"
-        origin = int(math.floor(abs(value) / 10) * 10)
-        return f"{origin:02d}S"
+        if hemisphere == "S" or (hemisphere is None and value < 0):
+            origin = int(math.floor(abs(value) / 10) * 10)
+            return f"{origin:02d}S"
+        origin = int(math.floor(value / 10) * 10)
+        return f"{origin:02d}N"
     if value >= 0:
         origin = int(math.floor(value / 10) * 10)
         return f"{origin:03d}E"
@@ -116,24 +145,33 @@ def _hansen_tile_code(value: float, axis: str) -> str:
 def _hansen_tile_origins(bounds):
     minx, miny, maxx, maxy = bounds
     xs = range(math.floor(minx / 10) * 10, math.floor(maxx / 10) * 10 + 1, 10)
-    # Hansen names southern tiles by their northern edge (e.g. 30S covers 30-40S).
-    ys = set()
-    for lat in (miny, maxy):
-        if lat < 0:
-            ys.add(-int(math.floor(abs(lat) / 10) * 10))
-        else:
-            ys.add(int(math.floor(lat / 10) * 10))
+    ys: set[tuple[int, str]] = set()
+
     if miny < 0 < maxy:
-        ys.update(range(0, int(math.floor(maxy / 10) * 10) + 1, 10))
-        ys.update(range(-10, -int(math.floor(abs(miny) / 10) * 10) - 1, -10))
+        # El ecuador separa dos tiles distintos: 00S y 00N.
+        south_low = -int(math.floor(abs(miny) / 10) * 10)
+        north_high = int(math.floor(maxy / 10) * 10)
+        ys.update((y, "S") for y in range(south_low, 1, 10))
+        ys.update((y, "N") for y in range(0, north_high + 1, 10))
     else:
-        low, high = sorted(ys)
-        ys.update(range(low, high + 1, 10))
-    return [(x, y) for x in xs for y in sorted(ys)]
+        hemisphere = "S" if miny < 0 else "N"
+        if hemisphere == "S":
+            first = -int(math.floor(abs(miny) / 10) * 10)
+            last = -int(math.floor(abs(maxy) / 10) * 10)
+        else:
+            first = int(math.floor(miny / 10) * 10)
+            last = int(math.floor(maxy / 10) * 10)
+        low, high = sorted((first, last))
+        ys.update((y, hemisphere) for y in range(low, high + 1, 10))
+
+    return [(x, y, hemisphere) for x in xs for y, hemisphere in sorted(ys)]
 
 
-def _hansen_tile_bbox(x: int, y: int):
-    return box(x, y - 10, x + 10, y)
+def _hansen_tile_bbox(x: int, y: int, hemisphere: str):
+    # Hansen 30S cubre 30–40°S; 10N cubre 10–20°N.
+    if hemisphere == "S":
+        return box(x, y - 10, x + 10, y)
+    return box(x, y, x + 10, y + 10)
 
 
 def _read_hansen_layer(geometry, layer: str):
@@ -147,12 +185,13 @@ def _read_hansen_layer(geometry, layer: str):
     origins = _hansen_tile_origins(geometry.bounds)
     if len(origins) > 25:
         raise HTTPException(status_code=413, detail="El polígono cruza demasiadas teselas Hansen. Dividí el área para analizarla.")
-    for x, y in origins:
-        tile = _hansen_tile_bbox(x, y)
+    for x, y, hemisphere in origins:
+        tile = _hansen_tile_bbox(x, y, hemisphere)
         part = geometry.intersection(tile)
-        if part.is_empty:
+        if part.is_empty or part.area <= 0:
+            # Evita procesar tiles que solo tocan el borde del polígono sin área real.
             continue
-        lat_code = _hansen_tile_code(y, "lat")
+        lat_code = _hansen_tile_code(y, "lat", hemisphere)
         lon_code = _hansen_tile_code(x, "lon")
         filename = f"Hansen_{HANSEN_VERSION}_{layer}_{lat_code}_{lon_code}.tif"
         url = f"{HANSEN_BASE}/{filename}"
@@ -165,31 +204,42 @@ def _read_hansen_layer(geometry, layer: str):
             if dataset.crs.to_string() != "EPSG:4326":
                 from rasterio.warp import transform_geom
                 projected = transform_geom("EPSG:4326", dataset.crs, projected)
-            data, transform = raster_mask(dataset, [projected], crop=True, filled=False)
+            from shapely.geometry import shape as make_shape, box as make_box
+            aoi_raster = make_shape(projected)
+            data, transform = raster_mask(dataset, [projected], crop=True, filled=False, all_touched=True)
             band = data[0]
-            values = band.compressed()
-            if not values.size:
+            valid_mask = ~np.ma.getmaskarray(band)
+            if not np.any(valid_mask):
                 continue
             successful_tiles += 1
-            total_pixels += int(values.size)
             if layer == "treecover2000":
-                valid = values[np.isfinite(values)]
-                if valid.size:
-                    canopy_values.extend(valid.tolist())
-            elif layer == "lossyear":
-                for row in range(band.shape[0]):
-                    row_values = band.data[row][~np.ma.getmaskarray(band)[row]]
-                    if not row_values.size:
+                for row, col in zip(*np.where(valid_mask)):
+                    value = float(band.data[row, col])
+                    if not math.isfinite(value):
                         continue
-                    pixel_area = _row_pixel_area_ha(transform, row)
-                    unique, counts = np.unique(row_values, return_counts=True)
-                    for code, count in zip(unique, counts):
-                        year_code = int(code)
-                        if 1 <= year_code <= 25:
-                            year = 2000 + year_code
-                            item = loss_by_year.setdefault(year, {"pixels": 0, "area_ha": 0.0})
-                            item["pixels"] += int(count)
-                            item["area_ha"] += float(count) * pixel_area
+                    x0, y0 = transform * (int(col), int(row))
+                    x1, y1 = transform * (int(col) + 1, int(row) + 1)
+                    pixel = make_box(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+                    fraction = pixel.intersection(aoi_raster).area / pixel.area if pixel.area else 0
+                    if fraction > 0:
+                        canopy_values.append((value, min(1.0, fraction)))
+                        total_pixels += 1
+            elif layer == "lossyear":
+                for row, col in zip(*np.where(valid_mask)):
+                    code = int(band.data[row, col])
+                    if not 1 <= code <= 25:
+                        continue
+                    x0, y0 = transform * (int(col), int(row))
+                    x1, y1 = transform * (int(col) + 1, int(row) + 1)
+                    pixel = make_box(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+                    fraction = pixel.intersection(aoi_raster).area / pixel.area if pixel.area else 0
+                    if fraction <= 0:
+                        continue
+                    total_pixels += 1
+                    year = 2000 + code
+                    item = loss_by_year.setdefault(year, {"pixels": 0, "area_ha": 0.0})
+                    item["pixels"] += 1
+                    item["area_ha"] += _row_pixel_area_ha(transform, int(row)) * min(1.0, fraction)
         except Exception:
             # Missing ocean/edge granules are skipped; the endpoint fails if none intersect.
             continue
@@ -202,11 +252,24 @@ def _read_hansen_layer(geometry, layer: str):
         raise HTTPException(status_code=502, detail="No se pudieron leer teselas públicas Hansen para la geometría.")
     for item in loss_by_year.values():
         item["area_ha"] = round(item["area_ha"], 4)
+    def weighted_percentile(samples, percentile):
+        ordered = sorted(samples, key=lambda item: item[0])
+        total_weight = sum(weight for _, weight in ordered)
+        if not total_weight:
+            return None
+        threshold = total_weight * percentile / 100.0
+        cumulative = 0.0
+        for value, weight in ordered:
+            cumulative += weight
+            if cumulative >= threshold:
+                return float(value)
+        return float(ordered[-1][0])
+
     canopy = {
         "pixel_count": len(canopy_values),
-        "mean_percent": round(float(np.mean(canopy_values)), 2) if canopy_values else None,
-        "median_percent": round(float(np.median(canopy_values)), 2) if canopy_values else None,
-        "p90_percent": round(float(np.percentile(canopy_values, 90)), 2) if canopy_values else None,
+        "mean_percent": round(float(np.average([v for v, _ in canopy_values], weights=[w for _, w in canopy_values])), 2) if canopy_values else None,
+        "median_percent": round(weighted_percentile(canopy_values, 50), 2) if canopy_values else None,
+        "p90_percent": round(weighted_percentile(canopy_values, 90), 2) if canopy_values else None,
     }
     return {"loss_by_year": dict(sorted(loss_by_year.items())), "tree_cover_2000": canopy,
             "valid_pixels": total_pixels, "tiles_read": successful_tiles}
@@ -222,7 +285,7 @@ def _read_single_cog(geometry, url: str, band_index: int = 1):
         if dataset.crs.to_string() != "EPSG:4326":
             from rasterio.warp import transform_geom
             projected = transform_geom("EPSG:4326", dataset.crs, projected)
-        data, transform = raster_mask(dataset, [projected], crop=True, filled=False, indexes=band_index)
+        data, transform = raster_mask(dataset, [projected], crop=True, filled=False, indexes=band_index, all_touched=True)
         band = data if data.ndim == 2 else data[0]
         values = band.data
         mask = __import__("numpy").ma.getmaskarray(band)
@@ -248,7 +311,7 @@ def hansen_analyze(req: ForestLotRequest):
         "loss_by_year": loss["loss_by_year"],
         "valid_pixels": min(canopy["valid_pixels"], loss["valid_pixels"]),
         "tiles_read": min(canopy["tiles_read"], loss["tiles_read"]),
-        "method": "Conteo de píxeles por año de pérdida y estadísticos de cobertura arbórea de referencia sobre el polígono.",
+        "method": "Estadísticas zonales con fracción de área de cada píxel intersectada por el polígono.",
         "limitations": [
             "La pérdida es una perturbación de cobertura arbórea, no una clasificación automática de deforestación.",
             "Puede incluir cosecha de plantaciones, incendios y perturbaciones naturales.",
@@ -265,7 +328,7 @@ def gfw_drivers_analyze(req: ForestLotRequest):
     geometry = _polygon(req.geometry)
     try:
         values, mask, transform, crs, resolution = _read_single_cog(geometry, GFW_DRIVERS_COG, 1)
-        stats, valid = _class_area_stats(values, mask, transform, DRIVER_CLASSES)
+        stats, valid = _class_area_stats(values, mask, transform, DRIVER_CLASSES, geometry, crs)
     except HTTPException:
         raise
     except Exception as exc:
@@ -287,6 +350,8 @@ def gfw_drivers_analyze(req: ForestLotRequest):
         "period": "2001–2025",
         "resolution": "0.01° (approximately 1 km)",
         "valid_pixels": valid,
+        "area_ha_total": round(total_ha, 4),
+        "area_method": "Área ponderada por fracción de intersección píxel-polígono; no suma píxeles completos.",
         "drivers": drivers,
         "limitations": [
             "Un solo driver dominante por celda para todo el período; no representa secuencia ni causas simultáneas.",
@@ -304,14 +369,11 @@ def jrc_analyze(req: ForestLotRequest):
     try:
         values, mask, transform, crs, resolution = _read_single_cog(geometry, JRC_COG, 1)
         import numpy as np
-        valid_mask = ~mask
-        forest_mask = valid_mask & (values == 1)
-        nonforest_mask = valid_mask & (values == 0)
-        forest_stats, valid = _class_area_stats(values, mask, transform, {0, 1})
+        forest_stats, valid = _class_area_stats(values, mask, transform, {0, 1}, geometry, crs)
         forest_ha = forest_stats[1]["area_ha"]
         nonforest_ha = forest_stats[0]["area_ha"]
         total_ha = forest_ha + nonforest_ha
-        forest_pixels = int(np.count_nonzero(forest_mask))
+        forest_pixels = forest_stats[1]["pixels"]
     except HTTPException:
         raise
     except Exception as exc:

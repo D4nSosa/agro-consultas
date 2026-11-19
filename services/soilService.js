@@ -54,9 +54,9 @@ export async function getSagypStatsByProvince(provinciaNombre, cultivoNombre) {
  * @param {Object} subregionStaticSuelo - Datos de suelo estáticos de la subregión (de regiones.json).
  * @returns {Promise<Object>} Reporte de suelo consolidado.
  */
-export async function getSoilReport(lat, lng, subregionStaticSuelo = null) {
+export async function getSoilReport(lat, lng, _subregionStaticSuelo = null) {
   // Obtener la información base desde INTA / Cartografía Regional
-  const baseSoil = await fetchINTASoilData(lat, lng, subregionStaticSuelo);
+  const baseSoil = await fetchINTASoilData(lat, lng, null);
 
   return {
     tipo: baseSoil.tipo || 'NO DISPONIBLE',
@@ -66,9 +66,9 @@ export async function getSoilReport(lat, lng, subregionStaticSuelo = null) {
     aptitud: baseSoil.aptitud || 'NO DISPONIBLE',
     ph: baseSoil.ph !== undefined && baseSoil.ph !== null ? baseSoil.ph : 'NO DISPONIBLE',
     escala: baseSoil.escala || 'NO INFORMADA',
-    status: baseSoil.status || (subregionStaticSuelo ? 'REGIONAL' : 'UNAVAILABLE'),
-    confidence: baseSoil.confidence || (subregionStaticSuelo ? 'low' : 'none'),
-    evidenceType: baseSoil.evidenceType || (subregionStaticSuelo ? 'REGIONAL_PROFILE' : 'UNAVAILABLE'),
-    fuente: baseSoil.fuente || (subregionStaticSuelo ? 'Perfil agroambiental de referencia de Agro Consultas (sin fuente primaria asociada)' : 'Fuente no disponible')
+    status: baseSoil.status || 'UNAVAILABLE',
+    confidence: baseSoil.confidence || 'none',
+    evidenceType: baseSoil.evidenceType || 'UNAVAILABLE',
+    fuente: baseSoil.fuente || 'Fuente no disponible; no se asigna un perfil regional al lote'
   };
 }

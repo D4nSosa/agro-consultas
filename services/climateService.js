@@ -15,6 +15,23 @@ import { DataStatus, ConfidenceLevel } from '../utils/dataModel.js';
  * @param {Object|null} subregionStaticClima - Datos climatológicos estáticos de la subregión.
  * @returns {Promise<Object>} Reporte climático consolidado.
  */
+/**
+ * La API Forecast de Open-Meteo entrega una salida de modelo, no una medición
+ * de estación. Los perfiles subregionales siguen identificados como regionales.
+ */
+export function resolveClimateEvidenceStatus(liveWeatherPoint, subregionStaticClima = null) {
+  if (liveWeatherPoint?.available) {
+    return {
+      status: liveWeatherPoint.status || DataStatus.ESTIMATED,
+      confidence: liveWeatherPoint.confidence || ConfidenceLevel.MEDIUM
+    };
+  }
+  if (subregionStaticClima) {
+    return { status: DataStatus.REGIONAL, confidence: ConfidenceLevel.LOW };
+  }
+  return { status: DataStatus.UNAVAILABLE, confidence: ConfidenceLevel.NONE };
+}
+
 export async function getClimateData(lat, lng, provincia, subregionStaticClima = null) {
   const [liveWeatherPoint, smnAlertsPoint] = await Promise.all([
     fetchLiveWeather(lat, lng),
@@ -80,12 +97,9 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
   // Cálculo del Índice de Peligro de Incendios Agro-Forestales
   const peligroIncendio = calcularIndicePeligroIncendio(tempActual, vientoActual, weatherCode);
 
-  const overallStatus = liveWeatherPoint?.available
-    ? DataStatus.REAL
-    : (subregionStaticClima ? DataStatus.REGIONAL : DataStatus.UNAVAILABLE);
-  const overallConfidence = liveWeatherPoint?.available
-    ? ConfidenceLevel.HIGH
-    : (subregionStaticClima ? ConfidenceLevel.MEDIUM : ConfidenceLevel.NONE);
+  const climateEvidence = resolveClimateEvidenceStatus(liveWeatherPoint, subregionStaticClima);
+  const overallStatus = climateEvidence.status;
+  const overallConfidence = climateEvidence.confidence;
 
   return {
     temperaturaActual: tempActual !== null ? `${tempActual}°C` : "NO DISPONIBLE",
@@ -123,6 +137,9 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
 export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
   if (temp === null || temp === undefined || viento === null || viento === undefined) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "NO DISPONIBLE",
       icono: "⚪",
       clase: "badge-media",
@@ -133,10 +150,13 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
   const isRain = weatherCode !== null && (weatherCode >= 51 && weatherCode <= 82);
   if (isRain) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "BAJO (Lluvia activa)",
       icono: "🟢",
       clase: "badge-alta",
-      descripcion: "Ocurrencia de precipitaciones en vivo mitigando riesgo de fuego."
+      descripcion: "El código meteorológico actual indica precipitación; no equivale a humedad del combustible ni a un FWI oficial."
     };
   }
 
@@ -153,32 +173,44 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
 
   if (score >= 6) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "MUY ALTO / EXTREMO",
       icono: "🔴",
       clase: "badge-baja",
-      descripcion: "Condiciones críticas: Alta temperatura y vientos fuertes. Prohibido realizar quemas."
+      descripcion: "Temperatura y viento elevados pueden favorecer la propagación. Verificar alertas oficiales y normativa local antes de cualquier actividad."
     };
   } else if (score >= 4) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "ALTO",
       icono: "🟠",
       clase: "badge-media",
-      descripcion: "Elevada probabilidad de propagación de incendios en cobertura vegetal."
+      descripcion: "Condiciones meteorológicas que pueden favorecer la propagación en cobertura vegetal; no estima ignición ni confirma incendios."
     };
   } else if (score >= 2) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "MODERADO",
       icono: "🟡",
       clase: "badge-media",
-      descripcion: "Riesgo moderado de incendio. Mantener precauciones de campo."
+      descripcion: "Condiciones meteorológicas intermedias según el indicador interno. Mantener precauciones y consultar alertas oficiales."
     };
   }
 
   return {
+    tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+    fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+    limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
     nivel: "BAJO",
     icono: "🟢",
     clase: "badge-alta",
-    descripcion: "Condiciones meteorológicas estables con bajo riesgo de propagación."
+    descripcion: "El indicador interno no detecta condiciones elevadas con las variables disponibles; no descarta peligro local."
   };
 }
 
