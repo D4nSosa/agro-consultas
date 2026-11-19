@@ -128,13 +128,13 @@ def _class_area_stats(values, mask, transform, classes, geometry=None, crs="EPSG
     return result, valid_total
 
 
-def _hansen_tile_code(value: float, axis: str) -> str:
+def _hansen_tile_code(value: float, axis: str, hemisphere: str | None = None) -> str:
     if axis == "lat":
-        if value >= 0:
-            origin = int(math.floor(value / 10) * 10)
-            return f"{origin:02d}N"
-        origin = int(math.floor(abs(value) / 10) * 10)
-        return f"{origin:02d}S"
+        if hemisphere == "S" or (hemisphere is None and value < 0):
+            origin = int(math.floor(abs(value) / 10) * 10)
+            return f"{origin:02d}S"
+        origin = int(math.floor(value / 10) * 10)
+        return f"{origin:02d}N"
     if value >= 0:
         origin = int(math.floor(value / 10) * 10)
         return f"{origin:03d}E"
@@ -145,26 +145,33 @@ def _hansen_tile_code(value: float, axis: str) -> str:
 def _hansen_tile_origins(bounds):
     minx, miny, maxx, maxy = bounds
     xs = range(math.floor(minx / 10) * 10, math.floor(maxx / 10) * 10 + 1, 10)
-    # Hansen names southern tiles by their northern edge (e.g. 30S covers 30-40S).
-    ys = set()
-    for lat in (miny, maxy):
-        if lat < 0:
-            ys.add(-int(math.floor(abs(lat) / 10) * 10))
-        else:
-            ys.add(int(math.floor(lat / 10) * 10))
+    ys: set[tuple[int, str]] = set()
+
     if miny < 0 < maxy:
-        ys.update(range(0, int(math.floor(maxy / 10) * 10) + 1, 10))
-        ys.update(range(-10, -int(math.floor(abs(miny) / 10) * 10) - 1, -10))
-    elif len(ys) > 1:
-        low, high = sorted(ys)
-        ys.update(range(low, high + 1, 10))
-    # Un polígono pequeño puede quedar dentro de una sola fila Hansen.
-    # En ese caso la única fila ya es el resultado correcto; no hay dos extremos.
-    return [(x, y) for x in xs for y in sorted(ys)]
+        # El ecuador separa dos tiles distintos: 00S y 00N.
+        south_low = -int(math.floor(abs(miny) / 10) * 10)
+        north_high = int(math.floor(maxy / 10) * 10)
+        ys.update((y, "S") for y in range(south_low, 1, 10))
+        ys.update((y, "N") for y in range(0, north_high + 1, 10))
+    else:
+        hemisphere = "S" if miny < 0 else "N"
+        if hemisphere == "S":
+            first = -int(math.floor(abs(miny) / 10) * 10)
+            last = -int(math.floor(abs(maxy) / 10) * 10)
+        else:
+            first = int(math.floor(miny / 10) * 10)
+            last = int(math.floor(maxy / 10) * 10)
+        low, high = sorted((first, last))
+        ys.update((y, hemisphere) for y in range(low, high + 1, 10))
+
+    return [(x, y, hemisphere) for x in xs for y, hemisphere in sorted(ys)]
 
 
-def _hansen_tile_bbox(x: int, y: int):
-    return box(x, y - 10, x + 10, y)
+def _hansen_tile_bbox(x: int, y: int, hemisphere: str):
+    # Hansen 30S cubre 30–40°S; 10N cubre 10–20°N.
+    if hemisphere == "S":
+        return box(x, y - 10, x + 10, y)
+    return box(x, y, x + 10, y + 10)
 
 
 def _read_hansen_layer(geometry, layer: str):
@@ -178,12 +185,12 @@ def _read_hansen_layer(geometry, layer: str):
     origins = _hansen_tile_origins(geometry.bounds)
     if len(origins) > 25:
         raise HTTPException(status_code=413, detail="El polígono cruza demasiadas teselas Hansen. Dividí el área para analizarla.")
-    for x, y in origins:
-        tile = _hansen_tile_bbox(x, y)
+    for x, y, hemisphere in origins:
+        tile = _hansen_tile_bbox(x, y, hemisphere)
         part = geometry.intersection(tile)
         if part.is_empty:
             continue
-        lat_code = _hansen_tile_code(y, "lat")
+        lat_code = _hansen_tile_code(y, "lat", hemisphere)
         lon_code = _hansen_tile_code(x, "lon")
         filename = f"Hansen_{HANSEN_VERSION}_{layer}_{lat_code}_{lon_code}.tif"
         url = f"{HANSEN_BASE}/{filename}"
