@@ -19,33 +19,22 @@ test('crop candidates remain visible without being mislabeled as recommendations
   assert.doesNotMatch(script, /no como recomendaciones de siembra ni como cultivos aptos/);
 });
 
-test('GAEZ uses the crop suitability index and historical baseline by default', async () => {
+test('the inactive GAEZ workflow is removed while historical climate periods remain explicit', async () => {
   const results = await readFile(new URL('../resultados.html', import.meta.url), 'utf8');
-  assert.match(results, /id="gaez-map-controls"/);
+  const report = await readFile(new URL('../reporte.html', import.meta.url), 'utf8');
   assert.match(results, /12 meses consolidados/);
   assert.doesNotMatch(results, /Últimos 12 meses/);
-  assert.match(results, /id="gaez-map-run"/);
+  assert.doesNotMatch(results, /gaez-map-controls|gaez-map-run|GAEZ v5|api\\/territorial\\/gaez/);
+  assert.doesNotMatch(script, /GAEZ|gaez-map|api\\/territorial\\/gaez/);
+  assert.doesNotMatch(report, /GAEZ|gaez-map|api\\/territorial\\/gaez/);
+  assert.match(results, /id="crop-map-analysis-status"/);
   assert.match(results, /initSplashScreen/);
-  assert.match(results, /splash\.style\.display = 'flex'/);
-  assert.doesNotMatch(results, /sessionStorage\.getItem\('splash_shown'\)/);
-  assert.match(script, /preferred: "RES05-SIX"/);
-  assert.match(script, /value === "RES05-SIX"/);
-  assert.match(script, /body.mapset_code !== "RES05-SIX"/);
-  assert.match(script, /preferred: "HP0120"/);
-  assert.match(script, /preferred: "AgERA5"/);
-  assert.match(script, /preferred: "HIST"/);
-  assert.match(script, /preferred: "HRLM"/);
-  assert.match(script, /RES05-SIX/);
+  assert.match(results, /splash\\.style\\.display = 'flex'/);
+  assert.doesNotMatch(results, /sessionStorage\\.getItem\\('splash_shown'\\)/);
   assert.match(script, /periodLabel/);
-  assert.match(script, /climateHistory\.traceability\?\.periodoMensual/);
-  assert.match(script, /GAEZ_NO_VALID_PIXELS/);
-  assert.match(script, /alternatives/);
-  assert.match(script, /hasClassifiedResult/);
+  assert.match(script, /climateHistory\\.traceability\\?\\.periodoMensual/);
   assert.match(nasaService, /periodoMensual/);
   assert.match(results, /class="map-legend" style="display:none;"/);
-  assert.doesNotMatch(results, /Abrir portal FAO\/IIASA GAEZ/);
-  assert.match(script, /L\.imageOverlay/);
-  assert.match(script, /api\/territorial\/gaez\/analyze/);
 });
 
 test('mobile module navigation wraps into a grid without horizontal scrolling', () => {
