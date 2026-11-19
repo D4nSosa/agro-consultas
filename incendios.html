@@ -103,24 +103,17 @@ const map=L.map('fire-map',{preferCanvas:true,minZoom:3,zoomControl:true}).setVi
 const conaeLayerMetadata={burned:null,fuel:null};
 async function readConaeLayerMetadata(kind){
  const config=kind==='burned'
-  ? {url:'https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms',select:'burned-product',prefix:'EmergenciasCONAE:'}
-  : {url:'https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms',select:'fuel-product',prefix:'AlertaTemprana:'};
+  ? {select:'burned-product',prefix:'EmergenciasCONAE:'}
+  : {select:'fuel-product',prefix:'AlertaTemprana:'};
  const select=$(config.select),info=$('conae-product-info');
  if(!select||!info)return;
  info.textContent='Consultando catálogo WMS de CONAE para identificar el producto seleccionado…';
  try{
   if(!conaeLayerMetadata[kind]){
-   const response=await fetch(config.url+'?service=WMS&request=GetCapabilities&version=1.1.1',{headers:{Accept:'application/xml,text/xml'}});
-   if(!response.ok)throw new Error('GetCapabilities HTTP '+response.status);
-   const xml=new DOMParser().parseFromString(await response.text(),'text/xml');
-   if(xml.querySelector('parsererror'))throw new Error('El catálogo WMS devolvió XML inválido.');
-   const layers=[...xml.getElementsByTagName('Layer')].map(layer=>{
-    const text=tag=>layer.getElementsByTagName(tag)[0]?.textContent?.trim()||'';
-    const name=text('Name'),title=text('Title'),abstract=text('Abstract');
-    const legendNode=layer.getElementsByTagName('LegendURL')[0]?.getElementsByTagName('OnlineResource')[0];
-    const legend=legendNode?.getAttribute('xlink:href')||legendNode?.getAttribute('href')||null;
-    return name?{name,title,abstract,legend}:null;
-   }).filter(Boolean);
+   const response=await fetch('/api/fires/conae/metadata?kind='+encodeURIComponent(kind),{cache:'no-store'});
+   const payload=await response.json();
+   if(!response.ok)throw new Error(payload.detail||'No se pudo consultar el catálogo WMS.');
+   const layers=Array.isArray(payload.layers)?payload.layers:[];
    conaeLayerMetadata[kind]=new Map(layers.map(layer=>[layer.name,layer]));
   }
   const layerName=select.value.replace(config.prefix,'');
