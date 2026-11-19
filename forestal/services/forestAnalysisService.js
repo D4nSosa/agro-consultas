@@ -71,6 +71,7 @@ function buildRealForestTimeline(searchResults) {
             product: prod.id,
             cloudCover: prod.cloudCover,
             source: prod.source,
+            thumbnail: prod.assets?.thumbnail || prod.assets?.visual || null,
             status: 'REAL'
           });
         }
