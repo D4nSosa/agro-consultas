@@ -1143,7 +1143,7 @@ function createSingleRecommendationCardHtml(c) {
   const compatibilityLabel = isReferenceProfile ? "Perfil de referencia" : (c.compatibilidad || semaforoText);
   const factorText = c.motivos?.[0] ||
     (isReferenceProfile
-      ? "Incluido en el catálogo provincial; falta evidencia para clasificar aptitud."
+      ? "La ficha de catálogo orienta la revisión técnica; falta evidencia local suficiente para clasificar aptitud."
       : "Factores agroambientales compatibles.");
   const displayedMotives = c.motivos?.length
     ? c.motivos
@@ -1257,7 +1257,7 @@ function createSingleRecommendationCardHtml(c) {
             ${isReferenceProfile ? `
             <div class="report-block" style="color:var(--texto-secundario);">
               <strong>Alcance del perfil:</strong>
-              <p>La especie figura en el catálogo provincial. Esta ficha describe sus requerimientos; no constituye una recomendación de implantación.</p>
+              <p>Esta ficha describe requerimientos de referencia; no constituye una recomendación de implantación en este lote.</p>
             </div>
             ` : ''}
           </div>
