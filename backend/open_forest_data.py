@@ -155,9 +155,11 @@ def _hansen_tile_origins(bounds):
     if miny < 0 < maxy:
         ys.update(range(0, int(math.floor(maxy / 10) * 10) + 1, 10))
         ys.update(range(-10, -int(math.floor(abs(miny) / 10) * 10) - 1, -10))
-    else:
+    elif len(ys) > 1:
         low, high = sorted(ys)
         ys.update(range(low, high + 1, 10))
+    # Un polígono pequeño puede quedar dentro de una sola fila Hansen.
+    # En ese caso la única fila ya es el resultado correcto; no hay dos extremos.
     return [(x, y) for x in xs for y in sorted(ys)]
 
 
