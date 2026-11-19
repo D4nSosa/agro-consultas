@@ -15,6 +15,23 @@ import { DataStatus, ConfidenceLevel } from '../utils/dataModel.js';
  * @param {Object|null} subregionStaticClima - Datos climatológicos estáticos de la subregión.
  * @returns {Promise<Object>} Reporte climático consolidado.
  */
+/**
+ * La API Forecast de Open-Meteo entrega una salida de modelo, no una medición
+ * de estación. Los perfiles subregionales siguen identificados como regionales.
+ */
+export function resolveClimateEvidenceStatus(liveWeatherPoint, subregionStaticClima = null) {
+  if (liveWeatherPoint?.available) {
+    return {
+      status: liveWeatherPoint.status || DataStatus.ESTIMATED,
+      confidence: liveWeatherPoint.confidence || ConfidenceLevel.MEDIUM
+    };
+  }
+  if (subregionStaticClima) {
+    return { status: DataStatus.REGIONAL, confidence: ConfidenceLevel.LOW };
+  }
+  return { status: DataStatus.UNAVAILABLE, confidence: ConfidenceLevel.NONE };
+}
+
 export async function getClimateData(lat, lng, provincia, subregionStaticClima = null) {
   const [liveWeatherPoint, smnAlertsPoint] = await Promise.all([
     fetchLiveWeather(lat, lng),
@@ -80,12 +97,9 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
   // Cálculo del Índice de Peligro de Incendios Agro-Forestales
   const peligroIncendio = calcularIndicePeligroIncendio(tempActual, vientoActual, weatherCode);
 
-  const overallStatus = liveWeatherPoint?.available
-    ? DataStatus.REAL
-    : (subregionStaticClima ? DataStatus.REGIONAL : DataStatus.UNAVAILABLE);
-  const overallConfidence = liveWeatherPoint?.available
-    ? ConfidenceLevel.HIGH
-    : (subregionStaticClima ? ConfidenceLevel.MEDIUM : ConfidenceLevel.NONE);
+  const climateEvidence = resolveClimateEvidenceStatus(liveWeatherPoint, subregionStaticClima);
+  const overallStatus = climateEvidence.status;
+  const overallConfidence = climateEvidence.confidence;
 
   return {
     temperaturaActual: tempActual !== null ? `${tempActual}°C` : "NO DISPONIBLE",
