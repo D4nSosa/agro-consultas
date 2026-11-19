@@ -91,8 +91,8 @@ function buildClimateEvidenceForScoring(climateReport, climateHistory) {
     ...climateReport,
     temperaturaMediaVal: temperature,
     precipitacionesAnualesVal: precipitation,
-    climatologyStatus: 'REAL',
-    climatologySource: 'NASA POWER',
+    climatologyStatus: 'ESTIMATED',
+    climatologySource: 'NASA POWER · reanálisis/modelado',
     climatologyBaseline: '2001–2020'
   };
 }
