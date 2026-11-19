@@ -256,15 +256,15 @@
         const historical = climateHistory?.data?.historicalAverages || {};
         const historicalTemperature = Number(historical.temperaturaMediaHistoricaC);
         const historicalPrecipitation = Number(historical.precipitacionMediaAnualMm);
-        const hasHistoricalClimate = climateHistory?.status === 'REAL' &&
+        const hasHistoricalClimate = climateHistory?.status === 'ESTIMATED' &&
           Number.isFinite(historicalTemperature) && Number.isFinite(historicalPrecipitation);
         const climateEvidenceForScoring = hasHistoricalClimate
           ? {
               ...climateReport,
               temperaturaMediaVal: historicalTemperature,
               precipitacionesAnualesVal: historicalPrecipitation,
-              climatologyStatus: 'REAL',
-              climatologySource: 'NASA POWER',
+              climatologyStatus: 'ESTIMATED',
+              climatologySource: 'NASA POWER · reanálisis/modelado',
               climatologyBaseline: '2001–2020'
             }
           : {
