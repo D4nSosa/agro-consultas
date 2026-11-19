@@ -226,7 +226,14 @@ def gaez_analyze(req: LotDatasetRequest):
                         if row.get("MAPSET_CODE") == req.mapset_code
                         and row.get("CROP") == req.crop
                         and row.get("FILE_NAME") != record.get("FILE_NAME")
-                    ][:8]
+                    ]
+                    alternatives.sort(key=lambda item: (
+                        item["period"] != "HP0120",
+                        item["climate_data_source"].lower() != "agera5",
+                        item["ssp"] != "HIST",
+                        item["input_level"] != "HRLM",
+                    ))
+                    alternatives = alternatives[:8]
                     raise HTTPException(
                         status_code=422,
                         detail={
