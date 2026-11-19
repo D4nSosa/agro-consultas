@@ -356,14 +356,27 @@
           `;
         }
 
+        const parseApiResponse = async response => {
+          const raw = await response.text();
+          let payload;
+          try { payload = raw ? JSON.parse(raw) : {}; }
+          catch (_error) {
+            const excerpt = raw.replace(/\\s+/g, ' ').slice(0, 180);
+            throw new Error('El servicio devolvió una respuesta no JSON (HTTP ' + response.status + '). ' + excerpt);
+          }
+          if (!response.ok) {
+            const detail = payload?.detail?.message || payload?.detail || payload?.message;
+            throw new Error(typeof detail === 'string' ? detail : 'Error HTTP ' + response.status);
+          }
+          return payload;
+        };
+
         const fireResults = await Promise.allSettled([
           fetch('/api/fires/national', { cache: 'no-store' }).then(async response => {
-            if (!response.ok) throw new Error('NASA FIRMS HTTP ' + response.status);
-            return response.json();
+            return parseApiResponse(response);
           }),
           fetch('/api/fires/goes', { cache: 'no-store' }).then(async response => {
-            if (!response.ok) throw new Error('GOES HTTP ' + response.status);
-            return response.json();
+            return parseApiResponse(response);
           })
         ]);
         const firePayload = fireResults[0].status === 'fulfilled' ? fireResults[0].value : null;
@@ -530,8 +543,7 @@
               const response = await fetch('/api/territorial/forest/gfw-drivers/analyze', {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
               });
-              const payload = await response.json();
-              if (!response.ok) throw new Error(payload.detail?.message || payload.detail || 'Falló el análisis GFW.');
+              const payload = await parseApiResponse(response);
               output.textContent = (payload.drivers || []).map(item => item.driver + ': ' + item.area_ha.toLocaleString('es-AR') + ' ha (' + item.share_percent + '%)').join('\n') + '\n\n' + (payload.limitations || []).join(' ');
             } catch (error) { output.textContent = error.message; }
           });
@@ -542,8 +554,7 @@
               const response = await fetch('/api/territorial/forest/hansen/analyze', {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
               });
-              const payload = await response.json();
-              if (!response.ok) throw new Error(payload.detail || 'Falló el análisis Hansen.');
+              const payload = await parseApiResponse(response);
               const losses = Object.entries(payload.loss_by_year || {}).map(([year, item]) => year + ': ' + item.area_ha.toLocaleString('es-AR') + ' ha');
               output.textContent = [
                 'Cobertura de copa 2000 · media: ' + (payload.tree_cover_2000.mean_percent ?? '—') + '%',
@@ -561,8 +572,7 @@
               const response = await fetch('/api/territorial/forest/jrc/analyze', {
                 method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
               });
-              const payload = await response.json();
-              if (!response.ok) throw new Error(payload.detail || 'Falló el análisis JRC.');
+              const payload = await parseApiResponse(response);
               output.textContent = [
                 'Bosque en 2020: ' + payload.forest_area_ha.toLocaleString('es-AR') + ' ha',
                 'No bosque: ' + payload.nonforest_area_ha.toLocaleString('es-AR') + ' ha',
