@@ -239,4 +239,4 @@ def test_fire_forecast_serves_stale_cache_when_provider_is_unavailable(monkeypat
     assert stale["days"] == initial["days"]
     assert stale["meta"]["cached"] is True
     assert stale["meta"]["stale"] is True
-    assert "sin respuesta" in stale["meta"]["warning"]
+    assert "Open-Meteo no respondió" in stale["meta"]["warning"]
