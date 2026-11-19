@@ -426,6 +426,44 @@ async function inicializarControlesGAEZ(leafletMap) {
         body: JSON.stringify(body)
       });
       const payload = await response.json();
+      if (!response.ok && payload.detail?.code === "GAEZ_NO_VALID_PIXELS") {
+        const detail = payload.detail;
+        result.replaceChildren();
+        const explanation = document.createElement("p");
+        explanation.textContent = detail.message || "La fuente no tiene celdas válidas para esta combinación.";
+        result.appendChild(explanation);
+        if (Array.isArray(detail.alternatives) && detail.alternatives.length) {
+          const heading = document.createElement("strong");
+          heading.textContent = "Combinaciones alternativas publicadas por FAO para este cultivo:";
+          result.appendChild(heading);
+          detail.alternatives.forEach(alternative => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn outline";
+            button.style.margin = "6px 6px 0 0";
+            button.textContent = [alternative.period, alternative.climate_data_source, alternative.ssp, alternative.input_level].join(" · ");
+            button.addEventListener("click", async () => {
+              document.getElementById("gaez-period").value = alternative.period;
+              document.getElementById("gaez-climate").value = alternative.climate_data_source;
+              document.getElementById("gaez-ssp").value = alternative.ssp;
+              document.getElementById("gaez-input").value = alternative.input_level;
+              try {
+                await refreshOptions(2);
+                runButton.click();
+              } catch (optionError) {
+                status.textContent = optionError.message;
+              }
+            });
+            result.appendChild(button);
+          });
+        } else {
+          const note = document.createElement("p");
+          note.textContent = "El catálogo no ofrece otra combinación para este cultivo. Elegí otro cultivo GAEZ o consultá el período histórico si está disponible.";
+          result.appendChild(note);
+        }
+        status.textContent = "GAEZ no tiene valores válidos en este lote para la combinación elegida. No equivale a aptitud cero.";
+        return;
+      }
       if (!response.ok) throw new Error(payload.detail?.message || payload.detail || "No se pudo procesar el índice de aptitud FAO.");
       if (!payload.map_overlay?.image_data_url || !payload.map_overlay?.bounds) {
         throw new Error("FAO respondió sin una imagen cartográfica válida para esta selección.");
