@@ -528,7 +528,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
           </div>
           ${climateReport.peligroIncendio ? `
           <div style="border-top: 1px dashed var(--borde-suave); padding-top: 6px; margin-top: 4px; font-size: 0.82rem;">
-            <strong>🔥 Peligro de Incendios:</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}" style="font-size:0.75rem; padding: 2px 6px;">${climateReport.peligroIncendio.nivel}</span>
+            <strong>🔥 Indicador meteorológico interno (no FWI):</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}" style="font-size:0.75rem; padding: 2px 6px;">${climateReport.peligroIncendio.nivel}</span>
             <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 2px;">${climateReport.peligroIncendio.descripcion}</div>
           </div>
           ` : ''}
