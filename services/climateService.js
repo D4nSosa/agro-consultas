@@ -156,25 +156,28 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
       nivel: "MUY ALTO / EXTREMO",
       icono: "🔴",
       clase: "badge-baja",
-      descripcion: "Condiciones críticas: Alta temperatura y vientos fuertes. Prohibido realizar quemas."
+      descripcion: "Temperatura y viento elevados pueden favorecer la propagación. Verificar alertas oficiales y normativa local antes de cualquier actividad."
     };
   } else if (score >= 4) {
     return {
       nivel: "ALTO",
       icono: "🟠",
       clase: "badge-media",
-      descripcion: "Elevada probabilidad de propagación de incendios en cobertura vegetal."
+      descripcion: "Condiciones meteorológicas que pueden favorecer la propagación en cobertura vegetal; no estima ignición ni confirma incendios."
     };
   } else if (score >= 2) {
     return {
       nivel: "MODERADO",
       icono: "🟡",
       clase: "badge-media",
-      descripcion: "Riesgo moderado de incendio. Mantener precauciones de campo."
+      descripcion: "Condiciones meteorológicas intermedias según el indicador interno. Mantener precauciones y consultar alertas oficiales."
     };
   }
 
   return {
+    tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+    fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+    limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
     nivel: "BAJO",
     icono: "🟢",
     clase: "badge-alta",
