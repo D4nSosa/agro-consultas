@@ -10,6 +10,7 @@ import time
 import threading
 import urllib.request
 import urllib.parse
+import urllib.error
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
@@ -19,6 +20,39 @@ from shapely.ops import unary_union
 app = FastAPI(title="Agro Consultas - Active Fire Monitoring", version="1.0.0")
 CACHE = {"expires": 0.0, "payload": None}
 GOES_CACHE = {"expires": 0.0, "payload": None}
+FORECAST_CACHE = {}
+FORECAST_CACHE_LOCK = threading.Lock()
+FORECAST_CACHE_TTL_SECONDS = 15 * 60
+FORECAST_CACHE_STALE_SECONDS = 2 * 60 * 60
+
+
+def _forecast_cache_key(lat, lon):
+    # Round to ~100 m to collapse repeated taps in the same small area.
+    return f"{round(lat, 3):.3f}:{round(lon, 3):.3f}"
+
+
+def _get_forecast_cache(key, allow_stale=False):
+    now = time.monotonic()
+    with FORECAST_CACHE_LOCK:
+        entry = FORECAST_CACHE.get(key)
+        if not entry:
+            return None, False
+        if now < entry["expires"]:
+            return entry["payload"], False
+        if allow_stale and now < entry["stale_expires"]:
+            return entry["payload"], True
+    return None, False
+
+
+def _store_forecast_cache(key, payload):
+    now = time.monotonic()
+    with FORECAST_CACHE_LOCK:
+        FORECAST_CACHE[key] = {
+            "payload": payload,
+            "expires": now + FORECAST_CACHE_TTL_SECONDS,
+            "stale_expires": now + FORECAST_CACHE_STALE_SECONDS,
+        }
+
 # Bounding box is only a fast prefilter; official Georef provincial geometries
 # provide the actual national mask so neighbouring countries are not mislabelled.
 ARGENTINA_EXTENT = (-74.0, -56.0, -52.0, -20.0)
@@ -327,12 +361,22 @@ def _fire_weather_indicator(temp_max, humidity_min, wind_max, precipitation):
 
 @app.get("/api/fires/forecast")
 def fire_weather_forecast(lat: float, lon: float):
-    """Pronóstico meteorológico de tres días e indicador orientativo de condiciones favorables al fuego."""
+    """Pronóstico de tres días; cachea celdas locales y sirve caché obsoleta ante fallos."""
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         raise HTTPException(status_code=400, detail="Coordenadas fuera del rango WGS84.")
+
+    cache_key = _forecast_cache_key(lat, lon)
+    cached, stale = _get_forecast_cache(cache_key)
+    if cached is not None:
+        result = json.loads(json.dumps(cached))
+        result["meta"]["cached"] = True
+        result["meta"]["stale"] = False
+        return result
+
+    query_lat, query_lon = (float(value) for value in cache_key.split(":"))
     params = urllib.parse.urlencode({
-        "latitude": lat,
-        "longitude": lon,
+        "latitude": query_lat,
+        "longitude": query_lon,
         "daily": "temperature_2m_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max",
         "hourly": "relative_humidity_2m",
         "forecast_days": 3,
@@ -344,7 +388,7 @@ def fire_weather_forecast(lat: float, lon: float):
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            payload = __import__("json").loads(response.read(2_000_000).decode("utf-8"))
+            payload = json.loads(response.read(2_000_000).decode("utf-8"))
         daily = payload.get("daily") or {}
         dates = daily.get("time") or []
         hourly = payload.get("hourly") or {}
@@ -378,16 +422,46 @@ def fire_weather_forecast(lat: float, lon: float):
             })
         if not days:
             raise ValueError("El proveedor no devolvió días de pronóstico.")
-        return {
-            "location": {"latitude": lat, "longitude": lon, "name": f"{lat:.3f}, {lon:.3f}"},
+        result = {
+            "location": {"latitude": query_lat, "longitude": query_lon, "name": f"{query_lat:.3f}, {query_lon:.3f}"},
             "meta": {
                 "source": "Open-Meteo · pronóstico diario",
                 "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "method": "Indicador orientativo de cuatro condiciones meteorológicas; no es FWI oficial.",
+                "cached": False,
+                "stale": False,
+                "cacheCellDegrees": 0.001,
             },
             "days": days,
         }
+        _store_forecast_cache(cache_key, result)
+        return result
     except HTTPException:
         raise
+    except urllib.error.HTTPError as exc:
+        stale_payload, is_stale = _get_forecast_cache(cache_key, allow_stale=True)
+        if stale_payload is not None and is_stale:
+            result = json.loads(json.dumps(stale_payload))
+            result["meta"]["cached"] = True
+            result["meta"]["stale"] = True
+            result["meta"]["warning"] = "Open-Meteo no respondió; se muestran datos guardados anteriormente."
+            return result
+        if exc.code == 429:
+            retry_after = (exc.headers or {}).get("Retry-After", "60")
+            if not str(retry_after).isdigit():
+                retry_after = "60"
+            raise HTTPException(
+                status_code=429,
+                detail="Open-Meteo limitó temporalmente las consultas. Esperá antes de volver a intentar.",
+                headers={"Retry-After": str(retry_after)},
+            )
+        raise HTTPException(status_code=502, detail=f"Open-Meteo respondió con HTTP {exc.code}.")
     except Exception as exc:
+        stale_payload, is_stale = _get_forecast_cache(cache_key, allow_stale=True)
+        if stale_payload is not None and is_stale:
+            result = json.loads(json.dumps(stale_payload))
+            result["meta"]["cached"] = True
+            result["meta"]["stale"] = True
+            result["meta"]["warning"] = "Open-Meteo no respondió; se muestran datos guardados anteriormente."
+            return result
         raise HTTPException(status_code=502, detail=f"No se pudo consultar el pronóstico meteorológico: {str(exc)[:180]}")
