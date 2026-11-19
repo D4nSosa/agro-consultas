@@ -34,7 +34,11 @@ test('GAEZ uses the crop suitability index and historical baseline by default', 
   assert.match(script, /preferred: "HRLM"/);
   assert.match(script, /RES05-SIX/);
   assert.match(script, /periodLabel/);
+  assert.match(script, /GAEZ_NO_VALID_PIXELS/);
+  assert.match(script, /alternatives/);
+  assert.match(script, /hasClassifiedResult/);
   assert.match(nasaService, /periodoMensual/);
+  assert.match(results, /class="map-legend" style="display:none;"/);
   assert.doesNotMatch(results, /Abrir portal FAO\/IIASA GAEZ/);
   assert.match(script, /L\.imageOverlay/);
   assert.match(script, /api\/territorial\/gaez\/analyze/);
