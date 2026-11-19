@@ -408,7 +408,8 @@ $('themeToggle')?.addEventListener('click',()=>{document.documentElement.classLi
 try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
 const historyTo=new Date(),historyFrom=new Date(historyTo.getTime()-30*86400000);$('history-to').value=historyTo.toISOString().slice(0,10);$('history-from').value=historyFrom.toISOString().slice(0,10);
 $('burned-product').addEventListener('change',()=>readConaeLayerMetadata('burned'));$('fuel-product').addEventListener('change',()=>readConaeLayerMetadata('fuel'));
-readConaeLayerMetadata('burned');readConaeLayerMetadata('fuel');\nrefresh();window.setInterval(refresh,10*60*1000);
+readConaeLayerMetadata('burned');readConaeLayerMetadata('fuel');
+refresh();window.setInterval(refresh,10*60*1000);
 </script>
   <script type="module" src="workspace.js"></script>
 </body></html>
