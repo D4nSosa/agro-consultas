@@ -105,3 +105,13 @@ def test_class_area_stats_weights_partial_pixels_to_lot_intersection():
     full_pixel_area = forest._row_pixel_area_ha(transform, 0)
     assert valid == 1
     assert 0 < stats[1]["area_ha"] < full_pixel_area * 0.30
+
+
+def test_hansen_tile_origins_support_single_tile_small_lot():
+    origins = forest._hansen_tile_origins((-60.10, -30.10, -60.05, -30.05))
+    assert origins == [(-70, -30)]
+
+
+def test_hansen_tile_origins_support_single_tile_northern_hemisphere():
+    origins = forest._hansen_tile_origins((-65.10, 10.10, -65.05, 10.05))
+    assert origins == [(-70, 10)]
