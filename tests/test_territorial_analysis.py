@@ -147,3 +147,56 @@ def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
     assert payload["license"].startswith("CC-BY-4.0")
     assert mask_options["all_touched"] is True
     assert "5 minutos de arco" in payload["spatial_resolution"]
+
+
+def test_gaez_nodata_is_not_reported_as_zero_suitability(monkeypatch):
+    import numpy as np
+    import rasterio
+    import rasterio.mask
+    from affine import Affine
+    from rasterio.crs import CRS
+
+    record = {
+        "MAPSET_CODE": "RES05-SIX", "PERIOD": "FP2140",
+        "CLIMATE_DATA_SOURCE": "ENSEMBLE", "SSP": "SSP126",
+        "CROP": "ALF", "INPUT": "HILM", "FILE_NAME": "alfalfa-future"
+    }
+    alternative = {
+        **record, "PERIOD": "HP0120", "CLIMATE_DATA_SOURCE": "AgERA5",
+        "SSP": "HIST", "INPUT": "HRLM", "FILE_NAME": "alfalfa-historical"
+    }
+    monkeypatch.setattr(territorial, "_gaez_catalog", lambda: [record, alternative])
+
+    class FakeDataset:
+        crs = CRS.from_epsg(4326)
+        res = (0.0833333, 0.0833333)
+        nodata = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(rasterio, "open", lambda *_args, **_kwargs: FakeDataset())
+    masked = np.ma.array([[0.0]], mask=[[True]])
+    monkeypatch.setattr(
+        rasterio.mask, "mask",
+        lambda *_args, **_kwargs: (np.ma.array([masked]), Affine(0.0833333, 0, -60, 0, -0.0833333, -29.9))
+    )
+
+    response = client.post("/api/territorial/gaez/analyze", json={
+        "geometry": POLYGON,
+        "mapset_code": "RES05-SIX",
+        "crop": "ALF",
+        "period": "FP2140",
+        "climate_data_source": "ENSEMBLE",
+        "ssp": "SSP126",
+        "input_level": "HILM",
+    })
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "GAEZ_NO_VALID_PIXELS"
+    assert "no significa aptitud cero" in detail["message"]
+    assert detail["alternatives"][0]["period"] == "HP0120"
