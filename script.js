@@ -1095,9 +1095,9 @@ function createSingleRecommendationCardHtml(c) {
   const factorText = isReferenceProfile
     ? "Incluido en el catálogo provincial. La ficha orienta la revisión técnica y no confirma aptitud del sitio."
     : (c.motivos?.[0] || 'Factores agroambientales compatibles.');
-  const displayedMotives = isReferenceProfile
-    ? ["La ficha técnica resume los requerimientos declarados para esta especie."]
-    : (c.motivos || []);
+  const displayedMotives = c.motivos?.length
+    ? c.motivos
+    : ["No hay observaciones comparables disponibles para esta ficha."];
 
   if (isReferenceProfile) {
     semaforoIcon = "📘";
@@ -1148,6 +1148,7 @@ function createSingleRecommendationCardHtml(c) {
         <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 10px; font-size: 0.82rem; margin-bottom: 10px;">
           <strong>💡 Factor Clave:</strong> ${factorText}
           ${c.riesgos && c.riesgos.length > 0 ? `<div style="margin-top: 4px; color: #c0392b;"><strong>⚠️ Limitante Principal:</strong> ${c.riesgos[0]}</div>` : ''}
+          ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `<div style="margin-top: 6px;"><strong>Datos que faltan para clasificar:</strong><ul style="margin:4px 0 0 18px;padding:0;">${c.datosFaltantes.map(item => `<li>${item}</li>`).join("")}</ul></div>` : ''}
         </div>
 
         <div style="font-size: 0.8rem; color: var(--texto-secundario); display: flex; justify-content: space-between;">
@@ -1198,6 +1199,11 @@ function createSingleRecommendationCardHtml(c) {
               <ul>${c.riesgos.map(r => `<li>${r}</li>`).join("")}</ul>
             </div>
             ` : ''}
+            ${c.datosFaltantes && c.datosFaltantes.length ? `
+            <div class="report-block" style="color:var(--texto-secundario);">
+              <strong>Datos que faltan para clasificar:</strong>
+              <ul>${c.datosFaltantes.map(item => `<li>${item}</li>`).join("")}</ul>
+            </div>` : ''}
             ${isReferenceProfile ? `
             <div class="report-block" style="color:var(--texto-secundario);">
               <strong>Alcance del perfil:</strong>
