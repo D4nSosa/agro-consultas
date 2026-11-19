@@ -17,7 +17,14 @@ export async function fetchLiveWeather(lat, lng) {
     if (cached) {
       const { data, timestamp } = JSON.parse(cached);
       if (Date.now() - timestamp < CACHE_EXPIRY) {
-        return { ...data, cached: true };
+        return {
+          ...data,
+          source: 'Open-Meteo Forecast API (variable current; modelo meteorológico)',
+          status: DataStatus.ESTIMATED,
+          confidence: ConfidenceLevel.MEDIUM,
+          methodology: 'Campo current de Open-Meteo; salida de modelo meteorológico, no observación directa de una estación local.',
+          cached: true
+        };
       }
     }
   } catch (err) {
@@ -75,8 +82,10 @@ export async function fetchLiveWeather(lat, lng) {
         const { data } = JSON.parse(cached);
         return {
           ...data,
+          source: 'Open-Meteo Forecast API (caché expirado; modelo meteorológico)',
           status: DataStatus.ESTIMATED,
           confidence: ConfidenceLevel.LOW,
+          methodology: 'Campo current de Open-Meteo; salida de modelo meteorológico, no observación directa de una estación local.',
           message: 'Datos meteorológicos de caché expirado (red no disponible)'
         };
       }
