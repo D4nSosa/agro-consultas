@@ -45,3 +45,9 @@ def test_historical_endpoint_rejects_periods_over_31_days(monkeypatch):
     )
     assert response.status_code == 400
     assert "31 días" in response.json()["detail"]
+
+
+def test_conae_metadata_rejects_unknown_service_kind():
+    response = client.get("/api/fires/conae/metadata?kind=unknown")
+    assert response.status_code == 400
+    assert "burned o fuel" in response.json()["detail"]
