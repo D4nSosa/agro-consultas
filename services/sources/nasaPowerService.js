@@ -244,6 +244,11 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
         monthlyBreakdown
       },
       traceability: {
+        periodoMensual: {
+          inicio: selectedKeys[0] || null,
+          fin: selectedKeys[selectedKeys.length - 1] || null,
+          cantidadRegistros: selectedKeys.length
+        },
         fuente: "REAL — NASA POWER (Prediction Of Worldwide Energy Resources)",
         apiEndpoint: "https://power.larc.nasa.gov/",
         coordenadas: { lat: parseFloat(lat.toFixed(4)), lng: parseFloat(lng.toFixed(4)) },

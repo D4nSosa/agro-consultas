@@ -7,11 +7,11 @@ import {
   findProvinceByCoords,
   findSubregion,
   getProvinceDetails
-} from './services/territoryService.js';
+} from './services/territoryService.js?v=20261118-crops-fix';
 import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
 import { getClimateData } from './services/climateService.js';
 import { getSoilReport } from './services/soilService.js';
-import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js';
+import { generateRecommendations, loadCultivosData, getCropCatalog, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js?v=20261118-crops-fix';
 import { geocodeLocation } from './services/sources/geocodingService.js';
 import { DataStatus } from './utils/dataModel.js';
 import {
@@ -300,12 +300,12 @@ async function inicializarControlesGAEZ(leafletMap) {
     { id: "gaez-mapset", key: "mapset_code", option: "mapset_codes", preferred: "RES05-SIX" },
     { id: "gaez-crop", key: "crop", option: "crops", preferred: "MZE" },
     { id: "gaez-period", key: "period", option: "periods", preferred: "HP0120" },
-    { id: "gaez-climate", key: "climate_data_source", option: "climate_data_sources", preferred: "AGERA5" },
+    { id: "gaez-climate", key: "climate_data_source", option: "climate_data_sources", preferred: "AgERA5" },
     { id: "gaez-ssp", key: "ssp", option: "ssps", preferred: "HIST" },
     { id: "gaez-input", key: "input_level", option: "input_levels", preferred: "HRLM" }
   ];
   const cropLabels = {
-    ALF: "Alfalfa", AVOC: "Palta", BAN: "Banana", BCK: "Trigo sarraceno",
+    ALF: "Alfalfa", AVOC: "Palta", BAN: "Banana", BCK: "Trigo sarraceno", MAI: "Maíz",
     BRL: "Cebada", CAB: "Repollo", CAR: "Zanahoria", CIT: "Cítricos",
     CSV: "Mandioca", MZE: "Maíz", MZS: "Maíz para silo", OAT: "Avena",
     RCW: "Arroz inundado", RCD: "Arroz de secano", SFL: "Girasol",
@@ -363,7 +363,7 @@ async function inicializarControlesGAEZ(leafletMap) {
         const option = document.createElement("option");
         option.value = value;
         option.textContent = field.id === "gaez-mapset"
-          ? "RES05-SIX · Índice de aptitud"
+          ? "RES05-SIX · Índice de aptitud (toda la celda)"
           : field.id === "gaez-crop"
             ? `${cropLabels[value] || value} (${value})`
             : value;
@@ -426,6 +426,44 @@ async function inicializarControlesGAEZ(leafletMap) {
         body: JSON.stringify(body)
       });
       const payload = await response.json();
+      if (!response.ok && payload.detail?.code === "GAEZ_NO_VALID_PIXELS") {
+        const detail = payload.detail;
+        result.replaceChildren();
+        const explanation = document.createElement("p");
+        explanation.textContent = detail.message || "La fuente no tiene celdas válidas para esta combinación.";
+        result.appendChild(explanation);
+        if (Array.isArray(detail.alternatives) && detail.alternatives.length) {
+          const heading = document.createElement("strong");
+          heading.textContent = "Combinaciones alternativas publicadas por FAO para este cultivo:";
+          result.appendChild(heading);
+          detail.alternatives.forEach(alternative => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn outline";
+            button.style.margin = "6px 6px 0 0";
+            button.textContent = [alternative.period, alternative.climate_data_source, alternative.ssp, alternative.input_level].join(" · ");
+            button.addEventListener("click", async () => {
+              document.getElementById("gaez-period").value = alternative.period;
+              document.getElementById("gaez-climate").value = alternative.climate_data_source;
+              document.getElementById("gaez-ssp").value = alternative.ssp;
+              document.getElementById("gaez-input").value = alternative.input_level;
+              try {
+                await refreshOptions(2);
+                runButton.click();
+              } catch (optionError) {
+                status.textContent = optionError.message;
+              }
+            });
+            result.appendChild(button);
+          });
+        } else {
+          const note = document.createElement("p");
+          note.textContent = "El catálogo no ofrece otra combinación para este cultivo. Elegí otro cultivo GAEZ o consultá el período histórico si está disponible.";
+          result.appendChild(note);
+        }
+        status.textContent = "GAEZ no tiene valores válidos en este lote para la combinación elegida. No equivale a aptitud cero.";
+        return;
+      }
       if (!response.ok) throw new Error(payload.detail?.message || payload.detail || "No se pudo procesar el índice de aptitud FAO.");
       if (!payload.map_overlay?.image_data_url || !payload.map_overlay?.bounds) {
         throw new Error("FAO respondió sin una imagen cartográfica válida para esta selección.");
@@ -441,7 +479,7 @@ async function inicializarControlesGAEZ(leafletMap) {
       const legend = document.getElementById("gaez-map-legend");
       if (legend) legend.textContent = "Índice de aptitud FAO · valores del ráster";
       result.textContent = [
-        "Fuente: FAO/IIASA GAEZ v5 · RES05-SIX (índice de aptitud).",
+        "Fuente: FAO/IIASA GAEZ v5 · RES05-SIX (índice de aptitud de toda la celda).",
         "Cultivo: " + (cropLabels[body.crop] || body.crop) + " (" + body.crop + ")",
         "Período: " + body.period + " · Clima: " + body.climate_data_source + " · Escenario: " + body.ssp,
         "Manejo / agua: " + body.input_level,
@@ -865,20 +903,26 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   }
 
   const d = climateHistory.data;
+  const periodStart = climateHistory.traceability?.periodoMensual?.inicio || d.monthlyBreakdown?.[0]?.monthKey || null;
+  const periodEnd = climateHistory.traceability?.periodoMensual?.fin || d.monthlyBreakdown?.[d.monthlyBreakdown.length - 1]?.monthKey || null;
+  const periodCount = climateHistory.traceability?.periodoMensual?.cantidadRegistros || d.monthlyBreakdown?.length || months;
+  const periodLabel = periodStart && periodEnd
+    ? periodCount + ' meses consolidados (' + periodStart + ' a ' + periodEnd + ')'
+    : periodCount + ' meses mensuales consolidados';
   const tempDiffBadge = d.comparison.temperaturaAnomalia > 0 ? 'badge-baja' : 'badge-alta';
   const precDiffBadge = d.comparison.precipitacionesDiferenciaPct >= 0 ? 'badge-alta' : 'badge-media';
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px;">
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación Acumulada (Período Reciente)</div>
+          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación acumulada · ${periodLabel}</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${d.periodMetrics.precipitacionAcumuladaMm} mm</div>
           <div style="font-size: 0.8rem; color: var(--texto-principal);">Línea Base Histórica (2001–2020): ${d.historicalAverages.precipitacionMediaAnualMm} mm/año</div>
         <span class="compatibility-badge ${precDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionPrecipitacion}</span>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura Media (Período Reciente)</div>
+          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura media · ${periodLabel}</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: #e67e22; margin: 4px 0;">${d.periodMetrics.temperaturaMediaC}°C</div>
           <div style="font-size: 0.8rem; color: var(--texto-principal);">Línea Base Histórica (2001–2020): ${d.historicalAverages.temperaturaMediaHistoricaC}°C</div>
         <span class="compatibility-badge ${tempDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionTemperatura}</span>
@@ -968,6 +1012,11 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
  */
 
 function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
+  const aptitudeLegend = document.querySelector(".map-legend");
+  const hasClassifiedResult = Array.isArray(recomendaciones) && recomendaciones.some(item =>
+    /APTITUD ALTA|APTITUD MEDIA|APTITUD BAJA/.test(String(item?.compatibilidad || "").toUpperCase())
+  );
+  if (aptitudeLegend) aptitudeLegend.style.display = hasClassifiedResult ? "" : "none";
   if (!mapViewerInstance || !mapViewerInstance.map || lat === null || lng === null) return;
 
   if (suitabilityOverlayLayer) {
@@ -1092,12 +1141,13 @@ function createSingleRecommendationCardHtml(c) {
     compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT") ||
     compatibility.includes("DATOS INSUFICIENTES");
   const compatibilityLabel = isReferenceProfile ? "Perfil de referencia" : (c.compatibilidad || semaforoText);
-  const factorText = isReferenceProfile
-    ? "Incluido en el catálogo provincial. La ficha orienta la revisión técnica y no confirma aptitud del sitio."
-    : (c.motivos?.[0] || 'Factores agroambientales compatibles.');
-  const displayedMotives = isReferenceProfile
-    ? ["La ficha técnica resume los requerimientos declarados para esta especie."]
-    : (c.motivos || []);
+  const factorText = c.motivos?.[0] ||
+    (isReferenceProfile
+      ? "La ficha de catálogo orienta la revisión técnica; falta evidencia local suficiente para clasificar aptitud."
+      : "Factores agroambientales compatibles.");
+  const displayedMotives = c.motivos?.length
+    ? c.motivos
+    : ["No hay observaciones comparables disponibles para esta ficha."];
 
   if (isReferenceProfile) {
     semaforoIcon = "📘";
@@ -1148,6 +1198,7 @@ function createSingleRecommendationCardHtml(c) {
         <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 10px; font-size: 0.82rem; margin-bottom: 10px;">
           <strong>💡 Factor Clave:</strong> ${factorText}
           ${c.riesgos && c.riesgos.length > 0 ? `<div style="margin-top: 4px; color: #c0392b;"><strong>⚠️ Limitante Principal:</strong> ${c.riesgos[0]}</div>` : ''}
+          ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `<div style="margin-top: 6px;"><strong>Datos que faltan para clasificar:</strong><ul style="margin:4px 0 0 18px;padding:0;">${c.datosFaltantes.map(item => `<li>${item}</li>`).join("")}</ul></div>` : ''}
         </div>
 
         <div style="font-size: 0.8rem; color: var(--texto-secundario); display: flex; justify-content: space-between;">
@@ -1198,10 +1249,15 @@ function createSingleRecommendationCardHtml(c) {
               <ul>${c.riesgos.map(r => `<li>${r}</li>`).join("")}</ul>
             </div>
             ` : ''}
+            ${c.datosFaltantes && c.datosFaltantes.length ? `
+            <div class="report-block" style="color:var(--texto-secundario);">
+              <strong>Datos que faltan para clasificar:</strong>
+              <ul>${c.datosFaltantes.map(item => `<li>${item}</li>`).join("")}</ul>
+            </div>` : ''}
             ${isReferenceProfile ? `
             <div class="report-block" style="color:var(--texto-secundario);">
               <strong>Alcance del perfil:</strong>
-              <p>La especie figura en el catálogo provincial. Esta ficha describe sus requerimientos; no constituye una recomendación de implantación.</p>
+              <p>Esta ficha describe requerimientos de referencia; no constituye una recomendación de implantación en este lote.</p>
             </div>
             ` : ''}
           </div>

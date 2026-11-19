@@ -163,7 +163,7 @@
             <div id="gaez-map-result" role="status" style="font-size:.82rem;line-height:1.5;margin-top:8px;white-space:pre-wrap"></div>
           </section>
           <!-- Leyenda del Mapa interactiva -->
-          <div class="map-legend">
+          <div class="map-legend" style="display:none;">
             <h4>Mapa de Decisiones y Aptitud</h4>
             <div class="legend-items">
               <div class="legend-item"><span class="legend-color" style="background:#27ae60;"></span> 🟢 Aptitud Alta / Favorable</div>
@@ -213,9 +213,9 @@
         <div style="display: flex; align-items: center; gap: 8px;">
           <label for="select-climate-period" style="font-size: 0.85rem; font-weight: bold; color: var(--texto-principal);">Período:</label>
           <select id="select-climate-period" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--borde-suave); background: var(--bg-principal); color: var(--texto-principal); font-size: 0.85rem;">
-            <option value="12">Últimos 12 meses</option>
-            <option value="36">Últimos 3 años</option>
-            <option value="60">Últimos 5 años</option>
+            <option value="12">12 meses consolidados</option>
+            <option value="36">36 meses consolidados</option>
+            <option value="60">60 meses consolidados</option>
           </select>
         </div>
       </div>
@@ -292,7 +292,7 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script type="module" src="script.js"></script>
+  <script type="module" src="script.js?v=20261118-crops-fix"></script>
   <script>
     // Splash de bienvenida en cada carga de la página.
     (function initSplashScreen() {

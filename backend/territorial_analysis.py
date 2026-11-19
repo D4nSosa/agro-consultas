@@ -211,11 +211,37 @@ def gaez_analyze(req: LotDatasetRequest):
                     values = values[values != dataset.nodata]
                 values = values[np.isfinite(values)]
                 if not values.size:
+                    # GAEZ may publish a file globally while its cells are NoData
+                    # for a particular crop/scenario/AOI. Do not turn NoData into 0
+                    # or infer that the crop is unsuitable.
+                    alternatives = [
+                        {
+                            "period": row["PERIOD"],
+                            "climate_data_source": row["CLIMATE_DATA_SOURCE"],
+                            "ssp": row["SSP"],
+                            "input_level": row["INPUT"],
+                            "file_name": row["FILE_NAME"],
+                        }
+                        for row in _gaez_catalog()
+                        if row.get("MAPSET_CODE") == req.mapset_code
+                        and row.get("CROP") == req.crop
+                        and row.get("FILE_NAME") != record.get("FILE_NAME")
+                    ]
+                    alternatives.sort(key=lambda item: (
+                        item["period"] != "HP0120",
+                        item["climate_data_source"].lower() != "agera5",
+                        item["ssp"] != "HIST",
+                        item["input_level"] != "HRLM",
+                    ))
+                    alternatives = alternatives[:8]
                     raise HTTPException(
                         status_code=422,
                         detail={
                             "code": "GAEZ_NO_VALID_PIXELS",
-                            "message": "FAO no aporta valores válidos para este cultivo y escenario en las celdas que intersectan el lote. Probá otro cultivo o el período histórico 2001–2020."
+                            "message": "El archivo FAO existe, pero no contiene celdas con valores válidos dentro de este lote para la combinación seleccionada. Esto no significa aptitud cero ni que el cultivo sea inviable.",
+                            "dataset": record,
+                            "alternatives": alternatives,
+                            "spatial_resolution": "5 minutos de arco; una celda puede cubrir varios kilómetros y el lote puede intersectar una sola celda."
                         }
                     )
                 stats = {
@@ -281,7 +307,7 @@ def gaez_analyze(req: LotDatasetRequest):
         "map_overlay": overlay,
         "raster": {"crs": crs, "resolution_native_units": resolution, "nodata": nodata},
         "method": "Estadística zonal de las celdas válidas del ráster que tocan el polígono (all_touched=True), sin interpolación.",
-        "spatial_resolution": "GAEZ v5 RES05: grilla de 5 minutos de arco, aproximadamente 9 km en latitudes medias.",
+        "spatial_resolution": "GAEZ v5 Theme 4 RES05: grilla de 5 minutos de arco, aproximadamente 9 km en latitudes medias.",
         "interpretation_limit": "Se devuelven valores originales del ráster. La unidad, escala y significado dependen del producto seleccionado y deben leerse en sus metadatos. En lotes pequeños, una o pocas celdas regionales pueden representar toda la consulta: no es una medición intralote ni una predicción del rendimiento real.",
         "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
     }

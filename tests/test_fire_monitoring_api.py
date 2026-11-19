@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 import numpy as np
+import time
+import urllib.error
 from backend import fire_monitoring as fire
 
 
@@ -142,3 +144,99 @@ def test_firms_stale_sources_are_excluded_from_live_features(monkeypatch):
     payload = fire.national_fires()
     assert len(payload["features"]) == 3
     assert payload["meta"]["staleSources"] == ["VIIRS_SNPP"]
+
+
+def _forecast_fixture():
+    return {
+        "daily": {
+            "time": ["2026-11-08"],
+            "temperature_2m_max": [34],
+            "precipitation_sum": [0],
+            "wind_speed_10m_max": [24],
+            "wind_gusts_10m_max": [38],
+        },
+        "hourly": {
+            "time": ["2026-11-08T00:00", "2026-11-08T12:00"],
+            "relative_humidity_2m": [62, 24],
+        },
+    }
+
+
+def test_fire_forecast_reuses_short_lived_cache_for_nearby_map_taps(monkeypatch):
+    fire.FORECAST_CACHE.clear()
+    calls = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return __import__("json").dumps(_forecast_fixture()).encode("utf-8")
+
+    def fake_urlopen(request, **_kwargs):
+        calls.append(request.full_url)
+        return FakeResponse()
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", fake_urlopen)
+    first = fire.fire_weather_forecast(lat=-28.0501, lon=-56.0201)
+    second = fire.fire_weather_forecast(lat=-28.0502, lon=-56.0202)
+
+    assert len(calls) == 1
+    assert first["meta"]["cached"] is False
+    assert second["meta"]["cached"] is True
+    assert second["location"]["latitude"] == -28.05
+    assert second["meta"]["cacheCellDegrees"] == 0.001
+
+
+def test_fire_forecast_returns_retry_after_when_provider_rate_limits(monkeypatch):
+    fire.FORECAST_CACHE.clear()
+
+    def rate_limited(*_args, **_kwargs):
+        raise urllib.error.HTTPError(
+            "https://api.open-meteo.com/v1/forecast", 429, "Too Many Requests",
+            {"Retry-After": "120"}, None
+        )
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", rate_limited)
+    response = TestClient(fire.app).get("/api/fires/forecast?lat=-28.05&lon=-56.02")
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "120"
+    assert "limitó temporalmente" in response.json()["detail"]
+
+
+def test_fire_forecast_serves_stale_cache_when_provider_is_unavailable(monkeypatch):
+    fire.FORECAST_CACHE.clear()
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return __import__("json").dumps(_forecast_fixture()).encode("utf-8")
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", lambda *_args, **_kwargs: FakeResponse())
+    initial = fire.fire_weather_forecast(lat=-28.05, lon=-56.02)
+    key = fire._forecast_cache_key(-28.05, -56.02)
+    fire.FORECAST_CACHE[key]["expires"] = time.monotonic() - 1
+    fire.FORECAST_CACHE[key]["stale_expires"] = time.monotonic() + 120
+
+    def unavailable(*_args, **_kwargs):
+        raise urllib.error.HTTPError(
+            "https://api.open-meteo.com/v1/forecast", 429, "Too Many Requests",
+            {"Retry-After": "60"}, None
+        )
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", unavailable)
+    stale = fire.fire_weather_forecast(lat=-28.05, lon=-56.02)
+
+    assert stale["days"] == initial["days"]
+    assert stale["meta"]["cached"] is True
+    assert stale["meta"]["stale"] is True
+    assert "Open-Meteo no respondió" in stale["meta"]["warning"]
