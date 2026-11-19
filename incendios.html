@@ -100,6 +100,40 @@ const ARGENTINA_CENTER=[-38.4161,-63.6167];
 const ARGENTINA_INITIAL_ZOOM=4;
 const map=L.map('fire-map',{preferCanvas:true,minZoom:3,zoomControl:true}).setView(ARGENTINA_CENTER,ARGENTINA_INITIAL_ZOOM);
 
+const conaeLayerMetadata={burned:null,fuel:null};
+async function readConaeLayerMetadata(kind){
+ const config=kind==='burned'
+  ? {url:'https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms',select:'burned-product',prefix:'EmergenciasCONAE:'}
+  : {url:'https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms',select:'fuel-product',prefix:'AlertaTemprana:'};
+ const select=$(config.select),info=$('conae-product-info');
+ if(!select||!info)return;
+ info.textContent='Consultando catálogo WMS de CONAE para identificar el producto seleccionado…';
+ try{
+  if(!conaeLayerMetadata[kind]){
+   const response=await fetch(config.url+'?service=WMS&request=GetCapabilities&version=1.1.1',{headers:{Accept:'application/xml,text/xml'}});
+   if(!response.ok)throw new Error('GetCapabilities HTTP '+response.status);
+   const xml=new DOMParser().parseFromString(await response.text(),'text/xml');
+   if(xml.querySelector('parsererror'))throw new Error('El catálogo WMS devolvió XML inválido.');
+   const layers=[...xml.getElementsByTagName('Layer')].map(layer=>{
+    const text=tag=>layer.getElementsByTagName(tag)[0]?.textContent?.trim()||'';
+    const name=text('Name'),title=text('Title'),abstract=text('Abstract');
+    const legendNode=layer.getElementsByTagName('LegendURL')[0]?.getElementsByTagName('OnlineResource')[0];
+    const legend=legendNode?.getAttribute('xlink:href')||legendNode?.getAttribute('href')||null;
+    return name?{name,title,abstract,legend}:null;
+   }).filter(Boolean);
+   conaeLayerMetadata[kind]=new Map(layers.map(layer=>[layer.name,layer]));
+  }
+  const layerName=select.value.replace(config.prefix,'');
+  const metadata=conaeLayerMetadata[kind].get(layerName)||conaeLayerMetadata[kind].get(select.value);
+  if(!metadata){
+   info.textContent='CONAE no publicó metadatos descriptivos para '+select.value+'. El identificador se conserva sin asignarle una interpretación no verificada.';
+   return;
+  }
+  info.innerHTML='<strong>'+esc(metadata.title||metadata.name)+'</strong><br><small>Identificador: '+esc(metadata.name)+'</small><p class="fire-note">'+esc(metadata.abstract||'El catálogo no publica un resumen metodológico para esta capa.')+'</p>'+(metadata.legend?'<img loading="lazy" alt="Leyenda oficial CONAE" src="'+esc(metadata.legend)+'" style="max-width:100%;height:auto">':'');
+ }catch(error){
+  info.textContent='No se pudieron recuperar los metadatos WMS de CONAE ('+error.message+'). El producto no se interpreta automáticamente: revisá el título y la descripción cuando el catálogo vuelva a responder.';
+ }
+}
 function showArgentina(){
  map.invalidateSize({pan:false});
  map.setView(ARGENTINA_CENTER,ARGENTINA_INITIAL_ZOOM,{animate:false});
@@ -372,7 +406,7 @@ $('show-fuel').addEventListener('change',()=>{if($('show-fuel').checked)conaeFue
 $('fuel-product').addEventListener('change',()=>conaeFuel.setParams({layers:$('fuel-product').value}));
 $('themeToggle')?.addEventListener('click',()=>{document.documentElement.classList.toggle('theme-dark');document.body.classList.toggle('theme-dark');try{localStorage.setItem('agro-theme',document.documentElement.classList.contains('theme-dark')?'dark':'light');}catch{}});
 try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
-const historyTo=new Date(),historyFrom=new Date(historyTo.getTime()-30*86400000);$('history-to').value=historyTo.toISOString().slice(0,10);$('history-from').value=historyFrom.toISOString().slice(0,10);\nrefresh();window.setInterval(refresh,10*60*1000);
+const historyTo=new Date(),historyFrom=new Date(historyTo.getTime()-30*86400000);$('history-to').value=historyTo.toISOString().slice(0,10);$('history-from').value=historyFrom.toISOString().slice(0,10);\n$('burned-product').addEventListener('change',()=>readConaeLayerMetadata('burned'));$('fuel-product').addEventListener('change',()=>readConaeLayerMetadata('fuel'));\nreadConaeLayerMetadata('burned');readConaeLayerMetadata('fuel');\nrefresh();window.setInterval(refresh,10*60*1000);
 </script>
   <script type="module" src="workspace.js"></script>
 </body></html>
