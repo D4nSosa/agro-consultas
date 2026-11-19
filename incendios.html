@@ -378,7 +378,7 @@ function downloadHistoryCsv(){
  const headers=['date','time_utc','latitude','longitude','sensor','product','satellite','confidence','power_mw','daynight'];
  const rows=filtered.map(feature=>{const p=feature.properties||{},coords=feature.geometry?.coordinates||[];return[p.date||'',p.timeUtc||'',coords[1]??'',coords[0]??'',p.sensor||'',p.product||'',p.satellite||'',p.confidence??'',p.powerMw??'',p.daynight||''];});
  const csv=[headers.join(','),...rows.map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(','))].join('\r\n');
- const blob=new Blob(['\\uFEFF',csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download='agro-consultas-historico-focos-'+$('history-from').value+'-'+$('history-to').value+'.csv';a.click();URL.revokeObjectURL(url);
 }
 function applyHistory(){
