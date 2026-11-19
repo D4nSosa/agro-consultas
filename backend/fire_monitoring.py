@@ -429,6 +429,61 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
     return features, errors
 
 
+CONAE_METADATA_CACHE = {}
+CONAE_METADATA_CACHE_LOCK = threading.Lock()
+
+
+@app.get("/api/fires/conae/metadata")
+def conae_wms_metadata(kind: str):
+    """Proxy CONAE WMS capabilities and expose human-readable layer metadata."""
+    services = {
+        "burned": "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms",
+        "fuel": "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms",
+    }
+    if kind not in services:
+        raise HTTPException(status_code=400, detail="Tipo de producto CONAE inválido. Usá burned o fuel.")
+    now = time.monotonic()
+    with CONAE_METADATA_CACHE_LOCK:
+        cached = CONAE_METADATA_CACHE.get(kind)
+        if cached and now < cached["expires"]:
+            return cached["payload"]
+    url = services[kind] + "?service=WMS&request=GetCapabilities&version=1.1.1"
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/xml,text/xml"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            document = ET.fromstring(response.read(8_000_000))
+        layers = []
+        for layer in document.findall(".//{*}Layer"):
+            name = layer.findtext("{*}Name")
+            if not name:
+                continue
+            legend_url = None
+            online = layer.find(".//{*}LegendURL/{*}OnlineResource")
+            if online is not None:
+                legend_url = online.attrib.get("{http://www.w3.org/1999/xlink}href") or online.attrib.get("href")
+            layers.append({
+                "name": name,
+                "title": layer.findtext("{*}Title") or name,
+                "abstract": layer.findtext("{*}Abstract") or "",
+                "legend": legend_url,
+            })
+        if not layers:
+            raise ValueError("El documento WMS no publicó capas identificables.")
+        payload = {
+            "kind": kind,
+            "service": services[kind],
+            "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "layers": layers,
+        }
+        with CONAE_METADATA_CACHE_LOCK:
+            CONAE_METADATA_CACHE[kind] = {"payload": payload, "expires": now + 3600}
+        return payload
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="No se pudieron consultar los metadatos WMS de CONAE: " + str(exc)[:180])
+
+
 @app.post("/api/fires/history")
 def historical_fires(payload: dict):
     """Query archived NASA FIRMS standard-processing detections for a lot and date range."""
