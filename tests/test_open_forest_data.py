@@ -25,10 +25,10 @@ def test_hansen_tile_codes_match_argentina_naming():
 
 def test_hansen_tile_origins_include_both_sides_of_boundary():
     origins = forest._hansen_tile_origins((-60.1, -30.1, -59.9, -29.9))
-    assert (-70, -30) in origins
-    assert (-70, -20) in origins
-    assert (-60, -30) in origins
-    assert (-60, -20) in origins
+    assert (-70, -30, "S") in origins
+    assert (-70, -20, "S") in origins
+    assert (-60, -30, "S") in origins
+    assert (-60, -20, "S") in origins
 
 
 def test_public_forest_endpoints_reject_point_geometry():
@@ -109,9 +109,20 @@ def test_class_area_stats_weights_partial_pixels_to_lot_intersection():
 
 def test_hansen_tile_origins_support_single_tile_small_lot():
     origins = forest._hansen_tile_origins((-60.10, -30.10, -60.05, -30.05))
-    assert origins == [(-70, -30)]
+    assert origins == [(-70, -30, "S")]
 
 
 def test_hansen_tile_origins_support_single_tile_northern_hemisphere():
     origins = forest._hansen_tile_origins((-65.10, 10.10, -65.05, 10.05))
-    assert origins == [(-70, 10)]
+    assert origins == [(-70, 10, "N")]
+
+
+def test_hansen_tile_bbox_respects_northern_and_southern_tile_conventions():
+    assert forest._hansen_tile_bbox(-70, -30, "S").bounds == (-70, -40, -60, -30)
+    assert forest._hansen_tile_bbox(-70, 10, "N").bounds == (-70, 10, -60, 20)
+
+
+def test_hansen_origins_distinguish_both_tiles_at_the_equator():
+    origins = forest._hansen_tile_origins((-60.1, -0.1, -60.05, 0.1))
+    assert (-70, 0, "S") in origins
+    assert (-70, 0, "N") in origins
