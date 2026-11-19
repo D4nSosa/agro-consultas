@@ -15,6 +15,8 @@ export class ChangeReport {
     const search = analysisData.search || {};
     const prodA = products?.productA || null;
     const prodB = products?.productB || null;
+    const previewA = [prodA?.assets?.thumbnail, prodA?.assets?.visual].find(url => typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) || null;
+    const previewB = [prodB?.assets?.thumbnail, prodB?.assets?.visual].find(url => typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) || null;
     const statsA = ndvi?.analysisA?.stats || null;
     const statsB = ndvi?.analysisB?.stats || null;
 
@@ -133,7 +135,7 @@ export class ChangeReport {
                 <li><strong>Nubosidad:</strong> ${prodA.cloudCoverDisplay || (Number.isFinite(prodA.cloudCover) ? `${prodA.cloudCover}%` : 'No informada')}</li>
                 <li><strong>Resolución:</strong> 10 metros</li>
               </ul>
-              ${prodA.assets?.thumbnail || prodA.assets?.visual ? `<img loading="lazy" src="${prodA.assets.thumbnail || prodA.assets.visual}" alt="Vista previa Sentinel-2 Fecha A" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : `<div style="font-size:.78rem;color:var(--texto-secundario);margin-top:8px">Escena identificada, pero el catálogo no entregó una miniatura o visualización.</div>`}
+              ${previewA ? `<img loading="lazy" src="${previewA}" alt="Vista previa Sentinel-2 Fecha A" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : `<div style="font-size:.78rem;color:var(--texto-secundario);margin-top:8px">Escena identificada, pero el catálogo no entregó una miniatura o visualización.</div>`}
             ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: ${search.dateA?.message || 'No se encontró escena en la ventana temporal consultada.'}</div>`}
           </div>
 
@@ -147,7 +149,7 @@ export class ChangeReport {
                 <li><strong>Nubosidad:</strong> ${prodB.cloudCoverDisplay || (Number.isFinite(prodB.cloudCover) ? `${prodB.cloudCover}%` : 'No informada')}</li>
                 <li><strong>Resolución:</strong> 10 metros</li>
               </ul>
-              ${prodB.assets?.thumbnail || prodB.assets?.visual ? `<img loading="lazy" src="${prodB.assets.thumbnail || prodB.assets.visual}" alt="Vista previa Sentinel-2 Fecha B" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : `<div style="font-size:.78rem;color:var(--texto-secundario);margin-top:8px">Escena identificada, pero el catálogo no entregó una miniatura o visualización.</div>`}
+              ${previewB ? `<img loading="lazy" src="${previewB}" alt="Vista previa Sentinel-2 Fecha B" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : `<div style="font-size:.78rem;color:var(--texto-secundario);margin-top:8px">Escena identificada, pero el catálogo no entregó una miniatura o visualización.</div>`}
             ` : `<div style="font-size: 0.85rem; color: var(--texto-secundario); margin-top: 8px;">NO DISPONIBLE: ${search.dateB?.message || 'No se encontró escena en la ventana temporal consultada.'}</div>`}
           </div>
         </div>
