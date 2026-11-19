@@ -15,6 +15,7 @@ test('crop candidates remain visible without being mislabeled as recommendations
   assert.match(script, /const displayedMotives = c/);
   assert.doesNotMatch(script, /Orientación productiva territorial/);
   assert.doesNotMatch(script, /perfiles del catálogo provincial/);
+  assert.doesNotMatch(script, /La especie figura en el catálogo provincial/);
   assert.doesNotMatch(script, /no como recomendaciones de siembra ni como cultivos aptos/);
 });
 
