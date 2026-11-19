@@ -32,7 +32,7 @@ def test_gaez_catalog_returns_live_catalog_options_without_credentials(monkeypat
     assert payload["success"] is True
     assert payload["matching_combinations"] == 2
     assert payload["options"]["crops"] == ["MAI"]
-    assert payload["options"]["input_levels"] == ["H", "L"]
+    assert payload["options"]["input_levels"] == ["HRLM", "LRLM"]
 
 
 def test_gaez_rejects_point_geometry():
