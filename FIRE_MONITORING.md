@@ -18,11 +18,15 @@ El análisis por lote intenta primero los WFS de CONAE:
 
 Si ambas capas fallan (incluido HTTP 400), la página consulta NASA FIRMS y filtra las detecciones por la geometría del lote. El error del WFS deja de bloquear el módulo. GOES-19 se filtra por separado para mostrar alertas rápidas dentro del lote. El servidor alternativo `geoservicios2` no se usa como sustituto porque su catálogo WFS no publica las capas de focos requeridas.
 
-## Análisis histórico
+## Análisis histórico integrado
 
-La vista histórica acepta archivos CSV detallados de CONAE y NASA FIRMS. El procesamiento ocurre localmente en el navegador: permite consultar el conjunto importado completo aunque no haya un lote seleccionado, o filtrar por la geometría del lote; aplica el filtro de confianza cuando el valor es numérico y calcula totales anuales y mensuales separados por MODIS y VIIRS. Los CSV no se suben al servidor. Se informan las filas descartadas y se conservan detecciones con sensor no identificado como `UNKNOWN`, sin asignarlas artificialmente a MODIS o VIIRS. Las coincidencias MODIS/VIIRS se muestran como agrupamientos exploratorios y no sustituyen los conteos originales.
+La vista histórica consulta desde Agro Consultas el archivo NASA FIRMS Standard Processing mediante `POST /api/fires/history`. El usuario selecciona un lote y un período; la API consulta MODIS (`MODIS_SP`) y VIIRS (`VIIRS_SNPP_SP`, `VIIRS_NOAA20_SP`, `VIIRS_NOAA21_SP`), recorta la consulta al bounding box y luego aplica una intersección exacta con la geometría del lote. Los resultados se muestran dentro del módulo, se agregan por año y mes, y se descargan como CSV desde la misma pantalla.
 
-Para obtener CSV de CONAE, abrir [Consultas Interactivas: Incendios](https://catalogos5.conae.gov.ar/catalogofocos/default.aspx), elegir satélites, período y área, seleccionar salida **Detalle** y formato CSV. La descarga requiere una cuenta CONAE. No usar las salidas **Totalizar** para el mapa de puntos.
+La API FIRMS admite hasta cinco días por solicitud; Agro Consultas divide automáticamente el período en bloques y limita cada consulta a 31 días para controlar volumen y transacciones. Requiere la variable de entorno segura `FIRMS_MAP_KEY` en el servidor. Si falta, devuelve HTTP 503 con un mensaje explícito; no se incluye ninguna clave en el repositorio. La importación de CSV de CONAE/FIRMS permanece como herramienta secundaria offline, no como flujo principal.
+
+Se conservan las detecciones con sensor/producto, satélite, fecha y hora UTC, confianza, potencia radiativa y otros atributos disponibles. Los focos son anomalías térmicas, no incendios confirmados ni perímetros quemados. MODIS y VIIRS permanecen separados; sus coincidencias son agrupamientos exploratorios.
+
+Para detalles metodológicos y límites: [NASA FIRMS Area API](https://firms.modaps.eosdis.nasa.gov/api/area/) y [NASA FIRMS API Guide](https://firms.modaps.eosdis.nasa.gov/content/academy/data_api/firms_api_use.html).
 
 ## Interpretación y límites
 
@@ -63,17 +67,11 @@ La respuesta nacional informa el estado de cada archivo FIRMS cuando el proveedo
 
 ## Alcance histórico disponible y evolución prevista
 
-**Estado actual de la aplicación:** el apartado Histórico procesa CSV detallados que el usuario importa desde CONAE o NASA FIRMS. No consulta automáticamente un archivo histórico remoto; por eso el panel aparece vacío hasta que se cargan datos. Los archivos se procesan localmente.
+**Estado de la aplicación:** la consulta de detecciones históricas de focos activos NASA FIRMS está integrada dentro del módulo y se filtra por la geometría del lote. El histórico de focos activos no debe confundirse con las superficies/perímetros quemados de GWIS o CONAE: son productos diferentes y no se suman entre sí.
 
-**Fuente abierta adecuada para contexto provincial:** el servicio Global Wildfire Information System (GWIS) / Joint Research Centre publica series mensuales de superficie quemada derivadas de MODIS MCD64A1 para países y unidades administrativas subnacionales (GADM nivel 1), con cobertura 2002–2025 en su descarga global. También publica un conjunto de perímetros individuales de incendios 2002–2025 derivado de MCD64A1. La serie administrativa permite construir gráficos por provincia y año/mes; no permite atribuir hectáreas quemadas a un lote particular. Los perímetros requieren una consulta espacial separada y conservan las limitaciones de resolución y detección del producto.
+**Contexto de áreas quemadas:** GWIS/JRC publica series administrativas y productos de áreas quemadas derivados de MODIS MCD64A1. Las series por provincia no permiten atribuir hectáreas quemadas a un lote. La interfaz no debe presentar ese contexto como un resultado parcelario sin una geometría de perímetro o ráster validada.
 
-**Para detecciones históricas de focos activos:** NASA FIRMS ofrece Archive Download para datos de más de siete días; el acceso a los servicios de API requiere una MAP_KEY gratuita y las descargas del archivo requieren registro Earthdata. No se debe asumir que el feed NRT de 24 horas equivale a un archivo histórico.
-
-Implementación recomendada:
-1. Incorporar primero la serie GWIS de superficie quemada por provincia (contexto administrativo), con fuente, producto, rango temporal y fecha de actualización visibles.
-2. Mantener separadas las detecciones MODIS/VIIRS y las superficies/perímetros quemados; son productos distintos y no deben sumarse como si fueran la misma variable.
-3. Añadir consulta por lote únicamente cuando se disponga de geometrías de perímetros o ráster de superficie quemada con cobertura y resolución verificadas. No convertir estadísticas provinciales en resultados del lote.
-4. Ofrecer importación FIRMS/CONAE como vía de detalle para focos históricos, indicando fuente, sensor, período y filas descartadas.
+**Metadatos CONAE:** el módulo consulta GetCapabilities WMS a través de la API propia y presenta título, identificador, resumen y leyenda oficial cuando el servicio los publica. Si no existe resumen o falla el catálogo, se informa la ausencia de metadatos y no se interpreta el ID AQM como una variable conocida.
 
 Fuentes:
 - [GWIS — descargas de superficie quemada y perímetros 2002–2025](https://gwis.jrc.ec.europa.eu/apps/country.profile/downloads)
