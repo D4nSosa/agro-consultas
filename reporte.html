@@ -528,8 +528,9 @@
             <!-- NASA POWER -->
             <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
               <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌦️ Serie Histórica Climática (NASA POWER)</h4>
+              <p style="font-size:.76rem;color:var(--texto-secundario);margin:0 0 8px">NASA POWER aporta datos en grilla derivados de reanálisis/modelado espacial; no son mediciones directas de una estación meteorológica ni del lote.</p>
               <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
-                <div><strong>Período Observado Reciente:</strong> ${climateHistory?.data?.periodMetrics?.precipitacionAcumuladaMm ?? 'NO DISPONIBLE'} mm ac.</div>
+                <div><strong>Período mensual reciente (reanálisis):</strong> ${climateHistory?.data?.periodMetrics?.precipitacionAcumuladaMm ?? 'NO DISPONIBLE'} mm ac.</div>
                 <div><strong>Línea Base Histórica de Referencia (2001–2020):</strong> ${climateHistory?.data?.historicalAverages?.precipitacionMediaAnualMm ?? 'NO DISPONIBLE'} mm/año</div>
                 <div><strong>Anomalía:</strong> ${climateHistory?.data?.comparison?.clasificacionPrecipitacion ?? 'NO DISPONIBLE'}</div>
               </div>
