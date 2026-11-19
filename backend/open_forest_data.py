@@ -74,26 +74,55 @@ def _row_pixel_area_ha(transform, row: int) -> float:
     return abs(area) / 10000.0
 
 
-def _class_area_stats(values, mask, transform, classes):
+def _class_area_stats(values, mask, transform, classes, geometry=None, crs="EPSG:4326"):
+    """Zonal class areas weighted by the fraction of each pixel inside the AOI.
+
+    Counting every touched pixel as a full pixel overstates small/irregular lots and
+    can report more hectares than the parcel itself. Fractions are computed in the
+    raster CRS; geographic pixel areas are then measured geodesically.
+    """
     import numpy as np
+    from pyproj import CRS, Geod, Transformer
+    from shapely.geometry import box
+    from shapely.ops import transform as transform_geometry
+
+    raster_crs = CRS.from_user_input(crs)
+    aoi = geometry
+    if aoi is not None and not raster_crs.equals(CRS.from_epsg(4326)):
+        transformer = Transformer.from_crs("EPSG:4326", raster_crs, always_xy=True)
+        aoi = transform_geometry(transformer.transform, aoi)
+
+    geod = Geod(ellps="WGS84") if raster_crs.is_geographic else None
+    unit_factor = (raster_crs.axis_info[0].unit_conversion_factor
+                   if raster_crs.axis_info else 1.0)
     result = {int(code): {"pixels": 0, "area_ha": 0.0} for code in classes}
     valid_total = 0
     for row in range(values.shape[0]):
-        valid = ~mask[row]
-        if not np.any(valid):
-            continue
-        row_values = values[row][valid]
-        row_values = row_values[np.isin(row_values, list(classes))]
-        if not row_values.size:
-            continue
-        valid_total += int(row_values.size)
-        pixel_area = _row_pixel_area_ha(transform, row)
-        unique, counts = np.unique(row_values, return_counts=True)
-        for raw_code, count in zip(unique, counts):
-            code = int(raw_code)
-            if code in result:
-                result[code]["pixels"] += int(count)
-                result[code]["area_ha"] += float(count) * pixel_area
+        for col in range(values.shape[1]):
+            if mask[row, col]:
+                continue
+            code = int(values[row, col])
+            if code not in result:
+                continue
+            x0, y0 = transform * (col, row)
+            x1, y1 = transform * (col + 1, row + 1)
+            pixel = box(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+            fraction = 1.0
+            if aoi is not None:
+                overlap = pixel.intersection(aoi)
+                if overlap.is_empty or pixel.area <= 0:
+                    continue
+                fraction = min(1.0, max(0.0, overlap.area / pixel.area))
+                if fraction <= 0:
+                    continue
+            if geod:
+                pixel_area_m2, _ = geod.geometry_area_perimeter(pixel)
+                pixel_area_ha = abs(pixel_area_m2) / 10000.0
+            else:
+                pixel_area_ha = pixel.area * (unit_factor ** 2) / 10000.0
+            result[code]["pixels"] += 1
+            result[code]["area_ha"] += pixel_area_ha * fraction
+            valid_total += 1
     for item in result.values():
         item["area_ha"] = round(item["area_ha"], 4)
     return result, valid_total
@@ -248,7 +277,7 @@ def hansen_analyze(req: ForestLotRequest):
         "loss_by_year": loss["loss_by_year"],
         "valid_pixels": min(canopy["valid_pixels"], loss["valid_pixels"]),
         "tiles_read": min(canopy["tiles_read"], loss["tiles_read"]),
-        "method": "Conteo de píxeles por año de pérdida y estadísticos de cobertura arbórea de referencia sobre el polígono.",
+        "method": "Estadísticas zonales con fracción de área de cada píxel intersectada por el polígono.",
         "limitations": [
             "La pérdida es una perturbación de cobertura arbórea, no una clasificación automática de deforestación.",
             "Puede incluir cosecha de plantaciones, incendios y perturbaciones naturales.",
@@ -265,7 +294,7 @@ def gfw_drivers_analyze(req: ForestLotRequest):
     geometry = _polygon(req.geometry)
     try:
         values, mask, transform, crs, resolution = _read_single_cog(geometry, GFW_DRIVERS_COG, 1)
-        stats, valid = _class_area_stats(values, mask, transform, DRIVER_CLASSES)
+        stats, valid = _class_area_stats(values, mask, transform, DRIVER_CLASSES, geometry, crs)
     except HTTPException:
         raise
     except Exception as exc:
@@ -286,7 +315,9 @@ def gfw_drivers_analyze(req: ForestLotRequest):
         "license": "CC-BY-4.0",
         "period": "2001–2025",
         "resolution": "0.01° (approximately 1 km)",
+        "area_method": "Área ponderada por fracción de intersección píxel-polígono; no suma píxeles completos.",
         "valid_pixels": valid,
+        "area_method": "Área ponderada por fracción de intersección píxel-polígono; no suma píxeles completos.",
         "drivers": drivers,
         "limitations": [
             "Un solo driver dominante por celda para todo el período; no representa secuencia ni causas simultáneas.",
@@ -307,7 +338,7 @@ def jrc_analyze(req: ForestLotRequest):
         valid_mask = ~mask
         forest_mask = valid_mask & (values == 1)
         nonforest_mask = valid_mask & (values == 0)
-        forest_stats, valid = _class_area_stats(values, mask, transform, {0, 1})
+        forest_stats, valid = _class_area_stats(values, mask, transform, {0, 1}, geometry, crs)
         forest_ha = forest_stats[1]["area_ha"]
         nonforest_ha = forest_stats[0]["area_ha"]
         total_ha = forest_ha + nonforest_ha
