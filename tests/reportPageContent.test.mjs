@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises';
 const report = await readFile(new URL('../reporte.html', import.meta.url), 'utf8');
 const sentinel = await readFile(new URL('../forestal/services/satelliteService.js', import.meta.url), 'utf8');
 const orchestrator = await readFile(new URL('../forestal/services/forestAnalysisService.js', import.meta.url), 'utf8');
+const forestReport = await readFile(new URL('../forestal/components/ChangeReport.js', import.meta.url), 'utf8');
+const forestTimeline = await readFile(new URL('../forestal/components/ForestTimeline.js', import.meta.url), 'utf8');
 
 test('technical report is responsive on mobile and print layouts', () => {
   assert.match(report, /report-responsive-layout/);
@@ -32,4 +34,12 @@ test('Sentinel search intersects the actual lot geometry and reports timeouts', 
   assert.match(sentinel, /20 segundos/);
   assert.doesNotMatch(orchestrator, /Promise\.race/);
   assert.match(orchestrator, /search: \{ dateA: searchResA, dateB: searchResB \}/);
+});
+
+test('forest module exposes Sentinel preview assets in report and timeline', () => {
+  assert.match(forestReport, /previewA/);
+  assert.match(forestReport, /previewB/);
+  assert.match(forestReport, /Vista previa Sentinel-2 Fecha A/);
+  assert.match(forestTimeline, /item\.thumbnail/);
+  assert.match(orchestrator, /thumbnail: prod\.assets/);
 });
