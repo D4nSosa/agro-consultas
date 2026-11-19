@@ -1012,6 +1012,11 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
  */
 
 function actualizarCapaAptitudMapa(recomendaciones, lat, lng) {
+  const aptitudeLegend = document.querySelector(".map-legend");
+  const hasClassifiedResult = Array.isArray(recomendaciones) && recomendaciones.some(item =>
+    /APTITUD ALTA|APTITUD MEDIA|APTITUD BAJA/.test(String(item?.compatibilidad || "").toUpperCase())
+  );
+  if (aptitudeLegend) aptitudeLegend.style.display = hasClassifiedResult ? "" : "none";
   if (!mapViewerInstance || !mapViewerInstance.map || lat === null || lng === null) return;
 
   if (suitabilityOverlayLayer) {
