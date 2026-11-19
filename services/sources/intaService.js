@@ -34,7 +34,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
           fallback: false
         };
       }
-      if (origin !== 'wms' && origin !== 'regional') localStorage.removeItem(cacheKey);
+      if (origin !== 'wms') localStorage.removeItem(cacheKey);
     }
   } catch (err) {
     console.warn("[INTA] Error al leer caché edafológico:", err);
@@ -94,7 +94,7 @@ export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
       throw new Error("No se encontraron features en la coordenada");
     }
   } catch (err) {
-    console.log("[INTA] Consulta de mapa de suelo en tiempo real no disponible, activando adaptador estático:", err.message);
+    console.log("[INTA] Consulta de mapa de suelo en tiempo real no disponible, sin utilizar perfiles regionales como datos del lote:", err.message);
 
     return {
       tipo: null, textura: null, drenaje: null, limitantes: null, aptitud: null,
