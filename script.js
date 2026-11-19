@@ -865,20 +865,26 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   }
 
   const d = climateHistory.data;
+  const periodStart = d.traceability?.periodoMensual?.inicio || d.monthlyBreakdown?.[0]?.monthKey || null;
+  const periodEnd = d.traceability?.periodoMensual?.fin || d.monthlyBreakdown?.[d.monthlyBreakdown.length - 1]?.monthKey || null;
+  const periodCount = d.traceability?.periodoMensual?.cantidadRegistros || d.monthlyBreakdown?.length || months;
+  const periodLabel = periodStart && periodEnd
+    ? periodCount + ' meses consolidados (' + periodStart + ' a ' + periodEnd + ')'
+    : periodCount + ' meses mensuales consolidados';
   const tempDiffBadge = d.comparison.temperaturaAnomalia > 0 ? 'badge-baja' : 'badge-alta';
   const precDiffBadge = d.comparison.precipitacionesDiferenciaPct >= 0 ? 'badge-alta' : 'badge-media';
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px;">
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación Acumulada (Período Reciente)</div>
+          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación acumulada · ${periodLabel}</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${d.periodMetrics.precipitacionAcumuladaMm} mm</div>
           <div style="font-size: 0.8rem; color: var(--texto-principal);">Línea Base Histórica (2001–2020): ${d.historicalAverages.precipitacionMediaAnualMm} mm/año</div>
         <span class="compatibility-badge ${precDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionPrecipitacion}</span>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura Media (Período Reciente)</div>
+          <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌡️ Temperatura media · ${periodLabel}</div>
         <div style="font-size: 1.3rem; font-weight: 800; color: #e67e22; margin: 4px 0;">${d.periodMetrics.temperaturaMediaC}°C</div>
           <div style="font-size: 0.8rem; color: var(--texto-principal);">Línea Base Histórica (2001–2020): ${d.historicalAverages.temperaturaMediaHistoricaC}°C</div>
         <span class="compatibility-badge ${tempDiffBadge}" style="display: inline-block; margin-top: 6px; font-size: 0.75rem;">${d.comparison.clasificacionTemperatura}</span>
