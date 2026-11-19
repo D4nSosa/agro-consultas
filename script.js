@@ -684,6 +684,7 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   const precDiffBadge = d.comparison.precipitacionesDiferenciaPct >= 0 ? 'badge-alta' : 'badge-media';
 
   container.innerHTML = `
+    <p style="font-size:.78rem;color:var(--texto-secundario);margin:0 0 12px">NASA POWER entrega datos en grilla derivados de reanálisis/modelado espacial. No son mediciones directas de una estación meteorológica ni del lote.</p>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 15px;">
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
           <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌧️ Precipitación acumulada · ${periodLabel}</div>
