@@ -31,7 +31,6 @@ let currentMarker = null;
 let userLocationCircle = null;
 let drawnPolygonLayer = null;
 let suitabilityOverlayLayer = null;
-let gaezMapOverlayLayer = null;
 
 let isDrawingMainLot = false;
 let mainDrawPoints = [];
@@ -245,10 +244,6 @@ export async function inicializarMapa(provinciaRaw) {
     }
     if (JSON.stringify(currentAOIPolygon) === JSON.stringify(feature.geometry)) return;
     currentAOIPolygon = feature.geometry;
-    if (gaezMapOverlayLayer && leafletMap.hasLayer(gaezMapOverlayLayer)) leafletMap.removeLayer(gaezMapOverlayLayer);
-    gaezMapOverlayLayer = null;
-    const gaezResult = document.getElementById("gaez-map-result");
-    if (gaezResult) gaezResult.textContent = "Cambió el lote. Volvé a ejecutar GAEZ para actualizar la capa.";
     isDrawingMainLot = false;
     mainDrawPoints = [];
     mainDrawMarkerLayers.forEach(layer => leafletMap.removeLayer(layer));
@@ -278,8 +273,6 @@ export async function inicializarMapa(provinciaRaw) {
     mapViewerInstance.renderControlPanel("map-layer-controls-container");
   }
 
-  await inicializarControlesGAEZ(leafletMap);
-
   const btnGeo = document.getElementById("btn-geolocalizar");
   if (btnGeo) {
     btnGeo.addEventListener("click", usarGeolocalizacion);
@@ -288,228 +281,6 @@ export async function inicializarMapa(provinciaRaw) {
 
   if (isSpecificUbicacion) {
     await buscarYProcesarUbicacion(provinciaRaw);
-  }
-}
-
-async function inicializarControlesGAEZ(leafletMap) {
-  const root = document.getElementById("gaez-map-controls");
-  if (!root || root.dataset.initialized === "true") return;
-  root.dataset.initialized = "true";
-
-  const fields = [
-    { id: "gaez-mapset", key: "mapset_code", option: "mapset_codes", preferred: "RES05-SIX" },
-    { id: "gaez-crop", key: "crop", option: "crops", preferred: "MZE" },
-    { id: "gaez-period", key: "period", option: "periods", preferred: "HP0120" },
-    { id: "gaez-climate", key: "climate_data_source", option: "climate_data_sources", preferred: "AgERA5" },
-    { id: "gaez-ssp", key: "ssp", option: "ssps", preferred: "HIST" },
-    { id: "gaez-input", key: "input_level", option: "input_levels", preferred: "HRLM" }
-  ];
-  const cropLabels = {
-    ALF: "Alfalfa", AVOC: "Palta", BAN: "Banana", BCK: "Trigo sarraceno", MAI: "Maíz",
-    BRL: "Cebada", CAB: "Repollo", CAR: "Zanahoria", CIT: "Cítricos",
-    CSV: "Mandioca", MZE: "Maíz", MZS: "Maíz para silo", OAT: "Avena",
-    RCW: "Arroz inundado", RCD: "Arroz de secano", SFL: "Girasol",
-    SOY: "Soja", TEA: "Té", TOM: "Tomate", WHE: "Trigo"
-  };
-  const cropCodesByName = {
-    maiz: "MZE", soja: "SOY", trigo: "WHE", arroz: "RCW",
-    naranja: "CIT", mandarina: "CIT", citricos: "CIT", mandioca: "CSV",
-    te: "TEA", girasol: "SFL", avena: "OAT", tomate: "TOM",
-    alfalfa: "ALF", banana: "BAN"
-  };
-  const status = document.getElementById("gaez-map-status");
-  const result = document.getElementById("gaez-map-result");
-  const runButton = document.getElementById("gaez-map-run");
-  const clearButton = document.getElementById("gaez-map-clear");
-
-  const clearOverlay = () => {
-    if (gaezMapOverlayLayer && leafletMap.hasLayer(gaezMapOverlayLayer)) leafletMap.removeLayer(gaezMapOverlayLayer);
-    gaezMapOverlayLayer = null;
-    const legend = document.getElementById("gaez-map-legend");
-    if (legend) legend.textContent = "";
-  };
-
-  function preferredCropCode() {
-    const selected = document.getElementById("selectCropFilter")?.value;
-    if (selected && selected !== "todos") {
-      const normalized = normalizeKey(selected);
-      return cropCodesByName[normalized] || null;
-    }
-    return "MZE";
-  }
-
-  async function refreshOptions(startIndex = 0) {
-    for (let index = startIndex; index < fields.length; index += 1) {
-      const params = new URLSearchParams();
-      fields.slice(0, index).forEach(field => {
-        const value = document.getElementById(field.id)?.value;
-        if (value) params.set(field.key, value);
-      });
-      const response = await fetch("/api/territorial/gaez/catalog?" + params.toString());
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail?.message || payload.detail || "No se pudo cargar el catálogo FAO GAEZ v5.");
-      const field = fields[index];
-      const select = document.getElementById(field.id);
-      if (!select) continue;
-      const previous = select.value;
-      let options = payload.options?.[field.option] || [];
-
-      // This control is specifically for crop suitability, not evapotranspiration,
-      // water deficit or unrelated GAEZ indicators.
-      if (field.id === "gaez-mapset") options = options.filter(value => value === "RES05-SIX");
-
-      select.replaceChildren();
-      options.forEach(value => {
-        const option = document.createElement("option");
-        option.value = value;
-        option.textContent = field.id === "gaez-mapset"
-          ? "RES05-SIX · Índice de aptitud (toda la celda)"
-          : field.id === "gaez-crop"
-            ? `${cropLabels[value] || value} (${value})`
-            : value;
-        select.appendChild(option);
-      });
-
-      const preferred = field.id === "gaez-crop" ? (preferredCropCode() || field.preferred) : field.preferred;
-      if (options.includes(previous)) select.value = previous;
-      else if (options.includes(preferred)) select.value = preferred;
-      else if (options.length) select.value = options[0];
-      select.disabled = options.length === 0;
-    }
-  }
-
-  fields.forEach((field, index) => {
-    document.getElementById(field.id)?.addEventListener("change", async () => {
-      try {
-        status.textContent = "Actualizando combinaciones disponibles…";
-        clearOverlay();
-        await refreshOptions(index + 1);
-        status.textContent = "Producto de aptitud actualizado. GAEZ tiene resolución regional; no equivale a una medición dentro del lote.";
-      } catch (error) {
-        status.textContent = error.message;
-      }
-    });
-  });
-
-  document.getElementById("selectCropFilter")?.addEventListener("change", async () => {
-    const code = preferredCropCode();
-    const cropSelect = document.getElementById("gaez-crop");
-    if (code && cropSelect && Array.from(cropSelect.options).some(option => option.value === code)) {
-      cropSelect.value = code;
-      await refreshOptions(2);
-      status.textContent = `GAEZ configurado para ${cropLabels[code] || code}. Podés cambiar el cultivo en el selector GAEZ.`;
-    } else if (document.getElementById("selectCropFilter")?.value !== "todos") {
-      status.textContent = "Ese cultivo no tiene un código equivalente en el catálogo GAEZ v5. Elegí un cultivo disponible en el selector GAEZ para consultar la capa.";
-    }
-  });
-
-  runButton?.addEventListener("click", async () => {
-    if (!currentAOIPolygon || !["Polygon", "MultiPolygon"].includes(currentAOIPolygon.type)) {
-      result.textContent = "Primero dibujá, importá o seleccioná un lote poligonal en este mapa.";
-      return;
-    }
-    const body = { geometry: currentAOIPolygon };
-    fields.forEach(field => {
-      body[field.key] = document.getElementById(field.id)?.value || null;
-    });
-    if (body.mapset_code !== "RES05-SIX") {
-      result.textContent = "Seleccioná el Índice de aptitud RES05-SIX.";
-      return;
-    }
-    runButton.disabled = true;
-    status.textContent = "Consultando FAO GAEZ v5 y calculando el resumen del área…";
-    result.textContent = "Procesando las celdas GAEZ que intersectan el lote.";
-    try {
-      const response = await fetch("/api/territorial/gaez/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const payload = await response.json();
-      if (!response.ok && payload.detail?.code === "GAEZ_NO_VALID_PIXELS") {
-        const detail = payload.detail;
-        result.replaceChildren();
-        const explanation = document.createElement("p");
-        explanation.textContent = detail.message || "La fuente no tiene celdas válidas para esta combinación.";
-        result.appendChild(explanation);
-        if (Array.isArray(detail.alternatives) && detail.alternatives.length) {
-          const heading = document.createElement("strong");
-          heading.textContent = "Combinaciones alternativas publicadas por FAO para este cultivo:";
-          result.appendChild(heading);
-          detail.alternatives.forEach(alternative => {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "btn outline";
-            button.style.margin = "6px 6px 0 0";
-            button.textContent = [alternative.period, alternative.climate_data_source, alternative.ssp, alternative.input_level].join(" · ");
-            button.addEventListener("click", async () => {
-              document.getElementById("gaez-period").value = alternative.period;
-              document.getElementById("gaez-climate").value = alternative.climate_data_source;
-              document.getElementById("gaez-ssp").value = alternative.ssp;
-              document.getElementById("gaez-input").value = alternative.input_level;
-              try {
-                await refreshOptions(2);
-                runButton.click();
-              } catch (optionError) {
-                status.textContent = optionError.message;
-              }
-            });
-            result.appendChild(button);
-          });
-        } else {
-          const note = document.createElement("p");
-          note.textContent = "El catálogo no ofrece otra combinación para este cultivo. Elegí otro cultivo GAEZ o consultá el período histórico si está disponible.";
-          result.appendChild(note);
-        }
-        status.textContent = "GAEZ no tiene valores válidos en este lote para la combinación elegida. No equivale a aptitud cero.";
-        return;
-      }
-      if (!response.ok) throw new Error(payload.detail?.message || payload.detail || "No se pudo procesar el índice de aptitud FAO.");
-      if (!payload.map_overlay?.image_data_url || !payload.map_overlay?.bounds) {
-        throw new Error("FAO respondió sin una imagen cartográfica válida para esta selección.");
-      }
-      clearOverlay();
-      gaezMapOverlayLayer = L.imageOverlay(
-        payload.map_overlay.image_data_url,
-        payload.map_overlay.bounds,
-        { opacity: 0.82, interactive: false, alt: "Índice de aptitud agroecológica FAO GAEZ v5" }
-      ).addTo(leafletMap);
-      if (drawnPolygonLayer?.bringToFront) drawnPolygonLayer.bringToFront();
-      const stats = payload.statistics;
-      const legend = document.getElementById("gaez-map-legend");
-      if (legend) legend.textContent = "Índice de aptitud FAO · valores del ráster";
-      result.textContent = [
-        "Fuente: FAO/IIASA GAEZ v5 · RES05-SIX (índice de aptitud de toda la celda).",
-        "Cultivo: " + (cropLabels[body.crop] || body.crop) + " (" + body.crop + ")",
-        "Período: " + body.period + " · Clima: " + body.climate_data_source + " · Escenario: " + body.ssp,
-        "Manejo / agua: " + body.input_level,
-        "Media del área intersectada: " + Number(stats.mean).toLocaleString("es-AR", { maximumFractionDigits: 2 }),
-        "Mediana: " + Number(stats.median).toLocaleString("es-AR", { maximumFractionDigits: 2 }),
-        "Rango: " + Number(stats.minimum).toLocaleString("es-AR", { maximumFractionDigits: 2 }) + " – " + Number(stats.maximum).toLocaleString("es-AR", { maximumFractionDigits: 2 }),
-        "Celdas válidas intersectadas: " + Number(stats.pixel_count).toLocaleString("es-AR"),
-        payload.interpretation_limit
-      ].join("\n");
-      status.textContent = "Capa GAEZ aplicada al mapa. La resolución del modelo es regional: no describe variaciones internas de parcelas pequeñas.";
-    } catch (error) {
-      result.textContent = error.message;
-      status.textContent = "No se pudo generar la capa GAEZ.";
-    } finally {
-      runButton.disabled = false;
-    }
-  });
-
-  clearButton?.addEventListener("click", () => {
-    clearOverlay();
-    result.textContent = "Se quitó la capa GAEZ del mapa.";
-    status.textContent = "La capa está desactivada.";
-  });
-
-  try {
-    status.textContent = "Cargando el catálogo de aptitud FAO GAEZ v5…";
-    await refreshOptions(0);
-    status.textContent = "Índice de aptitud listo. Seleccioná un lote para superponer la referencia agroecológica FAO.";
-  } catch (error) {
-    status.textContent = error.message;
   }
 }
 
