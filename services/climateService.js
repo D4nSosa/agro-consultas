@@ -123,6 +123,9 @@ export async function getClimateData(lat, lng, provincia, subregionStaticClima =
 export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
   if (temp === null || temp === undefined || viento === null || viento === undefined) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "NO DISPONIBLE",
       icono: "⚪",
       clase: "badge-media",
@@ -133,10 +136,13 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
   const isRain = weatherCode !== null && (weatherCode >= 51 && weatherCode <= 82);
   if (isRain) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "BAJO (Lluvia activa)",
       icono: "🟢",
       clase: "badge-alta",
-      descripcion: "Ocurrencia de precipitaciones en vivo mitigando riesgo de fuego."
+      descripcion: "El código meteorológico actual indica precipitación; no equivale a humedad del combustible ni a un FWI oficial."
     };
   }
 
@@ -153,6 +159,9 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
 
   if (score >= 6) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "MUY ALTO / EXTREMO",
       icono: "🔴",
       clase: "badge-baja",
@@ -160,6 +169,9 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
     };
   } else if (score >= 4) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "ALTO",
       icono: "🟠",
       clase: "badge-media",
@@ -167,6 +179,9 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
     };
   } else if (score >= 2) {
     return {
+      tipoIndice: "HEURISTICA_METEOROLOGICA_INTERNA",
+      fuenteVariables: "Open-Meteo: temperatura, viento y código meteorológico actual",
+      limitacion: "No es el Fire Weather Index (FWI), no estima ignición y no sustituye alertas oficiales.",
       nivel: "MODERADO",
       icono: "🟡",
       clase: "badge-media",
@@ -181,7 +196,7 @@ export function calcularIndicePeligroIncendio(temp, viento, weatherCode) {
     nivel: "BAJO",
     icono: "🟢",
     clase: "badge-alta",
-    descripcion: "Condiciones meteorológicas estables con bajo riesgo de propagación."
+    descripcion: "El indicador interno no detecta condiciones elevadas con las variables disponibles; no descarta peligro local."
   };
 }
 
