@@ -118,7 +118,7 @@
     import { getSoilReport } from './services/soilService.js';
     import { getClimateData } from './services/climateService.js';
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
-    import { generateRecommendations, loadCultivosData, getCropsToEvaluate } from './services/recommendationEngine.js';
+    import { generateRecommendations, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js';
     import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
      import { filterFireDetectionsToGeometry } from './services/fireMonitoringService.mjs';
@@ -277,6 +277,27 @@
         const recomendaciones = provKey
           ? await generateRecommendations(cultivosNombres, soilReport, climateEvidenceForScoring)
           : [];
+        const especiesForestales = provKey ? await getForestToEvaluate(provKey) : [];
+        const recomendacionesForestales = especiesForestales.length
+          ? await generateRecommendations(especiesForestales, soilReport, climateEvidenceForScoring)
+          : [];
+
+        const forestCandidatesHTML = provKey ? `
+          <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
+            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌲 Especies forestales del catálogo provincial</h2>
+            <p style="font-size:.82rem;color:var(--texto-secundario)">Estas especies están registradas para la provincia consultada. Su inclusión no implica aptitud del lote, recomendación de plantación ni validación de sitio. La clasificación solo se muestra cuando existen variables comparables suficientes.</p>
+            ${recomendacionesForestales.length ? `
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+                ${recomendacionesForestales.map(item => `
+                  <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;font-size:.82rem">
+                    <strong style="color:var(--verde-principal)">${item.nombre}</strong>
+                    <div style="margin:5px 0"><span class="compatibility-badge badge-origin">Candidato provincial · ${item.compatibilidad}</span></div>
+                    <p style="margin:0;color:var(--texto-secundario)">${item.descripcion || 'Ficha técnica de referencia.'}</p>
+                    <small style="display:block;margin-top:6px;color:var(--texto-secundario)">${item.datosFaltantes?.length ? item.datosFaltantes.join(' ') : 'La evidencia disponible debe validarse en campo antes de decidir una implantación.'}</small>
+                  </div>
+                `).join('')}
+              </div>` : '<p style="font-size:.82rem;color:var(--texto-secundario)">El catálogo provincial no registra especies forestales para esta provincia.</p>'}
+          </section>` : '';
 
         let forestHTML = '';
         if (parsedGeom && ['Polygon', 'MultiPolygon'].includes(parsedGeom.geometry?.type)) {
@@ -467,6 +488,7 @@
         analysisContainer.innerHTML = `
           ${fieldHTML}
           ${fireHTML}
+          ${forestCandidatesHTML}
           ${forestHTML}
           ${territorialAnalysisHTML}
 
