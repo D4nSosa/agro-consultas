@@ -21,6 +21,8 @@ test('crop candidates remain visible without being mislabeled as recommendations
 test('GAEZ uses the crop suitability index and historical baseline by default', async () => {
   const results = await readFile(new URL('../resultados.html', import.meta.url), 'utf8');
   assert.match(results, /id="gaez-map-controls"/);
+  assert.match(results, /12 meses consolidados/);
+  assert.doesNotMatch(results, /Últimos 12 meses/);
   assert.match(results, /id="gaez-map-run"/);
   assert.match(results, /initSplashScreen/);
   assert.match(results, /splash\.style\.display = 'flex'/);
