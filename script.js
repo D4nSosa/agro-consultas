@@ -489,7 +489,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
     lastSoilReportCache = soilReport;
     lastClimateReportCache = climateReport;
 
-    const soilBadgeText = soilReport.status === DataStatus.REAL ? 'Consulta cartográfica INTA' : 'Referencia regional';
+    const soilBadgeText = soilReport.status === 'CARTOGRAPHIC' ? 'Cartografía INTA' : 'Sin dato edáfico verificado';
     const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'Estimación meteorológica puntual (Open-Meteo)' : 'Referencia regional / no disponible';
 
     const levelText = geoVal?.spatialLevel || currentSpatialLevel || "PUNTO DE REFERENCIA";
