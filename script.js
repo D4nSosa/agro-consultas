@@ -1098,9 +1098,10 @@ function createSingleRecommendationCardHtml(c) {
     compatibility.includes("NO EVALUABLE") || compatibility.includes("INSUFFICIENT") ||
     compatibility.includes("DATOS INSUFICIENTES");
   const compatibilityLabel = isReferenceProfile ? "Perfil de referencia" : (c.compatibilidad || semaforoText);
-  const factorText = isReferenceProfile
-    ? "Incluido en el catálogo provincial. La ficha orienta la revisión técnica y no confirma aptitud del sitio."
-    : (c.motivos?.[0] || 'Factores agroambientales compatibles.');
+  const factorText = c.motivos?.[0] ||
+    (isReferenceProfile
+      ? "Incluido en el catálogo provincial; falta evidencia para clasificar aptitud."
+      : "Factores agroambientales compatibles.");
   const displayedMotives = c.motivos?.length
     ? c.motivos
     : ["No hay observaciones comparables disponibles para esta ficha."];
