@@ -74,7 +74,7 @@ function buildClimateEvidenceForScoring(climateReport, climateHistory) {
   const historical = climateHistory?.data?.historicalAverages || {};
   const temperature = Number(historical.temperaturaMediaHistoricaC);
   const precipitation = Number(historical.precipitacionMediaAnualMm);
-  const hasHistoricalValues = climateHistory?.status === 'REAL' &&
+  const hasHistoricalValues = climateHistory?.status === 'ESTIMATED' &&
     Number.isFinite(temperature) && Number.isFinite(precipitation);
 
   if (!hasHistoricalValues) {
