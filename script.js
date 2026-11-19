@@ -903,9 +903,9 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
   }
 
   const d = climateHistory.data;
-  const periodStart = d.traceability?.periodoMensual?.inicio || d.monthlyBreakdown?.[0]?.monthKey || null;
-  const periodEnd = d.traceability?.periodoMensual?.fin || d.monthlyBreakdown?.[d.monthlyBreakdown.length - 1]?.monthKey || null;
-  const periodCount = d.traceability?.periodoMensual?.cantidadRegistros || d.monthlyBreakdown?.length || months;
+  const periodStart = climateHistory.traceability?.periodoMensual?.inicio || d.monthlyBreakdown?.[0]?.monthKey || null;
+  const periodEnd = climateHistory.traceability?.periodoMensual?.fin || d.monthlyBreakdown?.[d.monthlyBreakdown.length - 1]?.monthKey || null;
+  const periodCount = climateHistory.traceability?.periodoMensual?.cantidadRegistros || d.monthlyBreakdown?.length || months;
   const periodLabel = periodStart && periodEnd
     ? periodCount + ' meses consolidados (' + periodStart + ' a ' + periodEnd + ')'
     : periodCount + ' meses mensuales consolidados';
