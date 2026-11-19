@@ -10,6 +10,8 @@ const [script, styles] = await Promise.all([
 test('crop candidates remain visible without being mislabeled as recommendations', () => {
   assert.match(script, /Perfiles que requieren más evidencia/);
   assert.match(script, /pendientes\.map\(createSingleRecommendationCardHtml\)/);
+  assert.match(script, /Datos que faltan para clasificar/);
+  assert.match(script, /const displayedMotives = c/);
   assert.doesNotMatch(script, /Orientación productiva territorial/);
   assert.doesNotMatch(script, /perfiles del catálogo provincial/);
   assert.doesNotMatch(script, /no como recomendaciones de siembra ni como cultivos aptos/);
@@ -22,13 +24,13 @@ test('GAEZ uses the crop suitability index and historical baseline by default', 
   assert.match(results, /initSplashScreen/);
   assert.match(results, /splash\.style\.display = 'flex'/);
   assert.doesNotMatch(results, /sessionStorage\.getItem\('splash_shown'\)/);
-  assert.match(script, /preferred: "RES05-SUT"/);
-  assert.match(script, /value === "RES05-SUT"/);
-  assert.match(script, /body.mapset_code !== "RES05-SUT"/);
+  assert.match(script, /preferred: "RES05-SIX"/);
+  assert.match(script, /value === "RES05-SIX"/);
+  assert.match(script, /body.mapset_code !== "RES05-SIX"/);
   assert.match(script, /preferred: "HP0120"/);
   assert.match(script, /preferred: "AgERA5"/);
   assert.match(script, /preferred: "HIST"/);
-  assert.match(script, /preferred: "L"/);
+  assert.match(script, /preferred: "HRLM"/);
   assert.doesNotMatch(results, /Abrir portal FAO\/IIASA GAEZ/);
   assert.match(script, /L\.imageOverlay/);
   assert.match(script, /api\/territorial\/gaez\/analyze/);
