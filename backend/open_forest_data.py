@@ -196,7 +196,7 @@ def _read_hansen_layer(geometry, layer: str):
                 projected = transform_geom("EPSG:4326", dataset.crs, projected)
             from shapely.geometry import shape as make_shape, box as make_box
             aoi_raster = make_shape(projected)
-            data, transform = raster_mask(dataset, [projected], crop=True, filled=False)
+            data, transform = raster_mask(dataset, [projected], crop=True, filled=False, all_touched=True)
             band = data[0]
             valid_mask = ~np.ma.getmaskarray(band)
             if not np.any(valid_mask):
@@ -262,7 +262,7 @@ def _read_single_cog(geometry, url: str, band_index: int = 1):
         if dataset.crs.to_string() != "EPSG:4326":
             from rasterio.warp import transform_geom
             projected = transform_geom("EPSG:4326", dataset.crs, projected)
-        data, transform = raster_mask(dataset, [projected], crop=True, filled=False, indexes=band_index)
+        data, transform = raster_mask(dataset, [projected], crop=True, filled=False, indexes=band_index, all_touched=True)
         band = data if data.ndim == 2 else data[0]
         values = band.data
         mask = __import__("numpy").ma.getmaskarray(band)
@@ -346,14 +346,11 @@ def jrc_analyze(req: ForestLotRequest):
     try:
         values, mask, transform, crs, resolution = _read_single_cog(geometry, JRC_COG, 1)
         import numpy as np
-        valid_mask = ~mask
-        forest_mask = valid_mask & (values == 1)
-        nonforest_mask = valid_mask & (values == 0)
         forest_stats, valid = _class_area_stats(values, mask, transform, {0, 1}, geometry, crs)
         forest_ha = forest_stats[1]["area_ha"]
         nonforest_ha = forest_stats[0]["area_ha"]
         total_ha = forest_ha + nonforest_ha
-        forest_pixels = int(np.count_nonzero(forest_mask))
+        forest_pixels = forest_stats[1]["pixels"]
     except HTTPException:
         raise
     except Exception as exc:
