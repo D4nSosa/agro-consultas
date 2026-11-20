@@ -362,7 +362,20 @@ def _fire_weather_indicator(temp_max, humidity_min, wind_max, precipitation):
 
 HISTORY_CACHE = {}
 HISTORY_CACHE_LOCK = threading.Lock()
+HISTORY_CACHE_MAX_ENTRIES = 64
 HISTORY_MAX_DAYS = 31
+
+
+def _store_history_cache(cache_key, payload, ttl_seconds):
+    now = time.monotonic()
+    with HISTORY_CACHE_LOCK:
+        expired = [key for key, entry in HISTORY_CACHE.items() if now >= entry["expires"]]
+        for key in expired:
+            HISTORY_CACHE.pop(key, None)
+        if cache_key not in HISTORY_CACHE and len(HISTORY_CACHE) >= HISTORY_CACHE_MAX_ENTRIES:
+            oldest = min(HISTORY_CACHE, key=lambda key: HISTORY_CACHE[key]["expires"])
+            HISTORY_CACHE.pop(oldest, None)
+        HISTORY_CACHE[cache_key] = {"payload": payload, "expires": now + ttl_seconds}
 HISTORY_SENSOR_FAMILIES = {
     "MODIS": ("MODIS_SP", "MODIS_NRT"),
     "VIIRS_SNPP": ("VIIRS_SNPP_SP", "VIIRS_SNPP_NRT"),
@@ -735,11 +748,10 @@ def historical_fires(payload: dict):
         },
     }
     # Never cache rejected or partial responses: the next request must retry the failed sources.
-    if complete:
-        recent_cutoff = datetime.date.today() - datetime.timedelta(days=3)
+    if complete and not unavailable:
+        recent_cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=3)
         ttl = 300 if end_date >= recent_cutoff else 86400
-        with HISTORY_CACHE_LOCK:
-            HISTORY_CACHE[cache_key] = {"payload": payload_out, "expires": now + ttl}
+        _store_history_cache(cache_key, payload_out, ttl)
     return payload_out
 
 CONAE_METADATA_CACHE = {}
