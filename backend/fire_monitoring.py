@@ -653,7 +653,7 @@ def historical_fires_status():
         try:
             status_body = exc.read(500).decode("utf-8", errors="replace").strip()
             status_body = status_body.replace(map_key, "[REDACTED]")
-            status_body = re.sub(r"https?://\\S+", "[URL protegida]", status_body)[:180]
+            status_body = re.sub(r"https?://\S+", "[URL protegida]", status_body)[:180]
         except Exception:
             status_body = ""
     except Exception:
