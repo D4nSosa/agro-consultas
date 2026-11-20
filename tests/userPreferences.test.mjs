@@ -26,6 +26,7 @@ test('uses safe defaults when no preferences have been saved', t => {
   assert.equal(preferences.baseMap, 'satellite');
   assert.equal(preferences.layers.modis, true);
   assert.equal(preferences.layers.fwi, false);
+  assert.equal(preferences.minConfidence, 0);
 });
 
 test('persists only allowlisted map preferences', t => {
@@ -36,6 +37,7 @@ test('persists only allowlisted map preferences', t => {
     layers: { modis: false, burned: true, unknown: true },
     burnedProduct: 'EmergenciasCONAE:MODIS_AQM_4',
     fuelProduct: 'not-a-real-layer',
+    minConfidence: 35,
     apiKey: 'must-not-be-stored'
   }), true);
   const saved = getFireMapPreferences();
@@ -44,6 +46,7 @@ test('persists only allowlisted map preferences', t => {
   assert.equal(saved.layers.burned, true);
   assert.equal(saved.burnedProduct, 'EmergenciasCONAE:MODIS_AQM_4');
   assert.equal(saved.fuelProduct, 'AlertaTemprana:INC_SIARTIVGEOL89_DC_3');
+  assert.equal(saved.minConfidence, 35);
   assert.equal(storage.getItem(USER_PREFERENCES_KEY).includes('must-not-be-stored'), false);
 });
 
