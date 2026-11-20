@@ -386,7 +386,7 @@ def _parse_firms_availability(raw):
     """Accept both NASA's range CSV and its per-date SP/NRT availability schema."""
     availability = {}
 
-    def add_range(product, minimum, maximum):
+    def add_range(product, minimum, maximum, exact_day=False):
         try:
             start = datetime.date.fromisoformat(str(minimum).strip())
             end = datetime.date.fromisoformat(str(maximum).strip())
@@ -397,8 +397,13 @@ def _parse_firms_availability(raw):
             if current:
                 current["minDate"] = min(current["minDate"], start)
                 current["maxDate"] = max(current["maxDate"], end)
+                if exact_day and current.get("availableDates") is not None:
+                    current["availableDates"].add(start)
             else:
-                availability[product] = {"minDate": start, "maxDate": end}
+                availability[product] = {
+                    "minDate": start, "maxDate": end,
+                    "availableDates": {start} if exact_day else None,
+                }
 
     def enabled(value):
         return str(value or "").strip().lower() in {"1", "true", "yes", "y", "si"}
@@ -417,9 +422,9 @@ def _parse_firms_availability(raw):
             if family not in {"MODIS", "VIIRS_SNPP", "VIIRS_NOAA20", "VIIRS_NOAA21"}:
                 continue
             if enabled(row.get("sp")):
-                add_range(family + "_SP", observed_date, observed_date)
+                add_range(family + "_SP", observed_date, observed_date, exact_day=True)
             if enabled(row.get("nrt")):
-                add_range(family + "_NRT", observed_date, observed_date)
+                add_range(family + "_NRT", observed_date, observed_date, exact_day=True)
             continue
 
         # Compatibility with rows where the product name is in the sensor column.
@@ -471,7 +476,9 @@ def _history_source_for_day(family, day, availability):
     for source in (standard, near_real_time):
         bounds = availability.get(source)
         if bounds and bounds["minDate"] <= day <= bounds["maxDate"]:
-            return source
+            available_dates = bounds.get("availableDates")
+            if available_dates is None or day in available_dates:
+                return source
     return None
 
 
