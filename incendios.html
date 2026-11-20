@@ -257,7 +257,6 @@ if($('burned-product'))$('burned-product').value=firePreferences.burnedProduct;
 if($('fuel-product'))$('fuel-product').value=firePreferences.fuelProduct;
 if(firePreferences.baseMap==='streets'){streets.addTo(map);map.removeLayer(satellite);}
 if(firePreferences.layers.fwi)gwisFwi.addTo(map);
-if(!firePreferences.layers.lot)map.removeLayer(lotLayer);
 if(firePreferences.layers.burned)conaeBurned.addTo(map);
 if(firePreferences.layers.fuel)conaeFuel.addTo(map);
 function persistFireLayerPreference(id){
@@ -272,6 +271,7 @@ Object.keys(preferenceControls).forEach(id=>$(id)?.addEventListener('change',()=
  $('source-status').classList.add('error');
 }));
 const detectionLayer=L.layerGroup().addTo(map),goesLayer=L.layerGroup().addTo(map),lotLayer=L.geoJSON(null,{style:{color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.12}}).addTo(map),lotResultLayer=L.layerGroup().addTo(map);
+if(!firePreferences.layers.lot)map.removeLayer(lotLayer);
 let modisViirs=[],goes=[],lot=null,history=[],historySkipped=0,historyManifest=[],selectedPoint=null,forecastMarker=null,forecastController=null,forecastRequest=0;
 let liveWatchId=null,livePosition=null,liveMarker=null,liveAccuracy=null,lastLiveForecast=null;
 const fmt=v=>v===null||v===undefined||v===''?'No informado':Number.isFinite(Number(v))?Number(v).toLocaleString('es-AR',{maximumFractionDigits:1}):String(v);
