@@ -203,3 +203,40 @@ MODIS_SP,2026-01-01,2026-11-20"""
     assert first == second
     assert calls == ["https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/private-test-key/ALL"]
     assert "private-test-key" not in str(first)
+
+
+def test_history_endpoint_returns_retry_after_when_firms_transaction_limit_is_active(monkeypatch):
+    from fastapi import HTTPException
+    from backend import fire_monitoring as fire
+
+    monkeypatch.setenv("FIRMS_MAP_KEY", "test-key")
+    monkeypatch.setitem(fire.FIRMS_RATE_LIMIT_CACHE, "until", 0.0)
+    fire.HISTORY_CACHE.clear()
+    fire._mark_firms_rate_limited(600)
+    try:
+        fire.historical_fires({
+            "geometry": POLYGON, "from": "2026-01-01", "to": "2026-01-02"
+        })
+        assert False, "Expected a rate-limit response"
+    except HTTPException as exc:
+        assert exc.status_code == 429
+        assert int(exc.headers["Retry-After"]) > 0
+    finally:
+        fire.FIRMS_RATE_LIMIT_CACHE["until"] = 0.0
+
+
+def test_firms_status_reports_key_recognized_when_only_transaction_quota_is_exhausted(monkeypatch):
+    from backend import fire_monitoring as fire
+
+    monkeypatch.setenv("FIRMS_MAP_KEY", "test-key")
+    monkeypatch.setitem(fire.FIRMS_RATE_LIMIT_CACHE, "until", 0.0)
+    fire.FIRMS_STATUS_CACHE.update({"expires": 0, "payload": None})
+    fire._mark_firms_rate_limited(600)
+    try:
+        status = fire.historical_fires_status()
+        assert status["configured"] is True
+        assert status["valid"] is True
+        assert status["rateLimited"] is True
+        assert status["retryAfterSeconds"] > 0
+    finally:
+        fire.FIRMS_RATE_LIMIT_CACHE["until"] = 0.0
