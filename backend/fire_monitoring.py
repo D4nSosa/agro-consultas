@@ -644,7 +644,7 @@ def historical_fires_status():
         try:
             status_body = exc.read(500).decode("utf-8", errors="replace").strip()
             status_body = status_body.replace(map_key, "[REDACTED]")
-            status_body = re.sub(r"https?://\\S+", "[URL protegida]", status_body)[:180]
+            status_body = re.sub(r"https?://\S+", "[URL protegida]", status_body)[:180]
         except Exception:
             status_body = ""
     except Exception:
@@ -661,7 +661,12 @@ def historical_fires_status():
         rate_limited = False
         message = "NASA FIRMS aceptó la clave y publicó la disponibilidad de productos."
     elif status_error in (400, 401, 403, 429) or availability_error:
-        rejection = _firms_rejection_message(status_error, status_body) if status_error in (400, 401, 403, 429) else str(availability_error or "")
+        if availability_error and "límite temporal" in str(availability_error).lower():
+            rejection = str(availability_error)
+        elif status_error in (400, 401, 403, 429):
+            rejection = _firms_rejection_message(status_error, status_body or availability_error)
+        else:
+            rejection = str(availability_error or "")
         rate_limited = "límite temporal" in rejection.lower()
         valid = True if rate_limited else None
         if rate_limited:
