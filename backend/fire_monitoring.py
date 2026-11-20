@@ -402,7 +402,7 @@ def _firms_retry_after():
 
 def _firms_rejection_message(status_code, detail=""):
     text = str(detail or "").lower()
-    if any(term in text for term in ("transaction", "rate limit", "too many", "exceed", "quota")):
+    if status_code == 429 or any(term in text for term in ("transaction", "rate limit", "too many", "exceed", "quota")):
         return "NASA indicó que se alcanzó el límite temporal de transacciones (HTTP " + str(status_code) + "). Esperá el reinicio de la ventana y reintentá."
     if any(term in text for term in ("invalid map", "invalid key", "map_key invalid", "map_key is invalid", "map key is invalid", "map key invalid")):
         return "NASA indicó que la MAP_KEY no es válida (HTTP " + str(status_code) + ")."
@@ -494,7 +494,7 @@ def _fetch_firms_availability(map_key, force=False):
             body = ""
         body = body.replace(map_key, "[REDACTED]")
         body = re.sub(r"https?://\S+", "[URL protegida]", body)[:180]
-        if exc.code in (400, 401, 403):
+        if exc.code in (400, 401, 403, 429):
             message = _firms_rejection_message(exc.code, body)
             if "límite temporal" in message:
                 _mark_firms_rate_limited(600)
@@ -600,7 +600,7 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
                 detail = ""
             reason = re.sub(r"https?://\S+", "[URL protegida]", detail)[:120]
             reason = reason.replace(map_key, "[REDACTED]")
-            if exc.code in (400, 401, 403):
+            if exc.code in (400, 401, 403, 429):
                 reason = _firms_rejection_message(exc.code, reason)
                 if "límite temporal" in reason:
                     _mark_firms_rate_limited(600)
