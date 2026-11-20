@@ -78,3 +78,17 @@ Fuentes:
 - [GWIS — metodología de áreas quemadas y eventos](https://gwis.jrc.ec.europa.eu/about-gwis/technical-background/burnt-areas)
 - [NASA FIRMS — archivo histórico](https://firms.modaps.eosdis.nasa.gov/download/)
 - [NASA FIRMS — requisitos de MAP_KEY para API](https://firms.modaps.eosdis.nasa.gov/content/academy/data_api/firms_api_use.html)
+
+## Productos de incendios y combustibles de CONAE: interpretación
+
+La aplicación consume capas WMS del catálogo oficial PROSAT II de CONAE. Los identificadores terminados en _1, _2, etc. se conservan como identificadores de capa; el catálogo consultado no publica una correspondencia explícita entre cada sufijo y un mes o una fracción temática. Por eso la interfaz debe recuperar el título, resumen y leyenda de cada capa desde GetCapabilities y no renombrarlas por inferencia.
+
+- **MODIS AQM (EmergenciasCONAE:MODIS_AQM_1 a MODIS_AQM_13)**: producto mensual de áreas quemadas derivado de NASA MODIS MCD64A1.061, banda Burn_Date. Representa superficie afectada y el día juliano de quemado; no es un foco activo ni un pronóstico de incendio.
+- **Disponibilidad de combustibles Landsat 8/9 (AlertaTemprana:INC_SIARTIVGEOL89_DC_1 a _3)**: desmezclado espectral de Landsat 8/9 que estima fracciones relativas de vegetación verde, vegetación seca/senescente y suelo descubierto/superficie no vegetada. Describe composición superficial; no es un índice de peligro ni una predicción de ignición.
+- **Disponibilidad de combustibles SNPP-VIIRS (AlertaTemprana:INC_SIARTIVGEOSNPP_DC_1 a _6)**: producto basado en SNPP-VIIRS VNP13A1 con las mismas tres fracciones generales de composición de combustibles.
+
+La simbología de estas capas debe provenir de la leyenda publicada por CONAE para la capa seleccionada. No se debe aplicar una paleta inventada ni interpretar los colores como clases de riesgo sin documentación oficial. Las detecciones MODIS/VIIRS y GOES mantienen colores separados por sensor; son puntos de anomalías térmicas y no polígonos de áreas quemadas.
+
+Fuente primaria: https://catalogos.conae.gov.ar/catalogo/catalogoGeoServiciosProsatII.html y https://catalogos.conae.gov.ar/catalogo/catalogoGeoServiciosOGC.html.
+
+**Estado de verificación WMS:** los metadatos se consultan desde la API de Agro Consultas y la interfaz muestra la leyenda si el servicio la publica. La disponibilidad en vivo de cada WMS debe comprobarse por separado; una respuesta correcta de GetCapabilities no garantiza que GetMap entregue teselas para la extensión y fecha consultadas.

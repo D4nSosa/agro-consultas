@@ -53,9 +53,9 @@
 .leaflet-popup-content small{display:block;color:var(--texto-secundario);margin-top:5px}.fire-cluster-label{background:transparent;border:0;box-shadow:none;color:#fff;font-size:11px;font-weight:800;text-shadow:0 1px 3px #222,1px 0 2px #222,-1px 0 2px #222}.fire-cluster-label:before{display:none}
 .theme-dark .leaflet-control-layers,.theme-dark .leaflet-bar a{background:var(--gris-card);color:var(--texto-principal);border-color:var(--borde-suave)}
 @media(max-width:980px){.fire-layout{grid-template-columns:minmax(0,1fr)}.fire-side{grid-template-columns:repeat(2,minmax(0,1fr))}.fire-side .wide{grid-column:1/-1}}
-@media(max-width:620px){.fire-side{grid-template-columns:minmax(0,1fr)}.fire-side .wide{grid-column:auto}#fire-map{height:56vh;min-height:390px}.fire-map-actions .btn{padding:7px 8px}}
-.fire-carousel{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory}
-.fire-event-card{flex:0 0 min(250px,78vw);text-align:left;white-space:normal;display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid var(--borde-suave);border-radius:10px;background:var(--bg-principal);color:var(--texto-principal);scroll-snap-align:start;cursor:pointer}
+@media(max-width:620px){.fire-priority-panels{grid-template-columns:minmax(0,1fr)}.fire-side{grid-template-columns:minmax(0,1fr)}.fire-side .wide{grid-column:auto}#fire-map{height:56vh;min-height:390px}.fire-map-actions .btn{padding:7px 8px}.fire-carousel{grid-template-columns:minmax(0,1fr)}.fire-filters select{max-width:100%;width:100%}}
+.fire-priority-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0;margin-top:14px}.fire-priority-panels>.fire-card{min-width:0}.fire-carousel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;padding:4px 2px 10px;min-width:0}
+.fire-event-card{width:100%;min-width:0;max-width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid var(--borde-suave);border-radius:10px;background:var(--bg-principal);color:var(--texto-principal);cursor:pointer}
 .fire-event-card:hover{border-color:var(--verde-principal)}
 .fire-event-card strong{font-size:.9rem;color:var(--verde-principal)}
 .fire-event-card small{font-size:.76rem;color:var(--texto-secundario)}
@@ -95,6 +95,29 @@
 import {getLotContext,onLotContextChange} from './services/lotContext.js';
 import {fetchFireDetections,harmonizeFireDetections,parseFireCsv,filterFireDetectionsToGeometry,aggregateFireMonths,aggregateFireYears} from './services/fireMonitoringService.mjs';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Aplicar el tema compartido antes de inicializar los controles del módulo.
+function applyAgroTheme(theme){
+ const dark=theme==='dark';
+ document.documentElement.classList.toggle('theme-dark',dark);
+ document.body.classList.toggle('theme-dark',dark);
+ const toggle=$('themeToggle');
+ if(toggle){toggle.textContent=dark?'☀️':'🌗';toggle.setAttribute('aria-pressed',String(dark));}
+}
+try{applyAgroTheme(localStorage.getItem('agro-theme')==='dark'?'dark':'light');}
+catch{applyAgroTheme('light');}
+// La lectura operativa debe quedar inmediatamente debajo del mapa, no detrás
+// de paneles secundarios del aside. En móvil se apila; en escritorio se divide.
+const mapSection=document.querySelector('.fire-layout > section');
+const detectionCard=$('fire-detection-carousel')?.closest('section');
+const forecastCard=$('forecast-days')?.closest('section');
+if(mapSection&&(detectionCard||forecastCard)){
+ const priorityPanels=document.createElement('div');
+ priorityPanels.className='fire-priority-panels';
+ priorityPanels.setAttribute('aria-label','Lectura inmediata del mapa de incendios');
+ mapSection.after(priorityPanels);
+ if(detectionCard)priorityPanels.append(detectionCard);
+ if(forecastCard)priorityPanels.append(forecastCard);
+}
 // Vista nacional fija: centro geográfico de Argentina y zoom inicial explícito.
 const ARGENTINA_CENTER=[-38.4161,-63.6167];
 const ARGENTINA_INITIAL_ZOOM=4;
@@ -115,6 +138,15 @@ async function readConaeLayerMetadata(kind){
    if(!response.ok)throw new Error(payload.detail||'No se pudo consultar el catálogo WMS.');
    const layers=Array.isArray(payload.layers)?payload.layers:[];
    conaeLayerMetadata[kind]=new Map(layers.map(layer=>[layer.name,layer]));
+   // Replace generic "producto 1/2/3" labels with the official catalog title.
+   // Keep the layer identifier visible because some CONAE titles are shared.
+   [...select.options].forEach(option=>{
+    const layerKey=option.value.replace(config.prefix,'');
+    const metadata=conaeLayerMetadata[kind].get(layerKey)||conaeLayerMetadata[kind].get(option.value);
+    option.textContent=metadata
+     ? (metadata.title||metadata.name)+' · '+metadata.name
+     : 'Metadatos no publicados · '+layerKey;
+   });
   }
   const layerName=select.value.replace(config.prefix,'');
   const metadata=conaeLayerMetadata[kind].get(layerName)||conaeLayerMetadata[kind].get(select.value);
@@ -263,6 +295,8 @@ function renderRecentDetections(){
   const [lng,lat]=feature.geometry.coordinates;
   map.setView([lat,lng],Math.max(map.getZoom(),9));
   L.popup().setLatLng([lat,lng]).setContent(popup(feature)).openOn(map);
+  // Al elegir una detección, llevar el mapa a la vista sin exigir desplazamiento manual.
+  $('fire-map')?.scrollIntoView({behavior:'smooth',block:'center'});
  }));
 }
 async function refresh(){const b=$('refresh');b.disabled=true;b.textContent='Actualizando…';$('source-status').textContent='Consultando detecciones recientes…';$('source-status').classList.remove('error');const results=await Promise.allSettled([fetch('/api/fires/national',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('NASA FIRMS HTTP '+r.status);return r.json()}),fetch('/api/fires/goes',{cache:'no-store'}).then(async r=>{if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(d.detail||'GOES HTTP '+r.status)}return r.json()})]);const errs=[];if(results[0].status==='fulfilled')modisViirs=results[0].value.features||[];else{modisViirs=[];errs.push(results[0].reason.message);}if(results[1].status==='fulfilled')goes=results[1].value.features||[];else{goes=[];errs.push(results[1].reason.message);}drawDetections();updateCounts();renderRecentDetections();const fm=results[0].status==='fulfilled'?results[0].value.meta:null,gm=results[1].status==='fulfilled'?results[1].value.meta:null;
@@ -397,8 +431,14 @@ $('show-burned').addEventListener('change',()=>{if($('show-burned').checked)cona
 $('burned-product').addEventListener('change',()=>conaeBurned.setParams({layers:$('burned-product').value}));
 $('show-fuel').addEventListener('change',()=>{if($('show-fuel').checked)conaeFuel.addTo(map);else map.removeLayer(conaeFuel);});
 $('fuel-product').addEventListener('change',()=>conaeFuel.setParams({layers:$('fuel-product').value}));
-$('themeToggle')?.addEventListener('click',()=>{document.documentElement.classList.toggle('theme-dark');document.body.classList.toggle('theme-dark');try{localStorage.setItem('agro-theme',document.documentElement.classList.contains('theme-dark')?'dark':'light');}catch{}});
-try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
+$('themeToggle')?.addEventListener('click',()=>{
+ const next=document.documentElement.classList.contains('theme-dark')?'light':'dark';
+ applyAgroTheme(next);
+ try{localStorage.setItem('agro-theme',next);}catch{}
+});
+window.addEventListener('storage',event=>{
+ if(event.key==='agro-theme')applyAgroTheme(event.newValue==='dark'?'dark':'light');
+});
 const historyTo=new Date(),historyFrom=new Date(historyTo.getTime()-30*86400000);$('history-to').value=historyTo.toISOString().slice(0,10);$('history-from').value=historyFrom.toISOString().slice(0,10);
 $('burned-product').addEventListener('change',()=>readConaeLayerMetadata('burned'));$('fuel-product').addEventListener('change',()=>readConaeLayerMetadata('fuel'));
 readConaeLayerMetadata('burned');readConaeLayerMetadata('fuel');
