@@ -14,3 +14,14 @@ test('fire detections and local forecast are promoted immediately below the map'
 test('selecting a fire detection brings the map into view automatically', () => {
   assert.match(page, /scrollIntoView\(\{behavior:'smooth',block:'center'\}\)/);
 });
+
+test('historical error copy does not send users to the technical status panel', () => {
+  assert.doesNotMatch(page, /Revisá el estado de la fuente NASA FIRMS/i);
+  assert.doesNotMatch(page, /Revisá el estado de NASA FIRMS/i);
+  assert.match(page, /no significa que no haya incendios/i);
+});
+test('fire map preferences are stored through the allowlisted local preference service', () => {
+  assert.match(page, /getFireMapPreferences/);
+  assert.match(page, /saveFireMapPreferences/);
+  assert.match(page, /services\/userPreferences\.js/);
+});
