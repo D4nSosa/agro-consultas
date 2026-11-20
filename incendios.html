@@ -186,7 +186,7 @@ async function readConaeLayerMetadata(kind){
    info.textContent='CONAE no publicó metadatos descriptivos para '+select.value+'. El identificador se conserva sin asignarle una interpretación no verificada.';
    return;
   }
-  info.innerHTML='<strong>'+esc(metadata.title||metadata.name)+'</strong><br><small>Identificador: '+esc(metadata.name)+'</small><p class="fire-note">'+esc(metadata.abstract||'El catálogo no publica un resumen metodológico para esta capa.')+'</p>'+(metadata.legend?'<img loading="lazy" alt="Leyenda oficial CONAE" src="'+esc(metadata.legend)+'" style="max-width:100%;height:auto">':'');
+  info.innerHTML=(conaeLayerMetadata[kind].stale?'<strong>Ficha oficial en caché</strong><p class="fire-note">CONAE no respondió en esta consulta. Se muestra la última ficha oficial almacenada.</p>':'')+'<strong>'+esc(metadata.title||metadata.name)+'</strong><br><small>Identificador técnico: '+esc(metadata.name)+'</small><p class="fire-note">'+esc(metadata.abstract||'El catálogo no publica un resumen metodológico para esta capa.')+'</p>'+(metadata.legend?'<img loading="lazy" alt="Leyenda oficial CONAE" src="'+esc(metadata.legend)+'" style="max-width:100%;height:auto">':'');
  }catch(error){
   info.textContent='No se pudieron recuperar los metadatos WMS de CONAE ('+error.message+'). El producto no se interpreta automáticamente: revisá el título y la descripción cuando el catálogo vuelva a responder.';
  }
@@ -489,7 +489,8 @@ async function checkFirmsKey(){
    status.textContent=data.message||'La clave no está configurada o NASA FIRMS la rechazó.';
    status.classList.add('error');
   }else if(data.valid===true){
-   status.textContent='Clave aceptada por NASA FIRMS · transacciones '+data.currentTransactions+'/'+data.transactionLimit+' por '+data.transactionInterval+'. '+data.message;
+   const availability=(data.availability||[]).filter(item=>['MODIS_SP','VIIRS_SNPP_SP','VIIRS_NOAA20_SP','VIIRS_NOAA21_SP'].includes(item.product)).map(item=>item.product+': '+(item.minDate||'—')+' a '+(item.maxDate||'—')).join(' · ');
+   status.textContent='Clave aceptada por NASA FIRMS · transacciones '+data.currentTransactions+'/'+data.transactionLimit+' por '+data.transactionInterval+'. '+(availability?'Disponibilidad del archivo: '+availability+'. ':'')+data.message;
    status.classList.remove('error');
   }else{
    status.textContent=data.message||'No se pudo verificar la clave; la consulta de estado no confirmó validez.';
