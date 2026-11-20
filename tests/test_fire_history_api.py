@@ -152,9 +152,9 @@ def test_parses_nasa_daily_availability_flags_without_filling_missing_dates():
     from backend.fire_monitoring import _parse_firms_availability, _history_source_for_day
 
     available = _parse_firms_availability(
-        "sensor,date,sp,nrt\\n"
-        "MODIS,2026-11-01,true,false\\n"
-        "MODIS,2026-11-03,true,true\\n"
+        """sensor,date,sp,nrt
+MODIS,2026-11-01,true,false
+MODIS,2026-11-03,true,true"""
     )
     assert available["MODIS_SP"]["minDate"] == datetime.date(2026, 11, 1)
     assert available["MODIS_SP"]["maxDate"] == datetime.date(2026, 11, 3)
