@@ -468,22 +468,28 @@ async function queryHistory(){
   if(!response.ok)throw new Error(payload.detail||'No se pudo consultar el archivo histórico.');
   history=Array.isArray(payload.features)?payload.features:[];historySkipped=0;historyManifest=[];
   $('history-export').disabled=!history.length;$('history-clear').disabled=!history.length;$('history-apply').disabled=!history.length;
-  const meta=payload.meta||{},errors=meta.errors||[];
+  const meta=payload.meta||{},errors=meta.errors||[],unavailable=meta.unavailable||{};
   $('history-export').disabled=!history.length;
+  applyHistory();
+  const failedSources=[...new Set(errors.map(item=>String(item).split(' ')[0]))];
+  const errorSummary=failedSources.map(source=>source+' ('+errors.filter(item=>String(item).startsWith(source+' ')).length+' consultas fallidas)').join(' · ');
+  const coverageSummary=Object.entries(unavailable).map(([source,days])=>source+' sin cobertura publicada ('+(Array.isArray(days)?days.length:0)+' días)').join(' · ');
   if(errors.length){
-   const failedSources=[...new Set(errors.map(item=>String(item).split(' ')[0]))];
-   const summary=failedSources.map(source=>source+' ('+errors.filter(item=>String(item).startsWith(source+' ')).length+' consultas fallidas)').join(' · ');
    $('history-status').textContent=history.length
-    ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. Fuentes con errores: '+summary+'. El resultado no cubre todos los sensores.'
-    : 'No se pudo completar la consulta histórica. '+summary+'. NASA puede haber rechazado la clave, aplicado un límite temporal o no tener disponible ese producto para las fechas solicitadas. No significa que no haya incendios.';
+    ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. Errores: '+errorSummary+'. '+(coverageSummary?'Cobertura faltante: '+coverageSummary+'. ':'')+'El resultado no cubre todas las fuentes o fechas.'
+    : 'No se pudo completar la consulta histórica. '+errorSummary+'. NASA puede haber rechazado la clave, aplicado un límite temporal o no tener disponible ese producto. No significa que no haya incendios.';
    $('history-status').classList.add('error');
+  }else if(coverageSummary){
+   $('history-status').textContent=history.length
+    ? 'Resultado parcial por cobertura: '+history.length.toLocaleString('es-AR')+' detecciones entre '+from+' y '+to+'. '+coverageSummary+'. Los días sin cobertura no se interpretan como ausencia de focos.'
+    : 'NASA FIRMS no publica cobertura para todo el período solicitado: '+coverageSummary+'. No se puede concluir que no haya focos en los días sin datos.';
+   $('history-status').classList.remove('error');
   }else{
    $('history-status').textContent=history.length
     ? history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+' · '+(meta.products||[]).join(', ')+'. Los focos son anomalías térmicas, no incendios confirmados.'
-    : (Object.keys(meta.unavailable||{}).length ? 'Consulta completada, pero NASA FIRMS no publica cobertura para todos los días/productos del período. No se encontraron detecciones en las fechas con cobertura disponible.' : 'Consulta completada: NASA FIRMS no devolvió detecciones para el lote y período seleccionados. Esto no confirma ausencia de incendios.');
+    : 'Consulta completada: NASA FIRMS no devolvió detecciones para el lote y período seleccionados. Esto no confirma ausencia de incendios.';
    $('history-status').classList.remove('error');
   }
-  applyHistory();
  }catch(error){$('history-status').textContent=error.message;$('history-status').classList.add('error');}
  finally{button.disabled=false;button.textContent='Consultar histórico del lote';}
 }
