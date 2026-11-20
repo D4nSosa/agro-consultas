@@ -680,6 +680,7 @@ def historical_fires_status():
 
     result = {
         "configured": True, "valid": valid, "rateLimited": rate_limited,
+        "retryAfterSeconds": _firms_retry_after() or None,
         "transactionLimit": status_data.get("transaction_limit") if isinstance(status_data, dict) else None,
         "currentTransactions": status_data.get("current_transactions") if isinstance(status_data, dict) else None,
         "transactionInterval": status_data.get("transaction_interval") if isinstance(status_data, dict) else None,
