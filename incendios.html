@@ -174,6 +174,7 @@ async function readConaeLayerMetadata(kind){
    if(!response.ok)throw new Error(payload.detail||'No se pudo consultar el catálogo WMS.');
    const layers=Array.isArray(payload.layers)?payload.layers:[];
    conaeLayerMetadata[kind]=new Map(layers.map(layer=>[layer.name,layer]));
+   conaeLayerMetadata[kind].stale=payload.stale===true;
    [...select.options].forEach(option=>{
     const layerKey=option.value.replace(config.prefix,'');
     const metadata=conaeLayerMetadata[kind].get(layerKey)||conaeLayerMetadata[kind].get(option.value);
