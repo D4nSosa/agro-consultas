@@ -386,6 +386,14 @@ FIRMS_AVAILABILITY_CACHE = {"expires": 0.0, "payload": None}
 FIRMS_AVAILABILITY_LOCK = threading.Lock()
 
 
+def _firms_rejection_message(status_code, detail=""):
+    text = str(detail or "").lower()
+    if any(term in text for term in ("transaction", "rate limit", "too many", "exceed", "quota")):
+        return "NASA indicó que se alcanzó el límite temporal de transacciones (HTTP " + str(status_code) + "). Esperá el reinicio de la ventana y reintentá."
+    if any(term in text for term in ("invalid map", "invalid key", "map_key invalid", "map key is invalid")):
+        return "NASA indicó que la MAP_KEY no es válida (HTTP " + str(status_code) + ")."
+    return "NASA rechazó la solicitud (HTTP " + str(status_code) + "). La respuesta no permite distinguir entre credencial, límite temporal o parámetro/producto rechazado."
+
 def _history_date_chunks(start_date, end_date):
     """Yield Area API requests of at most five consecutive days."""
     current = start_date
@@ -470,12 +478,10 @@ def _fetch_firms_availability(map_key, force=False):
             body = exc.read(500).decode("utf-8", errors="replace").strip()
         except Exception:
             body = ""
+        body = body.replace(map_key, "[REDACTED]")
+        body = re.sub(r"https?://\\S+", "[URL protegida]", body)[:180]
         if exc.code in (400, 401, 403):
-            raise RuntimeError(
-                "NASA no autorizó la consulta de disponibilidad (HTTP "
-                + str(exc.code) + "). La respuesta puede indicar MAP_KEY inválida "
-                "o límite temporal de transacciones excedido."
-            ) from exc
+            raise RuntimeError(_firms_rejection_message(exc.code, body)) from exc
         raise RuntimeError("NASA FIRMS disponibilidad HTTP " + str(exc.code) + (": " + body[:100] if body else "")) from exc
     availability = _parse_firms_availability(raw)
     with FIRMS_AVAILABILITY_LOCK:
@@ -576,8 +582,9 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
             except Exception:
                 detail = ""
             reason = re.sub(r"https?://\S+", "[URL protegida]", detail)[:120]
+            reason = reason.replace(map_key, "[REDACTED]")
             if exc.code in (400, 401, 403):
-                reason = "NASA rechazó la solicitud (HTTP " + str(exc.code) + "). Verificá MAP_KEY, límite temporal y disponibilidad del producto."
+                reason = _firms_rejection_message(exc.code, reason)
             errors.append(source + " " + date.isoformat() + ": " + reason)
         except Exception as exc:
             errors.append(source + " " + date.isoformat() + ": " + str(exc)[:120])
@@ -600,7 +607,7 @@ def historical_fires_status():
         if cached and now < FIRMS_STATUS_CACHE["expires"]:
             return cached
 
-    status_data, status_error = None, None
+    status_data, status_error, status_body = None, None, ""
     status_url = "https://firms.modaps.eosdis.nasa.gov/mapserver/mapkey_status/?MAP_KEY=" + urllib.parse.quote(map_key, safe="")
     request = urllib.request.Request(status_url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"})
     try:
@@ -608,6 +615,12 @@ def historical_fires_status():
             status_data = json.loads(response.read(4000).decode("utf-8", errors="replace"))
     except urllib.error.HTTPError as exc:
         status_error = exc.code
+        try:
+            status_body = exc.read(500).decode("utf-8", errors="replace").strip()
+            status_body = status_body.replace(map_key, "[REDACTED]")
+            status_body = re.sub(r"https?://\\S+", "[URL protegida]", status_body)[:180]
+        except Exception:
+            status_body = ""
     except Exception:
         status_error = "unavailable"
 
@@ -622,11 +635,10 @@ def historical_fires_status():
         message = "NASA FIRMS aceptó la clave y publicó la disponibilidad de productos."
     elif status_error in (400, 401, 403) or availability_error:
         valid = None
+        rejection = _firms_rejection_message(status_error, status_body) if status_error in (400, 401, 403) else str(availability_error or "")
         message = (
-            "NASA no permitió verificar la clave. HTTP 403/400 puede significar clave inválida "
-            "o límite de transacciones excedido; no se puede afirmar cuál sin una respuesta aceptada."
-            if status_error in (400, 401, 403) or "HTTP 403" in str(availability_error)
-            else "No se pudo consultar la disponibilidad de NASA FIRMS. " + str(availability_error or "Servicio temporalmente no disponible.")
+            rejection if status_error in (400, 401, 403)
+            else str(availability_error or "No se pudo consultar la disponibilidad de NASA FIRMS.")
         )
     else:
         valid = None
