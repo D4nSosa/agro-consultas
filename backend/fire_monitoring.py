@@ -390,7 +390,7 @@ def _firms_rejection_message(status_code, detail=""):
     text = str(detail or "").lower()
     if any(term in text for term in ("transaction", "rate limit", "too many", "exceed", "quota")):
         return "NASA indicó que se alcanzó el límite temporal de transacciones (HTTP " + str(status_code) + "). Esperá el reinicio de la ventana y reintentá."
-    if any(term in text for term in ("invalid map", "invalid key", "map_key invalid", "map key is invalid")):
+    if any(term in text for term in ("invalid map", "invalid key", "map_key invalid", "map_key is invalid", "map key is invalid", "map key invalid")):
         return "NASA indicó que la MAP_KEY no es válida (HTTP " + str(status_code) + ")."
     return "NASA rechazó la solicitud (HTTP " + str(status_code) + "). La respuesta no permite distinguir entre credencial, límite temporal o parámetro/producto rechazado."
 
