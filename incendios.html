@@ -72,13 +72,20 @@
 .fire-product-control select{width:100%;min-width:0;max-width:100%}
 .fire-filters{align-items:center}
 .fire-status{overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:900px){
+ .fire-side{grid-template-columns:minmax(0,1fr)}
+ .fire-side>.fire-card{grid-column:1/-1;width:100%;max-width:100%}
+ .fire-priority-panels{grid-template-columns:minmax(0,1fr);gap:12px}
+ .fire-priority-panels>.fire-card{grid-column:1/-1}
+}
 @media(max-width:760px){
  .fire-side{grid-template-columns:minmax(0,1fr)}
  .fire-side>.fire-card{grid-column:1/-1;width:100%;max-width:100%}
  .fire-priority-panels{grid-template-columns:minmax(0,1fr);gap:12px}
  .fire-priority-panels>.fire-card{grid-column:1/-1}
  .fire-carousel{grid-template-columns:minmax(0,1fr)}
- .fire-day{grid-template-columns:minmax(0,1fr) auto}
+ .fire-day{grid-template-columns:minmax(0,1fr)}
+ .fire-risk{justify-self:start}
  .fire-forecast-head h2{flex-basis:100%}
  .fire-map-actions{width:100%}
  .fire-map-actions .btn{flex:1 1 auto;padding:8px 9px}
@@ -131,6 +138,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
 import {getLotContext,onLotContextChange} from './services/lotContext.js';
+import {getFireMapPreferences,saveFireMapPreferences} from './services/userPreferences.js';
 import {fetchFireDetections,harmonizeFireDetections,parseFireCsv,filterFireDetectionsToGeometry,aggregateFireMonths,aggregateFireYears} from './services/fireMonitoringService.mjs';
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Aplicar el tema compartido antes de inicializar los controles del módulo.
@@ -239,6 +247,25 @@ const conaeFuel=L.tileLayer.wms('https://geoservicios.conae.gov.ar/geoserver/Ale
  layers:'AlertaTemprana:INC_SIARTIVGEOL89_DC_3',styles:'',format:'image/png',transparent:true,
  version:'1.1.1',opacity:.58,attribution:'© CONAE · Disponibilidad de combustibles'
 });
+const firePreferences=getFireMapPreferences();
+const preferenceControls={
+ 'show-modis':'modis','show-viirs':'viirs','show-goes':'goes',
+ 'show-fwi':'fwi','show-lot':'lot','show-burned':'burned','show-fuel':'fuel'
+};
+Object.entries(preferenceControls).forEach(([id,key])=>{if($(id))$(id).checked=firePreferences.layers[key];});
+if($('burned-product'))$('burned-product').value=firePreferences.burnedProduct;
+if($('fuel-product'))$('fuel-product').value=firePreferences.fuelProduct;
+if(firePreferences.baseMap==='streets'){streets.addTo(map);map.removeLayer(satellite);}
+if(firePreferences.layers.fwi)gwisFwi.addTo(map);
+if(!firePreferences.layers.lot)map.removeLayer(lotLayer);
+if(firePreferences.layers.burned)conaeBurned.addTo(map);
+if(firePreferences.layers.fuel)conaeFuel.addTo(map);
+function persistFireLayerPreference(id){
+ const key=preferenceControls[id];
+ if(key)saveFireMapPreferences({layers:{[key]:$(id).checked}});
+}
+Object.keys(preferenceControls).forEach(id=>$(id)?.addEventListener('change',()=>persistFireLayerPreference(id)));
+
 [conaeBurned,conaeFuel].forEach((layer,index)=>layer.on('tileerror',()=>{
  const name=index===0?'áreas quemadas MODIS':'disponibilidad de combustibles';
  $('source-status').textContent='La capa CONAE de '+name+' no respondió. Las detecciones FIRMS/GOES siguen disponibles.';
@@ -447,13 +474,13 @@ async function queryHistory(){
    const failedSources=[...new Set(errors.map(item=>String(item).split(' ')[0]))];
    const summary=failedSources.map(source=>source+' ('+errors.filter(item=>String(item).startsWith(source+' ')).length+' consultas fallidas)').join(' · ');
    $('history-status').textContent=history.length
-    ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. '+summary+'. Revisá el estado de NASA FIRMS; no se consideran completas todas las fuentes.'
-    : 'Consulta incompleta: NASA FIRMS rechazó o no pudo procesar las consultas. '+summary+'. No se interpreta como ausencia de incendios. Revisá el estado de la fuente NASA FIRMS en el panel «Fuentes y estado técnico».';
+    ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. Fuentes con errores: '+summary+'. El resultado no cubre todos los sensores.'
+    : 'No se pudo completar la consulta histórica. '+summary+'. NASA puede haber rechazado la clave, aplicado un límite temporal o no tener disponible ese producto para las fechas solicitadas. No significa que no haya incendios.';
    $('history-status').classList.add('error');
   }else{
    $('history-status').textContent=history.length
     ? history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+' · '+(meta.products||[]).join(', ')+'. Los focos son anomalías térmicas, no incendios confirmados.'
-    : 'Consulta completada: NASA FIRMS no devolvió detecciones para el lote y período seleccionados. Esto no confirma ausencia de incendios.';
+    : (Object.keys(meta.unavailable||{}).length ? 'Consulta completada, pero NASA FIRMS no publica cobertura para todos los días/productos del período. No se encontraron detecciones en las fechas con cobertura disponible.' : 'Consulta completada: NASA FIRMS no devolvió detecciones para el lote y período seleccionados. Esto no confirma ausencia de incendios.');
    $('history-status').classList.remove('error');
   }
   applyHistory();
@@ -479,12 +506,12 @@ function applyHistory(){
  $('history-status').textContent=filtered.length.toLocaleString('es-AR')+' detecciones '+(lot?'dentro del lote seleccionado':'en el conjunto importado')+' · '+paired.toLocaleString('es-AR')+' coincidencias MODIS/VIIRS exploratorias · '+historySkipped.toLocaleString('es-AR')+' filas descartadas. No son incendios confirmados.';
 }
 $('history-query').addEventListener('click',queryHistory);$('history-export').addEventListener('click',downloadHistoryCsv);$('history-files').addEventListener('change',loadHistory);$('history-manifest').addEventListener('click',downloadHistoryManifest);$('history-apply').addEventListener('click',applyHistory);$('history-from').addEventListener('change',applyHistory);$('history-to').addEventListener('change',applyHistory);$('history-clear').addEventListener('click',()=>{history=[];historySkipped=0;$('history-files').value='';$('history-status').textContent='Sin registros históricos cargados.';$('history-years').textContent='Sin registros.';$('history-months').textContent='Sin registros.';$('history-clear').disabled=true;$('history-apply').disabled=true;$('history-manifest').disabled=true;historyManifest=[];});
-map.on('zoomend',drawDetections);$('national-view').addEventListener('click',showArgentina);$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));
+map.on('zoomend',drawDetections);$('national-view').addEventListener('click',showArgentina);$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);saveFireMapPreferences({baseMap:'satellite'});});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);saveFireMapPreferences({baseMap:'streets'});});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));
 $('show-fwi').addEventListener('change',()=>{if($('show-fwi').checked)gwisFwi.addTo(map);else map.removeLayer(gwisFwi);});$('show-lot').addEventListener('change',()=>{if($('show-lot').checked)lotLayer.addTo(map);else map.removeLayer(lotLayer);});
 $('show-burned').addEventListener('change',()=>{if($('show-burned').checked)conaeBurned.addTo(map);else map.removeLayer(conaeBurned);});
-$('burned-product').addEventListener('change',()=>conaeBurned.setParams({layers:$('burned-product').value}));
+$('burned-product').addEventListener('change',()=>{conaeBurned.setParams({layers:$('burned-product').value});saveFireMapPreferences({burnedProduct:$('burned-product').value});});
 $('show-fuel').addEventListener('change',()=>{if($('show-fuel').checked)conaeFuel.addTo(map);else map.removeLayer(conaeFuel);});
-$('fuel-product').addEventListener('change',()=>conaeFuel.setParams({layers:$('fuel-product').value}));
+$('fuel-product').addEventListener('change',()=>{conaeFuel.setParams({layers:$('fuel-product').value});saveFireMapPreferences({fuelProduct:$('fuel-product').value});});
 $('themeToggle')?.addEventListener('click',()=>{
  const next=document.documentElement.classList.contains('theme-dark')?'light':'dark';
  applyAgroTheme(next);
