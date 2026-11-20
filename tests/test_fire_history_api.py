@@ -240,3 +240,32 @@ def test_firms_status_reports_key_recognized_when_only_transaction_quota_is_exha
         assert status["retryAfterSeconds"] > 0
     finally:
         fire.FIRMS_RATE_LIMIT_CACHE["until"] = 0.0
+
+
+def test_history_endpoint_returns_429_when_all_sources_hit_transaction_limit(monkeypatch):
+    import datetime
+    from fastapi import HTTPException
+    from backend import fire_monitoring as fire
+
+    monkeypatch.setenv("FIRMS_MAP_KEY", "test-key")
+    monkeypatch.setitem(fire.FIRMS_RATE_LIMIT_CACHE, "until", 0.0)
+    fire.HISTORY_CACHE.clear()
+    availability = {
+        source: {"minDate": datetime.date(2026, 1, 1), "maxDate": datetime.date(2026, 1, 31)}
+        for family in fire.HISTORY_SENSOR_FAMILIES.values() for source in family
+    }
+    monkeypatch.setattr(fire, "_fetch_firms_availability", lambda *_args, **_kwargs: availability)
+    monkeypatch.setattr(
+        fire, "_fetch_firms_history_source",
+        lambda _key, source, _bounds, _start, _end: (
+            [], [source + " 2026-01-01: NASA alcanzó el límite temporal de transacciones"]
+        ),
+    )
+    try:
+        fire.historical_fires({
+            "geometry": POLYGON, "from": "2026-01-01", "to": "2026-01-01"
+        })
+        assert False, "Expected HTTP 429 when all FIRMS sources are rate-limited"
+    except HTTPException as exc:
+        assert exc.status_code == 429
+        assert "Retry-After" in exc.headers
