@@ -34,3 +34,10 @@ test('CONAE layers remain understandable when WMS metadata times out', () => {
   assert.doesNotMatch(page, /ficha pendiente/i);
   assert.doesNotMatch(page, /revisá el título y la descripción/i);
 });
+
+test('mobile fire cards stack and occupy the available width', () => {
+  assert.match(page, /@media\(max-width:900px\)/);
+  assert.match(page, /\.fire-side\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(page, /\.fire-priority-panels\{grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(page, /\.fire-day\{grid-template-columns:minmax\(0,1fr\)\}/);
+});
