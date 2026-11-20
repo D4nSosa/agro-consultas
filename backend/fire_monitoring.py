@@ -815,6 +815,43 @@ def historical_fires(payload: dict):
         _store_history_cache(cache_key, payload_out, ttl)
     return payload_out
 
+@app.get("/api/fires/history/smoke")
+def historical_fires_smoke(day: str = ""):
+    """Temporary preview-only smoke test; never enabled in production."""
+    if os.environ.get("VERCEL_ENV") != "preview":
+        raise HTTPException(status_code=404, detail="Not found.")
+    selected_day = datetime.date.fromisoformat(day) if day else (
+        datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=1)
+    )
+    today = datetime.datetime.now(datetime.timezone.utc).date()
+    if selected_day < today - datetime.timedelta(days=31) or selected_day > today:
+        raise HTTPException(status_code=400, detail="El smoke test admite un solo día dentro de los últimos 31 días.")
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[
+            [-56.060, -28.075], [-56.040, -28.075],
+            [-56.040, -28.055], [-56.060, -28.055],
+            [-56.060, -28.075],
+        ]],
+    }
+    result = historical_fires({
+        "geometry": geometry,
+        "from": selected_day.isoformat(),
+        "to": selected_day.isoformat(),
+    })
+    meta = result.get("meta", {})
+    return {
+        "test": "preview-only NASA FIRMS historical request",
+        "date": selected_day.isoformat(),
+        "count": meta.get("count", 0),
+        "products": meta.get("products", []),
+        "errors": meta.get("errors", []),
+        "unavailable": meta.get("unavailable", {}),
+        "complete": meta.get("complete", False),
+        "coverageComplete": meta.get("coverageComplete", False),
+        "retryAfterSeconds": meta.get("retryAfterSeconds"),
+    }
+
 CONAE_METADATA_CACHE = {}
 CONAE_METADATA_CACHE_LOCK = threading.Lock()
 
