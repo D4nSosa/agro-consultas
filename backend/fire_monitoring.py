@@ -493,12 +493,13 @@ def historical_fires_status():
             body = exc.read(400).decode("utf-8", errors="replace").strip()
         except Exception:
             body = ""
-        invalid = "invalid" in body.lower() or exc.code in (400, 401, 403)
+        definitely_invalid = exc.code in (401, 403) or "invalid map_key" in body.lower()
         result = {
-            "configured": True, "valid": False,
+            "configured": True, "valid": False if definitely_invalid else None,
             "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "message": "NASA FIRMS rechazó la clave o la consulta de estado (HTTP " + str(exc.code) + ")."
-                       if invalid else "No se pudo verificar la clave en NASA FIRMS.",
+            "message": "NASA FIRMS rechazó la clave (HTTP " + str(exc.code) + ")."
+                       if definitely_invalid else
+                       "NASA FIRMS devolvió HTTP " + str(exc.code) + "; su respuesta puede indicar clave inválida o límite temporal excedido. No es posible distinguir ambas causas con este estado.",
         }
     except Exception as exc:
         result = {
