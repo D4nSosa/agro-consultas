@@ -424,9 +424,72 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
                         "daynight": row.get("daynight"), "version": row.get("version"),
                     },
                 })
+        except urllib.error.HTTPError as exc:
+            # Preserve NASA's diagnostic body (e.g. invalid MAP_KEY or unavailable date)
+            # without ever exposing the credential-bearing request URL.
+            try:
+                detail = exc.read(500).decode("utf-8", errors="replace").strip()
+            except Exception:
+                detail = ""
+            reason = re.sub(r"https?://\\S+", "[URL protegida]", detail)[:100]
+            errors.append(source + " " + date.isoformat() + ": HTTP " + str(exc.code) + (": " + reason if reason else ""))
         except Exception as exc:
-            errors.append(source + " " + date.isoformat() + ": " + str(exc)[:140])
+            errors.append(source + " " + date.isoformat() + ": " + str(exc)[:100])
     return features, errors
+
+
+FIRMS_STATUS_CACHE = {"expires": 0.0, "payload": None}
+FIRMS_STATUS_LOCK = threading.Lock()
+
+
+@app.get("/api/fires/history/status")
+def historical_fires_status():
+    """Validate the server-side NASA FIRMS MAP_KEY without returning or logging it."""
+    map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
+    if not map_key:
+        return {"configured": False, "valid": False, "message": "FIRMS_MAP_KEY no está configurada en el servidor."}
+    now = time.monotonic()
+    with FIRMS_STATUS_LOCK:
+        cached = FIRMS_STATUS_CACHE.get("payload")
+        if cached and now < FIRMS_STATUS_CACHE["expires"]:
+            return cached
+    url = "https://firms.modaps.eosdis.nasa.gov/mapserver/mapkey_status/?MAP_KEY=" + urllib.parse.quote(map_key, safe="")
+    request = urllib.request.Request(url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            raw = response.read(4000).decode("utf-8", errors="replace").strip()
+        data = json.loads(raw)
+        if not isinstance(data, dict) or "transaction_limit" not in data:
+            raise ValueError("NASA no devolvió el estado esperado de la clave.")
+        result = {
+            "configured": True, "valid": True,
+            "transactionLimit": data.get("transaction_limit"),
+            "currentTransactions": data.get("current_transactions"),
+            "transactionInterval": data.get("transaction_interval"),
+            "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "message": "NASA FIRMS aceptó la clave del servidor.",
+        }
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read(400).decode("utf-8", errors="replace").strip()
+        except Exception:
+            body = ""
+        invalid = "invalid" in body.lower() or exc.code in (400, 401, 403)
+        result = {
+            "configured": True, "valid": False,
+            "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "message": "NASA FIRMS rechazó la clave o la consulta de estado (HTTP " + str(exc.code) + ")."
+                       if invalid else "No se pudo verificar la clave en NASA FIRMS.",
+        }
+    except Exception as exc:
+        result = {
+            "configured": True, "valid": None,
+            "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "message": "No se pudo verificar la clave en NASA FIRMS: " + str(exc)[:120],
+        }
+    with FIRMS_STATUS_LOCK:
+        FIRMS_STATUS_CACHE.update({"payload": result, "expires": now + 300})
+    return result
 
 
 CONAE_METADATA_CACHE = {}
@@ -481,6 +544,16 @@ def conae_wms_metadata(kind: str):
             CONAE_METADATA_CACHE[kind] = {"payload": payload, "expires": now + 3600}
         return payload
     except Exception as exc:
+        # Keep the last successful official catalogue response available during
+        # temporary upstream outages; disclose its age and stale status.
+        with CONAE_METADATA_CACHE_LOCK:
+            stale = CONAE_METADATA_CACHE.get(kind)
+        if stale and stale.get("payload"):
+            payload = json.loads(json.dumps(stale["payload"]))
+            payload["stale"] = True
+            payload["warning"] = "CONAE no respondió; se muestran los últimos metadatos oficiales almacenados."
+            payload["upstreamError"] = str(exc)[:120]
+            return payload
         raise HTTPException(status_code=502, detail="No se pudieron consultar los metadatos WMS de CONAE: " + str(exc)[:180])
 
 
