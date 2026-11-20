@@ -94,6 +94,17 @@
 <script type="module">
 import {getLotContext,onLotContextChange} from './services/lotContext.js';
 import {fetchFireDetections,harmonizeFireDetections,parseFireCsv,filterFireDetectionsToGeometry,aggregateFireMonths,aggregateFireYears} from './services/fireMonitoringService.mjs';
+const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Aplicar el tema compartido antes de inicializar los controles del módulo.
+function applyAgroTheme(theme){
+ const dark=theme==='dark';
+ document.documentElement.classList.toggle('theme-dark',dark);
+ document.body.classList.toggle('theme-dark',dark);
+ const toggle=$('themeToggle');
+ if(toggle){toggle.textContent=dark?'☀️':'🌗';toggle.setAttribute('aria-pressed',String(dark));}
+}
+try{applyAgroTheme(localStorage.getItem('agro-theme')==='dark'?'dark':'light');}
+catch{applyAgroTheme('light');}
 // La lectura operativa debe quedar inmediatamente debajo del mapa, no detrás
 // de paneles secundarios del aside. En móvil se apila; en escritorio se divide.
 const mapSection=document.querySelector('.fire-layout > section');
@@ -107,7 +118,6 @@ if(mapSection&&(detectionCard||forecastCard)){
  if(detectionCard)priorityPanels.append(detectionCard);
  if(forecastCard)priorityPanels.append(forecastCard);
 }
-const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Vista nacional fija: centro geográfico de Argentina y zoom inicial explícito.
 const ARGENTINA_CENTER=[-38.4161,-63.6167];
 const ARGENTINA_INITIAL_ZOOM=4;
@@ -421,8 +431,14 @@ $('show-burned').addEventListener('change',()=>{if($('show-burned').checked)cona
 $('burned-product').addEventListener('change',()=>conaeBurned.setParams({layers:$('burned-product').value}));
 $('show-fuel').addEventListener('change',()=>{if($('show-fuel').checked)conaeFuel.addTo(map);else map.removeLayer(conaeFuel);});
 $('fuel-product').addEventListener('change',()=>conaeFuel.setParams({layers:$('fuel-product').value}));
-$('themeToggle')?.addEventListener('click',()=>{document.documentElement.classList.toggle('theme-dark');document.body.classList.toggle('theme-dark');try{localStorage.setItem('agro-theme',document.documentElement.classList.contains('theme-dark')?'dark':'light');}catch{}});
-try{if(localStorage.getItem('agro-theme')==='dark'){document.documentElement.classList.add('theme-dark');document.body.classList.add('theme-dark');}}catch{}
+$('themeToggle')?.addEventListener('click',()=>{
+ const next=document.documentElement.classList.contains('theme-dark')?'light':'dark';
+ applyAgroTheme(next);
+ try{localStorage.setItem('agro-theme',next);}catch{}
+});
+window.addEventListener('storage',event=>{
+ if(event.key==='agro-theme')applyAgroTheme(event.newValue==='dark'?'dark':'light');
+});
 const historyTo=new Date(),historyFrom=new Date(historyTo.getTime()-30*86400000);$('history-to').value=historyTo.toISOString().slice(0,10);$('history-from').value=historyFrom.toISOString().slice(0,10);
 $('burned-product').addEventListener('change',()=>readConaeLayerMetadata('burned'));$('fuel-product').addEventListener('change',()=>readConaeLayerMetadata('fuel'));
 readConaeLayerMetadata('burned');readConaeLayerMetadata('fuel');
