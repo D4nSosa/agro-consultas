@@ -116,9 +116,12 @@ def test_gaez_analysis_returns_a_map_overlay_for_the_selected_lot(monkeypatch):
             return False
 
     monkeypatch.setattr(rasterio, "open", lambda *_args, **_kwargs: FakeDataset())
+    # GeoTIFF source is UInt8 with masked pixels. Filling NaN before casting
+    # raises: "Cannot convert fill_value nan to dtype uint8".
     raster = np.ma.array(
-        [[1.0, 2.0], [3.0, 4.0]],
+        [[1, 2], [3, 4]],
         mask=[[False, False], [False, True]],
+        dtype=np.uint8,
     )
     transform = Affine(0.01, 0, -60.0, 0, -0.01, -29.9)
     mask_options = {}
