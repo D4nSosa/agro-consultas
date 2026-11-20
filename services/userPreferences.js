@@ -8,7 +8,8 @@ const DEFAULT_FIRE = {
   baseMap: 'satellite',
   layers: { modis: true, viirs: true, goes: true, fwi: false, lot: true, burned: false, fuel: false },
   burnedProduct: 'EmergenciasCONAE:MODIS_AQM_1',
-  fuelProduct: 'AlertaTemprana:INC_SIARTIVGEOL89_DC_3'
+  fuelProduct: 'AlertaTemprana:INC_SIARTIVGEOL89_DC_3',
+  minConfidence: 0
 };
 const BURNED_PRODUCTS = new Set(Array.from({ length: 13 }, (_, i) => `EmergenciasCONAE:MODIS_AQM_${i + 1}`));
 const FUEL_PRODUCTS = new Set([
@@ -38,7 +39,9 @@ export function getFireMapPreferences() {
     layers: Object.fromEntries(Object.entries(DEFAULT_FIRE.layers).map(([key, fallback]) =>
       [key, typeof layers[key] === 'boolean' ? layers[key] : fallback])),
     burnedProduct: BURNED_PRODUCTS.has(saved.burnedProduct) ? saved.burnedProduct : DEFAULT_FIRE.burnedProduct,
-    fuelProduct: FUEL_PRODUCTS.has(saved.fuelProduct) ? saved.fuelProduct : DEFAULT_FIRE.fuelProduct
+    fuelProduct: FUEL_PRODUCTS.has(saved.fuelProduct) ? saved.fuelProduct : DEFAULT_FIRE.fuelProduct,
+    minConfidence: Number.isInteger(saved.minConfidence) && saved.minConfidence >= 0 && saved.minConfidence <= 100 && saved.minConfidence % 5 === 0
+      ? saved.minConfidence : DEFAULT_FIRE.minConfidence
   };
 }
 
@@ -48,7 +51,9 @@ export function saveFireMapPreferences(patch = {}) {
     baseMap: patch.baseMap === 'streets' || patch.baseMap === 'satellite' ? patch.baseMap : current.baseMap,
     layers: { ...current.layers },
     burnedProduct: BURNED_PRODUCTS.has(patch.burnedProduct) ? patch.burnedProduct : current.burnedProduct,
-    fuelProduct: FUEL_PRODUCTS.has(patch.fuelProduct) ? patch.fuelProduct : current.fuelProduct
+    fuelProduct: FUEL_PRODUCTS.has(patch.fuelProduct) ? patch.fuelProduct : current.fuelProduct,
+    minConfidence: Number.isInteger(patch.minConfidence) && patch.minConfidence >= 0 && patch.minConfidence <= 100 && patch.minConfidence % 5 === 0
+      ? patch.minConfidence : current.minConfidence
   };
   if (patch.layers && typeof patch.layers === 'object') {
     for (const key of Object.keys(DEFAULT_FIRE.layers)) {
