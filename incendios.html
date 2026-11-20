@@ -262,6 +262,8 @@ const preferenceControls={
 Object.entries(preferenceControls).forEach(([id,key])=>{if($(id))$(id).checked=firePreferences.layers[key];});
 if($('burned-product'))$('burned-product').value=firePreferences.burnedProduct;
 if($('fuel-product'))$('fuel-product').value=firePreferences.fuelProduct;
+$('confidence').value=String(firePreferences.minConfidence);
+$('confidence-value').textContent=firePreferences.minConfidence+'%';
 conaeBurned.setParams({layers:$('burned-product').value});
 conaeFuel.setParams({layers:$('fuel-product').value});
 if(firePreferences.baseMap==='streets'){streets.addTo(map);map.removeLayer(satellite);}
@@ -430,7 +432,7 @@ async function queryLot(){
  b.disabled=false;b.textContent='Analizar detecciones del lote';
 }
 $('locate-me').addEventListener('click',startLiveLocation);
-$('query-lot').addEventListener('click',queryLot);$('confidence').addEventListener('input',()=>{$('confidence-value').textContent=$('confidence').value+'%';if(history.length)applyHistory();});
+$('query-lot').addEventListener('click',queryLot);$('confidence').addEventListener('input',()=>{$('confidence-value').textContent=$('confidence').value+'%';saveFireMapPreferences({minConfidence:Number($('confidence').value)});if(history.length)applyHistory();});
 async function sha256Hex(file){
  try{const digest=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');}
  catch{return null;}
