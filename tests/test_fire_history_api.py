@@ -172,3 +172,33 @@ def test_firms_rejection_diagnostic_distinguishes_explicit_quota_and_invalid_key
     assert "límite temporal" in quota
     assert "no es válida" in invalid
     assert "no permite distinguir" in ambiguous
+
+
+def test_availability_fetch_uses_documented_all_selector_and_caches_only_valid_csv(monkeypatch):
+    from backend import fire_monitoring as fire
+
+    fire.FIRMS_AVAILABILITY_CACHE.update({"expires": 0, "payload": None})
+    calls = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return b"data_id,min_date,max_date\\nMODIS_SP,2026-01-01,2026-11-20\\n"
+
+    def fake_urlopen(request, timeout):
+        calls.append(request.full_url)
+        assert timeout == 15
+        return FakeResponse()
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", fake_urlopen)
+    first = fire._fetch_firms_availability("private-test-key", force=True)
+    second = fire._fetch_firms_availability("private-test-key")
+
+    assert first == second
+    assert calls == ["https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/private-test-key/ALL"]
+    assert "private-test-key" not in str(first)
