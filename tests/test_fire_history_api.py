@@ -188,7 +188,8 @@ def test_availability_fetch_uses_documented_all_selector_and_caches_only_valid_c
             return False
 
         def read(self, _limit):
-            return b"data_id,min_date,max_date\\nMODIS_SP,2026-01-01,2026-11-20\\n"
+            return b"""data_id,min_date,max_date
+MODIS_SP,2026-01-01,2026-11-20"""
 
     def fake_urlopen(request, timeout):
         calls.append(request.full_url)
