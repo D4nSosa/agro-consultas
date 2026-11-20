@@ -641,7 +641,7 @@ def historical_fires(payload: dict):
     """Query the NASA FIRMS archive using each sensor's published SP/NRT availability."""
     map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
     if not map_key:
-        raise HTTPException(status_code=503, detail="El histórico NASA FIRMS no está configurado en el servidor.")
+        raise HTTPException(status_code=503, detail="El histórico NASA FIRMS no está configurado: falta FIRMS_MAP_KEY en el servidor.")
 
     geometry_data = payload.get("geometry") if isinstance(payload, dict) else None
     if geometry_data and geometry_data.get("type") == "Feature":
@@ -805,82 +805,6 @@ def conae_wms_metadata(kind: str):
             payload["upstreamError"] = str(exc)[:120]
             return payload
         raise HTTPException(status_code=502, detail="No se pudieron consultar los metadatos WMS de CONAE: " + str(exc)[:180])
-
-
-@app.post("/api/fires/history")
-def historical_fires(payload: dict):
-    """Query archived NASA FIRMS standard-processing detections for a lot and date range."""
-    map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
-    if not map_key:
-        raise HTTPException(
-            status_code=503,
-            detail="Histórico remoto no configurado: falta la variable segura FIRMS_MAP_KEY en el servidor."
-        )
-    geometry_data = payload.get("geometry") if isinstance(payload, dict) else None
-    if geometry_data and geometry_data.get("type") == "Feature":
-        geometry_data = geometry_data.get("geometry")
-    if not geometry_data or geometry_data.get("type") not in ("Polygon", "MultiPolygon"):
-        raise HTTPException(status_code=400, detail="Seleccioná un lote Polygon o MultiPolygon para consultar el histórico.")
-    try:
-        geometry = shape(geometry_data)
-        if geometry.is_empty or not geometry.is_valid:
-            geometry = geometry.buffer(0)
-        if geometry.is_empty or not geometry.is_valid:
-            raise ValueError("Geometría no válida.")
-        start_date = datetime.date.fromisoformat(str(payload.get("from", "")))
-        end_date = datetime.date.fromisoformat(str(payload.get("to", "")))
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Geometría o fechas inválidas: " + str(exc)[:140])
-    if end_date < start_date:
-        raise HTTPException(status_code=400, detail="La fecha final debe ser igual o posterior a la inicial.")
-    if (end_date - start_date).days + 1 > HISTORY_MAX_DAYS:
-        raise HTTPException(status_code=400, detail=f"Consultá períodos de hasta {HISTORY_MAX_DAYS} días por solicitud para controlar el volumen.")
-    west, south, east, north = geometry.bounds
-    cache_key = (geometry.wkb_hex, start_date.isoformat(), end_date.isoformat())
-    now = time.monotonic()
-    with HISTORY_CACHE_LOCK:
-        cached = HISTORY_CACHE.get(cache_key)
-        if cached and now < cached["expires"]:
-            return cached["payload"]
-    results = []
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        futures = [
-            pool.submit(_fetch_firms_history_source, map_key, source,
-                        (west, south, east, north), start_date, end_date)
-            for source in HISTORY_SOURCES
-        ]
-        for source, future in zip(HISTORY_SOURCES, futures):
-            try:
-                rows, errors = future.result(timeout=150)
-                results.append({"source": source, "features": rows, "errors": errors})
-            except Exception as exc:
-                results.append({"source": source, "features": [], "errors": [str(exc)[:180]]})
-    features, errors = [], []
-    for result in results:
-        errors.extend(result["errors"])
-        for feature in result["features"]:
-            lon, lat = feature["geometry"]["coordinates"]
-            if geometry.covers(Point(lon, lat)):
-                features.append(feature)
-    features.sort(key=lambda item: item["properties"].get("observedAt") or "")
-    payload_out = {
-        "type": "FeatureCollection", "features": features,
-        "meta": {
-            "source": "NASA FIRMS · Standard Processing archive",
-            "from": start_date.isoformat(), "to": end_date.isoformat(),
-            "count": len(features), "scope": "detections intersecting selected lot geometry",
-            "products": HISTORY_SOURCES, "errors": errors,
-            "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "limitations": [
-                "Son detecciones térmicas satelitales, no incendios confirmados ni perímetros quemados.",
-                "El archivo Standard Processing tiene latencia y disponibilidad según sensor.",
-                "La consulta está limitada a 31 días por solicitud y requiere FIRMS_MAP_KEY.",
-            ],
-        },
-    }
-    with HISTORY_CACHE_LOCK:
-        HISTORY_CACHE[cache_key] = {"payload": payload_out, "expires": now + 900}
-    return payload_out
 
 
 @app.get("/api/fires/forecast")
