@@ -950,10 +950,10 @@ function createSingleRecommendationCardHtml(c) {
 
   const soilReq = c.requerimientos?.suelo || {};
   const climateReq = c.requerimientos?.clima || {};
-  const phRequired = Number.isFinite(Number(soilReq.phMin)) && Number.isFinite(Number(soilReq.phMax))
+  const phRequired = typeof soilReq.phMin === 'number' && Number.isFinite(soilReq.phMin) && typeof soilReq.phMax === 'number' && Number.isFinite(soilReq.phMax)
     ? `${Number(soilReq.phMin).toFixed(1)}–${Number(soilReq.phMax).toFixed(1)}`
     : "No especificado en la ficha";
-  const phObserved = Number.isFinite(c.sueloObservado?.ph)
+  const phObserved = typeof c.sueloObservado?.ph === 'number' && Number.isFinite(c.sueloObservado.ph)
     ? `${c.sueloObservado.ph.toFixed(1)} (referencia cartográfica)`
     : "No disponible en la consulta de INTA";
   const soilRequirementSummary = [
@@ -962,9 +962,9 @@ function createSingleRecommendationCardHtml(c) {
     `Drenaje: ${Array.isArray(soilReq.drenaje) && soilReq.drenaje.length ? soilReq.drenaje.join(", ") : "No especificado"}`
   ].join(" · ");
   const climateRequirementSummary = [
-    Number.isFinite(Number(climateReq.temperaturaMin)) && Number.isFinite(Number(climateReq.temperaturaMax))
+    typeof climateReq.temperaturaMin === 'number' && Number.isFinite(climateReq.temperaturaMin) && typeof climateReq.temperaturaMax === 'number' && Number.isFinite(climateReq.temperaturaMax)
       ? `Temperatura: ${climateReq.temperaturaMin}–${climateReq.temperaturaMax} °C` : null,
-    Number.isFinite(Number(climateReq.precipitacionMin))
+    typeof climateReq.precipitacionMin === 'number' && Number.isFinite(climateReq.precipitacionMin)
       ? `Precipitación mínima: ${climateReq.precipitacionMin} mm/año` : null
   ].filter(Boolean).join(" · ") || "Requerimientos climáticos no especificados en la ficha";
 
