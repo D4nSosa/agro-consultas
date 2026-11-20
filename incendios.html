@@ -255,6 +255,8 @@ const preferenceControls={
 Object.entries(preferenceControls).forEach(([id,key])=>{if($(id))$(id).checked=firePreferences.layers[key];});
 if($('burned-product'))$('burned-product').value=firePreferences.burnedProduct;
 if($('fuel-product'))$('fuel-product').value=firePreferences.fuelProduct;
+conaeBurned.setParams({layers:$('burned-product').value});
+conaeFuel.setParams({layers:$('fuel-product').value});
 if(firePreferences.baseMap==='streets'){streets.addTo(map);map.removeLayer(satellite);}
 if(firePreferences.layers.fwi)gwisFwi.addTo(map);
 if(firePreferences.layers.burned)conaeBurned.addTo(map);
