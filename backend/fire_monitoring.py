@@ -625,7 +625,7 @@ def historical_fires_status():
         return {
             "configured": True, "valid": True, "rateLimited": True,
             "retryAfterSeconds": retry_after, "availability": [],
-            "message": "NASA reconoció la clave, pero alcanzó el límite temporal de transacciones. Esperá antes de volver a consultar.",
+            "message": "NASA reconoció la clave, pero alcanzó el límite temporal de transacciones. Esperá aproximadamente 10 minutos antes de volver a consultar.",
         }
     now = time.monotonic()
     with FIRMS_STATUS_LOCK:
@@ -736,7 +736,7 @@ def historical_fires(payload: dict):
     if retry_after:
         raise HTTPException(
             status_code=429,
-            detail="NASA FIRMS alcanzó el límite temporal de transacciones. Esperá antes de volver a consultar.",
+            detail="NASA FIRMS alcanzó el límite temporal de transacciones. Esperá aproximadamente 10 minutos antes de volver a consultar.",
             headers={"Retry-After": str(retry_after)},
         )
     try:
