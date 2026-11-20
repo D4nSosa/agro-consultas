@@ -263,7 +263,7 @@ def gaez_analyze(req: LotDatasetRequest):
                 from rasterio.transform import array_bounds
                 from rasterio.warp import transform_bounds
 
-                raw = band.filled(np.nan).astype("float32")
+                raw = np.ma.asarray(band, dtype=np.float32).filled(np.nan)
                 valid_mask = (~np.ma.getmaskarray(band)) & np.isfinite(raw)
                 low, high = np.percentile(values, [2, 98])
                 if not np.isfinite(low) or not np.isfinite(high) or high <= low:
