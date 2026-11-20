@@ -362,16 +362,182 @@ def _fire_weather_indicator(temp_max, humidity_min, wind_max, precipitation):
 
 HISTORY_CACHE = {}
 HISTORY_CACHE_LOCK = threading.Lock()
-HISTORY_SOURCES = ("MODIS_SP", "VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_NOAA21_SP")
+HISTORY_CACHE_MAX_ENTRIES = 64
 HISTORY_MAX_DAYS = 31
 
 
+def _store_history_cache(cache_key, payload, ttl_seconds):
+    now = time.monotonic()
+    with HISTORY_CACHE_LOCK:
+        expired = [key for key, entry in HISTORY_CACHE.items() if now >= entry["expires"]]
+        for key in expired:
+            HISTORY_CACHE.pop(key, None)
+        if cache_key not in HISTORY_CACHE and len(HISTORY_CACHE) >= HISTORY_CACHE_MAX_ENTRIES:
+            oldest = min(HISTORY_CACHE, key=lambda key: HISTORY_CACHE[key]["expires"])
+            HISTORY_CACHE.pop(oldest, None)
+        HISTORY_CACHE[cache_key] = {"payload": payload, "expires": now + ttl_seconds}
+HISTORY_SENSOR_FAMILIES = {
+    "MODIS": ("MODIS_SP", "MODIS_NRT"),
+    "VIIRS_SNPP": ("VIIRS_SNPP_SP", "VIIRS_SNPP_NRT"),
+    "VIIRS_NOAA20": ("VIIRS_NOAA20_SP", "VIIRS_NOAA20_NRT"),
+    "VIIRS_NOAA21": ("VIIRS_NOAA21_SP", "VIIRS_NOAA21_NRT"),
+}
+FIRMS_AVAILABILITY_CACHE = {"expires": 0.0, "payload": None}
+FIRMS_AVAILABILITY_LOCK = threading.Lock()
+
+
+FIRMS_RATE_LIMIT_CACHE = {"until": 0.0}
+
+
+def _mark_firms_rate_limited(seconds=600):
+    FIRMS_RATE_LIMIT_CACHE["until"] = max(
+        FIRMS_RATE_LIMIT_CACHE.get("until", 0.0),
+        time.monotonic() + max(1, int(seconds)),
+    )
+
+
+def _firms_retry_after():
+    return max(0, int(FIRMS_RATE_LIMIT_CACHE.get("until", 0.0) - time.monotonic() + 0.999))
+
+
+def _firms_rejection_message(status_code, detail=""):
+    text = str(detail or "").lower()
+    if status_code == 429 or any(term in text for term in ("transaction", "rate limit", "too many", "exceed", "quota")):
+        return "NASA indicó que se alcanzó el límite temporal de transacciones (HTTP " + str(status_code) + "). Esperá el reinicio de la ventana y reintentá."
+    if any(term in text for term in ("invalid map", "invalid key", "map_key invalid", "map_key is invalid", "map key is invalid", "map key invalid")):
+        return "NASA indicó que la MAP_KEY no es válida (HTTP " + str(status_code) + ")."
+    return "NASA rechazó la solicitud (HTTP " + str(status_code) + "). La respuesta no permite distinguir entre credencial, límite temporal o parámetro/producto rechazado."
+
 def _history_date_chunks(start_date, end_date):
+    """Yield Area API requests of at most five consecutive days."""
     current = start_date
     while current <= end_date:
         chunk_end = min(end_date, current + datetime.timedelta(days=4))
         yield current, (chunk_end - current).days + 1
         current = chunk_end + datetime.timedelta(days=1)
+
+
+def _parse_firms_availability(raw):
+    """Accept both NASA's range CSV and its per-date SP/NRT availability schema."""
+    availability = {}
+
+    def add_range(product, minimum, maximum, exact_day=False):
+        try:
+            start = datetime.date.fromisoformat(str(minimum).strip())
+            end = datetime.date.fromisoformat(str(maximum).strip())
+        except (TypeError, ValueError):
+            return
+        if start <= end:
+            current = availability.get(product)
+            if current:
+                current["minDate"] = min(current["minDate"], start)
+                current["maxDate"] = max(current["maxDate"], end)
+                if exact_day and current.get("availableDates") is not None:
+                    current["availableDates"].add(start)
+            else:
+                availability[product] = {
+                    "minDate": start, "maxDate": end,
+                    "availableDates": {start} if exact_day else None,
+                }
+
+    def enabled(value):
+        return str(value or "").strip().lower() in {"1", "true", "yes", "y", "si"}
+
+    for row in csv.DictReader(io.StringIO(raw)):
+        product = (row.get("data_id") or "").strip()
+        if product:
+            add_range(product, row.get("min_date"), row.get("max_date"))
+            continue
+
+        # Newer API schema: one row per sensor/date with independent SP and NRT flags.
+        sensor = (row.get("sensor") or "").strip().upper()
+        observed_date = row.get("date")
+        if sensor and observed_date:
+            family = sensor.removesuffix("_SP").removesuffix("_NRT")
+            if family not in {"MODIS", "VIIRS_SNPP", "VIIRS_NOAA20", "VIIRS_NOAA21"}:
+                continue
+            if enabled(row.get("sp")):
+                add_range(family + "_SP", observed_date, observed_date, exact_day=True)
+            if enabled(row.get("nrt")):
+                add_range(family + "_NRT", observed_date, observed_date, exact_day=True)
+            continue
+
+        # Compatibility with rows where the product name is in the sensor column.
+        if sensor:
+            add_range(sensor, row.get("min_date"), row.get("max_date"))
+
+    if not availability:
+        raise ValueError("NASA FIRMS no publicó rangos de disponibilidad reconocibles.")
+    return availability
+
+def _fetch_firms_availability(map_key, force=False):
+    """Read NASA's authoritative SP/NRT date ranges; cache only valid responses."""
+    now = time.monotonic()
+    with FIRMS_AVAILABILITY_LOCK:
+        cached = FIRMS_AVAILABILITY_CACHE.get("payload")
+        if not force and cached is not None and now < FIRMS_AVAILABILITY_CACHE["expires"]:
+            return cached
+    url = (
+        "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/"
+        + urllib.parse.quote(map_key, safe="") + "/ALL"
+    )
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "text/csv"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            raw = response.read(300_000).decode("utf-8-sig", errors="replace")
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read(500).decode("utf-8", errors="replace").strip()
+        except Exception:
+            body = ""
+        body = body.replace(map_key, "[REDACTED]")
+        body = re.sub(r"https?://\S+", "[URL protegida]", body)[:180]
+        if exc.code in (400, 401, 403, 429):
+            message = _firms_rejection_message(exc.code, body)
+            if "límite temporal" in message:
+                _mark_firms_rate_limited(600)
+            raise RuntimeError(message) from exc
+        raise RuntimeError("NASA FIRMS disponibilidad HTTP " + str(exc.code) + (": " + body[:100] if body else "")) from exc
+    availability = _parse_firms_availability(raw)
+    with FIRMS_AVAILABILITY_LOCK:
+        FIRMS_AVAILABILITY_CACHE.update({"payload": availability, "expires": now + 600})
+    return availability
+
+
+def _history_source_for_day(family, day, availability):
+    """Prefer the stable SP archive; use NRT only when SP does not cover the day."""
+    standard, near_real_time = HISTORY_SENSOR_FAMILIES[family]
+    for source in (standard, near_real_time):
+        bounds = availability.get(source)
+        if bounds and bounds["minDate"] <= day <= bounds["maxDate"]:
+            available_dates = bounds.get("availableDates")
+            if available_dates is None or day in available_dates:
+                return source
+    return None
+
+
+def _history_query_plan(start_date, end_date, availability):
+    """Build per-sensor requests, respecting each product's published date coverage."""
+    tasks, unavailable = [], {}
+    for family in HISTORY_SENSOR_FAMILIES:
+        day = start_date
+        active_source, active_start, active_days = None, None, 0
+        while day <= end_date:
+            source = _history_source_for_day(family, day, availability)
+            if source != active_source or active_days >= 5:
+                if active_source:
+                    tasks.append((family, active_source, active_start, active_days))
+                active_source, active_start, active_days = source, day, 0
+            if source:
+                active_days += 1
+            else:
+                unavailable.setdefault(family, []).append(day.isoformat())
+            day += datetime.timedelta(days=1)
+        if active_source:
+            tasks.append((family, active_source, active_start, active_days))
+    return tasks, unavailable
 
 
 def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
@@ -388,9 +554,12 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
             url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "text/csv"}
         )
         try:
-            with urllib.request.urlopen(request, timeout=20) as response:
+            with urllib.request.urlopen(request, timeout=25) as response:
                 raw = response.read(20_000_000).decode("utf-8-sig", errors="replace")
-            for row in csv.DictReader(io.StringIO(raw)):
+            reader = csv.DictReader(io.StringIO(raw))
+            if not reader.fieldnames or not {"latitude", "longitude", "acq_date"}.issubset(set(reader.fieldnames)):
+                raise ValueError("NASA no devolvió el esquema CSV esperado.")
+            for row in reader:
                 lat, lon = _number(row.get("latitude")), _number(row.get("longitude"))
                 if lat is None or lon is None:
                     continue
@@ -425,16 +594,19 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
                     },
                 })
         except urllib.error.HTTPError as exc:
-            # Preserve NASA's diagnostic body (e.g. invalid MAP_KEY or unavailable date)
-            # without ever exposing the credential-bearing request URL.
             try:
                 detail = exc.read(500).decode("utf-8", errors="replace").strip()
             except Exception:
                 detail = ""
-            reason = re.sub(r"https?://\S+", "[URL protegida]", detail)[:100]
-            errors.append(source + " " + date.isoformat() + ": HTTP " + str(exc.code) + (": " + reason if reason else ""))
+            reason = re.sub(r"https?://\S+", "[URL protegida]", detail)[:120]
+            reason = reason.replace(map_key, "[REDACTED]")
+            if exc.code in (400, 401, 403, 429):
+                reason = _firms_rejection_message(exc.code, reason)
+                if "límite temporal" in reason:
+                    _mark_firms_rate_limited(600)
+            errors.append(source + " " + date.isoformat() + ": " + reason)
         except Exception as exc:
-            errors.append(source + " " + date.isoformat() + ": " + str(exc)[:100])
+            errors.append(source + " " + date.isoformat() + ": " + str(exc)[:120])
     return features, errors
 
 
@@ -444,73 +616,213 @@ FIRMS_STATUS_LOCK = threading.Lock()
 
 @app.get("/api/fires/history/status")
 def historical_fires_status():
-    """Validate the server-side NASA FIRMS MAP_KEY without returning or logging it."""
+    """Report server-side key configuration and NASA acceptance without exposing credentials."""
     map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
     if not map_key:
         return {"configured": False, "valid": False, "message": "FIRMS_MAP_KEY no está configurada en el servidor."}
+    retry_after = _firms_retry_after()
+    if retry_after:
+        return {
+            "configured": True, "valid": True, "rateLimited": True,
+            "retryAfterSeconds": retry_after, "availability": [],
+            "message": "NASA reconoció la clave, pero alcanzó el límite temporal de transacciones. Esperá aproximadamente 10 minutos antes de volver a consultar.",
+        }
     now = time.monotonic()
     with FIRMS_STATUS_LOCK:
         cached = FIRMS_STATUS_CACHE.get("payload")
         if cached and now < FIRMS_STATUS_CACHE["expires"]:
             return cached
-    url = "https://firms.modaps.eosdis.nasa.gov/mapserver/mapkey_status/?MAP_KEY=" + urllib.parse.quote(map_key, safe="")
-    request = urllib.request.Request(url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"})
+
+    status_data, status_error, status_body = None, None, ""
+    status_url = "https://firms.modaps.eosdis.nasa.gov/mapserver/mapkey_status/?MAP_KEY=" + urllib.parse.quote(map_key, safe="")
+    request = urllib.request.Request(status_url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            raw = response.read(4000).decode("utf-8", errors="replace").strip()
-        data = json.loads(raw)
-        if not isinstance(data, dict) or "transaction_limit" not in data:
-            raise ValueError("NASA no devolvió el estado esperado de la clave.")
-        availability = []
-        availability_url = (
-            "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/"
-            + urllib.parse.quote(map_key, safe="") + "/all"
-        )
-        try:
-            availability_request = urllib.request.Request(
-                availability_url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "text/csv"}
-            )
-            with urllib.request.urlopen(availability_request, timeout=10) as availability_response:
-                availability_raw = availability_response.read(200_000).decode("utf-8-sig", errors="replace")
-            availability = [
-                {"product": row.get("data_id"), "minDate": row.get("min_date"), "maxDate": row.get("max_date")}
-                for row in csv.DictReader(io.StringIO(availability_raw))
-                if row.get("data_id")
-            ]
-        except Exception:
-            availability = []
-        result = {
-            "configured": True, "valid": True,
-            "transactionLimit": data.get("transaction_limit"),
-            "currentTransactions": data.get("current_transactions"),
-            "transactionInterval": data.get("transaction_interval"),
-            "availability": availability,
-            "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "message": "NASA FIRMS aceptó la clave del servidor.",
-        }
+            status_data = json.loads(response.read(4000).decode("utf-8", errors="replace"))
     except urllib.error.HTTPError as exc:
+        status_error = exc.code
         try:
-            body = exc.read(400).decode("utf-8", errors="replace").strip()
+            status_body = exc.read(500).decode("utf-8", errors="replace").strip()
+            status_body = status_body.replace(map_key, "[REDACTED]")
+            status_body = re.sub(r"https?://\S+", "[URL protegida]", status_body)[:180]
         except Exception:
-            body = ""
-        definitely_invalid = exc.code in (401, 403) or "invalid map_key" in body.lower()
-        result = {
-            "configured": True, "valid": False if definitely_invalid else None,
-            "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "message": "NASA FIRMS rechazó la clave (HTTP " + str(exc.code) + ")."
-                       if definitely_invalid else
-                       "NASA FIRMS devolvió HTTP " + str(exc.code) + "; su respuesta puede indicar clave inválida o límite temporal excedido. No es posible distinguir ambas causas con este estado.",
-        }
+            status_body = ""
+    except Exception:
+        status_error = "unavailable"
+
+    availability, availability_error = None, None
+    try:
+        availability = _fetch_firms_availability(map_key, force=True)
     except Exception as exc:
-        result = {
-            "configured": True, "valid": None,
-            "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "message": "No se pudo verificar la clave en NASA FIRMS: " + str(exc)[:120],
-        }
+        availability_error = str(exc)[:180]
+
+    if availability is not None:
+        valid = True
+        rate_limited = False
+        message = "NASA FIRMS aceptó la clave y publicó la disponibilidad de productos."
+    elif status_error in (400, 401, 403, 429) or availability_error:
+        if availability_error and "límite temporal" in str(availability_error).lower():
+            rejection = str(availability_error)
+        elif status_error in (400, 401, 403, 429):
+            rejection = _firms_rejection_message(status_error, status_body or availability_error)
+        else:
+            rejection = str(availability_error or "")
+        rate_limited = "límite temporal" in rejection.lower()
+        key_rejected = "map_key no es válida" in rejection.lower()
+        valid = False if key_rejected else (True if rate_limited else None)
+        if rate_limited:
+            _mark_firms_rate_limited(600)
+        message = rejection or "No se pudo consultar la disponibilidad de NASA FIRMS."
+    else:
+        valid = None
+        rate_limited = False
+        message = "NASA no devolvió información suficiente para confirmar la autenticación."
+
+    result = {
+        "configured": True, "valid": valid, "rateLimited": rate_limited,
+        "retryAfterSeconds": _firms_retry_after() or None,
+        "transactionLimit": status_data.get("transaction_limit") if isinstance(status_data, dict) else None,
+        "currentTransactions": status_data.get("current_transactions") if isinstance(status_data, dict) else None,
+        "transactionInterval": status_data.get("transaction_interval") if isinstance(status_data, dict) else None,
+        "availability": [
+            {"product": product, "minDate": bounds["minDate"].isoformat(), "maxDate": bounds["maxDate"].isoformat()}
+            for product, bounds in (availability or {}).items()
+        ],
+        "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "message": message,
+    }
     with FIRMS_STATUS_LOCK:
-        FIRMS_STATUS_CACHE.update({"payload": result, "expires": now + 300})
+        FIRMS_STATUS_CACHE.update({"payload": result, "expires": now + (300 if valid is True else 30)})
     return result
 
+
+@app.post("/api/fires/history")
+def historical_fires(payload: dict):
+    """Query the NASA FIRMS archive using each sensor's published SP/NRT availability."""
+    map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
+    if not map_key:
+        raise HTTPException(status_code=503, detail="El histórico NASA FIRMS no está configurado: falta FIRMS_MAP_KEY en el servidor.")
+
+    geometry_data = payload.get("geometry") if isinstance(payload, dict) else None
+    if geometry_data and geometry_data.get("type") == "Feature":
+        geometry_data = geometry_data.get("geometry")
+    if not geometry_data or geometry_data.get("type") not in ("Polygon", "MultiPolygon"):
+        raise HTTPException(status_code=400, detail="Seleccioná un lote Polygon o MultiPolygon para consultar el histórico.")
+    try:
+        geometry = shape(geometry_data)
+        if geometry.is_empty or not geometry.is_valid:
+            geometry = geometry.buffer(0)
+        if geometry.is_empty or not geometry.is_valid:
+            raise ValueError("Geometría no válida.")
+        start_date = datetime.date.fromisoformat(str(payload.get("from", "")))
+        end_date = datetime.date.fromisoformat(str(payload.get("to", "")))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Geometría o fechas inválidas: " + str(exc)[:140])
+    if end_date < start_date:
+        raise HTTPException(status_code=400, detail="La fecha final debe ser igual o posterior a la inicial.")
+    if (end_date - start_date).days + 1 > HISTORY_MAX_DAYS:
+        raise HTTPException(status_code=400, detail=f"Consultá períodos de hasta {HISTORY_MAX_DAYS} días por solicitud.")
+
+    west, south, east, north = geometry.bounds
+    geometry_hash = __import__("hashlib").sha256(geometry.wkb).hexdigest()
+    cache_key = (geometry_hash, start_date.isoformat(), end_date.isoformat())
+    now = time.monotonic()
+    with HISTORY_CACHE_LOCK:
+        cached = HISTORY_CACHE.get(cache_key)
+        if cached and now < cached["expires"]:
+            return cached["payload"]
+
+    retry_after = _firms_retry_after()
+    if retry_after:
+        raise HTTPException(
+            status_code=429,
+            detail="NASA FIRMS alcanzó el límite temporal de transacciones. Esperá aproximadamente 10 minutos antes de volver a consultar.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    try:
+        availability = _fetch_firms_availability(map_key)
+    except Exception as exc:
+        message = str(exc)[:200]
+        if "límite temporal" in message.lower():
+            retry_after = _firms_retry_after() or 600
+            raise HTTPException(
+                status_code=429, detail=message, headers={"Retry-After": str(retry_after)}
+            )
+        raise HTTPException(status_code=502, detail="No se pudo consultar la disponibilidad del archivo NASA FIRMS. " + message)
+
+    tasks, unavailable = _history_query_plan(start_date, end_date, availability)
+    if not tasks:
+        return {
+            "type": "FeatureCollection", "features": [],
+            "meta": {
+                "source": "NASA FIRMS", "from": start_date.isoformat(), "to": end_date.isoformat(),
+                "count": 0, "products": [], "errors": [],
+                "unavailable": unavailable, "complete": True, "coverageComplete": False,
+                "message": "NASA FIRMS no publica datos para el período solicitado en los productos consultados.",
+                "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            },
+        }
+
+    results = []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [
+            pool.submit(_fetch_firms_history_source, map_key, source, (west, south, east, north), date,
+                        date + datetime.timedelta(days=days - 1))
+            for _family, source, date, days in tasks
+        ]
+        for task, future in zip(tasks, futures):
+            family, source, date, days = task
+            try:
+                rows, errors = future.result(timeout=150)
+                results.append({"family": family, "source": source, "features": rows, "errors": errors})
+            except Exception as exc:
+                results.append({"family": family, "source": source, "features": [],
+                                "errors": [source + " " + date.isoformat() + ": " + str(exc)[:140]]})
+
+    features, errors = [], []
+    successful_products = set()
+    for result in results:
+        errors.extend(result["errors"])
+        if not result["errors"]:
+            successful_products.add(result["source"])
+        for feature in result["features"]:
+            lon, lat = feature["geometry"]["coordinates"]
+            if geometry.covers(Point(lon, lat)):
+                features.append(feature)
+    features.sort(key=lambda item: item["properties"].get("observedAt") or "")
+    complete = not errors
+    if errors and all(result["errors"] for result in results) and all(
+        "límite temporal" in error.lower() for error in errors
+    ):
+        retry_after = _firms_retry_after() or 600
+        raise HTTPException(
+            status_code=429,
+            detail="NASA FIRMS alcanzó el límite temporal de transacciones. Esperá antes de volver a consultar.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    payload_out = {
+        "type": "FeatureCollection", "features": features,
+        "meta": {
+            "source": "NASA FIRMS · archive SP/NRT",
+            "from": start_date.isoformat(), "to": end_date.isoformat(),
+            "count": len(features), "scope": "detections intersecting selected lot geometry",
+            "products": sorted(successful_products), "errors": errors,
+            "unavailable": unavailable, "complete": complete, "coverageComplete": not unavailable,
+            "retryAfterSeconds": _firms_retry_after() or None,
+            "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "limitations": [
+                "Son detecciones térmicas satelitales, no incendios confirmados ni perímetros quemados.",
+                "La selección SP/NRT se basa en los rangos de disponibilidad publicados por NASA FIRMS.",
+                "La consulta está limitada a 31 días por solicitud y requiere FIRMS_MAP_KEY.",
+            ],
+        },
+    }
+    # Never cache rejected or partial responses: the next request must retry the failed sources.
+    if complete and not unavailable:
+        recent_cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=3)
+        ttl = 300 if end_date >= recent_cutoff else 86400
+        _store_history_cache(cache_key, payload_out, ttl)
+    return payload_out
 
 CONAE_METADATA_CACHE = {}
 CONAE_METADATA_CACHE_LOCK = threading.Lock()
@@ -575,82 +887,6 @@ def conae_wms_metadata(kind: str):
             payload["upstreamError"] = str(exc)[:120]
             return payload
         raise HTTPException(status_code=502, detail="No se pudieron consultar los metadatos WMS de CONAE: " + str(exc)[:180])
-
-
-@app.post("/api/fires/history")
-def historical_fires(payload: dict):
-    """Query archived NASA FIRMS standard-processing detections for a lot and date range."""
-    map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
-    if not map_key:
-        raise HTTPException(
-            status_code=503,
-            detail="Histórico remoto no configurado: falta la variable segura FIRMS_MAP_KEY en el servidor."
-        )
-    geometry_data = payload.get("geometry") if isinstance(payload, dict) else None
-    if geometry_data and geometry_data.get("type") == "Feature":
-        geometry_data = geometry_data.get("geometry")
-    if not geometry_data or geometry_data.get("type") not in ("Polygon", "MultiPolygon"):
-        raise HTTPException(status_code=400, detail="Seleccioná un lote Polygon o MultiPolygon para consultar el histórico.")
-    try:
-        geometry = shape(geometry_data)
-        if geometry.is_empty or not geometry.is_valid:
-            geometry = geometry.buffer(0)
-        if geometry.is_empty or not geometry.is_valid:
-            raise ValueError("Geometría no válida.")
-        start_date = datetime.date.fromisoformat(str(payload.get("from", "")))
-        end_date = datetime.date.fromisoformat(str(payload.get("to", "")))
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Geometría o fechas inválidas: " + str(exc)[:140])
-    if end_date < start_date:
-        raise HTTPException(status_code=400, detail="La fecha final debe ser igual o posterior a la inicial.")
-    if (end_date - start_date).days + 1 > HISTORY_MAX_DAYS:
-        raise HTTPException(status_code=400, detail=f"Consultá períodos de hasta {HISTORY_MAX_DAYS} días por solicitud para controlar el volumen.")
-    west, south, east, north = geometry.bounds
-    cache_key = (geometry.wkb_hex, start_date.isoformat(), end_date.isoformat())
-    now = time.monotonic()
-    with HISTORY_CACHE_LOCK:
-        cached = HISTORY_CACHE.get(cache_key)
-        if cached and now < cached["expires"]:
-            return cached["payload"]
-    results = []
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        futures = [
-            pool.submit(_fetch_firms_history_source, map_key, source,
-                        (west, south, east, north), start_date, end_date)
-            for source in HISTORY_SOURCES
-        ]
-        for source, future in zip(HISTORY_SOURCES, futures):
-            try:
-                rows, errors = future.result(timeout=150)
-                results.append({"source": source, "features": rows, "errors": errors})
-            except Exception as exc:
-                results.append({"source": source, "features": [], "errors": [str(exc)[:180]]})
-    features, errors = [], []
-    for result in results:
-        errors.extend(result["errors"])
-        for feature in result["features"]:
-            lon, lat = feature["geometry"]["coordinates"]
-            if geometry.covers(Point(lon, lat)):
-                features.append(feature)
-    features.sort(key=lambda item: item["properties"].get("observedAt") or "")
-    payload_out = {
-        "type": "FeatureCollection", "features": features,
-        "meta": {
-            "source": "NASA FIRMS · Standard Processing archive",
-            "from": start_date.isoformat(), "to": end_date.isoformat(),
-            "count": len(features), "scope": "detections intersecting selected lot geometry",
-            "products": HISTORY_SOURCES, "errors": errors,
-            "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "limitations": [
-                "Son detecciones térmicas satelitales, no incendios confirmados ni perímetros quemados.",
-                "El archivo Standard Processing tiene latencia y disponibilidad según sensor.",
-                "La consulta está limitada a 31 días por solicitud y requiere FIRMS_MAP_KEY.",
-            ],
-        },
-    }
-    with HISTORY_CACHE_LOCK:
-        HISTORY_CACHE[cache_key] = {"payload": payload_out, "expires": now + 900}
-    return payload_out
 
 
 @app.get("/api/fires/forecast")
