@@ -386,6 +386,20 @@ FIRMS_AVAILABILITY_CACHE = {"expires": 0.0, "payload": None}
 FIRMS_AVAILABILITY_LOCK = threading.Lock()
 
 
+FIRMS_RATE_LIMIT_CACHE = {"until": 0.0}
+
+
+def _mark_firms_rate_limited(seconds=600):
+    FIRMS_RATE_LIMIT_CACHE["until"] = max(
+        FIRMS_RATE_LIMIT_CACHE.get("until", 0.0),
+        time.monotonic() + max(1, int(seconds)),
+    )
+
+
+def _firms_retry_after():
+    return max(0, int(FIRMS_RATE_LIMIT_CACHE.get("until", 0.0) - time.monotonic() + 0.999))
+
+
 def _firms_rejection_message(status_code, detail=""):
     text = str(detail or "").lower()
     if any(term in text for term in ("transaction", "rate limit", "too many", "exceed", "quota")):
@@ -481,7 +495,10 @@ def _fetch_firms_availability(map_key, force=False):
         body = body.replace(map_key, "[REDACTED]")
         body = re.sub(r"https?://\S+", "[URL protegida]", body)[:180]
         if exc.code in (400, 401, 403):
-            raise RuntimeError(_firms_rejection_message(exc.code, body)) from exc
+            message = _firms_rejection_message(exc.code, body)
+            if "límite temporal" in message:
+                _mark_firms_rate_limited(600)
+            raise RuntimeError(message) from exc
         raise RuntimeError("NASA FIRMS disponibilidad HTTP " + str(exc.code) + (": " + body[:100] if body else "")) from exc
     availability = _parse_firms_availability(raw)
     with FIRMS_AVAILABILITY_LOCK:
@@ -585,6 +602,8 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
             reason = reason.replace(map_key, "[REDACTED]")
             if exc.code in (400, 401, 403):
                 reason = _firms_rejection_message(exc.code, reason)
+                if "límite temporal" in reason:
+                    _mark_firms_rate_limited(600)
             errors.append(source + " " + date.isoformat() + ": " + reason)
         except Exception as exc:
             errors.append(source + " " + date.isoformat() + ": " + str(exc)[:120])
@@ -601,6 +620,13 @@ def historical_fires_status():
     map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
     if not map_key:
         return {"configured": False, "valid": False, "message": "FIRMS_MAP_KEY no está configurada en el servidor."}
+    retry_after = _firms_retry_after()
+    if retry_after:
+        return {
+            "configured": True, "valid": True, "rateLimited": True,
+            "retryAfterSeconds": retry_after, "availability": [],
+            "message": "NASA reconoció la clave, pero alcanzó el límite temporal de transacciones. Esperá antes de volver a consultar.",
+        }
     now = time.monotonic()
     with FIRMS_STATUS_LOCK:
         cached = FIRMS_STATUS_CACHE.get("payload")
@@ -632,20 +658,22 @@ def historical_fires_status():
 
     if availability is not None:
         valid = True
+        rate_limited = False
         message = "NASA FIRMS aceptó la clave y publicó la disponibilidad de productos."
     elif status_error in (400, 401, 403) or availability_error:
-        valid = None
         rejection = _firms_rejection_message(status_error, status_body) if status_error in (400, 401, 403) else str(availability_error or "")
-        message = (
-            rejection if status_error in (400, 401, 403)
-            else str(availability_error or "No se pudo consultar la disponibilidad de NASA FIRMS.")
-        )
+        rate_limited = "límite temporal" in rejection.lower()
+        valid = True if rate_limited else None
+        if rate_limited:
+            _mark_firms_rate_limited(600)
+        message = rejection or "No se pudo consultar la disponibilidad de NASA FIRMS."
     else:
         valid = None
+        rate_limited = False
         message = "NASA no devolvió información suficiente para confirmar la autenticación."
 
     result = {
-        "configured": True, "valid": valid,
+        "configured": True, "valid": valid, "rateLimited": rate_limited,
         "transactionLimit": status_data.get("transaction_limit") if isinstance(status_data, dict) else None,
         "currentTransactions": status_data.get("current_transactions") if isinstance(status_data, dict) else None,
         "transactionInterval": status_data.get("transaction_interval") if isinstance(status_data, dict) else None,
@@ -697,10 +725,23 @@ def historical_fires(payload: dict):
         if cached and now < cached["expires"]:
             return cached["payload"]
 
+    retry_after = _firms_retry_after()
+    if retry_after:
+        raise HTTPException(
+            status_code=429,
+            detail="NASA FIRMS alcanzó el límite temporal de transacciones. Esperá antes de volver a consultar.",
+            headers={"Retry-After": str(retry_after)},
+        )
     try:
         availability = _fetch_firms_availability(map_key)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail="No se pudo consultar la disponibilidad del archivo NASA FIRMS. " + str(exc)[:200])
+        message = str(exc)[:200]
+        if "límite temporal" in message.lower():
+            retry_after = _firms_retry_after() or 600
+            raise HTTPException(
+                status_code=429, detail=message, headers={"Retry-After": str(retry_after)}
+            )
+        raise HTTPException(status_code=502, detail="No se pudo consultar la disponibilidad del archivo NASA FIRMS. " + message)
 
     tasks, unavailable = _history_query_plan(start_date, end_date, availability)
     if not tasks:
@@ -751,6 +792,7 @@ def historical_fires(payload: dict):
             "count": len(features), "scope": "detections intersecting selected lot geometry",
             "products": sorted(successful_products), "errors": errors,
             "unavailable": unavailable, "complete": complete, "coverageComplete": not unavailable,
+            "retryAfterSeconds": _firms_retry_after() or None,
             "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "limitations": [
                 "Son detecciones térmicas satelitales, no incendios confirmados ni perímetros quemados.",
