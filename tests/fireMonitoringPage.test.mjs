@@ -41,3 +41,8 @@ test('mobile fire cards stack and occupy the available width', () => {
   assert.match(page, /\.fire-priority-panels\{grid-template-columns:minmax\(0,1fr\)/);
   assert.match(page, /\.fire-day\{grid-template-columns:minmax\(0,1fr\)\}/);
 });
+
+test('restores and saves the minimum confidence preference', () => {
+  assert.match(page, /firePreferences\.minConfidence/);
+  assert.match(page, /saveFireMapPreferences\(\{minConfidence:Number\(\$\('confidence'\)\.value\)\}\)/);
+});
