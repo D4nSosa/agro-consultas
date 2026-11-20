@@ -145,3 +145,18 @@ def test_history_endpoint_does_not_cache_partial_results(monkeypatch):
     assert first["meta"]["complete"] is False
     assert second["meta"]["complete"] is False
     assert len(calls) == 8
+
+
+def test_parses_nasa_daily_availability_flags_without_filling_missing_dates():
+    import datetime
+    from backend.fire_monitoring import _parse_firms_availability, _history_source_for_day
+
+    available = _parse_firms_availability(
+        "sensor,date,sp,nrt\\n"
+        "MODIS,2026-11-01,true,false\\n"
+        "MODIS,2026-11-03,true,true\\n"
+    )
+    assert available["MODIS_SP"]["minDate"] == datetime.date(2026, 11, 1)
+    assert available["MODIS_SP"]["maxDate"] == datetime.date(2026, 11, 3)
+    assert _history_source_for_day("MODIS", datetime.date(2026, 11, 2), available) is None
+    assert _history_source_for_day("MODIS", datetime.date(2026, 11, 3), available) == "MODIS_SP"
