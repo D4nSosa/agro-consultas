@@ -52,9 +52,45 @@
 .leaflet-popup-content{font-family:Inter,sans-serif;font-size:.78rem;line-height:1.5}
 .leaflet-popup-content small{display:block;color:var(--texto-secundario);margin-top:5px}.fire-cluster-label{background:transparent;border:0;box-shadow:none;color:#fff;font-size:11px;font-weight:800;text-shadow:0 1px 3px #222,1px 0 2px #222,-1px 0 2px #222}.fire-cluster-label:before{display:none}
 .theme-dark .leaflet-control-layers,.theme-dark .leaflet-bar a{background:var(--gris-card);color:var(--texto-principal);border-color:var(--borde-suave)}
-@media(max-width:980px){.fire-layout{grid-template-columns:minmax(0,1fr)}.fire-side{grid-template-columns:repeat(2,minmax(0,1fr))}.fire-side .wide{grid-column:1/-1}}
-@media(max-width:620px){.fire-priority-panels{grid-template-columns:minmax(0,1fr)}.fire-side{grid-template-columns:minmax(0,1fr)}.fire-side .wide{grid-column:auto}#fire-map{height:56vh;min-height:390px}.fire-map-actions .btn{padding:7px 8px}.fire-carousel{grid-template-columns:minmax(0,1fr)}.fire-filters select{max-width:100%;width:100%}}
-.fire-priority-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0;margin-top:14px}.fire-priority-panels>.fire-card{min-width:0}.fire-carousel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;padding:4px 2px 10px;min-width:0}
+.fire-priority-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0;margin-top:14px}
+.fire-priority-panels>.fire-card{min-width:0;width:100%}
+.fire-carousel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;padding:4px 2px 10px;min-width:0}
+.fire-forecast-head{align-items:flex-start;flex-wrap:wrap}
+.fire-forecast-head h2{min-width:0;overflow-wrap:normal;word-break:normal;flex:1 1 220px}
+#forecast-location{max-width:100%;overflow-wrap:anywhere}
+.fire-day{grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}
+.fire-day>div{min-width:0}
+.fire-day small{font-size:.82rem;line-height:1.55;overflow-wrap:anywhere}
+.fire-day strong{font-size:.95rem;line-height:1.35}
+.fire-event-card{width:100%;min-width:0;max-width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid var(--borde-suave);border-radius:10px;background:var(--bg-principal);color:var(--texto-principal);cursor:pointer}
+.fire-event-card:hover{border-color:var(--verde-principal)}
+.fire-event-card strong{font-size:.95rem;line-height:1.35;color:var(--verde-principal)}
+.fire-event-card small{font-size:.8rem;line-height:1.4;color:var(--texto-secundario)}
+.fire-section-intro{font-size:.82rem;color:var(--texto-secundario);line-height:1.5;margin:8px 0 12px}
+.fire-product-control{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;min-width:0;flex:1 1 240px}
+.fire-product-control label{font-size:.78rem;color:var(--texto-secundario);font-weight:600}
+.fire-product-control select{width:100%;min-width:0;max-width:100%}
+.fire-filters{align-items:center}
+.fire-status{overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:760px){
+ .fire-priority-panels{grid-template-columns:minmax(0,1fr);gap:12px}
+ .fire-priority-panels>.fire-card{grid-column:1/-1}
+ .fire-carousel{grid-template-columns:minmax(0,1fr)}
+ .fire-day{grid-template-columns:minmax(0,1fr) auto}
+ .fire-forecast-head h2{flex-basis:100%}
+ .fire-map-actions{width:100%}
+ .fire-map-actions .btn{flex:1 1 auto;padding:8px 9px}
+ #fire-map{height:52vh;min-height:340px}
+ .fire-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .fire-filters>label{min-width:0;align-items:flex-start}
+ .fire-product-control{grid-column:1/-1}
+ .fire-filters select{width:100%;max-width:100%}
+}
+@media(max-width:420px){
+ .fire-day{grid-template-columns:minmax(0,1fr)}
+ .fire-risk{justify-self:start}
+ .fire-event-card{padding:12px}
+}
 .fire-event-card{width:100%;min-width:0;max-width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid var(--borde-suave);border-radius:10px;background:var(--bg-principal);color:var(--texto-principal);cursor:pointer}
 .fire-event-card:hover{border-color:var(--verde-principal)}
 .fire-event-card strong{font-size:.9rem;color:var(--verde-principal)}
@@ -76,16 +112,16 @@
    <div class="fire-map-head"><h2>Mapa operativo · Argentina y entorno</h2><div class="fire-map-actions"><button id="national-view" class="btn outline">Argentina</button><button id="locate-me" class="btn outline">◎ Mi ubicación</button><button id="refresh" class="btn primary">Actualizar</button><button id="satellite" class="btn outline">Satélite</button><button id="streets" class="btn outline">Calles</button></div></div>
    <div id="fire-map" role="application" aria-label="Radar interactivo de focos de calor"></div>
    <div class="fire-legend"><span class="fire-key"><i class="fire-dot modis"></i>MODIS · detección</span><span class="fire-key"><i class="fire-dot viirs"></i>VIIRS · detección</span><span class="fire-key"><i class="fire-dot goes"></i>GOES-19 · máscara de fuego ABI</span><span class="fire-key"><i class="fire-dot burned"></i>CONAE · producto de área quemada</span><span class="fire-key"><i class="fire-dot fuel"></i>CONAE · disponibilidad de combustible</span><span class="fire-key">Las detecciones son observaciones satelitales, no incendios confirmados</span></div>
-   <div class="fire-filters"><label><input id="show-modis" type="checkbox" checked>MODIS</label><label><input id="show-viirs" type="checkbox" checked>VIIRS</label><label><input id="show-goes" type="checkbox" checked>GOES-19</label><label><input id="show-fwi" type="checkbox">GWIS · Peligro FWI</label><label><input id="show-lot" type="checkbox" checked>Área del lote</label><label><input id="show-burned" type="checkbox">CONAE · Áreas quemadas MODIS</label><select id="burned-product" aria-label="Producto mensual de áreas quemadas CONAE"><option value="EmergenciasCONAE:MODIS_AQM_1">Producto AQM 1</option><option value="EmergenciasCONAE:MODIS_AQM_2">Producto AQM 2</option><option value="EmergenciasCONAE:MODIS_AQM_3">Producto AQM 3</option><option value="EmergenciasCONAE:MODIS_AQM_4">Producto AQM 4</option><option value="EmergenciasCONAE:MODIS_AQM_5">Producto AQM 5</option><option value="EmergenciasCONAE:MODIS_AQM_6">Producto AQM 6</option><option value="EmergenciasCONAE:MODIS_AQM_7">Producto AQM 7</option><option value="EmergenciasCONAE:MODIS_AQM_8">Producto AQM 8</option><option value="EmergenciasCONAE:MODIS_AQM_9">Producto AQM 9</option><option value="EmergenciasCONAE:MODIS_AQM_10">Producto AQM 10</option><option value="EmergenciasCONAE:MODIS_AQM_11">Producto AQM 11</option><option value="EmergenciasCONAE:MODIS_AQM_12">Producto AQM 12</option><option value="EmergenciasCONAE:MODIS_AQM_13">Producto AQM 13</option></select><label><input id="show-fuel" type="checkbox">CONAE · Disponibilidad de combustibles</label><select id="fuel-product" aria-label="Producto de disponibilidad de combustibles CONAE"><option value="AlertaTemprana:INC_SIARTIVGEOL89_DC_1">Landsat 8/9 · producto 1</option><option value="AlertaTemprana:INC_SIARTIVGEOL89_DC_2">Landsat 8/9 · producto 2</option><option value="AlertaTemprana:INC_SIARTIVGEOL89_DC_3" selected>Landsat 8/9 · producto 3</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_1">SNPP-VIIRS · producto 1</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_2">SNPP-VIIRS · producto 2</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_3">SNPP-VIIRS · producto 3</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_4">SNPP-VIIRS · producto 4</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_5">SNPP-VIIRS · producto 5</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_6">SNPP-VIIRS · producto 6</option></select></div>
+   <div class="fire-filters"><label><input id="show-modis" type="checkbox" checked>MODIS</label><label><input id="show-viirs" type="checkbox" checked>VIIRS</label><label><input id="show-goes" type="checkbox" checked>GOES-19</label><label><input id="show-fwi" type="checkbox">GWIS · Peligro FWI</label><label><input id="show-lot" type="checkbox" checked>Área del lote</label><label><input id="show-burned" type="checkbox">CONAE · Áreas quemadas MODIS</label><div class="fire-product-control"><label for="burned-product">Producto mensual de áreas quemadas · CONAE</label><select id="burned-product" aria-label="Producto mensual de áreas quemadas CONAE"><option value="EmergenciasCONAE:MODIS_AQM_1">Áreas quemadas MODIS · capa AQM_1 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_2">Áreas quemadas MODIS · capa AQM_2 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_3">Áreas quemadas MODIS · capa AQM_3 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_4">Áreas quemadas MODIS · capa AQM_4 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_5">Áreas quemadas MODIS · capa AQM_5 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_6">Áreas quemadas MODIS · capa AQM_6 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_7">Áreas quemadas MODIS · capa AQM_7 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_8">Áreas quemadas MODIS · capa AQM_8 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_9">Áreas quemadas MODIS · capa AQM_9 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_10">Áreas quemadas MODIS · capa AQM_10 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_11">Áreas quemadas MODIS · capa AQM_11 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_12">Áreas quemadas MODIS · capa AQM_12 (ficha pendiente)</option><option value="EmergenciasCONAE:MODIS_AQM_13">Áreas quemadas MODIS · capa AQM_13 (ficha pendiente)</option></select></div><label><input id="show-fuel" type="checkbox">CONAE · Disponibilidad de combustibles</label><div class="fire-product-control"><label for="fuel-product">Composición de combustibles · CONAE</label><select id="fuel-product" aria-label="Producto de disponibilidad de combustibles CONAE"><option value="AlertaTemprana:INC_SIARTIVGEOL89_DC_1">Landsat 8/9 · composición verde/seco/suelo · capa DC_1</option><option value="AlertaTemprana:INC_SIARTIVGEOL89_DC_2">Landsat 8/9 · composición verde/seco/suelo · capa DC_2</option><option value="AlertaTemprana:INC_SIARTIVGEOL89_DC_3" selected>Landsat 8/9 · composición verde/seco/suelo · capa DC_3</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_1">SNPP-VIIRS · composición verde/seco/suelo · capa DC_1</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_2">SNPP-VIIRS · composición verde/seco/suelo · capa DC_2</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_3">SNPP-VIIRS · composición verde/seco/suelo · capa DC_3</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_4">SNPP-VIIRS · composición verde/seco/suelo · capa DC_4</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_5">SNPP-VIIRS · composición verde/seco/suelo · capa DC_5</option><option value="AlertaTemprana:INC_SIARTIVGEOSNPP_DC_6">SNPP-VIIRS · composición verde/seco/suelo · capa DC_6</option></select></div></div>
    <div id="conae-product-info" class="fire-status" aria-live="polite">Los productos CONAE se describen con los metadatos publicados por el servicio. Seleccioná una capa para consultar su título, descripción y leyenda disponibles.</div>
    <p class="fire-note" id="fire-summary" aria-live="polite">Cargando observaciones satelitales para Argentina… Seleccioná un punto, usá tu ubicación o elegí un lote para consultar el entorno.</p>
   </section>
   <aside class="fire-side">
    <details class="fire-card wide"><summary><strong>Fuentes y estado técnico</strong></summary><div id="source-status" class="fire-status">Conectando con las fuentes satelitales…</div><div id="source-meta" class="fire-meta">La actualización automática se realiza cada 10 minutos.</div><p id="source-provenance" class="fire-meta">Procedencia: NASA FIRMS (MODIS/VIIRS), NOAA GOES-19 y servicios WFS de CONAE para consultas por lote, con respaldo FIRMS cuando corresponde. Meteorología: Open-Meteo. La fecha, antigüedad y disponibilidad de cada fuente se informan en este panel.</p><div class="fire-stats"><div class="fire-stat"><small>Observaciones MODIS</small><strong id="count-modis">—</strong></div><div class="fire-stat"><small>Observaciones VIIRS</small><strong id="count-viirs">—</strong></div><div class="fire-stat"><small>Alertas GOES-19</small><strong id="count-goes">—</strong></div><div class="fire-stat"><small>Total de observaciones recibidas (pueden coincidir)</small><strong id="count-total">—</strong></div></div></details>
-   <section class="fire-card wide"><h2>Detecciones recientes</h2><p class="fire-note">Seleccioná una tarjeta para centrar el mapa en la detección. Son anomalías térmicas satelitales, no incendios confirmados.</p><div id="fire-detection-carousel" class="fire-carousel" aria-live="polite"><div class="fire-empty">Al actualizar las fuentes, las detecciones recientes aparecerán acá.</div></div></section>
+   <section class="fire-card wide"><h2>Detecciones recientes · cobertura nacional</h2><p class="fire-section-intro">Últimas observaciones recibidas en el área nacional cubierta por los sensores. No necesariamente están cerca del lote seleccionado. Seleccioná una tarjeta para centrar el mapa. Son anomalías térmicas, no incendios confirmados.</p><div id="fire-detection-carousel" class="fire-carousel" aria-live="polite"><div class="fire-empty">Al actualizar las fuentes, las detecciones recientes aparecerán acá.</div></div></section>
    <section class="fire-card wide"><div class="fire-forecast-head"><h2>Pronóstico meteorológico local</h2><span id="forecast-location" class="fire-meta">Seleccioná un punto</span></div><div id="forecast-status" class="fire-status">Tocá una ubicación del mapa o seleccioná un lote para consultar los próximos 3 días.</div><div id="forecast-days" class="fire-days"><div class="fire-empty">La previsión se calculará para la ubicación elegida.</div></div><p class="fire-note">El pronóstico describe temperatura, humedad, viento y precipitación para el punto elegido. No es un índice oficial de peligro de incendio ni predice igniciones. Este módulo no incorpora el índice FWI; el pronóstico meteorológico no debe interpretarse como peligro oficial de incendio.</p></section>
    <section class="fire-card"><h2>Análisis del lote</h2><div id="lot-name" class="fire-meta" style="margin-top:8px">Sin lote seleccionado</div><label class="fire-field" for="confidence">Confianza numérica mínima (cuando está disponible): <b id="confidence-value">0%</b><input id="confidence" type="range" min="0" max="100" step="5" value="0"></label><button id="query-lot" class="btn primary" disabled>Analizar detecciones del lote</button><div id="lot-status" class="fire-status">Compartí un lote desde Mapa y lotes o Forestal.</div><div class="fire-stats"><div class="fire-stat"><small>Detecciones dentro del lote</small><strong id="lot-events">—</strong></div><div class="fire-stat"><small>Coincidencias MODIS / VIIRS</small><strong id="lot-paired">—</strong></div></div></section>
-   <details class="fire-card wide"><summary><strong>Histórico de detecciones</strong></summary><p class="fire-note">Consultá el archivo histórico de NASA FIRMS directamente desde Agro Consultas. La búsqueda se recorta a la geometría del lote seleccionado y admite períodos de hasta 31 días por consulta. Los datos se muestran aquí y se pueden exportar a CSV.</p><div class="fire-field"><label>Desde<input id="history-from" type="date"></label><label>Hasta<input id="history-to" type="date"></label></div><div class="fire-toolbar"><button id="history-query" class="btn primary">Consultar histórico del lote</button><button id="history-export" class="btn outline" disabled>Descargar resultados CSV</button><button id="history-apply" class="btn outline" disabled>Aplicar filtros</button><button id="history-clear" class="btn outline" disabled>Limpiar</button></div><div id="history-status" class="fire-status">Seleccioná un lote y un período para consultar el archivo satelital. Requiere FIRMS_MAP_KEY configurada en el servidor.</div><h3 style="font-size:.85rem;color:var(--verde-principal)">Resumen anual</h3><div id="history-years" class="fire-table">Sin registros consultados.</div><h3 style="font-size:.85rem;color:var(--verde-principal);margin-top:12px">Detalle mensual</h3><div id="history-months" class="fire-table">Sin registros.</div><details style="margin-top:14px"><summary class="fire-meta">Importación secundaria de CSV (uso offline)</summary><p class="fire-note">Esta opción es secundaria y no reemplaza la consulta histórica integrada.</p><label class="fire-field" for="history-files">Archivos CSV<input id="history-files" type="file" accept=".csv,text/csv" multiple></label><div class="fire-toolbar"><button id="history-manifest" class="btn outline" disabled>Descargar manifiesto de importación</button></div></details></details>
+   <details class="fire-card wide"><summary><strong>Histórico de detecciones</strong></summary><p class="fire-note">Consultá el archivo histórico de NASA FIRMS directamente desde Agro Consultas. La búsqueda se recorta a la geometría del lote seleccionado y admite períodos de hasta 31 días por consulta. Los datos se muestran aquí y se pueden exportar a CSV.</p><div class="fire-field"><label>Desde<input id="history-from" type="date"></label><label>Hasta<input id="history-to" type="date"></label></div><div class="fire-toolbar"><button id="history-query" class="btn primary">Consultar histórico del lote</button><button id="firms-key-check" class="btn outline" type="button">Verificar clave NASA FIRMS</button><button id="history-export" class="btn outline" disabled>Descargar resultados CSV</button><button id="history-apply" class="btn outline" disabled>Aplicar filtros</button><button id="history-clear" class="btn outline" disabled>Limpiar</button></div><div id="history-status" class="fire-status">Seleccioná un lote y un período para consultar el archivo satelital. Requiere una clave NASA FIRMS válida configurada en el servidor. La clave nunca se muestra en pantalla.</div><h3 style="font-size:.85rem;color:var(--verde-principal)">Resumen anual</h3><div id="history-years" class="fire-table">Sin registros consultados.</div><h3 style="font-size:.85rem;color:var(--verde-principal);margin-top:12px">Detalle mensual</h3><div id="history-months" class="fire-table">Sin registros.</div><details style="margin-top:14px"><summary class="fire-meta">Importación secundaria de CSV (uso offline)</summary><p class="fire-note">Esta opción es secundaria y no reemplaza la consulta histórica integrada.</p><label class="fire-field" for="history-files">Archivos CSV<input id="history-files" type="file" accept=".csv,text/csv" multiple></label><div class="fire-toolbar"><button id="history-manifest" class="btn outline" disabled>Descargar manifiesto de importación</button></div></details></details>
    
   </aside>
  </div>
@@ -138,14 +174,11 @@ async function readConaeLayerMetadata(kind){
    if(!response.ok)throw new Error(payload.detail||'No se pudo consultar el catálogo WMS.');
    const layers=Array.isArray(payload.layers)?payload.layers:[];
    conaeLayerMetadata[kind]=new Map(layers.map(layer=>[layer.name,layer]));
-   // Replace generic "producto 1/2/3" labels with the official catalog title.
-   // Keep the layer identifier visible because some CONAE titles are shared.
+   conaeLayerMetadata[kind].stale=payload.stale===true;
    [...select.options].forEach(option=>{
     const layerKey=option.value.replace(config.prefix,'');
     const metadata=conaeLayerMetadata[kind].get(layerKey)||conaeLayerMetadata[kind].get(option.value);
-    option.textContent=metadata
-     ? (metadata.title||metadata.name)+' · '+metadata.name
-     : 'Metadatos no publicados · '+layerKey;
+    if(metadata) option.textContent=(metadata.title||metadata.name)+' · '+metadata.name;
    });
   }
   const layerName=select.value.replace(config.prefix,'');
@@ -154,7 +187,7 @@ async function readConaeLayerMetadata(kind){
    info.textContent='CONAE no publicó metadatos descriptivos para '+select.value+'. El identificador se conserva sin asignarle una interpretación no verificada.';
    return;
   }
-  info.innerHTML='<strong>'+esc(metadata.title||metadata.name)+'</strong><br><small>Identificador: '+esc(metadata.name)+'</small><p class="fire-note">'+esc(metadata.abstract||'El catálogo no publica un resumen metodológico para esta capa.')+'</p>'+(metadata.legend?'<img loading="lazy" alt="Leyenda oficial CONAE" src="'+esc(metadata.legend)+'" style="max-width:100%;height:auto">':'');
+  info.innerHTML=(conaeLayerMetadata[kind].stale?'<strong>Ficha oficial en caché</strong><p class="fire-note">CONAE no respondió en esta consulta. Se muestra la última ficha oficial almacenada.</p>':'')+'<strong>'+esc(metadata.title||metadata.name)+'</strong><br><small>Identificador técnico: '+esc(metadata.name)+'</small><p class="fire-note">'+esc(metadata.abstract||'El catálogo no publica un resumen metodológico para esta capa.')+'</p>'+(metadata.legend?'<img loading="lazy" alt="Leyenda oficial CONAE" src="'+esc(metadata.legend)+'" style="max-width:100%;height:auto">':'');
  }catch(error){
   info.textContent='No se pudieron recuperar los metadatos WMS de CONAE ('+error.message+'). El producto no se interpreta automáticamente: revisá el título y la descripción cuando el catálogo vuelva a responder.';
  }
@@ -285,9 +318,15 @@ function renderRecentDetections(){
  container.innerHTML=latest.map((feature,index)=>{
   const p=feature.properties||{},coords=feature.geometry.coordinates;
   const source=p.sensor==='GOES'?'GOES-19':(p.sensor||p.source||'Satélite');
-  const date=p.observedAt||((p.date||'')+' '+(p.timeUtc||'')).trim()||'Hora no informada';
+  const rawDate=p.observedAt||((p.date||'')+' '+(p.timeUtc||'')).trim();
+  const parsedDate=rawDate?new Date(rawDate):null;
+  const date=parsedDate&&!Number.isNaN(parsedDate.getTime())
+   ? new Intl.DateTimeFormat('es-AR',{dateStyle:'medium',timeStyle:'short',timeZone:'UTC'}).format(parsedDate)+' UTC'
+   : 'Fecha no informada';
   const confidence=p.confidence??p.confidenceLabel;
-  return '<button type="button" class="fire-event-card" data-fire-index="'+index+'"><strong>'+esc(source)+' · '+esc(date)+'</strong><span>'+esc(coords[1].toFixed(4))+', '+esc(coords[0].toFixed(4))+'</span>'+(confidence!==undefined&&confidence!==null?'<small>Confianza: '+esc(confidence)+'</small>':'')+'<small>Anomalía térmica; no confirma incendio.</small></button>';
+  const reference=livePosition?[livePosition.lng,livePosition.lat]:(lot?centroid(lot.geometry):null);
+  const distance=reference?distanceKm(reference,coords):null;
+  return '<button type="button" class="fire-event-card" data-fire-index="'+index+'"><strong>'+esc(source)+' · '+esc(date)+'</strong><span>Lat. '+esc(coords[1].toFixed(4))+' · Lon. '+esc(coords[0].toFixed(4))+'</span>'+(distance!==null?'<small>Distancia al punto de referencia: '+esc(distance.toFixed(1))+' km</small>':'')+(confidence!==undefined&&confidence!==null?'<small>Confianza: '+esc(confidence)+'</small>':'')+'<small>Observación nacional; no confirma incendio.</small></button>';
  }).join('');
  container.querySelectorAll('[data-fire-index]').forEach(button=>button.addEventListener('click',()=>{
   const feature=latest[Number(button.dataset.fireIndex)];
@@ -400,8 +439,21 @@ async function queryHistory(){
   if(!response.ok)throw new Error(payload.detail||'No se pudo consultar el archivo histórico.');
   history=Array.isArray(payload.features)?payload.features:[];historySkipped=0;historyManifest=[];
   $('history-export').disabled=!history.length;$('history-clear').disabled=!history.length;$('history-apply').disabled=!history.length;
-  const meta=payload.meta||{};
-  $('history-status').textContent=history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+' · '+(meta.products||[]).join(', ')+'. '+(meta.errors?.length?'Fuentes con error: '+meta.errors.join(' · '):'Todas las fuentes consultadas respondieron.')+' Los focos son anomalías térmicas, no incendios confirmados.';
+  const meta=payload.meta||{},errors=meta.errors||[];
+  $('history-export').disabled=!history.length;
+  if(errors.length){
+   const failedSources=[...new Set(errors.map(item=>String(item).split(' ')[0]))];
+   const summary=failedSources.map(source=>source+' ('+errors.filter(item=>String(item).startsWith(source+' ')).length+' consultas fallidas)').join(' · ');
+   $('history-status').textContent=history.length
+    ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. '+summary+'. Revisá el estado de NASA FIRMS; no se consideran completas todas las fuentes.'
+    : 'Consulta incompleta: NASA FIRMS rechazó o no pudo procesar las consultas. '+summary+'. No se interpreta como ausencia de incendios. Usá “Verificar clave NASA FIRMS” para comprobar la autenticación.';
+   $('history-status').classList.add('error');
+  }else{
+   $('history-status').textContent=history.length
+    ? history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+' · '+(meta.products||[]).join(', ')+'. Los focos son anomalías térmicas, no incendios confirmados.'
+    : 'Consulta completada: NASA FIRMS no devolvió detecciones para el lote y período seleccionados. Esto no confirma ausencia de incendios.';
+   $('history-status').classList.remove('error');
+  }
   applyHistory();
  }catch(error){$('history-status').textContent=error.message;$('history-status').classList.add('error');}
  finally{button.disabled=false;button.textContent='Consultar histórico del lote';}
@@ -424,6 +476,31 @@ function applyHistory(){
  $('history-months').innerHTML=months.map(x=>'<div class="fire-table-row"><span>'+x.month+'</span><strong>'+x.total+'</strong><span>M '+x.MODIS+'</span><span>V '+x.VIIRS+'</span></div>').join('')||'Sin registros.';
  $('history-status').textContent=filtered.length.toLocaleString('es-AR')+' detecciones '+(lot?'dentro del lote seleccionado':'en el conjunto importado')+' · '+paired.toLocaleString('es-AR')+' coincidencias MODIS/VIIRS exploratorias · '+historySkipped.toLocaleString('es-AR')+' filas descartadas. No son incendios confirmados.';
 }
+async function checkFirmsKey(){
+ const button=$('firms-key-check');
+ if(button){button.disabled=true;button.textContent='Verificando…';}
+ const status=$('history-status');
+ status.classList.remove('error');
+ status.textContent='Consultando el estado de autenticación de NASA FIRMS…';
+ try{
+  const response=await fetch('/api/fires/history/status',{cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||'No se pudo consultar el estado de NASA FIRMS.');
+  if(!data.configured||data.valid===false){
+   status.textContent=data.message||'La clave no está configurada o NASA FIRMS la rechazó.';
+   status.classList.add('error');
+  }else if(data.valid===true){
+   const availability=(data.availability||[]).filter(item=>['MODIS_SP','VIIRS_SNPP_SP','VIIRS_NOAA20_SP','VIIRS_NOAA21_SP'].includes(item.product)).map(item=>item.product+': '+(item.minDate||'—')+' a '+(item.maxDate||'—')).join(' · ');
+   status.textContent='Clave aceptada por NASA FIRMS · transacciones '+data.currentTransactions+'/'+data.transactionLimit+' por '+data.transactionInterval+'. '+(availability?'Disponibilidad del archivo: '+availability+'. ':'')+data.message;
+   status.classList.remove('error');
+  }else{
+   status.textContent=data.message||'No se pudo verificar la clave; la consulta de estado no confirmó validez.';
+   status.classList.add('error');
+  }
+ }catch(error){status.textContent=error.message;status.classList.add('error');}
+ finally{if(button){button.disabled=false;button.textContent='Verificar clave NASA FIRMS';}}
+}
+$('firms-key-check').addEventListener('click',checkFirmsKey);
 $('history-query').addEventListener('click',queryHistory);$('history-export').addEventListener('click',downloadHistoryCsv);$('history-files').addEventListener('change',loadHistory);$('history-manifest').addEventListener('click',downloadHistoryManifest);$('history-apply').addEventListener('click',applyHistory);$('history-from').addEventListener('change',applyHistory);$('history-to').addEventListener('change',applyHistory);$('history-clear').addEventListener('click',()=>{history=[];historySkipped=0;$('history-files').value='';$('history-status').textContent='Sin registros históricos cargados.';$('history-years').textContent='Sin registros.';$('history-months').textContent='Sin registros.';$('history-clear').disabled=true;$('history-apply').disabled=true;$('history-manifest').disabled=true;historyManifest=[];});
 map.on('zoomend',drawDetections);$('national-view').addEventListener('click',showArgentina);$('refresh').addEventListener('click',refresh);$('satellite').addEventListener('click',()=>{if(!map.hasLayer(satellite))satellite.addTo(map);if(map.hasLayer(streets))map.removeLayer(streets);});$('streets').addEventListener('click',()=>{if(!map.hasLayer(streets))streets.addTo(map);if(map.hasLayer(satellite))map.removeLayer(satellite);});['show-modis','show-viirs','show-goes'].forEach(id=>$(id).addEventListener('change',drawDetections));
 $('show-fwi').addEventListener('change',()=>{if($('show-fwi').checked)gwisFwi.addTo(map);else map.removeLayer(gwisFwi);});$('show-lot').addEventListener('change',()=>{if($('show-lot').checked)lotLayer.addTo(map);else map.removeLayer(lotLayer);});
