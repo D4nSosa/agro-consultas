@@ -479,7 +479,7 @@ def _fetch_firms_availability(map_key, force=False):
         except Exception:
             body = ""
         body = body.replace(map_key, "[REDACTED]")
-        body = re.sub(r"https?://\\S+", "[URL protegida]", body)[:180]
+        body = re.sub(r"https?://\S+", "[URL protegida]", body)[:180]
         if exc.code in (400, 401, 403):
             raise RuntimeError(_firms_rejection_message(exc.code, body)) from exc
         raise RuntimeError("NASA FIRMS disponibilidad HTTP " + str(exc.code) + (": " + body[:100] if body else "")) from exc
