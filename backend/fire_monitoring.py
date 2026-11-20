@@ -647,7 +647,7 @@ def historical_fires(payload: dict):
             "meta": {
                 "source": "NASA FIRMS", "from": start_date.isoformat(), "to": end_date.isoformat(),
                 "count": 0, "products": [], "errors": [],
-                "unavailable": unavailable, "complete": True,
+                "unavailable": unavailable, "complete": True, "coverageComplete": False,
                 "message": "NASA FIRMS no publica datos para el período solicitado en los productos consultados.",
                 "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             },
@@ -688,7 +688,7 @@ def historical_fires(payload: dict):
             "from": start_date.isoformat(), "to": end_date.isoformat(),
             "count": len(features), "scope": "detections intersecting selected lot geometry",
             "products": sorted(successful_products), "errors": errors,
-            "unavailable": unavailable, "complete": complete,
+            "unavailable": unavailable, "complete": complete, "coverageComplete": not unavailable,
             "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "limitations": [
                 "Son detecciones térmicas satelitales, no incendios confirmados ni perímetros quemados.",
