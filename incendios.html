@@ -52,9 +52,45 @@
 .leaflet-popup-content{font-family:Inter,sans-serif;font-size:.78rem;line-height:1.5}
 .leaflet-popup-content small{display:block;color:var(--texto-secundario);margin-top:5px}.fire-cluster-label{background:transparent;border:0;box-shadow:none;color:#fff;font-size:11px;font-weight:800;text-shadow:0 1px 3px #222,1px 0 2px #222,-1px 0 2px #222}.fire-cluster-label:before{display:none}
 .theme-dark .leaflet-control-layers,.theme-dark .leaflet-bar a{background:var(--gris-card);color:var(--texto-principal);border-color:var(--borde-suave)}
-@media(max-width:980px){.fire-layout{grid-template-columns:minmax(0,1fr)}.fire-side{grid-template-columns:repeat(2,minmax(0,1fr))}.fire-side .wide{grid-column:1/-1}}
-@media(max-width:620px){.fire-priority-panels{grid-template-columns:minmax(0,1fr)}.fire-side{grid-template-columns:minmax(0,1fr)}.fire-side .wide{grid-column:auto}#fire-map{height:56vh;min-height:390px}.fire-map-actions .btn{padding:7px 8px}.fire-carousel{grid-template-columns:minmax(0,1fr)}.fire-filters select{max-width:100%;width:100%}}
-.fire-priority-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0;margin-top:14px}.fire-priority-panels>.fire-card{min-width:0}.fire-carousel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;padding:4px 2px 10px;min-width:0}
+.fire-priority-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0;margin-top:14px}
+.fire-priority-panels>.fire-card{min-width:0;width:100%}
+.fire-carousel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;padding:4px 2px 10px;min-width:0}
+.fire-forecast-head{align-items:flex-start;flex-wrap:wrap}
+.fire-forecast-head h2{min-width:0;overflow-wrap:normal;word-break:normal;flex:1 1 220px}
+#forecast-location{max-width:100%;overflow-wrap:anywhere}
+.fire-day{grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}
+.fire-day>div{min-width:0}
+.fire-day small{font-size:.82rem;line-height:1.55;overflow-wrap:anywhere}
+.fire-day strong{font-size:.95rem;line-height:1.35}
+.fire-event-card{width:100%;min-width:0;max-width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid var(--borde-suave);border-radius:10px;background:var(--bg-principal);color:var(--texto-principal);cursor:pointer}
+.fire-event-card:hover{border-color:var(--verde-principal)}
+.fire-event-card strong{font-size:.95rem;line-height:1.35;color:var(--verde-principal)}
+.fire-event-card small{font-size:.8rem;line-height:1.4;color:var(--texto-secundario)}
+.fire-section-intro{font-size:.82rem;color:var(--texto-secundario);line-height:1.5;margin:8px 0 12px}
+.fire-product-control{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;min-width:0;flex:1 1 240px}
+.fire-product-control label{font-size:.78rem;color:var(--texto-secundario);font-weight:600}
+.fire-product-control select{width:100%;min-width:0;max-width:100%}
+.fire-filters{align-items:center}
+.fire-status{overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:760px){
+ .fire-priority-panels{grid-template-columns:minmax(0,1fr);gap:12px}
+ .fire-priority-panels>.fire-card{grid-column:1/-1}
+ .fire-carousel{grid-template-columns:minmax(0,1fr)}
+ .fire-day{grid-template-columns:minmax(0,1fr) auto}
+ .fire-forecast-head h2{flex-basis:100%}
+ .fire-map-actions{width:100%}
+ .fire-map-actions .btn{flex:1 1 auto;padding:8px 9px}
+ #fire-map{height:52vh;min-height:340px}
+ .fire-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .fire-filters>label{min-width:0;align-items:flex-start}
+ .fire-product-control{grid-column:1/-1}
+ .fire-filters select{width:100%;max-width:100%}
+}
+@media(max-width:420px){
+ .fire-day{grid-template-columns:minmax(0,1fr)}
+ .fire-risk{justify-self:start}
+ .fire-event-card{padding:12px}
+}
 .fire-event-card{width:100%;min-width:0;max-width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:7px;padding:12px;border:1px solid var(--borde-suave);border-radius:10px;background:var(--bg-principal);color:var(--texto-principal);cursor:pointer}
 .fire-event-card:hover{border-color:var(--verde-principal)}
 .fire-event-card strong{font-size:.9rem;color:var(--verde-principal)}
@@ -82,7 +118,7 @@
   </section>
   <aside class="fire-side">
    <details class="fire-card wide"><summary><strong>Fuentes y estado técnico</strong></summary><div id="source-status" class="fire-status">Conectando con las fuentes satelitales…</div><div id="source-meta" class="fire-meta">La actualización automática se realiza cada 10 minutos.</div><p id="source-provenance" class="fire-meta">Procedencia: NASA FIRMS (MODIS/VIIRS), NOAA GOES-19 y servicios WFS de CONAE para consultas por lote, con respaldo FIRMS cuando corresponde. Meteorología: Open-Meteo. La fecha, antigüedad y disponibilidad de cada fuente se informan en este panel.</p><div class="fire-stats"><div class="fire-stat"><small>Observaciones MODIS</small><strong id="count-modis">—</strong></div><div class="fire-stat"><small>Observaciones VIIRS</small><strong id="count-viirs">—</strong></div><div class="fire-stat"><small>Alertas GOES-19</small><strong id="count-goes">—</strong></div><div class="fire-stat"><small>Total de observaciones recibidas (pueden coincidir)</small><strong id="count-total">—</strong></div></div></details>
-   <section class="fire-card wide"><h2>Detecciones recientes</h2><p class="fire-note">Seleccioná una tarjeta para centrar el mapa en la detección. Son anomalías térmicas satelitales, no incendios confirmados.</p><div id="fire-detection-carousel" class="fire-carousel" aria-live="polite"><div class="fire-empty">Al actualizar las fuentes, las detecciones recientes aparecerán acá.</div></div></section>
+   <section class="fire-card wide"><h2>Detecciones recientes · cobertura nacional</h2><p class="fire-section-intro">Últimas observaciones recibidas en el área nacional cubierta por los sensores. No necesariamente están cerca del lote seleccionado. Seleccioná una tarjeta para centrar el mapa. Son anomalías térmicas, no incendios confirmados.</p><div id="fire-detection-carousel" class="fire-carousel" aria-live="polite"><div class="fire-empty">Al actualizar las fuentes, las detecciones recientes aparecerán acá.</div></div></section>
    <section class="fire-card wide"><div class="fire-forecast-head"><h2>Pronóstico meteorológico local</h2><span id="forecast-location" class="fire-meta">Seleccioná un punto</span></div><div id="forecast-status" class="fire-status">Tocá una ubicación del mapa o seleccioná un lote para consultar los próximos 3 días.</div><div id="forecast-days" class="fire-days"><div class="fire-empty">La previsión se calculará para la ubicación elegida.</div></div><p class="fire-note">El pronóstico describe temperatura, humedad, viento y precipitación para el punto elegido. No es un índice oficial de peligro de incendio ni predice igniciones. Este módulo no incorpora el índice FWI; el pronóstico meteorológico no debe interpretarse como peligro oficial de incendio.</p></section>
    <section class="fire-card"><h2>Análisis del lote</h2><div id="lot-name" class="fire-meta" style="margin-top:8px">Sin lote seleccionado</div><label class="fire-field" for="confidence">Confianza numérica mínima (cuando está disponible): <b id="confidence-value">0%</b><input id="confidence" type="range" min="0" max="100" step="5" value="0"></label><button id="query-lot" class="btn primary" disabled>Analizar detecciones del lote</button><div id="lot-status" class="fire-status">Compartí un lote desde Mapa y lotes o Forestal.</div><div class="fire-stats"><div class="fire-stat"><small>Detecciones dentro del lote</small><strong id="lot-events">—</strong></div><div class="fire-stat"><small>Coincidencias MODIS / VIIRS</small><strong id="lot-paired">—</strong></div></div></section>
    <details class="fire-card wide"><summary><strong>Histórico de detecciones</strong></summary><p class="fire-note">Consultá el archivo histórico de NASA FIRMS directamente desde Agro Consultas. La búsqueda se recorta a la geometría del lote seleccionado y admite períodos de hasta 31 días por consulta. Los datos se muestran aquí y se pueden exportar a CSV.</p><div class="fire-field"><label>Desde<input id="history-from" type="date"></label><label>Hasta<input id="history-to" type="date"></label></div><div class="fire-toolbar"><button id="history-query" class="btn primary">Consultar histórico del lote</button><button id="history-export" class="btn outline" disabled>Descargar resultados CSV</button><button id="history-apply" class="btn outline" disabled>Aplicar filtros</button><button id="history-clear" class="btn outline" disabled>Limpiar</button></div><div id="history-status" class="fire-status">Seleccioná un lote y un período para consultar el archivo satelital. Requiere FIRMS_MAP_KEY configurada en el servidor.</div><h3 style="font-size:.85rem;color:var(--verde-principal)">Resumen anual</h3><div id="history-years" class="fire-table">Sin registros consultados.</div><h3 style="font-size:.85rem;color:var(--verde-principal);margin-top:12px">Detalle mensual</h3><div id="history-months" class="fire-table">Sin registros.</div><details style="margin-top:14px"><summary class="fire-meta">Importación secundaria de CSV (uso offline)</summary><p class="fire-note">Esta opción es secundaria y no reemplaza la consulta histórica integrada.</p><label class="fire-field" for="history-files">Archivos CSV<input id="history-files" type="file" accept=".csv,text/csv" multiple></label><div class="fire-toolbar"><button id="history-manifest" class="btn outline" disabled>Descargar manifiesto de importación</button></div></details></details>
@@ -138,14 +174,10 @@ async function readConaeLayerMetadata(kind){
    if(!response.ok)throw new Error(payload.detail||'No se pudo consultar el catálogo WMS.');
    const layers=Array.isArray(payload.layers)?payload.layers:[];
    conaeLayerMetadata[kind]=new Map(layers.map(layer=>[layer.name,layer]));
-   // Replace generic "producto 1/2/3" labels with the official catalog title.
-   // Keep the layer identifier visible because some CONAE titles are shared.
    [...select.options].forEach(option=>{
     const layerKey=option.value.replace(config.prefix,'');
     const metadata=conaeLayerMetadata[kind].get(layerKey)||conaeLayerMetadata[kind].get(option.value);
-    option.textContent=metadata
-     ? (metadata.title||metadata.name)+' · '+metadata.name
-     : 'Metadatos no publicados · '+layerKey;
+    if(metadata) option.textContent=(metadata.title||metadata.name)+' · '+metadata.name;
    });
   }
   const layerName=select.value.replace(config.prefix,'');
@@ -285,9 +317,15 @@ function renderRecentDetections(){
  container.innerHTML=latest.map((feature,index)=>{
   const p=feature.properties||{},coords=feature.geometry.coordinates;
   const source=p.sensor==='GOES'?'GOES-19':(p.sensor||p.source||'Satélite');
-  const date=p.observedAt||((p.date||'')+' '+(p.timeUtc||'')).trim()||'Hora no informada';
+  const rawDate=p.observedAt||((p.date||'')+' '+(p.timeUtc||'')).trim();
+  const parsedDate=rawDate?new Date(rawDate):null;
+  const date=parsedDate&&!Number.isNaN(parsedDate.getTime())
+   ? new Intl.DateTimeFormat('es-AR',{dateStyle:'medium',timeStyle:'short',timeZone:'UTC'}).format(parsedDate)+' UTC'
+   : 'Fecha no informada';
   const confidence=p.confidence??p.confidenceLabel;
-  return '<button type="button" class="fire-event-card" data-fire-index="'+index+'"><strong>'+esc(source)+' · '+esc(date)+'</strong><span>'+esc(coords[1].toFixed(4))+', '+esc(coords[0].toFixed(4))+'</span>'+(confidence!==undefined&&confidence!==null?'<small>Confianza: '+esc(confidence)+'</small>':'')+'<small>Anomalía térmica; no confirma incendio.</small></button>';
+  const reference=livePosition?[livePosition.lng,livePosition.lat]:(lot?centroid(lot.geometry):null);
+  const distance=reference?distanceKm(reference,coords):null;
+  return '<button type="button" class="fire-event-card" data-fire-index="'+index+'"><strong>'+esc(source)+' · '+esc(date)+'</strong><span>Lat. '+esc(coords[1].toFixed(4))+' · Lon. '+esc(coords[0].toFixed(4))+'</span>'+(distance!==null?'<small>Distancia al punto de referencia: '+esc(distance.toFixed(1))+' km</small>':'')+(confidence!==undefined&&confidence!==null?'<small>Confianza: '+esc(confidence)+'</small>':'')+'<small>Observación nacional; no confirma incendio.</small></button>';
  }).join('');
  container.querySelectorAll('[data-fire-index]').forEach(button=>button.addEventListener('click',()=>{
   const feature=latest[Number(button.dataset.fireIndex)];
