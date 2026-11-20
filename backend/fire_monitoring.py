@@ -383,22 +383,52 @@ def _history_date_chunks(start_date, end_date):
 
 
 def _parse_firms_availability(raw):
+    """Accept both NASA's range CSV and its per-date SP/NRT availability schema."""
     availability = {}
-    for row in csv.DictReader(io.StringIO(raw)):
-        product = (row.get("data_id") or row.get("sensor") or "").strip()
-        if not product:
-            continue
+
+    def add_range(product, minimum, maximum):
         try:
-            minimum = datetime.date.fromisoformat((row.get("min_date") or "").strip())
-            maximum = datetime.date.fromisoformat((row.get("max_date") or "").strip())
-        except ValueError:
+            start = datetime.date.fromisoformat(str(minimum).strip())
+            end = datetime.date.fromisoformat(str(maximum).strip())
+        except (TypeError, ValueError):
+            return
+        if start <= end:
+            current = availability.get(product)
+            if current:
+                current["minDate"] = min(current["minDate"], start)
+                current["maxDate"] = max(current["maxDate"], end)
+            else:
+                availability[product] = {"minDate": start, "maxDate": end}
+
+    def enabled(value):
+        return str(value or "").strip().lower() in {"1", "true", "yes", "y", "si"}
+
+    for row in csv.DictReader(io.StringIO(raw)):
+        product = (row.get("data_id") or "").strip()
+        if product:
+            add_range(product, row.get("min_date"), row.get("max_date"))
             continue
-        if minimum <= maximum:
-            availability[product] = {"minDate": minimum, "maxDate": maximum}
+
+        # Newer API schema: one row per sensor/date with independent SP and NRT flags.
+        sensor = (row.get("sensor") or "").strip().upper()
+        observed_date = row.get("date")
+        if sensor and observed_date:
+            family = sensor.removesuffix("_SP").removesuffix("_NRT")
+            if family not in {"MODIS", "VIIRS_SNPP", "VIIRS_NOAA20", "VIIRS_NOAA21"}:
+                continue
+            if enabled(row.get("sp")):
+                add_range(family + "_SP", observed_date, observed_date)
+            if enabled(row.get("nrt")):
+                add_range(family + "_NRT", observed_date, observed_date)
+            continue
+
+        # Compatibility with rows where the product name is in the sensor column.
+        if sensor:
+            add_range(sensor, row.get("min_date"), row.get("max_date"))
+
     if not availability:
         raise ValueError("NASA FIRMS no publicó rangos de disponibilidad reconocibles.")
     return availability
-
 
 def _fetch_firms_availability(map_key, force=False):
     """Read NASA's authoritative SP/NRT date ranges; cache only valid responses."""
