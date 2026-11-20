@@ -660,8 +660,8 @@ def historical_fires_status():
         valid = True
         rate_limited = False
         message = "NASA FIRMS aceptó la clave y publicó la disponibilidad de productos."
-    elif status_error in (400, 401, 403) or availability_error:
-        rejection = _firms_rejection_message(status_error, status_body) if status_error in (400, 401, 403) else str(availability_error or "")
+    elif status_error in (400, 401, 403, 429) or availability_error:
+        rejection = _firms_rejection_message(status_error, status_body) if status_error in (400, 401, 403, 429) else str(availability_error or "")
         rate_limited = "límite temporal" in rejection.lower()
         valid = True if rate_limited else None
         if rate_limited:
