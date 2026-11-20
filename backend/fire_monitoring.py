@@ -431,7 +431,7 @@ def _fetch_firms_history_source(map_key, source, bounds, start_date, end_date):
                 detail = exc.read(500).decode("utf-8", errors="replace").strip()
             except Exception:
                 detail = ""
-            reason = re.sub(r"https?://\\S+", "[URL protegida]", detail)[:100]
+            reason = re.sub(r"https?://\S+", "[URL protegida]", detail)[:100]
             errors.append(source + " " + date.isoformat() + ": HTTP " + str(exc.code) + (": " + reason if reason else ""))
         except Exception as exc:
             errors.append(source + " " + date.isoformat() + ": " + str(exc)[:100])
@@ -461,11 +461,30 @@ def historical_fires_status():
         data = json.loads(raw)
         if not isinstance(data, dict) or "transaction_limit" not in data:
             raise ValueError("NASA no devolvió el estado esperado de la clave.")
+        availability = []
+        availability_url = (
+            "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/"
+            + urllib.parse.quote(map_key, safe="") + "/all"
+        )
+        try:
+            availability_request = urllib.request.Request(
+                availability_url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "text/csv"}
+            )
+            with urllib.request.urlopen(availability_request, timeout=10) as availability_response:
+                availability_raw = availability_response.read(200_000).decode("utf-8-sig", errors="replace")
+            availability = [
+                {"product": row.get("data_id"), "minDate": row.get("min_date"), "maxDate": row.get("max_date")}
+                for row in csv.DictReader(io.StringIO(availability_raw))
+                if row.get("data_id")
+            ]
+        except Exception:
+            availability = []
         result = {
             "configured": True, "valid": True,
             "transactionLimit": data.get("transaction_limit"),
             "currentTransactions": data.get("current_transactions"),
             "transactionInterval": data.get("transaction_interval"),
+            "availability": availability,
             "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "message": "NASA FIRMS aceptó la clave del servidor.",
         }
