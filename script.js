@@ -948,6 +948,26 @@ function createSingleRecommendationCardHtml(c) {
   else if (nom.includes("algodon")) icon = "☁️";
   else if (nom.includes("caña") || nom.includes("cana")) icon = "🎋";
 
+  const soilReq = c.requerimientos?.suelo || {};
+  const climateReq = c.requerimientos?.clima || {};
+  const phRequired = Number.isFinite(Number(soilReq.phMin)) && Number.isFinite(Number(soilReq.phMax))
+    ? `${Number(soilReq.phMin).toFixed(1)}–${Number(soilReq.phMax).toFixed(1)}`
+    : "No especificado en la ficha";
+  const phObserved = Number.isFinite(c.sueloObservado?.ph)
+    ? `${c.sueloObservado.ph.toFixed(1)} (referencia cartográfica)`
+    : "No disponible en la consulta de INTA";
+  const soilRequirementSummary = [
+    `pH requerido: ${phRequired}`,
+    `Textura: ${Array.isArray(soilReq.texturas) && soilReq.texturas.length ? soilReq.texturas.join(", ") : "No especificada"}`,
+    `Drenaje: ${Array.isArray(soilReq.drenaje) && soilReq.drenaje.length ? soilReq.drenaje.join(", ") : "No especificado"}`
+  ].join(" · ");
+  const climateRequirementSummary = [
+    Number.isFinite(Number(climateReq.temperaturaMin)) && Number.isFinite(Number(climateReq.temperaturaMax))
+      ? `Temperatura: ${climateReq.temperaturaMin}–${climateReq.temperaturaMax} °C` : null,
+    Number.isFinite(Number(climateReq.precipitacionMin))
+      ? `Precipitación mínima: ${climateReq.precipitacionMin} mm/año` : null
+  ].filter(Boolean).join(" · ") || "Requerimientos climáticos no especificados en la ficha";
+
   if (currentViewMode === 'simple') {
     return `
       <article class="crop-card card" style="padding: 18px; border-left: 5px solid ${semaforoIcon === '🟢' ? '#27ae60' : (semaforoIcon === '🟡' ? '#f39c12' : (semaforoIcon === '🔴' ? '#e74c3c' : '#7f8c8d'))};">
@@ -973,6 +993,10 @@ function createSingleRecommendationCardHtml(c) {
           ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `<div style="margin-top: 6px;"><strong>Datos que faltan para clasificar:</strong><ul style="margin:4px 0 0 18px;padding:0;">${c.datosFaltantes.map(item => `<li>${item}</li>`).join("")}</ul></div>` : ''}
         </div>
 
+        <div style="font-size:.8rem;background:rgba(0,0,0,.025);border:1px solid var(--borde-suave);border-radius:7px;padding:9px;margin-bottom:10px;">
+          <strong>🧪 Requerimiento edáfico:</strong> ${soilRequirementSummary}
+          <div style="margin-top:4px;color:var(--texto-secundario);">pH observado en el punto: ${phObserved}. No se reemplaza un dato ausente por un valor estimado.</div>
+        </div>
         <div style="font-size: 0.8rem; color: var(--texto-secundario); display: flex; justify-content: space-between;">
           <span>📅 Siembra: <strong>${c.siembra}</strong></span>
           <span>🌾 Cosecha: <strong>${c.cosecha}</strong></span>
@@ -1006,6 +1030,26 @@ function createSingleRecommendationCardHtml(c) {
             <strong>🌱 Requerimientos Trazables</strong>
             <div>Suelo: ${c.reqSuelo}</div>
             <div>Clima: ${c.reqClima}</div>
+          </div>
+        </div>
+
+        <div class="crop-grid-details" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;font-size:.82rem;">
+          <div style="background:rgba(0,0,0,.02);padding:10px;border-radius:6px;border:1px solid var(--borde-suave);">
+            <strong>🧪 Requerimientos edáficos del cultivo</strong>
+            <div>pH requerido: ${phRequired}</div>
+            <div>Textura: ${Array.isArray(soilReq.texturas) && soilReq.texturas.length ? soilReq.texturas.join(", ") : "No especificada"}</div>
+            <div>Drenaje: ${Array.isArray(soilReq.drenaje) && soilReq.drenaje.length ? soilReq.drenaje.join(", ") : "No especificado"}</div>
+          </div>
+          <div style="background:rgba(0,0,0,.02);padding:10px;border-radius:6px;border:1px solid var(--borde-suave);">
+            <strong>📍 Evidencia del punto consultado</strong>
+            <div>pH observado: ${phObserved}</div>
+            <div>Textura: ${c.sueloObservado?.textura || "No disponible"}</div>
+            <div>Drenaje: ${c.sueloObservado?.drenaje || "No disponible"}</div>
+            <div style="color:var(--texto-secundario);font-size:.75rem;margin-top:4px;">Fuente: ${c.sueloObservado?.fuente || "No disponible"}</div>
+          </div>
+          <div style="grid-column:1/-1;background:rgba(0,0,0,.02);padding:10px;border-radius:6px;border:1px solid var(--borde-suave);">
+            <strong>🌦️ Requerimientos climáticos del cultivo</strong>
+            <div>${climateRequirementSummary}</div>
           </div>
         </div>
 
