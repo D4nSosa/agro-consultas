@@ -448,7 +448,7 @@ async function queryHistory(){
    const summary=failedSources.map(source=>source+' ('+errors.filter(item=>String(item).startsWith(source+' ')).length+' consultas fallidas)').join(' · ');
    $('history-status').textContent=history.length
     ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. '+summary+'. Revisá el estado de NASA FIRMS; no se consideran completas todas las fuentes.'
-    : 'Consulta incompleta: NASA FIRMS rechazó o no pudo procesar las consultas. '+summary+'. No se interpreta como ausencia de incendios. Usá “Verificar clave NASA FIRMS” para comprobar la autenticación.';
+    : 'Consulta incompleta: NASA FIRMS rechazó o no pudo procesar las consultas. '+summary+'. No se interpreta como ausencia de incendios. Revisá el estado de la fuente NASA FIRMS en el panel «Fuentes y estado técnico».';
    $('history-status').classList.add('error');
   }else{
    $('history-status').textContent=history.length
