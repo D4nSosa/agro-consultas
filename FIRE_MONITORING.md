@@ -96,3 +96,6 @@ Fuente primaria: https://catalogos.conae.gov.ar/catalogo/catalogoGeoServiciosPro
 ## Persistencia local de preferencias de interfaz
 
 El módulo Incendios guarda únicamente preferencias pequeñas y no sensibles en `localStorage`, mediante `services/userPreferences.js` y la clave versionada `agro_user_preferences_v1`: mapa base, visibilidad de capas y productos CONAE seleccionados. El esquema usa lista permitida y valores predeterminados; datos incompatibles o almacenamiento bloqueado se ignoran sin impedir la carga del módulo. No se guardan claves API, credenciales, geometrías de lotes, respuestas NASA ni históricos en este almacén. El contexto y los proyectos/lotes siguen bajo el contrato existente de `services/lotContext.js`; no se migra ni duplica su persistencia.
+
+
+Si el WMS de CONAE no responde, el módulo mantiene una explicación general documentada para las capas MODIS MCD64A1.061 Burn_Date y composición de combustibles verde/seco/suelo. La interfaz identifica que la ficha/leyenda de la capa no estuvo disponible y no inventa fecha, valores ni simbología. Los nombres técnicos AQM/DC quedan acompañados por la finalidad del producto.
