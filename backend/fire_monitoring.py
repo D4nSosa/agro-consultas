@@ -680,7 +680,7 @@ def historical_fires_status():
     explicit_invalid = any(term in rejection_lower for term in (
         "invalid map", "invalid key", "map_key invalid", "map_key is invalid",
         "map key is invalid", "map key invalid",
-    )) or status_error == 401
+    )) or status_error == 401 or "http 401" in rejection_lower or "rechazó la autenticación" in rejection_lower
     explicit_quota = (
         status_error == 429
         or (availability_error is not None and "límite temporal" in availability_error.lower())
