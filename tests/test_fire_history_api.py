@@ -160,3 +160,15 @@ MODIS,2026-11-03,true,true"""
     assert available["MODIS_SP"]["maxDate"] == datetime.date(2026, 11, 3)
     assert _history_source_for_day("MODIS", datetime.date(2026, 11, 2), available) is None
     assert _history_source_for_day("MODIS", datetime.date(2026, 11, 3), available) == "MODIS_SP"
+
+
+def test_firms_rejection_diagnostic_distinguishes_explicit_quota_and_invalid_key():
+    from backend.fire_monitoring import _firms_rejection_message
+
+    quota = _firms_rejection_message(403, "Exceeded transaction limit")
+    invalid = _firms_rejection_message(403, "Invalid MAP_KEY")
+    ambiguous = _firms_rejection_message(403, "")
+
+    assert "límite temporal" in quota
+    assert "no es válida" in invalid
+    assert "no permite distinguir" in ambiguous
