@@ -25,3 +25,12 @@ test('fire map preferences are stored through the allowlisted local preference s
   assert.match(page, /saveFireMapPreferences/);
   assert.match(page, /services\/userPreferences\.js/);
 });
+
+test('CONAE layers remain understandable when WMS metadata times out', () => {
+  assert.match(page, /conaeProductFallback/);
+  assert.match(page, /MODIS MCD64A1\.061/);
+  assert.match(page, /día juliano asociado al área quemada/);
+  assert.match(page, /vegetación senescente o seca y suelo descubierto/);
+  assert.doesNotMatch(page, /ficha pendiente/i);
+  assert.doesNotMatch(page, /revisá el título y la descripción/i);
+});
