@@ -10,9 +10,11 @@ const forestTimeline = await readFile(new URL('../forestal/components/ForestTime
 
 test('technical report is responsive on mobile and print layouts', () => {
   assert.match(report, /report-responsive-layout/);
-  assert.match(report, /overflow:hidden/);
+  assert.match(report, /overflow-x:clip;overflow-y:visible/);
   assert.match(report, /@media\(max-width:640px\)/);
   assert.match(report, /@media print/);
+  assert.match(report, /\.report-fire-row,\.report-forecast-row\{grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(report, /\.compatibility-badge\{white-space:normal/);
 });
 
 test('technical report consolidates fire detections and local forecast', () => {
