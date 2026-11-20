@@ -465,7 +465,7 @@ def _fetch_firms_availability(map_key, force=False):
             return cached
     url = (
         "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/"
-        + urllib.parse.quote(map_key, safe="") + "/all"
+        + urllib.parse.quote(map_key, safe="") + "/ALL"
     )
     request = urllib.request.Request(
         url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "text/csv"}
