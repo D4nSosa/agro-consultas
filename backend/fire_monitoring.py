@@ -791,6 +791,15 @@ def historical_fires(payload: dict):
                 features.append(feature)
     features.sort(key=lambda item: item["properties"].get("observedAt") or "")
     complete = not errors
+    if errors and all(result["errors"] for result in results) and all(
+        "límite temporal" in error.lower() for error in errors
+    ):
+        retry_after = _firms_retry_after() or 600
+        raise HTTPException(
+            status_code=429,
+            detail="NASA FIRMS alcanzó el límite temporal de transacciones. Esperá antes de volver a consultar.",
+            headers={"Retry-After": str(retry_after)},
+        )
     payload_out = {
         "type": "FeatureCollection", "features": features,
         "meta": {
