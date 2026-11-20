@@ -477,9 +477,13 @@ async function queryHistory(){
   const errorSummary=failedSources.map(source=>source+' ('+errors.filter(item=>String(item).startsWith(source+' ')).length+' consultas fallidas)').join(' · ');
   const coverageSummary=Object.entries(unavailable).map(([source,days])=>source+' sin cobertura publicada ('+(Array.isArray(days)?days.length:0)+' días)').join(' · ');
   if(errors.length){
-   $('history-status').textContent=history.length
-    ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. Errores: '+errorSummary+'. '+(coverageSummary?'Cobertura faltante: '+coverageSummary+'. ':'')+'El resultado no cubre todas las fuentes o fechas.'
-    : 'No se pudo completar la consulta histórica. '+errorSummary+'. NASA puede haber rechazado la clave, aplicado un límite temporal o no tener disponible ese producto. No significa que no haya incendios.';
+   const rateLimited=errors.some(item=>/límite temporal|transaction limit|too many requests/i.test(String(item)));
+   const retryMinutes=Math.max(1,Math.ceil((Number(meta.retryAfterSeconds)||600)/60));
+   $('history-status').textContent=rateLimited
+    ? (history.length?'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas. ':'')+'NASA FIRMS alcanzó el límite temporal de transacciones. Esperá aproximadamente '+retryMinutes+' minutos antes de volver a consultar. '+(errorSummary||'')
+    : (history.length
+      ? 'Resultado parcial: '+history.length.toLocaleString('es-AR')+' detecciones recuperadas entre '+from+' y '+to+'. Errores: '+errorSummary+'. '+(coverageSummary?'Cobertura faltante: '+coverageSummary+'. ':'')+'El resultado no cubre todas las fuentes o fechas.'
+      : 'No se pudo completar la consulta histórica. '+errorSummary+'. NASA puede haber rechazado la clave o el producto solicitado. No significa que no haya incendios.');
    $('history-status').classList.add('error');
   }else if(coverageSummary){
    $('history-status').textContent=history.length
