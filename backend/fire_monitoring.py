@@ -668,7 +668,8 @@ def historical_fires_status():
         else:
             rejection = str(availability_error or "")
         rate_limited = "límite temporal" in rejection.lower()
-        valid = True if rate_limited else None
+        key_rejected = "map_key no es válida" in rejection.lower()
+        valid = False if key_rejected else (True if rate_limited else None)
         if rate_limited:
             _mark_firms_rate_limited(600)
         message = rejection or "No se pudo consultar la disponibilidad de NASA FIRMS."
