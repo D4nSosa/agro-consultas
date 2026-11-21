@@ -312,14 +312,14 @@ def check_mapbiomas_platform_api():
         for item in subthemes_payload.get("subthemes") or []:
             key = item.get("key") or ""
             years = [y for y in ((item.get("asset") or {}).get("years") or []) if isinstance(y, (int, float))]
-            if not key.startswith("coverage") or item.get("dataType") != "annual" or not years:
+            if "coverage" not in key.lower() or item.get("dataType") != "annual" or not years:
                 continue
             if any(marker in key for marker in derived_markers):
                 continue
             score = (5 if "30m" in key else 0) + len(years) / 100
             candidates.append((score, item, sorted(int(y) for y in years)))
         if not candidates:
-            return {"status": "NO_ANNUAL_COVERAGE_SUBTHEME", "subthemes": [x.get("key") for x in subthemes_payload.get("subthemes", [])]}
+            return {"status": "NO_ANNUAL_COVERAGE_SUBTHEME", "coverage_subthemes": [{"key": item.get("key"), "dataType": item.get("dataType"), "assetId": (item.get("asset") or {}).get("assetId"), "years": (item.get("asset") or {}).get("years")} for item in subthemes_payload.get("subthemes") or [] if "coverage" in str(item.get("key") or "").lower()]}
         _, subtheme, years = max(candidates, key=lambda item: item[0])
 
         legends_payload = get_json("/argentina/legends", [
@@ -771,6 +771,12 @@ def main():
         except Exception as exc:
             report["checks"]["idera_service_registry"]["status"] = "INVALID_RESPONSE"
             report["checks"]["idera_service_registry"]["error"] = f"{type(exc).__name__}: {exc}"
+    mapbiomas_wms = "https://shared-geoserver.mapbiomas.org/geoserver/ows"
+    report["checks"]["mapbiomas_argentina_context_layers"] = [
+        check_wms_layer_render("MapBiomas Argentina vegetation units", mapbiomas_wms, "mapbiomas-argentina:vegetation_unit"),
+        check_wms_layer_render("MapBiomas Argentina ecoregions", mapbiomas_wms, "mapbiomas-argentina:ecorregion"),
+        check_wms_layer_render("MapBiomas Argentina forest regions", mapbiomas_wms, "mapbiomas-argentina:regiones_forestales"),
+    ]
     report["checks"]["mapbiomas_collection2_2024_geotiff_range"] = request_range(
         "https://storage.googleapis.com/mapbiomas-public/initiatives/argentina/collection-2/coverage/argentina_coverage_2024.tif"
     )
@@ -844,8 +850,10 @@ def main():
             item = report["checks"][key]
             rows.append(f"| {label} | {item.get('status')} | HTTP {item.get('http_status')}; Range: {item.get('range_supported')} |")
         stac_rows = report["checks"]["stac_provincial_samples"]
-        ok_points = sum(1 for item in stac_rows if item.get("status") == "HTTP_OK" and item.get("items_returned", 0) > 0)
+        ok_points = sum(1 for item in stac_rows if item.get("status") == "HTTP_OK" and item.get("collections_with_items"))
         rows.append(f"| STAC muestras provinciales | {ok_points}/24 con al menos un ítem | Consulta puntual en centroides; no certifica cobertura provincial completa |")
+        for item in report["checks"]["mapbiomas_argentina_context_layers"]:
+            rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; PNG válido: {item.get('png_signature_valid')} |")
         with open(summary_path, "a", encoding="utf-8") as summary:
             summary.write("\n## Smoke test de fuentes públicas\n\n")
             summary.write("\n".join(rows))
