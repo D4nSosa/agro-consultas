@@ -115,6 +115,19 @@ Este inventario no declara productos integrados.
 - USGS, Landsat STAC: https://www.usgs.gov/landsat-missions/spatiotemporal-asset-catalog-stac
 - NASA FIRMS Area API: https://firms.modaps.eosdis.nasa.gov/api/area
 
+## Corrección radiométrica Sentinel-2 L2A
+
+La consulta STAC real de Earth Search para `sentinel-2-l2a` devuelve assets COG con esta calibración:
+- RED (`red` / B04): resolución 10 m, escala 0.0001, offset -0.1.
+- NIR (`nir` / B08): resolución 10 m, escala 0.0001, offset -0.1.
+- SCL: clasificación de calidad a 20 m.
+
+El cálculo anterior aplicaba NDVI directamente a DN enteros. Como el offset es distinto de cero, esa operación altera el cociente y produce valores incorrectos. La rama PR #94 ahora conserva la escala/offset publicados por STAC y calcula NDVI sobre reflectancia calibrada antes de combinar bandas. También exige SCL, aplica remuestreo nearest-neighbour para la máscara y excluye NoData, píxeles saturados/defectuosos, sombras, nubes y nieve.
+
+La búsqueda STAC usa `intersects` con la geometría exacta del lote, en vez de seleccionar escenas solo por bbox. El rango de fallback histórico termina en la fecha solicitada y no selecciona escenas futuras.
+
+La corrección se prueba con valores de referencia sintéticos y con metadatos STAC simulados; la consulta real de las 24 jurisdicciones se verifica aparte en GitHub Actions.
+
 ## Contrato técnico de Landsat Collection 2 Level-2
 
 La colección STAC `landsat-c2-l2` es global y contiene productos Level-2 de Landsat 4–9. Para la integración solicitada se filtrarán Landsat 8 y 9, no se mezclarán automáticamente sensores históricos distintos.
