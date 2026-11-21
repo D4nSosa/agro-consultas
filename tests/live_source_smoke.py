@@ -113,6 +113,10 @@ def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
     result["expected_layers_found"] = [layer for layer in expected if layer in names]
     result["expected_layers_missing"] = [layer for layer in expected if layer not in names]
     result["layer_names_sample"] = names[:60]
+    soil_terms = ("suel", "soil", "edaf", "cartografia", "aptitud", "capacidad_uso")
+    result["soil_layer_candidates"] = [
+        name for name in names if any(term in name.lower() for term in soil_terms)
+    ]
     if result["status"] == "HTTP_OK":
         try:
             root = ET.fromstring(body)
