@@ -13,6 +13,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -112,6 +113,21 @@ def check_wms(name: str, endpoint: str, expected: list[str]):
     result["expected_layers_found"] = [layer for layer in expected if layer in names]
     result["expected_layers_missing"] = [layer for layer in expected if layer not in names]
     result["layer_names_sample"] = names[:60]
+    if result["status"] == "HTTP_OK":
+        try:
+            root = ET.fromstring(body)
+            metadata = []
+            for layer in root.iter():
+                if layer.tag.rsplit("}", 1)[-1] != "Layer":
+                    continue
+                name = next((node.text.strip() for node in layer if node.tag.rsplit("}", 1)[-1] == "Name" and node.text), None)
+                if name and ("AQM" in name or "INC_SIART" in name or "DSS_" in name or "MHS_" in name):
+                    title = next((node.text for node in layer if node.tag.rsplit("}", 1)[-1] == "Title"), None)
+                    abstract = next((node.text for node in layer if node.tag.rsplit("}", 1)[-1] == "Abstract"), None)
+                    metadata.append({"name": name, "title": title, "abstract": abstract, "queryable": layer.attrib.get("queryable")})
+            result["product_layer_metadata_sample"] = metadata[:30]
+        except ET.ParseError:
+            result["product_layer_metadata_sample"] = []
     return result
 
 
@@ -123,6 +139,33 @@ def check_wfs(name: str, endpoint: str, expected: list[str]):
     result["capabilities_feature_types_count"] = len(names)
     result["expected_layers_found"] = [layer for layer in expected if layer in names]
     result["expected_layers_missing"] = [layer for layer in expected if layer not in names]
+    return result
+
+
+
+def check_wms_layer_render(name: str, endpoint: str, layer_name: str):
+    params = urllib.parse.urlencode({
+        "service": "WMS",
+        "version": "1.1.1",
+        "request": "GetMap",
+        "layers": layer_name,
+        "styles": "",
+        "format": "image/png",
+        "transparent": "true",
+        "srs": "EPSG:4326",
+        "bbox": "-75,-56,-53,-21",
+        "width": "128",
+        "height": "128",
+    })
+    result = request(endpoint + "?" + params, timeout=20)
+    body = result.pop("body", b"")
+    content_type = (result.get("content_type") or "").lower()
+    result["layer_name"] = layer_name
+    result["service"] = name
+    result["png_signature_valid"] = body[:8] == b"\x89PNG\r\n\x1a\n"
+    if result["status"] == "HTTP_OK" and "image/png" not in content_type:
+        result["status"] = "INVALID_LAYER_RESPONSE"
+        result["response_preview"] = body[:300].decode("utf-8", errors="replace")
     return result
 
 
@@ -202,13 +245,18 @@ def main():
         check_wfs("CONAE focos MODIS/VIIRS", "https://geoservicios.conae.gov.ar/geoserver/FocosDeCalor/wfs",
                   ["GeoServiciosCONAE:FocosDeCalor", "GeoServiciosCONAE:FocosDeCalorVIIRS"]),
         check_wms("CONAE áreas quemadas MODIS AQM", "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms",
-                  ["EmergenciasCONAE:MODIS_AQM_1"]),
+                  ["MODIS_AQM_1"]),
         check_wms("CONAE disponibilidad de combustibles", "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms",
                   ["AlertaTemprana:INC_SIARTIVGEOL89_DC_1", "AlertaTemprana:INC_SIARTIVGEOSNPP_DC_1"]),
         check_wms("CONAE SAOCOM humedad", "https://geoservicios3.conae.gov.ar/geoserver/HumedadDeSuelos/wms",
                   ["HumedadDeSuelos:DSS_MSM_1", "HumedadDeSuelos:DSS_MSMKR_1"]),
         check_wms("CONAE cultivos y anomalías de rinde", "https://geoservicios3.conae.gov.ar/geoserver/Cultivos/wms",
                   ["Cultivos:MHS_DSS_ASU_1", "Cultivos:MHS_DSS_NSU_1", "Cultivos:MHS_DSS_AWH_1", "Cultivos:MHS_DSS_NWH_1"])
+    ]
+    burned_endpoint = "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms"
+    report["checks"]["conae_aqm_getmap"] = [
+        check_wms_layer_render("CONAE AQM unqualified layer", burned_endpoint, "MODIS_AQM_1"),
+        check_wms_layer_render("CONAE AQM qualified layer", burned_endpoint, "EmergenciasCONAE:MODIS_AQM_1"),
     ]
     report["checks"]["inta_wms"] = check_wms(
         "INTA GeoNode central",
