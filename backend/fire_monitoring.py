@@ -407,7 +407,11 @@ def _firms_rejection_message(status_code, detail=""):
         "invalid map", "invalid key", "map_key invalid", "map_key is invalid",
         "map key is invalid", "map key invalid",
     )
-    quota_terms = ("transaction", "rate limit", "too many", "exceed", "quota", "limit exceeded")
+    quota_terms = (
+        "transaction limit", "transaction quota", "transactions exceeded",
+        "rate limit", "too many requests", "quota exceeded", "limit exceeded",
+        "exceeded the transaction", "maximum transactions",
+    )
     if any(term in text for term in invalid_key_terms):
         return "NASA indicó explícitamente que la MAP_KEY no es válida (HTTP " + str(status_code) + ")."
     if status_code == 401:
@@ -671,9 +675,11 @@ def historical_fires_status():
     status_confirmed = (
         status_error is None
         and isinstance(status_data, dict)
-        and any(key in status_data for key in (
-            "transaction_limit", "current_transactions", "transaction_interval"
-        ))
+        and any(
+            key in status_data and value is not None and str(value).strip() != ""
+            for key, value in status_data.items()
+            if key in ("transaction_limit", "current_transactions", "transaction_interval")
+        )
     )
     rejection_text = " ".join(part for part in (status_body, availability_error or "") if part)
     rejection_lower = rejection_text.lower()
@@ -685,7 +691,9 @@ def historical_fires_status():
         status_error == 429
         or (availability_error is not None and "límite temporal" in availability_error.lower())
         or any(term in rejection_lower for term in (
-            "transaction", "rate limit", "too many", "quota", "limit exceeded"
+            "transaction limit", "transaction quota", "transactions exceeded",
+            "rate limit", "too many requests", "quota exceeded", "limit exceeded",
+            "exceeded the transaction", "maximum transactions"
         ))
     )
 
