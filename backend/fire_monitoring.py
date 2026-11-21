@@ -401,12 +401,20 @@ def _firms_retry_after():
 
 
 def _firms_rejection_message(status_code, detail=""):
+    """Classify only what NASA's HTTP status/body actually proves."""
     text = str(detail or "").lower()
-    if status_code == 429 or any(term in text for term in ("transaction", "rate limit", "too many", "exceed", "quota")):
-        return "NASA indicó que se alcanzó el límite temporal de transacciones (HTTP " + str(status_code) + "). Esperá el reinicio de la ventana y reintentá."
-    if any(term in text for term in ("invalid map", "invalid key", "map_key invalid", "map_key is invalid", "map key is invalid", "map key invalid")):
-        return "NASA indicó que la MAP_KEY no es válida (HTTP " + str(status_code) + ")."
-    return "NASA rechazó la solicitud (HTTP " + str(status_code) + "). La respuesta no permite distinguir entre credencial, límite temporal o parámetro/producto rechazado."
+    invalid_key_terms = (
+        "invalid map", "invalid key", "map_key invalid", "map_key is invalid",
+        "map key is invalid", "map key invalid",
+    )
+    quota_terms = ("transaction", "rate limit", "too many", "exceed", "quota", "limit exceeded")
+    if any(term in text for term in invalid_key_terms):
+        return "NASA indicó explícitamente que la MAP_KEY no es válida (HTTP " + str(status_code) + ")."
+    if status_code == 401:
+        return "NASA rechazó la autenticación de la solicitud (HTTP 401). La credencial enviada no fue aceptada."
+    if status_code == 429 or any(term in text for term in quota_terms):
+        return "NASA indicó un límite temporal de transacciones (HTTP " + str(status_code) + "). Esperá el reinicio de la ventana y reintentá."
+    return "NASA respondió HTTP " + str(status_code) + ", pero no informó si el rechazo corresponde a credenciales, cuota o parámetros. La validez de la MAP_KEY queda sin confirmar."
 
 def _history_date_chunks(start_date, end_date):
     """Yield Area API requests of at most five consecutive days."""
@@ -616,17 +624,15 @@ FIRMS_STATUS_LOCK = threading.Lock()
 
 @app.get("/api/fires/history/status")
 def historical_fires_status():
-    """Report server-side key configuration and NASA acceptance without exposing credentials."""
+    """Reporta autenticación y disponibilidad sin confundir bloqueos locales con aceptación de NASA."""
     map_key = os.environ.get("FIRMS_MAP_KEY", "").strip()
     if not map_key:
-        return {"configured": False, "valid": False, "message": "FIRMS_MAP_KEY no está configurada en el servidor."}
-    retry_after = _firms_retry_after()
-    if retry_after:
         return {
-            "configured": True, "valid": True, "rateLimited": True,
-            "retryAfterSeconds": retry_after, "availability": [],
-            "message": "NASA reconoció la clave, pero alcanzó el límite temporal de transacciones. Esperá aproximadamente 10 minutos antes de volver a consultar.",
+            "configured": False, "valid": False, "rateLimited": False,
+            "retryAfterSeconds": None, "availability": [],
+            "message": "FIRMS_MAP_KEY no está configurada en el servidor.",
         }
+
     now = time.monotonic()
     with FIRMS_STATUS_LOCK:
         cached = FIRMS_STATUS_CACHE.get("payload")
@@ -635,7 +641,10 @@ def historical_fires_status():
 
     status_data, status_error, status_body = None, None, ""
     status_url = "https://firms.modaps.eosdis.nasa.gov/mapserver/mapkey_status/?MAP_KEY=" + urllib.parse.quote(map_key, safe="")
-    request = urllib.request.Request(status_url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"})
+    request = urllib.request.Request(
+        status_url,
+        headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"},
+    )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             status_data = json.loads(response.read(4000).decode("utf-8", errors="replace"))
@@ -656,31 +665,64 @@ def historical_fires_status():
     except Exception as exc:
         availability_error = str(exc)[:180]
 
+    # A successful availability response proves the key was accepted.
+    # mapkey_status can independently confirm acceptance when it returns its
+    # documented transaction counters, even if the archive endpoint is limited.
+    status_confirmed = (
+        status_error is None
+        and isinstance(status_data, dict)
+        and any(key in status_data for key in (
+            "transaction_limit", "current_transactions", "transaction_interval"
+        ))
+    )
+    rejection_text = " ".join(part for part in (status_body, availability_error or "") if part)
+    rejection_lower = rejection_text.lower()
+    explicit_invalid = any(term in rejection_lower for term in (
+        "invalid map", "invalid key", "map_key invalid", "map_key is invalid",
+        "map key is invalid", "map key invalid",
+    )) or status_error == 401 or "http 401" in rejection_lower or "rechazó la autenticación" in rejection_lower
+    explicit_quota = (
+        status_error == 429
+        or (availability_error is not None and "límite temporal" in availability_error.lower())
+        or any(term in rejection_lower for term in (
+            "transaction", "rate limit", "too many", "quota", "limit exceeded"
+        ))
+    )
+
     if availability is not None:
-        valid = True
-        rate_limited = False
+        valid, rate_limited = True, False
         message = "NASA FIRMS aceptó la clave y publicó la disponibilidad de productos."
-    elif status_error in (400, 401, 403, 429) or availability_error:
-        if availability_error and "límite temporal" in str(availability_error).lower():
-            rejection = str(availability_error)
-        elif status_error in (400, 401, 403, 429):
-            rejection = _firms_rejection_message(status_error, status_body or availability_error)
-        else:
-            rejection = str(availability_error or "")
-        rate_limited = "límite temporal" in rejection.lower()
-        key_rejected = "map_key no es válida" in rejection.lower()
-        valid = False if key_rejected else (True if rate_limited else None)
-        if rate_limited:
-            _mark_firms_rate_limited(600)
-        message = rejection or "No se pudo consultar la disponibilidad de NASA FIRMS."
+    elif explicit_invalid:
+        valid, rate_limited = False, False
+        message = _firms_rejection_message(401 if status_error == 401 else (status_error or 400), rejection_text)
+    elif explicit_quota:
+        valid, rate_limited = (True if status_confirmed else None), True
+        _mark_firms_rate_limited(600)
+        message = _firms_rejection_message(429 if status_error == 429 else 403, rejection_text)
+        if not status_confirmed:
+            message += " La autenticación sigue sin confirmación independiente."
+    elif status_confirmed:
+        valid, rate_limited = True, False
+        code = status_error or (403 if availability_error else None)
+        message = (
+            "NASA confirmó la MAP_KEY mediante mapkey_status, pero no se pudo leer la disponibilidad del archivo"
+            + (f" (HTTP {code})." if code else ".")
+        )
     else:
-        valid = None
-        rate_limited = False
-        message = "NASA no devolvió información suficiente para confirmar la autenticación."
+        valid, rate_limited = None, False
+        if status_error in (400, 403, 429):
+            message = _firms_rejection_message(status_error, status_body or availability_error)
+        else:
+            message = (
+                "No se pudo confirmar la validez de la MAP_KEY. "
+                + (availability_error or "NASA no devolvió los contadores oficiales de transacciones.")
+            )
 
     result = {
-        "configured": True, "valid": valid, "rateLimited": rate_limited,
-        "retryAfterSeconds": _firms_retry_after() or None,
+        "configured": True,
+        "valid": valid,
+        "rateLimited": rate_limited,
+        "retryAfterSeconds": _firms_retry_after() or None if rate_limited else None,
         "transactionLimit": status_data.get("transaction_limit") if isinstance(status_data, dict) else None,
         "currentTransactions": status_data.get("current_transactions") if isinstance(status_data, dict) else None,
         "transactionInterval": status_data.get("transaction_interval") if isinstance(status_data, dict) else None,
@@ -694,7 +736,6 @@ def historical_fires_status():
     with FIRMS_STATUS_LOCK:
         FIRMS_STATUS_CACHE.update({"payload": result, "expires": now + (300 if valid is True else 30)})
     return result
-
 
 @app.post("/api/fires/history")
 def historical_fires(payload: dict):
@@ -854,15 +895,81 @@ def conae_wms_metadata(kind: str):
             name = layer.findtext("{*}Name")
             if not name:
                 continue
-            legend_url = None
-            online = layer.find(".//{*}LegendURL/{*}OnlineResource")
-            if online is not None:
-                legend_url = online.attrib.get("{http://www.w3.org/1999/xlink}href") or online.attrib.get("href")
+
+            # Preserve only metadata explicitly published by this layer.
+            # Missing CRS/bounds/queryability must remain unknown, not inferred.
+            crs_values = []
+            for tag in ("SRS", "CRS"):
+                for node in layer.findall(f"./{{*}}{tag}"):
+                    crs_values.extend(value for value in (node.text or "").split() if value)
+
+            bounding_boxes = []
+            for bbox in layer.findall("./{*}BoundingBox"):
+                bounding_boxes.append({
+                    "crs": bbox.attrib.get("CRS") or bbox.attrib.get("SRS"),
+                    "minx": bbox.attrib.get("minx"),
+                    "miny": bbox.attrib.get("miny"),
+                    "maxx": bbox.attrib.get("maxx"),
+                    "maxy": bbox.attrib.get("maxy"),
+                })
+
+            geographic_bounds = None
+            geographic_box = layer.find("./{*}EX_GeographicBoundingBox")
+            if geographic_box is not None:
+                geographic_bounds = {}
+                for field in (
+                    "westBoundLongitude", "eastBoundLongitude",
+                    "southBoundLatitude", "northBoundLatitude",
+                ):
+                    value = geographic_box.findtext(f"{{*}}{field}")
+                    geographic_bounds[field] = value
+
+            legacy_box = layer.find("./{*}LatLonBoundingBox")
+            if geographic_bounds is None and legacy_box is not None:
+                geographic_bounds = {
+                    "westBoundLongitude": legacy_box.attrib.get("minx"),
+                    "eastBoundLongitude": legacy_box.attrib.get("maxx"),
+                    "southBoundLatitude": legacy_box.attrib.get("miny"),
+                    "northBoundLatitude": legacy_box.attrib.get("maxy"),
+                }
+
+            styles = []
+            for style in layer.findall("./{*}Style"):
+                style_name = style.findtext("{*}Name")
+                if not style_name:
+                    continue
+                style_legend = None
+                style_online = style.find(".//{*}LegendURL/{*}OnlineResource")
+                if style_online is not None:
+                    style_legend = (
+                        style_online.attrib.get("{http://www.w3.org/1999/xlink}href")
+                        or style_online.attrib.get("href")
+                    )
+                styles.append({
+                    "name": style_name,
+                    "title": style.findtext("{*}Title") or style_name,
+                    "legend": style_legend,
+                })
+
+            legend_url = next((item["legend"] for item in styles if item["legend"]), None)
+            if not legend_url:
+                online = layer.find(".//{*}LegendURL/{*}OnlineResource")
+                if online is not None:
+                    legend_url = online.attrib.get("{http://www.w3.org/1999/xlink}href") or online.attrib.get("href")
+
+            queryable_raw = layer.attrib.get("queryable")
             layers.append({
                 "name": name,
                 "title": layer.findtext("{*}Title") or name,
                 "abstract": layer.findtext("{*}Abstract") or "",
                 "legend": legend_url,
+                "styles": styles,
+                "crs": list(dict.fromkeys(crs_values)),
+                "boundingBoxes": bounding_boxes,
+                "geographicBounds": geographic_bounds,
+                "queryable": None if queryable_raw is None else queryable_raw in ("1", "true", "TRUE"),
+                "minScaleDenominator": layer.findtext("{*}MinScaleDenominator"),
+                "maxScaleDenominator": layer.findtext("{*}MaxScaleDenominator"),
             })
         if not layers:
             raise ValueError("El documento WMS no publicó capas identificables.")

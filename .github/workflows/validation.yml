@@ -22,7 +22,7 @@ jobs:
       - name: Validate unified workspace integration
         run: python tests/workspace_integration.test.py -v
       - name: Validate shared lot geometry and territorial analysis
-        run: node --experimental-default-type=module --test tests/lotContext.test.mjs tests/userPreferences.test.mjs tests/fireMonitoring.test.mjs tests/firePageContent.test.mjs tests/forestGeo.test.mjs tests/territorial-recommendations.test.mjs tests/coreAnalysis.test.mjs tests/climateService.test.mjs tests/crop-visibility-and-mobile-nav.test.mjs tests/forestry-candidates-ui.test.mjs tests/satelliteService.test.mjs tests/reportPageContent.test.mjs
+        run: node --experimental-default-type=module --test tests/lotContext.test.mjs tests/userPreferences.test.mjs tests/fireMonitoring.test.mjs tests/firePageContent.test.mjs tests/forestGeo.test.mjs tests/territorial-recommendations.test.mjs tests/coreAnalysis.test.mjs tests/climateService.test.mjs tests/crop-visibility-and-mobile-nav.test.mjs tests/forestry-candidates-ui.test.mjs tests/satelliteService.test.mjs tests/reportPageContent.test.mjs tests/dataModel.test.mjs
 
   backend-tests:
     runs-on: ubuntu-latest
@@ -37,3 +37,25 @@ jobs:
         run: python self_created_tools/validate_datasets.py
       - name: Run backend tests
         run: python -m pytest tests/ -q
+
+
+  live-source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Probe public geospatial catalogs and national STAC samples
+        run: python tests/live_source_smoke.py
+      - name: Publish live source report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: national-source-smoke-report
+          path: |
+            artifacts/live-source-smoke.json
+            artifacts/inta-legend-*.png
+          if-no-files-found: warn
+          retention-days: 7

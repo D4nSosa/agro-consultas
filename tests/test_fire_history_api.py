@@ -171,7 +171,7 @@ def test_firms_rejection_diagnostic_distinguishes_explicit_quota_and_invalid_key
 
     assert "límite temporal" in quota
     assert "no es válida" in invalid
-    assert "no permite distinguir" in ambiguous
+    assert "no informó si el rechazo" in ambiguous
 
 
 def test_availability_fetch_uses_documented_all_selector_and_caches_only_valid_csv(monkeypatch):
@@ -225,21 +225,41 @@ def test_history_endpoint_returns_retry_after_when_firms_transaction_limit_is_ac
         fire.FIRMS_RATE_LIMIT_CACHE["until"] = 0.0
 
 
-def test_firms_status_reports_key_recognized_when_only_transaction_quota_is_exhausted(monkeypatch):
+def test_firms_status_reports_quota_only_after_official_status_confirms_key(monkeypatch):
+    import json
     from backend import fire_monitoring as fire
 
     monkeypatch.setenv("FIRMS_MAP_KEY", "test-key")
     monkeypatch.setitem(fire.FIRMS_RATE_LIMIT_CACHE, "until", 0.0)
     fire.FIRMS_STATUS_CACHE.update({"expires": 0, "payload": None})
-    fire._mark_firms_rate_limited(600)
-    try:
-        status = fire.historical_fires_status()
-        assert status["configured"] is True
-        assert status["valid"] is True
-        assert status["rateLimited"] is True
-        assert status["retryAfterSeconds"] > 0
-    finally:
-        fire.FIRMS_RATE_LIMIT_CACHE["until"] = 0.0
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return json.dumps({
+                "transaction_limit": 5000,
+                "current_transactions": 5000,
+                "transaction_interval": 600,
+            }).encode()
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", lambda *_a, **_k: FakeResponse())
+    monkeypatch.setattr(
+        fire, "_fetch_firms_availability",
+        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError(
+            "NASA indicó un límite temporal de transacciones (HTTP 403)."
+        )),
+    )
+    status = fire.historical_fires_status()
+    assert status["configured"] is True
+    assert status["valid"] is True
+    assert status["rateLimited"] is True
+    assert status["retryAfterSeconds"] > 0
+    fire.FIRMS_RATE_LIMIT_CACHE["until"] = 0.0
 
 
 def test_history_endpoint_returns_429_when_all_sources_hit_transaction_limit(monkeypatch):

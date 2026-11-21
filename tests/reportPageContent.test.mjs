@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const report = await readFile(new URL('../reporte.html', import.meta.url), 'utf8');
 const sentinel = await readFile(new URL('../forestal/services/satelliteService.js', import.meta.url), 'utf8');
+const backendMain = await readFile(new URL('../backend/main.py', import.meta.url), 'utf8');
 const orchestrator = await readFile(new URL('../forestal/services/forestAnalysisService.js', import.meta.url), 'utf8');
 const forestReport = await readFile(new URL('../forestal/components/ChangeReport.js', import.meta.url), 'utf8');
 const forestTimeline = await readFile(new URL('../forestal/components/ForestTimeline.js', import.meta.url), 'utf8');
@@ -31,7 +32,9 @@ test('technical report does not redirect to external platforms', () => {
 });
 
 test('Sentinel search intersects the actual lot geometry and reports timeouts', () => {
-  assert.match(sentinel, /intersects: geojson/);
+  assert.match(sentinel, /BACKEND_STAC_ENDPOINT = '\/api\/forest\/stac'/);
+  assert.match(sentinel, /body: JSON.stringify\(\{[\s\S]*geometry: geojson/);
+  assert.match(backendMain, /"intersects": geom_dict/);
   assert.match(sentinel, /AbortController/);
   assert.match(sentinel, /20 segundos/);
   assert.doesNotMatch(orchestrator, /Promise\.race/);

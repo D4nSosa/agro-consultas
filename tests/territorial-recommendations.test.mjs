@@ -15,6 +15,8 @@ test('el catálogo territorial cubre las 23 provincias y CABA', async () => {
   ];
   assert.deepEqual(Object.keys(provinces).sort(), expected.sort());
   for (const [province, profile] of Object.entries(provinces)) {
+    assert.ok(Number.isFinite(profile.coordenadas?.lat) && profile.coordenadas.lat >= -90 && profile.coordenadas.lat <= 90, `${province}: latitud WGS84 inválida`);
+    assert.ok(Number.isFinite(profile.coordenadas?.lng) && profile.coordenadas.lng >= -180 && profile.coordenadas.lng <= 180, `${province}: longitud WGS84 inválida`);
     assert.ok(Array.isArray(profile.nombre?.cultivos) && profile.nombre.cultivos.length, province);
     assert.ok(profile.datos?.suelo, province);
     assert.ok(profile.datos?.clima, province);

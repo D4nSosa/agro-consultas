@@ -1,106 +1,138 @@
 /**
- * Adaptador de Servicio para la API del Instituto Nacional de Tecnología Agropecuaria (INTA) de Argentina
- * Proporciona información edafológica y cartografía de suelos con almacenamiento en caché (localStorage) y tolerancia a fallos.
+ * Adaptador INTA-CIRN para mapas nacionales de pH y suelos afectados por sales.
+ * Las consultas WMS se realizan desde el backend para evitar CORS y conservar procedencia.
  */
 
-const CACHE_PREFIX = 'agro_cache_inta_';
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 horas de vigencia de datos de suelo de INTA
+const CACHE_PREFIX = 'agro_cache_inta_v2_';
+const CACHE_EXPIRY = 6 * 60 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 12000;
+
+function unavailable(message) {
+  return {
+    tipo: null,
+    textura: null,
+    drenaje: null,
+    limitantes: null,
+    aptitud: null,
+    ph: null,
+    ph_0_30: null,
+    ph_30_100: null,
+    salinidad: null,
+    salinidad_0_30_raw: null,
+    salinidad_30_100_raw: null,
+    escala: null,
+    status: 'UNAVAILABLE',
+    confidence: 'none',
+    evidenceType: 'UNAVAILABLE',
+    fuente: 'Consulta cartográfica INTA-CIRN no disponible',
+    fechaActualizacion: null,
+    fechaConsulta: null,
+    retrievedAt: null,
+    cached: false,
+    fallback: false,
+    error: message
+  };
+}
 
 /**
- * Obtiene la información edafológica de INTA para unas coordenadas dadas.
- * Realiza una consulta espacial a los servicios WMS/WFS de INTA o recurre a la cartografía regional si el nodo no responde.
- * @param {number} lat - Latitud.
- * @param {number} lng - Longitud.
- * @param {Object} subregionStaticData - Datos estáticos de suelo de la subregión para fallback inmediato.
- * @returns {Promise<Object>} Datos de suelo del territorio.
+ * Consulta las capas nacionales INTA para un punto WGS84.
+ * Si el punto corresponde a un lote, el resultado representa solo el centroide.
  */
-export async function fetchINTASoilData(lat, lng, subregionStaticData = null) {
-  const cacheKey = `${CACHE_PREFIX}${lat.toFixed(4)}_${lng.toFixed(4)}`;
-
-  // 1. Intentar recuperar desde Caché
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const entry = JSON.parse(cached);
-      const { data, timestamp, origin } = entry;
-      // Las entradas antiguas no registran procedencia: se descartan para no presentar
-      // un fallback regional como si fuera una consulta puntual al GeoServer.
-      if (Date.now() - timestamp < CACHE_EXPIRY && origin === 'wms') {
-        return {
-          ...data,
-          status: 'CARTOGRAPHIC', confidence: 'medium', evidenceType: 'CARTOGRAPHIC',
-          fuente: 'INTA Cartografía Oficial (WMS · caché local)',
-          cached: true,
-          fallback: false
-        };
-      }
-      if (origin !== 'wms') localStorage.removeItem(cacheKey);
-    }
-  } catch (err) {
-    console.warn("[INTA] Error al leer caché edafológico:", err);
+export async function fetchINTASoilData(lat, lng, _subregionStaticData = null) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return unavailable('Coordenadas WGS84 inválidas.');
   }
 
-  // 2. Intentar consulta remota (ej. WMS GetFeatureInfo o servicios de la Infraestructura de Datos Espaciales del INTA)
+  const cacheKey = `${CACHE_PREFIX}${lat.toFixed(3)}_${lng.toFixed(3)}`;
   try {
-    const baseUrl = 'https://geoserver.inta.gob.ar/geoserver/wms';
-    const params = new URLSearchParams({
-      service: 'WMS',
-      version: '1.1.1',
-      request: 'GetFeatureInfo',
-      layers: 'suelos:cartografia_nacional',
-      bbox: `${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}`,
-      width: '101',
-      height: '101',
-      srs: 'EPSG:4326',
-      format: 'image/png',
-      query_layers: 'suelos:cartografia_nacional',
-      info_format: 'application/json',
-      x: '50',
-      y: '50'
-    });
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-    const response = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-    const geoJson = await response.json();
-
-    if (geoJson && geoJson.features && geoJson.features.length > 0) {
-      const props = geoJson.features[0].properties;
-      const rawPh = props.ph || props.PH;
-      const data = {
-        tipo: props.tipo_suelo || props.GREATGROUP || "Suelo clasificado WMS",
-        textura: props.textura || props.TEXTURE || "No especificada en capa WMS",
-        drenaje: props.drenaje || props.DRAINAGE || "No especificado en capa WMS",
-        limitantes: props.limitantes || props.LIMITATIONS || "No especificadas en capa WMS",
-        aptitud: props.aptitud || props.APTITUDE || "No especificada en capa WMS",
-        ph: rawPh !== undefined && rawPh !== null && !isNaN(parseFloat(rawPh)) ? parseFloat(rawPh) : null,
-        escala: "Escala no informada por la respuesta WMS; consultar metadatos de la capa",
-        status: "CARTOGRAPHIC",
-        confidence: "medium",
-        evidenceType: "CARTOGRAPHIC",
-        fechaActualizacion: new Date().toISOString()
-      };
-
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now(), origin: 'wms' }));
-      } catch (e) {}
-
-      return { ...data, fuente: 'INTA Cartografía Oficial (WMS)', cached: false };
-    } else {
-      throw new Error("No se encontraron features en la coordenada");
+    if (typeof localStorage !== 'undefined') {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const entry = JSON.parse(cached);
+        if (Date.now() - entry.timestamp < CACHE_EXPIRY && entry.origin === 'inta-api-v2') {
+          return { ...entry.data, cached: true, fallback: false };
+        }
+        localStorage.removeItem(cacheKey);
+      }
     }
   } catch (err) {
-    console.log("[INTA] Consulta de mapa de suelo en tiempo real no disponible, sin utilizar perfiles regionales como datos del lote:", err.message);
+    console.warn('[INTA] No se pudo leer caché local:', err);
+  }
 
-    return {
-      tipo: null, textura: null, drenaje: null, limitantes: null, aptitud: null,
-      ph: null, escala: null, status: "UNAVAILABLE", confidence: "none",
-      evidenceType: "UNAVAILABLE", fuente: "Consulta cartográfica INTA no disponible",
-      cached: false, fallback: false, error: err.message
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const params = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+    const response = await fetch(`/api/soil/inta?${params.toString()}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const payload = await response.json();
+    const products = payload.products || {};
+    const ph030 = products.ph_0_30 || {};
+    const ph30100 = products.ph_30_100 || {};
+    const sal030 = products.salinity_0_30 || {};
+    const sal30100 = products.salinity_30_100 || {};
+
+    const data = {
+      tipo: 'Cartografía modelada de pH del suelo (INTA-CIRN)',
+      textura: null,
+      drenaje: null,
+      limitantes: null,
+      aptitud: null,
+      ph: ph030.value ?? null,
+      ph_0_30: ph030.value ?? null,
+      ph_30_100: ph30100.value ?? null,
+      ph_0_30_quality: ph030.quality ?? null,
+      ph_30_100_quality: ph30100.quality ?? null,
+      phProfundidad: '0-30 cm',
+      salinidad: null,
+      salinidad_0_30_raw: sal030.rawClass ?? sal030.rawValue ?? null,
+      salinidad_30_100_raw: sal30100.rawClass ?? sal30100.rawValue ?? null,
+      salinityClassInterpretation: 'NOT_INTERPRETED_PENDING_LEGEND',
+      escala: ph030.resolution ? `${ph030.resolution} m pixel (pH); resolución de salinidad no informada` : 'Resolución no informada',
+      resolution: {
+        ph: ph030.resolution ?? null,
+        salinity: sal030.resolution ?? null,
+        unit: 'm'
+      },
+      status: payload.status || 'UNAVAILABLE',
+      confidence: 'none',
+      evidenceType: 'CARTOGRAPHIC',
+      fuente: payload.source || 'INTA-CIRN',
+      sourceUrl: payload.sourceUrl || null,
+      dataset: payload.dataset || null,
+      products,
+      sampleMethod: payload.sampleMethod || 'Punto de consulta; no representa la totalidad del lote',
+      limitations: payload.limitations || [],
+      fechaActualizacion: null,
+      fechaConsulta: payload.retrievedAt || null,
+      retrievedAt: payload.retrievedAt || null,
+      cached: false,
+      fallback: false,
+      error: null
     };
+
+    if (data.status === 'CARTOGRAPHIC' || data.status === 'PARTIAL') {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data,
+            timestamp: Date.now(),
+            origin: 'inta-api-v2'
+          }));
+        }
+      } catch (err) {
+        console.warn('[INTA] No se pudo guardar caché local:', err);
+      }
+    }
+    return data;
+  } catch (err) {
+    return unavailable(err.name === 'AbortError' ? 'Timeout consultando el backend INTA.' : err.message);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

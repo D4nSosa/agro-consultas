@@ -489,7 +489,16 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
     lastSoilReportCache = soilReport;
     lastClimateReportCache = climateReport;
 
-    const soilBadgeText = soilReport.status === 'CARTOGRAPHIC' ? 'Cartografía INTA' : 'Sin dato edáfico verificado';
+    const soilBadgeText = soilReport.status === 'CARTOGRAPHIC' || soilReport.status === 'PARTIAL' ? 'Cartografía INTA-CIRN' : 'Sin dato edáfico verificado';
+    const soilPh030Text = soilReport.ph_0_30 !== null && soilReport.ph_0_30 !== undefined && Number.isFinite(Number(soilReport.ph_0_30))
+      ? `${Number(soilReport.ph_0_30).toFixed(2)} pH` : 'NO DISPONIBLE';
+    const soilPh30100Text = soilReport.ph_30_100 !== null && soilReport.ph_30_100 !== undefined && Number.isFinite(Number(soilReport.ph_30_100))
+      ? `${Number(soilReport.ph_30_100).toFixed(2)} pH` : 'NO DISPONIBLE';
+    const soilSalinity030Text = soilReport.salinidad_0_30_raw !== null && soilReport.salinidad_0_30_raw !== undefined
+      ? `${soilReport.salinidad_0_30_raw} (valor crudo; sin interpretar)` : 'NO DISPONIBLE';
+    const soilPhQuality = soilReport.ph_0_30_quality
+      ? `RMSE ${soilReport.ph_0_30_quality.rmse}; R² ${soilReport.ph_0_30_quality.r2}`
+      : 'Métricas no disponibles';
     const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'Estimación meteorológica puntual (Open-Meteo)' : 'Referencia regional / no disponible';
 
     const levelText = geoVal?.spatialLevel || currentSpatialLevel || "PUNTO DE REFERENCIA";
@@ -546,8 +555,24 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <span style="font-size:0.8rem; color: var(--texto-secundario);">${soilReport.fuente}</span>
       </div>` : ""}
       <div class="info-item">
-        <strong>Tipo y Clasificación:</strong>
+        <strong>Producto edáfico:</strong>
         <span>${soilReport.tipo}</span>
+      </div>
+      <div class="info-item">
+        <strong>pH modelado 0-30 cm (pixel 1 km):</strong>
+        <span>${soilPh030Text}</span>
+      </div>
+      <div class="info-item">
+        <strong>pH modelado 30-100 cm (pixel 1 km):</strong>
+        <span>${soilPh30100Text}</span>
+      </div>
+      <div class="info-item">
+        <strong>Calidad del modelo pH 0-30 cm:</strong>
+        <span>${soilPhQuality}</span>
+      </div>
+      <div class="info-item">
+        <strong>Suelos afectados por sales 0-30 cm:</strong>
+        <span>${soilSalinity030Text}</span>
       </div>
       <div class="info-item">
         <strong>Textura Predominante:</strong>
@@ -560,6 +585,10 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
       <div class="info-item">
         <strong>Limitantes Edáficas:</strong>
         <span>${soilReport.limitantes}</span>
+      </div>
+      ${soilReport.fechaConsulta ? `<div class="info-item"><strong>Consulta:</strong><span>${new Date(soilReport.fechaConsulta).toLocaleString('es-AR')}</span></div>` : ''}
+      <div style="font-size:0.76rem;color:var(--texto-secundario);margin-top:4px;">
+        Los valores pH son cartografía modelada de INTA-CIRN a 1 km, no análisis de laboratorio. La salinidad se muestra como valor WMS sin interpretar hasta verificar su leyenda. La consulta representa el punto/centroide, no estadísticas de toda la superficie del lote.
       </div>
 
       <!-- Clima Regional -->
@@ -751,30 +780,38 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
   }
 
   const s = sarRes.stats;
-  const interp = sarRes.interpretation || {};
+  const vvText = Number.isFinite(Number(s.vv_mean_dn)) ? Number(s.vv_mean_dn).toFixed(2) : 'NO DISPONIBLE';
+  const vhText = Number.isFinite(Number(s.vh_mean_dn)) ? Number(s.vh_mean_dn).toFixed(2) : 'NO DISPONIBLE';
+  const limitations = Array.isArray(sarRes.limitations) ? sarRes.limitations : [];
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">💧 Retrodispersión VV (polarización VV)</div>
-        <div style="font-size: 1.3rem; font-weight: 800; color: #2980b9; margin: 4px 0;">${s.vv_mean_dB} dB</div>
-        <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.sueloHumedad || 'Respuesta edáfica'}</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📡 VV — DN medio sin calibrar</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: #2980b9; margin: 4px 0;">${vvText} DN</div>
+        <div style="font-size: 0.8rem; color: var(--texto-secundario);">Muestras válidas: ${s.vvSampleCount ?? s.sampleCount ?? 0}</div>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">🌿 Retrodispersión VH (polarización VH)</div>
-        <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${s.vh_mean_dB} dB</div>
-        <div style="font-size: 0.8rem; color: var(--texto-principal);">${interp.estructuraBiomasa || 'Estructura vegetativa'}</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📡 VH — DN medio sin calibrar</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${vhText} DN</div>
+        <div style="font-size: 0.8rem; color: var(--texto-secundario);">Muestras válidas: ${s.vhSampleCount ?? s.sampleCount ?? 0}</div>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📊 Diferencia VH − VV (dB)</div>
-        <div style="font-size: 1.3rem; font-weight: 800; color: #8e44ad; margin: 4px 0;">${s.vh_vv_ratio_dB} dB</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">⚙️ Calibración radiométrica</div>
+        <div style="font-size: 1.05rem; font-weight: 800; color: #8e44ad; margin: 4px 0;">NO APLICADA</div>
         <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px;">
-          Equivale a 10·log₁₀(VH/VV); no es una medición directa de biomasa.<br>Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
-          Fecha: ${sarRes.date} | Satélite: Sentinel-1A (Radar Banda C)
+          ${sarRes.calibrationStatus || 'RAW_DN_UNCALIBRATED'}<br>
+          Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
+          Fecha: ${sarRes.date || 'NO DISPONIBLE'} | Sensor: ${sarRes.sensor || 'Sentinel-1'}<br>
+          Modo: ${sarRes.instrumentMode || 'NO REGISTRADO'} | Órbita: ${sarRes.orbitState || 'NO REGISTRADA'}
         </div>
       </div>
+    </div>
+    <div style="margin-top:10px;padding:10px;border:1px solid var(--borde-suave);border-radius:8px;font-size:0.8rem;color:var(--texto-secundario);">
+      <strong>Alcance:</strong> se muestran DN crudos de VV/VH. No se aplica calibración sigma0 ni corrección de terreno; no se infieren humedad del suelo, biomasa, especie ni sanidad.
+      ${limitations.length ? `<ul style="margin:6px 0 0 18px;padding:0;">${limitations.map(item => `<li>${item}</li>`).join('')}</ul>` : ''}
     </div>
   `;
 }
@@ -948,6 +985,26 @@ function createSingleRecommendationCardHtml(c) {
   else if (nom.includes("algodon")) icon = "☁️";
   else if (nom.includes("caña") || nom.includes("cana")) icon = "🎋";
 
+  const soilReq = c.requerimientos?.suelo || {};
+  const climateReq = c.requerimientos?.clima || {};
+  const phRequired = typeof soilReq.phMin === 'number' && Number.isFinite(soilReq.phMin) && typeof soilReq.phMax === 'number' && Number.isFinite(soilReq.phMax)
+    ? `${Number(soilReq.phMin).toFixed(1)}–${Number(soilReq.phMax).toFixed(1)}`
+    : "No especificado en la ficha";
+  const phObserved = typeof c.sueloObservado?.ph === 'number' && Number.isFinite(c.sueloObservado.ph)
+    ? `${c.sueloObservado.ph.toFixed(1)} (referencia cartográfica)`
+    : "No disponible en la consulta de INTA";
+  const soilRequirementSummary = [
+    `pH requerido: ${phRequired}`,
+    `Textura: ${Array.isArray(soilReq.texturas) && soilReq.texturas.length ? soilReq.texturas.join(", ") : "No especificada"}`,
+    `Drenaje: ${Array.isArray(soilReq.drenaje) && soilReq.drenaje.length ? soilReq.drenaje.join(", ") : "No especificado"}`
+  ].join(" · ");
+  const climateRequirementSummary = [
+    typeof climateReq.temperaturaMin === 'number' && Number.isFinite(climateReq.temperaturaMin) && typeof climateReq.temperaturaMax === 'number' && Number.isFinite(climateReq.temperaturaMax)
+      ? `Temperatura: ${climateReq.temperaturaMin}–${climateReq.temperaturaMax} °C` : null,
+    typeof climateReq.precipitacionMin === 'number' && Number.isFinite(climateReq.precipitacionMin)
+      ? `Precipitación mínima: ${climateReq.precipitacionMin} mm/año` : null
+  ].filter(Boolean).join(" · ") || "Requerimientos climáticos no especificados en la ficha";
+
   if (currentViewMode === 'simple') {
     return `
       <article class="crop-card card" style="padding: 18px; border-left: 5px solid ${semaforoIcon === '🟢' ? '#27ae60' : (semaforoIcon === '🟡' ? '#f39c12' : (semaforoIcon === '🔴' ? '#e74c3c' : '#7f8c8d'))};">
@@ -973,6 +1030,10 @@ function createSingleRecommendationCardHtml(c) {
           ${c.datosFaltantes && c.datosFaltantes.length > 0 ? `<div style="margin-top: 6px;"><strong>Datos que faltan para clasificar:</strong><ul style="margin:4px 0 0 18px;padding:0;">${c.datosFaltantes.map(item => `<li>${item}</li>`).join("")}</ul></div>` : ''}
         </div>
 
+        <div style="font-size:.8rem;background:rgba(0,0,0,.025);border:1px solid var(--borde-suave);border-radius:7px;padding:9px;margin-bottom:10px;">
+          <strong>🧪 Requerimiento edáfico:</strong> ${soilRequirementSummary}
+          <div style="margin-top:4px;color:var(--texto-secundario);">pH observado en el punto: ${phObserved}. No se reemplaza un dato ausente por un valor estimado.</div>
+        </div>
         <div style="font-size: 0.8rem; color: var(--texto-secundario); display: flex; justify-content: space-between;">
           <span>📅 Siembra: <strong>${c.siembra}</strong></span>
           <span>🌾 Cosecha: <strong>${c.cosecha}</strong></span>
@@ -1006,6 +1067,26 @@ function createSingleRecommendationCardHtml(c) {
             <strong>🌱 Requerimientos Trazables</strong>
             <div>Suelo: ${c.reqSuelo}</div>
             <div>Clima: ${c.reqClima}</div>
+          </div>
+        </div>
+
+        <div class="crop-grid-details" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;font-size:.82rem;">
+          <div style="background:rgba(0,0,0,.02);padding:10px;border-radius:6px;border:1px solid var(--borde-suave);">
+            <strong>🧪 Requerimientos edáficos del cultivo</strong>
+            <div>pH requerido: ${phRequired}</div>
+            <div>Textura: ${Array.isArray(soilReq.texturas) && soilReq.texturas.length ? soilReq.texturas.join(", ") : "No especificada"}</div>
+            <div>Drenaje: ${Array.isArray(soilReq.drenaje) && soilReq.drenaje.length ? soilReq.drenaje.join(", ") : "No especificado"}</div>
+          </div>
+          <div style="background:rgba(0,0,0,.02);padding:10px;border-radius:6px;border:1px solid var(--borde-suave);">
+            <strong>📍 Evidencia del punto consultado</strong>
+            <div>pH observado: ${phObserved}</div>
+            <div>Textura: ${c.sueloObservado?.textura || "No disponible"}</div>
+            <div>Drenaje: ${c.sueloObservado?.drenaje || "No disponible"}</div>
+            <div style="color:var(--texto-secundario);font-size:.75rem;margin-top:4px;">Fuente: ${c.sueloObservado?.fuente || "No disponible"}</div>
+          </div>
+          <div style="grid-column:1/-1;background:rgba(0,0,0,.02);padding:10px;border-radius:6px;border:1px solid var(--borde-suave);">
+            <strong>🌦️ Requerimientos climáticos del cultivo</strong>
+            <div>${climateRequirementSummary}</div>
           </div>
         </div>
 

@@ -71,7 +71,7 @@
       </h2>
       <p style="font-size: 0.95rem; line-height: 1.5; color: var(--texto-secundario); margin-bottom: 0;">
         Herramienta de exploración de lotes forestales basada en el catálogo público <strong>AWS Earth Search STAC (Sentinel-2 L2A)</strong> y evidencia fotográfica de campo.
-        Permite delimitar lotes en GeoJSON, consultar escenas disponibles, revisar metadatos y exportar reportes. La disponibilidad de escenas depende de la cobertura, fecha y nubosidad del catálogo.<br><small style="display:block;margin-top:8px;color:var(--texto-secundario)">Alcance: el NDVI solo se informa como calculado cuando el servicio devuelve estadísticas ráster válidas. Si solo se identificó una escena STAC, se muestran sus metadatos y bandas disponibles, sin presentar el índice como calculado. Sentinel-1 SAR, cuando está disponible, aporta observaciones de retrodispersión; no equivale por sí solo a una medición directa de humedad del suelo o biomasa.</small>
+        Permite delimitar lotes en GeoJSON, consultar escenas disponibles, revisar metadatos y exportar reportes. La disponibilidad de escenas depende de la cobertura, fecha y nubosidad del catálogo.<br><small style="display:block;margin-top:8px;color:var(--texto-secundario)">Alcance: el NDVI solo se informa como calculado cuando el servicio devuelve estadísticas ráster válidas. Si solo se identificó una escena STAC, se muestran sus metadatos y bandas disponibles, sin presentar el índice como calculado. Sentinel-1 SAR, cuando está disponible, aporta DN crudos VV/VH sin calibración sigma0 en esta versión; no se infieren humedad, biomasa ni sanidad.</small>
       </p>
     </div>
 
