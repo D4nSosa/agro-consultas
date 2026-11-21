@@ -49,7 +49,7 @@ Este inventario no declara productos integrados.
 | Anomalías y variaciones de rendimiento | Producto mencionado en el inventario ampliado. | Pendiente de evidencia técnica suficiente. | Confirmar producto vigente, cultivos, período, cobertura, resolución, método y mecanismo de acceso. |
 | Meteogramas WRF | Producto mencionado en el inventario ampliado. | Contexto meteorológico si existe salida automatizable. | Modelo, dominios, resolución, horizonte, variables, frecuencia y acceso. |
 | Índice FFDI | Producto mencionado en el inventario ampliado. | Contexto de peligro meteorológico; no equivale a probabilidad de incendio de un lote. | Fuente, formulación, entradas, escala, dominio espacial, frecuencia y licencia. |
-| Áreas quemadas AQM | Catálogo/geoservicios CONAE documentan productos de áreas quemadas y capas de incendios. | Integrar como evidencia de superficie quemada, separado de focos térmicos. | Versión, sensor, período, geometría/raster, resolución, fechas, calidad y acceso. |
+| Áreas quemadas AQM | El frontend actual usa WMS `https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms` y capas `EmergenciasCONAE:MODIS_AQM_1..7`; el backend consulta GetCapabilities para poblar metadatos. | Capa de contexto ya visible en Incendios; integración analítica por lote pendiente. | Verificar si GetCapabilities publica efectivamente AQM, qué representa cada ventana mensual, período, resolución, leyenda, CRS y si GetFeatureInfo/descarga permite cuantificar superficie quemada. No asumir que visualizar WMS equivale a calcular área quemada del lote. |
 
 ## Referencias oficiales consultadas
 
