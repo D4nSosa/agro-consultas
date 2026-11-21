@@ -674,7 +674,7 @@ def process_cog_raster_ndvi_cropped(
                         scl_filter_applied = True
                         scl_warning = None
                 except Exception as scl_error:
-                    scl_warning = f"No se pudo leer la máscara SCL: {scl_error}"
+                    scl_warning = f"No se pudo cargar o alinear la máscara SCL: {scl_error}"
 
             nir_nodata = src_nir.nodata if src_nir.nodata is not None else 0
             valid_red = (red_data != red_nodata) & (red_data > 0)
