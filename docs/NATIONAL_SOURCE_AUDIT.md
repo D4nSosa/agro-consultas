@@ -19,7 +19,7 @@ Esto verifica perfiles administrativos; **no demuestra que un servicio geoespaci
 | Familia | Evidencia encontrada en la rama | Estado de integración | Trabajo pendiente |
 |---|---|---|---|
 | CONAE | Backend de incendios consulta capas WFS MODIS/VIIRS; documentación menciona capas WFS y productos de incendios. | Parcial | Auditar AQM, combustibles, GOES, GEOAvisos, ISAGRO, SAOCOM, sensores y demás productos uno por uno. |
-| MapBiomas Argentina | No se identificó adaptador ni consumidor en el árbol auditado. El portal oficial publica Colección 3 (1985–2025) y assets para GEE; informa que la descarga GeoTIFF directa está temporalmente suspendida y que el acceso por assets requiere cuenta GEE. Los datos se publican bajo CC BY 4.0 con citación. | No integrada | Resolver un acceso programático permitido sin depender de descarga completa nacional ni de credenciales personales; validar leyenda, clases, transiciones, versión y recorte por geometría. |
+| MapBiomas Argentina | No se identificó adaptador ni consumidor en el árbol auditado. Colección 3 (1985–2025) ofrece assets GEE y el portal informa que la descarga GeoTIFF directa está temporalmente suspendida; el acceso GEE requiere cuenta. La URL oficial de Collection 2 2024 en Google Storage respondió HTTP 403 desde GitHub Actions. Se identificaron tres GeoServers MapBiomas candidatos, aún sin confirmar que publiquen capas de Argentina. | No integrada; acceso programático bloqueado por ahora | Verificar los GeoServers candidatos, capas argentinas y WMS/WCS/WFS; si no publican Argentina, se requiere acceso automatizado GEE o que MapBiomas restablezca exportación por geometría. Resolver discrepancia de licencia: página de descargas indica CC BY 4.0 y FAQ indica CC BY-SA. No redistribuir mapas hasta confirmar la licencia aplicable a la colección. |
 | IDERA | No se identificó adaptador directo al catálogo IDERA. | No integrada como catálogo | Implementar descubrimiento selectivo; no descargar ni incorporar automáticamente todo el catálogo. |
 | IDECorr | No se identificó adaptador en el árbol auditado. | No integrada | Inventariar capas, WMS/WFS, CRS, metadatos, estabilidad y cobertura jurisdiccional. |
 | INTA | `services/sources/intaService.js` consulta por navegador el endpoint legacy `https://geoserver.inta.gob.ar/geoserver/wms`, capa `suelos:cartografia_nacional`, mediante GetFeatureInfo. El monitor IDERA registra un GeoNode central y 12 nodos WMS regionales. | Parcial; endpoint legacy incorrecto/inactivo en la prueba CI | Sustituir el endpoint tras probar GetCapabilities y la capa/atributos en el GeoNode central y nodos regionales. Resolver selección de nodo por cobertura; no elegir un nodo por proximidad sin conocer su dominio. Evitar presentar una unidad cartográfica como medición puntual. |
@@ -127,6 +127,19 @@ El cálculo anterior aplicaba NDVI directamente a DN enteros. Como el offset es 
 La búsqueda STAC usa `intersects` con la geometría exacta del lote, en vez de seleccionar escenas solo por bbox. El rango de fallback histórico termina en la fecha solicitada y no selecciona escenas futuras.
 
 La corrección se prueba con valores de referencia sintéticos y con metadatos STAC simulados; la consulta real de las 24 jurisdicciones se verifica aparte en GitHub Actions.
+
+## MapBiomas: restricciones de acceso y licencia
+
+La página oficial de descarga indica que la descarga GeoTIFF directa está temporalmente suspendida y que los assets de Google Earth Engine requieren cuenta. La Collection 2 2024 tiene una URL pública documentada, pero el probe HTTP Range desde GitHub Actions respondió 403. Esto no prueba que la colección sea inexistente: sí demuestra que el acceso automatizado probado no está disponible desde el runner.
+
+Se investigan los siguientes GeoServers públicos candidatos:
+- https://maps.alerta.mapbiomas.org/geoserver/ows
+- https://geoserver.layers.mapbiomas.org/geoserver/ows
+- https://shared-geoserver.mapbiomas.org/geoserver/ows
+
+No se integrará una capa de esos servicios hasta verificar que contiene productos de MapBiomas Argentina, su colección, leyenda, CRS, resolución, cobertura y licencia.
+
+Hay una discrepancia de licencia entre las páginas oficiales consultadas: la página de descargas indica CC BY 4.0; la FAQ de datos públicos indica CC BY-SA. Debe confirmarse la licencia específica de cada colección/producto antes de redistribuir mapas o productos derivados. Hasta entonces se conserva atribución y no se redistribuye el ráster.
 
 ## Contrato técnico de Landsat Collection 2 Level-2
 
