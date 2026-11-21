@@ -1161,10 +1161,6 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                     "sensor": ndvi_resA.get("sensor"),
                     "spatialResolution": ndvi_resA.get("spatialResolution"),
                     "qualityMaskType": ndvi_resA.get("qualityMaskType"),
-                    "collection": ndvi_resA.get("collection"),
-                    "sensor": ndvi_resA.get("sensor"),
-                    "spatialResolution": ndvi_resA.get("spatialResolution"),
-                    "qualityMaskType": ndvi_resA.get("qualityMaskType"),
                     "products": {
                         "productA": ndvi_resA.get("productId"),
                         "productB": ndvi_resB.get("productId")
@@ -1205,7 +1201,11 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                         "stable": {"hectares": "N/D (Comparación espacial píxel a píxel no disponible)", "percent": "N/D"},
                         "increase": {"hectares": "N/D (Comparación espacial píxel a píxel no disponible)", "percent": "N/D"}
                     },
-                    "products": {
+                                        "collection": ndvi_resA.get("collection"),
+                    "sensor": ndvi_resA.get("sensor"),
+                    "spatialResolution": ndvi_resA.get("spatialResolution"),
+                    "qualityMaskType": ndvi_resA.get("qualityMaskType"),
+"products": {
                         "productA": ndvi_resA.get("productId"),
                         "productB": ndvi_resB.get("productId")
                     },
