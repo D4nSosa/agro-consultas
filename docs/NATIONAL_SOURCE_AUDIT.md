@@ -22,11 +22,42 @@ Esto verifica perfiles administrativos; **no demuestra que un servicio geoespaci
 | MapBiomas Argentina | No se identificó adaptador ni consumidor en el árbol auditado. El portal oficial publica Colección 3 (1985–2025) y assets para GEE; informa que la descarga GeoTIFF directa está temporalmente suspendida y que el acceso por assets requiere cuenta GEE. Los datos se publican bajo CC BY 4.0 con citación. | No integrada | Resolver un acceso programático permitido sin depender de descarga completa nacional ni de credenciales personales; validar leyenda, clases, transiciones, versión y recorte por geometría. |
 | IDERA | No se identificó adaptador directo al catálogo IDERA. | No integrada como catálogo | Implementar descubrimiento selectivo; no descargar ni incorporar automáticamente todo el catálogo. |
 | IDECorr | No se identificó adaptador en el árbol auditado. | No integrada | Inventariar capas, WMS/WFS, CRS, metadatos, estabilidad y cobertura jurisdiccional. |
-| INTA | `services/sources/intaService.js` consulta una capa WMS de suelos mediante GetFeatureInfo. | Parcial y por validar | Confirmar endpoint/capa/formato/atributos, escala, cobertura efectiva y naturaleza cartográfica. Evitar presentar una unidad cartográfica como medición puntual. |
+| INTA | `services/sources/intaService.js` consulta por navegador el endpoint legacy `https://geoserver.inta.gob.ar/geoserver/wms`, capa `suelos:cartografia_nacional`, mediante GetFeatureInfo. El monitor IDERA registra un GeoNode central y 12 nodos WMS regionales. | Parcial; endpoint legacy incorrecto/inactivo en la prueba CI | Sustituir el endpoint tras probar GetCapabilities y la capa/atributos en el GeoNode central y nodos regionales. Resolver selección de nodo por cobertura; no elegir un nodo por proximidad sin conocer su dominio. Evitar presentar una unidad cartográfica como medición puntual. |
 | Sentinel-1 | `backend/main.py` consulta STAC `sentinel-1-grd`, procesa VV/VH y recorta COGs a geometría; expone `POST /api/forest/sar`. | Parcial | Verificar colecciones, assets, calibración/unidades, órbitas, máscaras, escenas y resultados en geometrías nacionales variadas. |
 | Sentinel-2 | Servicio forestal y backend consultan Sentinel-2 L2A por STAC y calculan estadísticas ráster cuando existen píxeles válidos. | Parcial | Verificar bandas, escala, nubes/NoData, fechas, colecciones y cobertura nacional con pruebas espaciales. |
 | Landsat 8/9 | No se identificó adaptador de consulta directa ni consumidor Landsat específico. | No integrada | Evaluar Landsat Collection 2 y STAC; evitar duplicar Sentinel-2 cuando no aporte archivo histórico o continuidad útil. |
 | NASA FIRMS | Backend reciente e histórico MODIS/VIIRS; consulta disponibilidad SP/NRT, divide intervalos y filtra geometría. | Parcial | Mantener sensores/productos separados; probar fechas, cuota, cobertura nacional y duplicaciones con CONAE/GOES. |
+
+## Red de geoservicios INTA descubierta mediante el monitor IDERA
+
+El monitor IDERA registra un WMS central y una red de nodos regionales. Los estados de disponibilidad siguientes son los publicados por el monitor, no resultados propios de la plataforma:
+
+| Nodo | Dominio territorial publicado | Endpoint WMS |
+|---|---|---|
+| Central | INTA nacional | https://geo-backend.inta.gob.ar/geoserver/ows |
+| 01 | Salta y Jujuy | https://geo-nodo01.inta.gob.ar/geoserver/wms |
+| 02 | Santiago del Estero y Tucumán | https://geo-nodo02.inta.gob.ar/geoserver/wms |
+| 03 | Entre Ríos | https://geo-nodo03.inta.gob.ar/geoserver/wms |
+| 04 | Río Negro y Neuquén | https://geo-nodo04.inta.gob.ar/geoserver/wms |
+| 05 | Centro de Investigación de Recursos Naturales | https://geo-nodo05.inta.gob.ar/geoserver/wms |
+| 06 | Santa Cruz, Chubut y Tierra del Fuego | https://geo-nodo06.inta.gob.ar/geoserver/wms |
+| 07 | Buenos Aires | https://geo-nodo07.inta.gob.ar/geoserver/wms |
+| 08 | Córdoba | https://geo-nodo08.inta.gob.ar/geoserver/wms |
+| 09 | Corrientes | https://geo-nodo09.inta.gob.ar/geoserver/wms |
+| 10 | Santa Fe | https://geo-nodo10.inta.gob.ar/geoserver/wms |
+| 11 | Catamarca y La Rioja | https://geo-nodo11.inta.gob.ar/geoserver/wms |
+| 12 | Mendoza y San Juan | https://geo-nodo12.inta.gob.ar/geoserver/wms |
+
+El monitor marcaba los nodos regionales consultados como activos y con 100% de fiabilidad en sus períodos publicados. El nodo central también figura activo, aunque el runner de GitHub Actions tuvo timeout al consultar sus capacidades. La red regional no cubre por sí sola todas las provincias: Chaco, Formosa, Misiones, San Luis, La Pampa y CABA no aparecen en la lista de dominios regionales de esta tabla. Para esas jurisdicciones debe probarse el nodo central u otras capas oficiales; no asignarles un nodo regional por inferencia.
+
+La integración no debe asumir que todos los nodos publican la misma capa ni el mismo esquema de atributos. Cada nodo requiere GetCapabilities, lista de capas, CRS, bounding boxes, escala, GetFeatureInfo de muestra y validación de cobertura. La prueba añadida a GitHub Actions consulta los 12 WMS regionales por separado.
+
+Fuentes del monitor:
+- INTA central: https://controlserviciosidera.iado-conicet.gob.ar/resource/466?lang=es_BO
+- INTA Corrientes: https://controlserviciosidera.iado-conicet.gob.ar/resource/495?lang=es_BO
+- INTA Buenos Aires: https://controlserviciosidera.iado-conicet.gob.ar/resource/487?lang=es_BO
+- INTA Salta/Jujuy: https://controlserviciosidera.iado-conicet.gob.ar/resource/501?lang=es_BO
+- Listado INTA: https://controlserviciosidera.iado-conicet.gob.ar/resources?lang=es_BO&tag=INTA
 
 ## Inventario ampliado de productos CONAE
 
