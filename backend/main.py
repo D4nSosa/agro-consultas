@@ -416,7 +416,7 @@ def search_stac_catalog(req: STACSearchRequest):
                 quality_kind = "qa_pixel"
                 product_name = "Landsat Collection 2 Level-2 Surface Reflectance"
                 source_name = "USGS Landsat 8/9 / AWS Earth Search STAC"
-                bands = ["SR_B4 (Red)", "SR_B5 / SR_B5? (NIR)"]
+                bands = ["SR_B4 (Red)", "SR_B5 (NIR)"]
 
             if not red_asset or not nir_asset or not quality_asset:
                 continue
@@ -542,13 +542,22 @@ def is_sentinel2_scl_clear(value):
         return False
 
 
+def is_landsat_qa_pixel_clear(value):
+    """QA_PIXEL bits 0-5: fill, dilated cloud, cirrus, cloud, shadow and snow."""
+    try:
+        return (int(value) & 0b111111) == 0
+    except (TypeError, ValueError):
+        return False
+
+
 def process_cog_raster_ndvi_cropped(
     red_url, nir_url, scl_url, geom_shape,
-    red_scale=1.0, red_offset=0.0, nir_scale=1.0, nir_offset=0.0
+    red_scale=1.0, red_offset=0.0, nir_scale=1.0, nir_offset=0.0,
+    qa_pixel_url=None
 ):
     """
-    Recorta RED/NIR, aplica escala y offset STAC antes de NDVI y exige máscara SCL.
-    Reproyecta SCL con nearest-neighbour y bandas espectrales con bilinear.
+    Recorta RED/NIR, aplica calibración STAC y máscaras SCL/QA_PIXEL.
+    Reproyecta máscaras con nearest-neighbour y bandas espectrales con bilinear.
     """
     try:
         import rasterio
@@ -608,6 +617,32 @@ def process_cog_raster_ndvi_cropped(
                     except Exception as scl_error:
                         scl_warning = f"No se pudo cargar o alinear la máscara SCL: {scl_error}"
 
+                qa_pixel_filter_applied = False
+                qa_pixel_warning = "Asset QA_PIXEL no proporcionado."
+                if qa_pixel_url:
+                    try:
+                        with rasterio.open(qa_pixel_url) as src_qa:
+                            transformer_qa = pyproj.Transformer.from_crs('EPSG:4326', src_qa.crs, always_xy=True)
+                            qa_x, qa_y = transformer_qa.transform(geom_shape.x, geom_shape.y)
+                            row_qa, col_qa = src_qa.index(qa_x, qa_y)
+                            if row_qa < 0 or col_qa < 0 or row_qa >= src_qa.height or col_qa >= src_qa.width:
+                                return None, "El punto está fuera de la máscara Landsat QA_PIXEL."
+                            qa_value = src_qa.read(1, window=rasterio.windows.Window(col_qa, row_qa, 1, 1))[0, 0]
+                            if (src_qa.nodata is not None and qa_value == src_qa.nodata) or not is_landsat_qa_pixel_clear(qa_value):
+                                return None, f"El píxel fue excluido por QA_PIXEL (valor {int(qa_value)})."
+                            qa_pixel_filter_applied = True
+                            qa_pixel_warning = None
+                    except Exception as qa_error:
+                        qa_pixel_warning = f"No se pudo cargar o alinear QA_PIXEL: {qa_error}"
+
+                quality_masks = []
+                if scl_filter_applied:
+                    quality_masks.append("Sentinel-2 SCL")
+                if qa_pixel_filter_applied:
+                    quality_masks.append("Landsat QA_PIXEL")
+                quality_mask_applied = bool(quality_masks)
+                quality_mask_type = " + ".join(quality_masks) if quality_masks else "No aplicada"
+
                 ndvi_pt = calculate_scaled_ndvi(
                     val_red, val_nir, red_scale, red_offset, nir_scale, nir_offset
                 )
@@ -625,7 +660,10 @@ def process_cog_raster_ndvi_cropped(
                     "isPoint": True,
                     "sclFilterApplied": scl_filter_applied,
                     "sclWarning": scl_warning,
-                    "qualityMaskType": "Sentinel-2 SCL",
+                    "qaPixelFilterApplied": qa_pixel_filter_applied,
+                    "qaPixelWarning": qa_pixel_warning,
+                    "qualityMaskApplied": quality_mask_applied,
+                    "qualityMaskType": quality_mask_type,
                     "reflectanceScalingApplied": True,
                     "redScale": red_scale,
                     "redOffset": red_offset,
@@ -714,6 +752,46 @@ def process_cog_raster_ndvi_cropped(
                 except Exception as scl_error:
                     scl_warning = f"No se pudo cargar o alinear la máscara SCL: {scl_error}"
 
+            qa_aligned = None
+            qa_nodata_value = 1
+            qa_pixel_filter_applied = False
+            qa_pixel_warning = "Asset QA_PIXEL no proporcionado."
+            if qa_pixel_url:
+                try:
+                    with rasterio.open(qa_pixel_url) as src_qa:
+                        qa_nodata_value = src_qa.nodata if src_qa.nodata is not None else 1
+                        if src_qa.crs == src_red.crs:
+                            geom_proj_qa = geom_proj
+                        else:
+                            transformer_qa = pyproj.Transformer.from_crs('EPSG:4326', src_qa.crs, always_xy=True)
+                            geom_proj_qa = _project_roi_geometry(geom_shape, transformer_qa)
+
+                        out_qa_raw, transform_qa = rasterio_mask(
+                            src_qa, [geom_proj_qa], crop=True, nodata=src_qa.nodata
+                        )
+                        qa_raw = out_qa_raw[0]
+                        if (src_qa.crs == src_red.crs and
+                            src_qa.transform == src_red.transform and
+                            qa_raw.shape == red_data.shape):
+                            qa_aligned = qa_raw
+                        else:
+                            qa_aligned = np.full(red_data.shape, qa_nodata_value, dtype=qa_raw.dtype)
+                            reproject(
+                                source=qa_raw,
+                                destination=qa_aligned,
+                                src_transform=transform_qa,
+                                src_crs=src_qa.crs,
+                                dst_transform=transform_red,
+                                dst_crs=src_red.crs,
+                                resampling=Resampling.nearest,
+                                src_nodata=src_qa.nodata,
+                                dst_nodata=qa_nodata_value
+                            )
+                        qa_pixel_filter_applied = True
+                        qa_pixel_warning = None
+                except Exception as qa_error:
+                    qa_pixel_warning = f"No se pudo cargar o alinear QA_PIXEL: {qa_error}"
+
             nir_nodata = src_nir.nodata if src_nir.nodata is not None else 0
             valid_red = (red_data != red_nodata) & (red_data > 0)
             valid_nir = (nir_aligned != nir_nodata) & (nir_aligned > 0)
@@ -725,8 +803,20 @@ def process_cog_raster_ndvi_cropped(
                 np.isin(scl_aligned, [0, 1, 3, 8, 9, 10, 11])
                 if scl_aligned is not None else np.zeros(red_data.shape, dtype=bool)
             )
+            qa_excluded = (
+                ((qa_aligned.astype(np.uint16) & 0b111111) != 0) |
+                (qa_aligned == qa_nodata_value)
+                if qa_aligned is not None else np.zeros(red_data.shape, dtype=bool)
+            )
+            quality_masks = []
+            if scl_filter_applied:
+                quality_masks.append("Sentinel-2 SCL")
+            if qa_pixel_filter_applied:
+                quality_masks.append("Landsat QA_PIXEL")
+            quality_mask_applied = bool(quality_masks)
+            quality_mask_type = " + ".join(quality_masks) if quality_masks else "No aplicada"
             valid = (
-                valid_red & valid_nir & (~scl_excluded) &
+                valid_red & valid_nir & (~scl_excluded) & (~qa_excluded) &
                 np.isfinite(red_reflectance) & np.isfinite(nir_reflectance) &
                 np.isfinite(denominator) & (np.abs(denominator) > 1e-8)
             )
@@ -758,7 +848,10 @@ def process_cog_raster_ndvi_cropped(
                 "roiPixelCount": int(roi_pixel_count),
                 "sclFilterApplied": scl_filter_applied,
                 "sclWarning": scl_warning,
-                "qualityMaskType": "Sentinel-2 SCL",
+                "qaPixelFilterApplied": qa_pixel_filter_applied,
+                "qaPixelWarning": qa_pixel_warning,
+                "qualityMaskApplied": quality_mask_applied,
+                "qualityMaskType": quality_mask_type,
                 "reflectanceScalingApplied": True,
                 "redScale": red_scale,
                 "redOffset": red_offset,
