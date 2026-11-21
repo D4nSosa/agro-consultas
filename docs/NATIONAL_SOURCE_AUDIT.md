@@ -25,7 +25,7 @@ Esto verifica perfiles administrativos; **no demuestra que un servicio geoespaci
 | INTA | `services/sources/intaService.js` consulta por navegador el endpoint legacy `https://geoserver.inta.gob.ar/geoserver/wms`, capa `suelos:cartografia_nacional`, mediante GetFeatureInfo. El monitor IDERA registra un GeoNode central y 12 nodos WMS regionales. | Parcial; endpoint legacy incorrecto/inactivo en la prueba CI | Sustituir el endpoint tras probar GetCapabilities y la capa/atributos en el GeoNode central y nodos regionales. Resolver selección de nodo por cobertura; no elegir un nodo por proximidad sin conocer su dominio. Evitar presentar una unidad cartográfica como medición puntual. |
 | Sentinel-1 | `backend/main.py` consulta STAC `sentinel-1-grd`, procesa VV/VH y recorta COGs a geometría; expone `POST /api/forest/sar`. | Parcial | Verificar colecciones, assets, calibración/unidades, órbitas, máscaras, escenas y resultados en geometrías nacionales variadas. |
 | Sentinel-2 | Servicio forestal y backend consultan Sentinel-2 L2A por STAC y calculan estadísticas ráster cuando existen píxeles válidos. | Parcial | Verificar bandas, escala, nubes/NoData, fechas, colecciones y cobertura nacional con pruebas espaciales. |
-| Landsat 8/9 | No se identificó adaptador de consulta directa ni consumidor Landsat específico. | No integrada | Evaluar Landsat Collection 2 y STAC; evitar duplicar Sentinel-2 cuando no aporte archivo histórico o continuidad útil. |
+| Landsat 8/9 | No se identificó adaptador de consulta directa ni consumidor Landsat específico. Earth Search publica `landsat-c2-l2` global; el item_assets documenta bandas `red` y `nir08` a 30 m, escala 0.0000275 y offset -0.2, además de `qa_pixel`. | No integrada | Implementar búsqueda filtrada a plataformas Landsat 8/9, aplicar escala/offset antes de NDVI y máscara QA_PIXEL. Earth Search declara `license=proprietary`, pero USGS declara que Landsat es dominio público y sin restricciones; conservar y documentar la discrepancia de metadatos del catálogo, atribuir a USGS y no copiar la licencia errónea del agregador. |
 | NASA FIRMS | Backend reciente e histórico MODIS/VIIRS; consulta disponibilidad SP/NRT, divide intervalos y filtra geometría. | Parcial | Mantener sensores/productos separados; probar fechas, cuota, cobertura nacional y duplicaciones con CONAE/GOES. |
 
 ## Red de geoservicios INTA descubierta mediante el monitor IDERA
@@ -99,6 +99,33 @@ Este inventario no declara productos integrados.
 - Copernicus Data Space, STAC: https://documentation.dataspace.copernicus.eu/APIs/STAC.html
 - USGS, Landsat STAC: https://www.usgs.gov/landsat-missions/spatiotemporal-asset-catalog-stac
 - NASA FIRMS Area API: https://firms.modaps.eosdis.nasa.gov/api/area
+
+## Contrato técnico de Landsat Collection 2 Level-2
+
+La colección STAC `landsat-c2-l2` es global y contiene productos Level-2 de Landsat 4–9. Para la integración solicitada se filtrarán Landsat 8 y 9, no se mezclarán automáticamente sensores históricos distintos.
+
+Metadatos publicados por Earth Search:
+- Bandas de reflectancia superficial: `red` y `nir08`.
+- Resolución espacial de esas bandas: 30 m.
+- Escala de reflectancia: 0.0000275.
+- Offset de reflectancia: -0.2.
+- Control de calidad: `qa_pixel` (bitmask) y `qa_radsat`.
+- Producto: Collection 2 Level-2 Surface Reflectance / Surface Temperature.
+
+La fórmula NDVI debe aplicarse a reflectancias escaladas:
+`RED = DN × 0.0000275 − 0.2`
+`NIR = DN × 0.0000275 − 0.2`
+`NDVI = (NIR − RED) / (NIR + RED)`
+
+No calcular NDVI directamente sobre DN enteros porque el offset no se cancela en el cociente. La máscara QA_PIXEL debe excluir relleno, nubes dilatadas, cirrus, nube, sombra de nube y nieve según la definición oficial de bits. La resolución reportada será 30 m, no 10 m.
+
+El catálogo STAC muestra `license=proprietary`, en conflicto con la política oficial de USGS que declara los productos Landsat como dominio público, de uso sin restricciones, y solicita atribución al USGS. La integración debe conservar la procedencia del proveedor y registrar la discrepancia del agregador, no copiar su valor de licencia sin contrastarlo.
+
+Referencias:
+- Earth Search Collection: https://earth-search.aws.element84.com/v1/collections/landsat-c2-l2
+- USGS Landsat Collection 2 Level-2: https://www.usgs.gov/landsat-missions/landsat-collection-2-level-2-science-products
+- USGS Surface Reflectance (resolución global 30 m y sensores): https://www.usgs.gov/landsat-missions/landsat-collection-2-surface-reflectance
+- USGS licencia/dominio público en la nube: https://www.usgs.gov/faqs/are-landsat-data-cloud-still-considered-be-within-public-domain
 
 ## Primera validación en vivo desde GitHub Actions
 
