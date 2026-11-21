@@ -236,7 +236,9 @@ def get_ogc_capabilities(
             _store(key, payload)
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"No se pudo consultar GetCapabilities de {provider}: {type(exc).__name__}: {str(exc)[:140]}")
-    if layer_filter:
+    # Direct unit calls receive FastAPI's Query sentinel as the default;
+    # HTTP requests receive the validated string value.
+    if isinstance(layer_filter, str) and layer_filter:
         needle = layer_filter.casefold()
         payload["layers"] = [item for item in payload["layers"] if needle in (item["name"] + " " + item["title"] + " " + (item.get("abstract") or "")).casefold()]
     return payload
