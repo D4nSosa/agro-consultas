@@ -54,6 +54,7 @@ SOURCE_REFERENCE = {
         "license": "CC BY 4.0",
         "platform": "https://plataforma.argentina.mapbiomas.org/projects/mapbiomas/argentina",
         "downloads": "https://argentina.mapbiomas.org/descargas/mapas-de-la-coleccion/",
+        "provincialStatistics": "https://argentina.mapbiomas.org/descargas/estadisticas/",
         "methodology": "https://argentina.mapbiomas.org/iniciativas-y-productos/cobertura-y-uso-del-suelo/cobertura-30m/nueva-pagina/",
         "limitations": [
             "La descarga GeoTIFF directa está temporalmente suspendida según el portal oficial.",
