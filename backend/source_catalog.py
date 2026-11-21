@@ -26,6 +26,8 @@ CONAE_SMAP_WMS = "https://geoservicios2.conae.gov.ar/geoserver/HumedadDeSuelos/w
 CONAE_FUEL_WMS = "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms"
 CONAE_BURNED_WMS = "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms"
 CACHE_TTL = 6 * 60 * 60
+MAPBIOMAS_API_BASE = "https://prd.plataforma.mapbiomas.org/api/v1"
+MAPBIOMAS_TILE_HOST = "earthengine.googleapis.com"
 _cache = {}
 _cache_lock = threading.Lock()
 
@@ -47,7 +49,8 @@ SOURCE_REFERENCE = {
         "id": "mapbiomas_argentina",
         "name": "MapBiomas Argentina",
         "family": "land_cover",
-        "status": "WMS_CONTEXT_LAYERS_AVAILABLE_ANNUAL_RASTER_PENDING",
+        "status": "ANNUAL_TILE_SERVICE_VERIFIED",
+        "tileApi": "/api/sources/mapbiomas/tiles/{year}",
         "ogcWms": "https://shared-geoserver.mapbiomas.org/geoserver/ows",
         "availableArgentinaContextLayers": ["mapbiomas-argentina:vegetation_unit", "mapbiomas-argentina:ecorregion", "mapbiomas-argentina:regiones_forestales", "mapbiomas-argentina:national_protected_areas", "mapbiomas-argentina:subnational_protected_areas"],
         "collection": "Colección 3",
@@ -62,8 +65,8 @@ SOURCE_REFERENCE = {
         "limitations": [
             "La descarga GeoTIFF directa está temporalmente suspendida según el portal oficial.",
             "El WMS compartido publica capas contextuales de vegetación, ecorregiones, regiones forestales y áreas protegidas de Argentina; no equivale a la serie anual nacional de cobertura.",
-            "La plataforma y los assets de Google Earth Engine requieren sesión/cuenta GEE para exportación automatizada.",
-            "No se ejecuta ni se simula una estadística zonal sin acceso autenticado a los assets.",
+            "Las teselas públicas permiten visualizar la serie anual; la exportación directa de assets y los cálculos zonales requieren el flujo autorizado de MapBiomas/GEE.",
+            "La capa visual no se presenta como estadística zonal ni como medición de lote.",
             "No usar la Colección 2 como si fuera la Colección 3."
         ],
         "citation": "Citar MapBiomas Argentina, Colección 3, y la metodología del producto."
@@ -108,6 +111,36 @@ def _read_url(url: str, timeout: int = 10, max_bytes: int = 2_000_000) -> bytes:
     if len(body) > max_bytes:
         raise ValueError("La respuesta del catálogo supera el tamaño máximo permitido.")
     return body
+
+def _read_json_url(url: str, timeout: int = 20) -> dict:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Agro-Consultas/1.0 (+https://agro-consultas.vercel.app)",
+            "Accept": "application/json",
+            "tenant-id": "mapbiomas",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        body = response.read(5_000_001)
+    if len(body) > 5_000_000:
+        raise ValueError("La respuesta de MapBiomas supera el tamaño máximo permitido.")
+    payload = json.loads(body.decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("MapBiomas devolvió una respuesta JSON inesperada.")
+    return payload
+
+
+def _safe_mapbiomas_tile_template(value: str) -> bool:
+    parsed = urllib.parse.urlparse(value)
+    return (
+        parsed.scheme == "https"
+        and parsed.netloc == MAPBIOMAS_TILE_HOST
+        and not parsed.query
+        and parsed.path.startswith("/v1/projects/mapbiomas/maps/")
+        and parsed.path.endswith("/tiles/{z}/{x}/{y}")
+    )
+
 
 def _cached(key):
     with _cache_lock:
@@ -179,6 +212,100 @@ def _parse_capabilities(body: bytes, service: str):
                     "outputFormats": [x.text for x in node.findall(".//{*}Format") if x.text],
                 })
     return layers
+
+@router.get("/mapbiomas/tiles/{year}")
+def get_mapbiomas_tiles(year: int):
+    """Returns a validated public XYZ tile template for MapBiomas Argentina Collection 3."""
+    if year < 1985 or year > 2025:
+        raise HTTPException(status_code=422, detail="El año debe estar entre 1985 y 2025 para la Colección 3.")
+    cache_key = f"mapbiomas:tiles:{year}"
+    cached = _cached(cache_key)
+    if cached is not None:
+        return {**cached, "cacheHit": True}
+    try:
+        projects = _read_json_url(MAPBIOMAS_API_BASE + "/projects?type=dashboard")
+        argentina = next(
+            (item for item in projects.get("projects", []) if item.get("key") == "argentina" and item.get("active")),
+            None,
+        )
+        if not argentina:
+            raise ValueError("La región argentina no está activa en la plataforma MapBiomas.")
+        subthemes = _read_json_url(MAPBIOMAS_API_BASE + "/argentina/themes/subthemes?pageSize=200").get("subthemes", [])
+        derived_markers = ("number_of", "number-of", "transitions", "stable", "changes", "classes")
+        candidates = []
+        for item in subthemes:
+            key = str(item.get("key") or "")
+            years = [int(value) for value in ((item.get("asset") or {}).get("years") or []) if isinstance(value, (int, float))]
+            if "coverage" not in key.lower() or item.get("dataType") != "annual" or year not in years:
+                continue
+            if any(marker in key.lower() for marker in derived_markers):
+                continue
+            candidates.append((len(years), item, years))
+        if not candidates:
+            raise ValueError(f"No se encontró un subtema anual de cobertura para {year}.")
+        _, subtheme, years = max(candidates, key=lambda candidate: candidate[0])
+        subtheme_key = subtheme["key"]
+        legends = _read_json_url(
+            MAPBIOMAS_API_BASE + "/argentina/legends?" + urllib.parse.urlencode({"subthemeKey": subtheme_key, "pageSize": 50})
+        ).get("legends", [])
+        if not legends:
+            raise ValueError("MapBiomas no publicó leyendas para el subtema anual.")
+        preferred = next((item for item in legends if item.get("key") == "default"), None)
+        if preferred is None:
+            preferred = next((item for item in legends if str(item.get("key") or "").startswith("coverage")), legends[0])
+        legend_payload = _read_json_url(MAPBIOMAS_API_BASE + f"/argentina/legends/{preferred['id']}")
+        legend = legend_payload.get("legend", legend_payload)
+        pixel_values = []
+
+        def collect_visible(items):
+            for item in items or []:
+                if item.get("visible", True) and item.get("pixelValue") is not None:
+                    pixel_values.append(int(item["pixelValue"]))
+                collect_visible(item.get("children"))
+
+        collect_visible(legend.get("items"))
+        pixel_values = list(dict.fromkeys(pixel_values))
+        if not pixel_values or len(pixel_values) > 64:
+            raise ValueError("La leyenda de MapBiomas no contiene una cantidad segura de clases.")
+        params = [
+            ("subthemeKey", subtheme_key),
+            ("legendKey", preferred.get("key") or ""),
+            ("year", str(year)),
+        ] + [("pixelValue", str(value)) for value in pixel_values]
+        map_url = MAPBIOMAS_API_BASE + "/argentina/maps/map?" + urllib.parse.urlencode(params)
+        map_payload = _read_json_url(map_url)
+        tile_template = map_payload.get("url")
+        if not isinstance(tile_template, str) or not _safe_mapbiomas_tile_template(tile_template):
+            raise ValueError("MapBiomas devolvió una plantilla de teselas fuera del host/ruta permitidos.")
+        asset_id = str((subtheme.get("asset") or {}).get("assetId") or "")
+        collection = next((part for part in asset_id.split("/") if part.lower().startswith("collection")), "Colección 3")
+        result = {
+            "provider": "MapBiomas Argentina",
+            "collection": collection,
+            "year": year,
+            "yearRange": {"min": min(years), "max": max(years)},
+            "subthemeKey": subtheme_key,
+            "legendKey": preferred.get("key"),
+            "legendClasses": len(pixel_values),
+            "tileUrlTemplate": tile_template,
+            "spatialResolutionM": 30,
+            "attribution": f"MapBiomas Argentina · {collection} · Cobertura y uso del suelo {year} · 30 m",
+            "status": "LIVE_XYZ_TILES",
+            "retrievedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "limitations": [
+                "Teselas visuales de la clasificación anual; no son estadísticas zonales del lote.",
+                "La cobertura efectiva debe evaluarse para la geometría y el año seleccionados.",
+                "Verificar la licencia específica de la colección antes de redistribuir productos derivados.",
+            ],
+            "cacheHit": False,
+        }
+        _store(cache_key, result)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo obtener la capa anual MapBiomas: {type(exc).__name__}: {str(exc)[:160]}")
+
 
 @router.get("/catalog")
 def get_source_catalog():
