@@ -49,6 +49,51 @@ app.add_middleware(
 )
 
 EARTH_SEARCH_STAC_URL = "https://earth-search.aws.element84.com/v1/search"
+PLANETARY_COMPUTER_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/search"
+PLANETARY_COMPUTER_SAS_TOKEN_URL = "https://planetarycomputer.microsoft.com/api/sas/v1/token/landsateuwest/landsat-c2"
+PLANETARY_COMPUTER_SAS_CACHE = {"token": None, "expires_at": None}
+
+
+def _get_planetary_computer_sas_token():
+    """Obtiene/cacha token SAS público y temporal para el contenedor Landsat C2 de Planetary Computer."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cached_token = PLANETARY_COMPUTER_SAS_CACHE.get("token")
+    cached_expiry = PLANETARY_COMPUTER_SAS_CACHE.get("expires_at")
+    if cached_token and cached_expiry and cached_expiry > now + datetime.timedelta(minutes=5):
+        return cached_token
+
+    request = urllib.request.Request(
+        PLANETARY_COMPUTER_SAS_TOKEN_URL,
+        headers={"Accept": "application/json"}
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        payload = json.loads(response.read(200_000).decode("utf-8"))
+
+    token = payload.get("token")
+    expiry_text = payload.get("msft:expiry")
+    if not token:
+        raise RuntimeError("Planetary Computer no devolvió token SAS para Landsat C2.")
+    try:
+        expires_at = datetime.datetime.fromisoformat(expiry_text.replace("Z", "+00:00"))
+    except (AttributeError, ValueError):
+        expires_at = now + datetime.timedelta(minutes=20)
+
+    PLANETARY_COMPUTER_SAS_CACHE["token"] = token
+    PLANETARY_COMPUTER_SAS_CACHE["expires_at"] = expires_at
+    return token
+
+
+def _sign_planetary_computer_asset(href):
+    """Firma únicamente assets Landsat alojados en el contenedor público documentado."""
+    if not href:
+        return href
+    parsed = urllib.parse.urlparse(href)
+    if parsed.netloc != "landsateuwest.blob.core.windows.net" or not parsed.path.startswith("/landsat-c2/"):
+        return href
+    token = _get_planetary_computer_sas_token()
+    separator = "&" if "?" in href else "?"
+    return f"{href}{separator}{token}"
+
 
 INTA_CIRN_WMS_URL = "https://geo-nodo05.inta.gob.ar/geoserver/wms"
 INTA_SOIL_CACHE = {}
@@ -376,8 +421,9 @@ def search_stac_catalog(req: STACSearchRequest):
             "query": {"eo:cloud_cover": {"lte": req.maxCloudCover}}
         }
         req_data = json.dumps(search_body).encode("utf-8")
+        stac_url = EARTH_SEARCH_STAC_URL if collection == "sentinel-2-l2a" else PLANETARY_COMPUTER_STAC_URL
         aws_req = urllib.request.Request(
-            EARTH_SEARCH_STAC_URL,
+            stac_url,
             data=req_data,
             headers={"Content-Type": "application/json", "Accept": "application/geo+json, application/json"}
         )
@@ -417,7 +463,7 @@ def search_stac_catalog(req: STACSearchRequest):
                 quality_asset = qa_asset
                 quality_kind = "qa_pixel"
                 product_name = "Landsat Collection 2 Level-2 Surface Reflectance"
-                source_name = "USGS Landsat 8/9 / AWS Earth Search STAC"
+                source_name = "USGS Landsat 8/9 / Microsoft Planetary Computer STAC"
                 bands = ["SR_B4 (Red)", "SR_B5 (NIR)"]
 
             if not red_asset or not nir_asset or not quality_asset:
@@ -453,16 +499,21 @@ def search_stac_catalog(req: STACSearchRequest):
                 "sensor": platform,
                 "product": product_name,
                 "source": source_name,
-                "sourceUrl": f"https://earth-search.aws.element84.com/v1/collections/{collection}",
+                "sourceUrl": (
+                    f"https://earth-search.aws.element84.com/v1/collections/{collection}"
+                    if collection == "sentinel-2-l2a"
+                    else f"https://planetarycomputer.microsoft.com/api/stac/v1/collections/{collection}"
+                ),
                 "resolution": red_resolution,
                 "bands": bands,
                 "geometry": feat.get("geometry"),
                 "quality": {
                     "eo:cloud_cover": cloud_cover_val,
+                    "landsat:collection_category": props.get("landsat:collection_category"),
                     "qualityMaskAsset": quality_kind
                 },
                 "license": (
-                    "USGS public domain; attribution recommended. Earth Search collection metadata declares a conflicting license; verify before redistributing raw assets."
+                    "Public domain (USGS Landsat); attribution recommended."
                     if collection == "landsat-c2-l2" else None
                 ),
                 "assets": {
@@ -497,7 +548,7 @@ def search_stac_catalog(req: STACSearchRequest):
 
         return {
             "success": False,
-            "source": "AWS Earth Search STAC",
+            "source": "AWS Earth Search / Microsoft Planetary Computer STAC",
             "collection": collection,
             "productsCount": 0,
             "bestProduct": None,
@@ -943,16 +994,28 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
 
             for candidate in products[:5]:
                 assets = candidate.get("assets") or {}
+                red_url = assets.get("red")
+                nir_url = assets.get("nir")
+                qa_pixel_url = assets.get("qaPixel")
+                if collection == "landsat-c2-l2":
+                    try:
+                        red_url = _sign_planetary_computer_asset(red_url)
+                        nir_url = _sign_planetary_computer_asset(nir_url)
+                        qa_pixel_url = _sign_planetary_computer_asset(qa_pixel_url)
+                    except Exception as sign_error:
+                        selected_error = f"No se pudieron firmar los assets Landsat: {sign_error}"
+                        continue
+
                 stats, error_message = process_cog_raster_ndvi_cropped(
-                    assets.get("red"),
-                    assets.get("nir"),
+                    red_url,
+                    nir_url,
                     assets.get("scl"),
                     geom_shape,
                     red_scale=assets.get("redScale", 1.0),
                     red_offset=assets.get("redOffset", 0.0),
                     nir_scale=assets.get("nirScale", 1.0),
                     nir_offset=assets.get("nirOffset", 0.0),
-                    qa_pixel_url=assets.get("qaPixel")
+                    qa_pixel_url=qa_pixel_url
                 )
                 if stats and stats.get("qualityMaskApplied"):
                     selected_product = candidate
