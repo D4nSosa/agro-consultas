@@ -166,6 +166,44 @@ def check_wfs(name: str, endpoint: str, expected: list[str]):
 
 
 
+
+def check_wms_feature_info(province: str, coords: dict):
+    endpoint = "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms"
+    layer = "EmergenciasCONAE:MODIS_AQM_1"
+    params = urllib.parse.urlencode({
+        "service": "WMS",
+        "version": "1.1.1",
+        "request": "GetFeatureInfo",
+        "layers": layer,
+        "query_layers": layer,
+        "styles": "",
+        "srs": "EPSG:4326",
+        "bbox": f"{coords['lng'] - 0.01},{coords['lat'] - 0.01},{coords['lng'] + 0.01},{coords['lat'] + 0.01}",
+        "width": "101",
+        "height": "101",
+        "x": "50",
+        "y": "50",
+        "format": "image/png",
+        "info_format": "application/json",
+        "feature_count": "1",
+    })
+    result = request(endpoint + "?" + params, timeout=20)
+    body = result.pop("body", b"")
+    result["province_sample"] = province
+    result["layer"] = layer
+    if result["status"] == "HTTP_OK":
+        try:
+            data = json.loads(body.decode("utf-8"))
+            features = data.get("features", [])
+            result["features_returned"] = len(features)
+            result["sample_properties"] = features[0].get("properties", {}) if features else None
+            result["value_available"] = bool(features)
+        except Exception:
+            result["status"] = "NON_JSON_RESPONSE"
+            result["response_preview"] = body[:500].decode("utf-8", errors="replace")
+    return result
+
+
 def check_wms_layer_render(name: str, endpoint: str, layer_name: str):
     params = urllib.parse.urlencode({
         "service": "WMS",
@@ -305,6 +343,12 @@ def main():
         check_wms_layer_render("CONAE AQM unqualified layer", burned_endpoint, "MODIS_AQM_1"),
         check_wms_layer_render("CONAE AQM qualified layer", burned_endpoint, "EmergenciasCONAE:MODIS_AQM_1"),
     ]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [
+            pool.submit(check_wms_feature_info, province, provinces[province]["coordenadas"])
+            for province in SAMPLES
+        ]
+        report["checks"]["conae_aqm_point_samples"] = [future.result() for future in futures]
     report["checks"]["inta_wms"] = check_wms(
         "INTA GeoNode central",
         "https://geo-backend.inta.gob.ar/geoserver/ows",
@@ -402,6 +446,10 @@ def main():
         rows.append(f"| IDECorr WMS | {report['checks']['idecorr_wms'].get('status')} | HTTP {report['checks']['idecorr_wms'].get('http_status')} |")
         for item in report["checks"]["conae_aqm_getmap"]:
             rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; PNG: {item.get('png_signature_valid')} |")
+        aqm_samples = report["checks"]["conae_aqm_point_samples"]
+        aqm_ok = sum(1 for item in aqm_samples if item.get("status") == "HTTP_OK")
+        aqm_values = sum(1 for item in aqm_samples if item.get("value_available"))
+        rows.append(f"| CONAE AQM GetFeatureInfo | {aqm_ok}/24 consultas HTTP OK; {aqm_values} con feature | Muestreo puntual de centroides provinciales; no es estadística de lote |")
         for name, item in report["checks"]["catalog_portals"].items():
             rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')} |")
         idera = report["checks"]["idera_service_registry"]
