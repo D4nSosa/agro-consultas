@@ -12,7 +12,54 @@ function pointInGeometry(point,g){if(!g)return false;if(g.type==='Polygon')retur
 function normalizeFeature(feature,source){const coords=feature?.geometry?.coordinates;if(feature?.geometry?.type!=='Point'||!Array.isArray(coords)||coords.length<2)return null;const[lon,lat]=coords.map(Number);if(!Number.isFinite(lon)||!Number.isFinite(lat)||lon< -180||lon>180||lat< -90||lat>90)return null;const p=feature.properties||{},date=dateOf(p),timeRaw=String(p.Hora??p.hora??p.acq_time??p.time??p.hora_utc??'').trim(),timeUtc=timeRaw?timeRaw.padStart(4,'0').slice(0,4):null,confidenceRaw=p.FP_Confidence??p.confidence??p.Confidence??null,confidenceLabel=typeof confidenceRaw==='string'&&/^(low|nominal|high)$/i.test(confidenceRaw.trim())?confidenceRaw.trim().toLowerCase():null,satellite=String(p.Satellite??p.satellite??p.Satelite??p.satelite??p.platform??'').trim()||null,observedAt=date&&timeUtc&&timeUtc.length===4&&Number.isInteger(Number(timeUtc))?date+'T'+timeUtc.slice(0,2)+':'+timeUtc.slice(2)+':00Z':null;return{type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:{source,sensor:source,satellite,date,timeUtc,observedAt,confidence:numberOrNull(confidenceRaw),confidenceLabel,powerMw:numberOrNull(p.FP_Power??p.FP_power??p.power??p.frp),raw:p}};}
 function boundsOf(g){const values=[];const walk=n=>{if(Array.isArray(n)&&typeof n[0]==='number')values.push(n);else if(Array.isArray(n))n.forEach(walk);};walk(g.coordinates);if(!values.length)throw Error('No se pudieron calcular los límites del área seleccionada.');return[Math.min(...values.map(p=>p[0])),Math.min(...values.map(p=>p[1])),Math.max(...values.map(p=>p[0])),Math.max(...values.map(p=>p[1]))];}
 async function fetchLayer(layer,bounds,signal){const[west,south,east,north]=bounds,features=[];let startIndex=0,truncated=false;for(let page=0;page<MAX_PAGES;page++){const params=new URLSearchParams({service:'WFS',version:'2.0.0',request:'GetFeature',typeNames:'GeoServiciosCONAE:'+layer.name,outputFormat:'application/json',srsName:'EPSG:4326',count:String(PAGE_SIZE),startIndex:String(startIndex),bbox:[west,south,east,north,'CRS:84'].join(',')});const response=await fetch(WFS_URL+'?'+params.toString(),{signal,headers:{Accept:'application/geo+json, application/json'}});if(!response.ok)throw Error(layer.source+': CONAE respondió HTTP '+response.status);const payload=await response.json();if(!Array.isArray(payload.features))throw Error(layer.source+': respuesta WFS sin colección GeoJSON válida.');features.push(...payload.features);if(payload.features.length<PAGE_SIZE)break;startIndex+=payload.features.length;if(page===MAX_PAGES-1)truncated=true;}return{layer,features,truncated};}
-export async function fetchFireDetections({geometry,minConfidence=0,signal}={}){if(!geometry||!['Polygon','MultiPolygon'].includes(geometry.type))throw Error('El monitoreo requiere un lote Polygon o MultiPolygon.');const bounds=boundsOf(geometry),responses=await Promise.allSettled(LAYERS.map(layer=>fetchLayer(layer,bounds,signal))),successful=responses.filter(x=>x.status==='fulfilled').map(x=>x.value),errors=responses.filter(x=>x.status==='rejected').map(x=>x.reason?.message||'Error de consulta');if(!successful.length)throw Error(errors.join(' · ')||'No fue posible consultar los servicios WFS de CONAE.');const detections=[];for(const response of successful){for(const raw of response.features){const f=normalizeFeature(raw,response.layer.source);if(!f)continue;const p=f.properties;if(!p.date)continue;if(p.confidence!==null&&p.confidence<minConfidence)continue;const[lon,lat]=f.geometry.coordinates;if(!pointInGeometry([lon,lat],geometry))continue;detections.push(f);}}detections.sort((a,b)=>a.properties.date.localeCompare(b.properties.date));return{detections,errors,truncated:successful.some(x=>x.truncated),layersAvailable:successful.map(x=>x.layer.source),queriedBounds:bounds,coverage:'last-24-hours'};}
+export async function fetchFireDetections({geometry,minConfidence=0,signal,timeoutMs=12000}={}) {
+  if (!geometry || !['Polygon','MultiPolygon'].includes(geometry.type)) {
+    throw Error('El monitoreo requiere un lote Polygon o MultiPolygon.');
+  }
+  const bounds = boundsOf(geometry);
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort(signal?.reason);
+  if (signal?.aborted) abortFromCaller();
+  else signal?.addEventListener('abort', abortFromCaller, { once: true });
+
+  const timeoutId = setTimeout(() => controller.abort(new Error('Tiempo de espera agotado consultando CONAE WFS.')), timeoutMs);
+  try {
+    const responses = await Promise.allSettled(
+      LAYERS.map(layer => fetchLayer(layer, bounds, controller.signal))
+    );
+    const successful = responses.filter(x => x.status === 'fulfilled').map(x => x.value);
+    const errors = responses.filter(x => x.status === 'rejected').map(x => x.reason?.message || 'Error de consulta');
+    if (!successful.length) {
+      throw Error(errors.join(' · ') || 'No fue posible consultar los servicios WFS de CONAE.');
+    }
+
+    const detections = [];
+    for (const response of successful) {
+      for (const raw of response.features) {
+        const feature = normalizeFeature(raw, response.layer.source);
+        if (!feature) continue;
+        const properties = feature.properties;
+        if (!properties.date) continue;
+        if (properties.confidence !== null && properties.confidence < minConfidence) continue;
+        const [lon, lat] = feature.geometry.coordinates;
+        if (!pointInGeometry([lon, lat], geometry)) continue;
+        detections.push(feature);
+      }
+    }
+    detections.sort((a, b) => a.properties.date.localeCompare(b.properties.date));
+    return {
+      detections,
+      errors,
+      truncated: successful.some(x => x.truncated),
+      layersAvailable: successful.map(x => x.layer.source),
+      queriedBounds: bounds,
+      coverage: 'last-24-hours'
+    };
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', abortFromCaller);
+  }
+}
 function haversineMeters(a,b){const rad=Math.PI/180,dLat=(b[1]-a[1])*rad,dLon=(b[0]-a[0])*rad,lat1=a[1]*rad,lat2=b[1]*rad,h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;return 6371008.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
 export function harmonizeFireDetections(detections=[],maxDistanceMeters=1000){const modis=detections.filter(f=>f.properties?.source==='MODIS'||f.properties?.sensor==='MODIS'),viirs=detections.filter(f=>f.properties?.source==='VIIRS'||f.properties?.sensor==='VIIRS'),candidates=[];for(let mi=0;mi<modis.length;mi++){for(let vi=0;vi<viirs.length;vi++){const m=modis[mi],v=viirs[vi];if(!m.properties?.date||m.properties.date!==v.properties?.date)continue;const distance=haversineMeters(m.geometry.coordinates,v.geometry.coordinates);if(distance<=maxDistanceMeters)candidates.push({mi,vi,distance});}}candidates.sort((a,b)=>a.distance-b.distance||a.mi-b.mi||a.vi-b.vi);const usedModis=new Set(),usedViirs=new Set(),events=[];for(const pair of candidates){if(usedModis.has(pair.mi)||usedViirs.has(pair.vi))continue;usedModis.add(pair.mi);usedViirs.add(pair.vi);const m=modis[pair.mi],v=viirs[pair.vi],mp=m.geometry.coordinates,vp=v.geometry.coordinates,makeMeta=f=>({satellite:f.properties?.satellite??null,timeUtc:f.properties?.timeUtc??null,observedAt:f.properties?.observedAt??null,confidence:f.properties?.confidence??null,confidenceLabel:f.properties?.confidenceLabel??null,powerMw:f.properties?.powerMw??null});events.push({id:'paired-'+pair.mi+'-'+pair.vi,date:m.properties.date,coordinates:[(mp[0]+vp[0])/2,(mp[1]+vp[1])/2],sources:['MODIS','VIIRS'],harmonization:'coincident',distanceMeters:Math.round(pair.distance),satellites:{MODIS:m.properties?.satellite??null,VIIRS:v.properties?.satellite??null},observations:{MODIS:makeMeta(m),VIIRS:makeMeta(v)},confidence:{MODIS:m.properties?.confidence??m.properties?.confidenceLabel??null,VIIRS:v.properties?.confidence??v.properties?.confidenceLabel??null},powerMw:{MODIS:m.properties?.powerMw??null,VIIRS:v.properties?.powerMw??null}});}modis.forEach((m,i)=>{if(usedModis.has(i))return;const p=m.properties||{};events.push({id:'modis-'+i,date:p.date,coordinates:m.geometry.coordinates,sources:['MODIS'],harmonization:'single-sensor',distanceMeters:null,satellites:{MODIS:p.satellite??null},observations:{MODIS:{satellite:p.satellite??null,timeUtc:p.timeUtc??null,observedAt:p.observedAt??null,confidence:p.confidence??null,confidenceLabel:p.confidenceLabel??null,powerMw:p.powerMw??null}},confidence:{MODIS:p.confidence??p.confidenceLabel??null},powerMw:{MODIS:p.powerMw??null}});});viirs.forEach((v,i)=>{if(usedViirs.has(i))return;const p=v.properties||{};events.push({id:'viirs-'+i,date:p.date,coordinates:v.geometry.coordinates,sources:['VIIRS'],harmonization:'single-sensor',distanceMeters:null,satellites:{VIIRS:p.satellite??null},observations:{VIIRS:{satellite:p.satellite??null,timeUtc:p.timeUtc??null,observedAt:p.observedAt??null,confidence:p.confidence??null,confidenceLabel:p.confidenceLabel??null,powerMw:p.powerMw??null}},confidence:{VIIRS:p.confidence??p.confidenceLabel??null},powerMw:{VIIRS:p.powerMw??null}});});return events.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));}
 export function aggregateFireDays(events=[]){const totals=new Map();for(const event of events){const day=event.date;if(day)totals.set(day,(totals.get(day)||0)+1);}return[...totals.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([date,events])=>({date,events}));}
