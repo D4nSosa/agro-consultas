@@ -30,6 +30,7 @@ _cache_lock = threading.Lock()
 # Explicit allow-list: request parameters can never choose an arbitrary host.
 OGC_SERVICES = {
     "idecor": {"wms": IDECOR_OWS, "wfs": IDECOR_OWS, "scope": "Córdoba, Argentina"},
+    "idecorr": {"wms": "https://geoportal.corrientes.gob.ar/geoserver/wms", "scope": "Corrientes, Argentina"},
     "conae_saocom": {"wms": CONAE_SAOCOM_WMS, "scope": "Productos SAOCOM publicados por CONAE; cobertura según capa"},
     "conae_smap": {"wms": CONAE_SMAP_WMS, "scope": "Humedad superficial SMAP/SMOS; cobertura según capa"},
 }
@@ -61,6 +62,7 @@ SOURCE_REFERENCE = {
         "name": "Infraestructura de Datos Espaciales de Corrientes",
         "family": "regional_territory",
         "status": "OGC_DISCOVERY",
+        "wms": "https://geoportal.corrientes.gob.ar/geoserver/wms",
         "scope": "Provincia de Corrientes, Argentina",
         "limitations": ["Fuente provincial complementaria; no representa cobertura nacional."]
     },
