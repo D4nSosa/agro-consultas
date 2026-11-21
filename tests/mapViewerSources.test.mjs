@@ -13,5 +13,7 @@ test('official map layer discovery keeps only thematic layers relevant to existi
   assert.equal(isRelevantOfficialLayer('conae_saocom', { name: 'HumedadDeSuelos:DSS_MSM_1' }), true);
   assert.equal(isRelevantOfficialLayer('conae_saocom', { name: 'HumedadDeSuelos:DSS_MSMKR_1' }), true);
   assert.equal(isRelevantOfficialLayer('conae_smap', { name: 'HumedadDeSuelos:SMAP_Pasada_Ascendente' }), true);
+  assert.equal(isRelevantOfficialLayer('conae_fuel', { name: 'AlertaTemprana:INC_SIARTIVGEOL89_DC_1' }), true);
+  assert.equal(isRelevantOfficialLayer('conae_burned', { title: 'Área quemada AQM' }), true);
   assert.equal(isRelevantOfficialLayer('unknown', { name: 'anything' }), false);
 });
