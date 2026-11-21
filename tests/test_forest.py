@@ -101,10 +101,11 @@ def test_api_sar_radar_calculation():
     assert data["status"] in ["REAL", "UNAVAILABLE"]
     if data["status"] == "REAL":
         assert "stats" in data
-        assert "vv_mean_dB" in data["stats"]
-        assert "vh_mean_dB" in data["stats"]
-        assert "vh_vv_ratio_dB" in data["stats"]
-        assert "interpretation" in data
+        assert "vv_mean_dn" in data["stats"]
+        assert "vh_mean_dn" in data["stats"]
+        assert data["stats"]["unit"] == "DN"
+        assert data["calibrationStatus"] == "RAW_DN_UNCALIBRATED"
+        assert data["interpretation"]["status"] == "NOT_INFERRED"
 
 
 def test_api_sar_tries_next_scene_when_first_raster_fails(monkeypatch):
@@ -140,10 +141,13 @@ def test_api_sar_tries_next_scene_when_first_raster_fails(monkeypatch):
         if "first" in vv_url:
             return None, "No hay píxeles válidos"
         return {
-            "vv_mean_dB": -12.0,
-            "vh_mean_dB": -20.0,
-            "vh_vv_ratio_dB": -8.0,
+            "vv_mean_dn": 1250.0,
+            "vh_mean_dn": 320.0,
+            "vvSampleCount": 10,
+            "vhSampleCount": 10,
             "sampleCount": 10,
+            "unit": "DN",
+            "calibrationStatus": "RAW_DN_UNCALIBRATED",
             "isPoint": False
         }, None
     monkeypatch.setattr(forest_backend, "process_cog_raster_sar_cropped", fake_process)
