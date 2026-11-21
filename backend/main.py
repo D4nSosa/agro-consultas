@@ -1424,7 +1424,7 @@ def get_sar_analysis(req: SARAnalysisRequest):
                 "productId": prod_id,
                 "orbitState": orbit_state,
                 "instrumentMode": instrument_mode,
-                "spatialResolution": props.get("sar:resolution_range"),
+                "sarResolutionRange": props.get("sar:resolution_range"),
                 "crs": "EPSG:4326",
                 "geometry": feat.get("geometry"),
                 "coverage": feat.get("bbox"),
