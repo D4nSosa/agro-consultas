@@ -414,3 +414,42 @@ def test_api_ndvi_landsat_8_point_uses_qa_pixel_mask():
     assert result["spatialResolution"] == 30
     assert result["reflectanceScalingApplied"] is True
     assert result["stats"]["qaPixelFilterApplied"] is True
+
+
+
+def test_planetary_computer_landsat_assets_are_signed_with_cached_public_sas_token(monkeypatch):
+    import json
+    import backend.main as forest_backend
+
+    forest_backend.PLANETARY_COMPUTER_SAS_CACHE.update({"token": None, "expires_at": None})
+    calls = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, _limit=0):
+            return json.dumps({
+                "token": "se=2030-01-01T00%3A00%3A00Z&sp=rl&sig=test",
+                "msft:expiry": "2030-01-01T00:00:00Z"
+            }).encode("utf-8")
+
+    def fake_urlopen(request, timeout=0):
+        calls.append(request.full_url)
+        return FakeResponse()
+
+    monkeypatch.setattr(forest_backend.urllib.request, "urlopen", fake_urlopen)
+    first = forest_backend._sign_planetary_computer_asset(
+        "https://landsateuwest.blob.core.windows.net/landsat-c2/level-2/test/SR_B4.TIF"
+    )
+    second = forest_backend._sign_planetary_computer_asset(
+        "https://landsateuwest.blob.core.windows.net/landsat-c2/level-2/test/SR_B5.TIF"
+    )
+    untouched = forest_backend._sign_planetary_computer_asset("https://example.test/other.tif")
+
+    assert first.endswith("?se=2030-01-01T00%3A00%3A00Z&sp=rl&sig=test")
+    assert second.endswith("?se=2030-01-01T00%3A00%3A00Z&sp=rl&sig=test")
+    assert untouched == "https://example.test/other.tif"
+    assert len(calls) == 1
+    assert "api/sas/v1/token/landsateuwest/landsat-c2" in calls[0]
