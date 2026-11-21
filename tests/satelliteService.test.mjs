@@ -75,7 +75,7 @@ test('una escena STAC sin estadísticas no se presenta como NDVI disponible', as
   }
 });
 
-test('la consulta WMS de INTA se identifica como cartográfica y no puntual', async t => {
+test('la consulta nacional INTA devuelve pH modelado y salinidad sin interpretar como cartografía', async t => {
   const { fetchINTASoilData } = await import('../services/sources/intaService.js');
   const originalFetch = globalThis.fetch;
   const originalStorage = globalThis.localStorage;
@@ -87,7 +87,20 @@ test('la consulta WMS de INTA se identifica como cartográfica y no puntual', as
   };
   globalThis.fetch = async () => ({
     ok: true,
-    json: async () => ({ features: [{ properties: { tipo_suelo: 'Clasificación cartográfica' } }] })
+    json: async () => ({
+      status: 'CARTOGRAPHIC',
+      source: 'INTA-CIRN',
+      sourceUrl: 'https://geo-nodo05.inta.gob.ar/geoserver/wms',
+      retrievedAt: '2026-11-21T12:00:00Z',
+      sampleMethod: 'Punto de consulta; representa el centroide',
+      limitations: ['Pixel 1 km; no es análisis de laboratorio'],
+      products: {
+        ph_0_30: { value: 6.4, resolution: 1000, quality: { rmse: 0.84, r2: 0.456 } },
+        ph_30_100: { value: 7.1, resolution: 1000, quality: { rmse: 0.80, r2: 0.523 } },
+        salinity_0_30: { value: null, rawClass: 1 },
+        salinity_30_100: { value: null, rawClass: 0 }
+      }
+    })
   });
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -97,5 +110,10 @@ test('la consulta WMS de INTA se identifica como cartográfica y no puntual', as
   const result = await fetchINTASoilData(-27, -56, null);
   assert.equal(result.status, 'CARTOGRAPHIC');
   assert.equal(result.evidenceType, 'CARTOGRAPHIC');
+  assert.equal(result.ph_0_30, 6.4);
+  assert.equal(result.ph_30_100, 7.1);
+  assert.equal(result.salinidad_0_30_raw, 1);
+  assert.equal(result.salinidad, null);
+  assert.equal(result.fechaActualizacion, null);
   assert.notEqual(result.status, 'REAL');
 });
