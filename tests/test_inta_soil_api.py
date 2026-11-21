@@ -126,3 +126,20 @@ def test_inta_national_soil_api_rejects_invalid_coordinates():
     with pytest.raises(HTTPException) as exc:
         backend.get_inta_national_soil_data(lat=91.0, lng=0.0)
     assert exc.value.status_code == 400
+
+def test_inta_national_soil_api_rejects_non_finite_raw_values(monkeypatch):
+    backend.INTA_SOIL_CACHE.clear()
+    values = _values(ph_top=float("nan"), ph_deep=float("inf"), sal_top=float("nan"), sal_deep=float("-inf"))
+    monkeypatch.setattr(
+        backend.urllib.request,
+        "urlopen",
+        _fake_inta_urlopen(values, [])
+    )
+
+    result = backend.get_inta_national_soil_data(lat=-27.0, lng=-58.0)
+
+    assert result["status"] == "UNAVAILABLE"
+    for product in result["products"].values():
+        assert product["value"] is None
+        assert product["rawValue"] is None
+        assert product["rawClass"] is None
