@@ -15,6 +15,13 @@ test('los metadatos ausentes permanecen ausentes y no se convierten en cobertura
   assert.equal(metadata.temporalResolution, null);
   assert.equal(metadata.acquisitionDate, null);
   assert.equal(metadata.updateDate, null);
+  assert.equal(metadata.sensor, null);
+  assert.equal(metadata.product, null);
+  assert.equal(metadata.geometry, null);
+  assert.equal(metadata.coverage, null);
+  assert.equal(metadata.acquiredAt, null);
+  assert.equal(metadata.publishedAt, null);
+  assert.equal(metadata.retrievedAt, null);
   assert.equal(metadata.crs, null);
   assert.equal(metadata.license, null);
   assert.equal(metadata.methodology, null);
@@ -32,7 +39,13 @@ test('DataPoint conserva valor cero y solo declara metadatos entregados explíci
     temporalResolution: 'adquisición puntual',
     acquisitionDate: '2026-11-20',
     crs: 'EPSG:4326',
-    license: 'CC BY 4.0'
+    license: 'CC BY 4.0',
+    sensor: 'Sentinel-2',
+    product: 'L2A',
+    geometry: { type: 'Point', coordinates: [-58, -27] },
+    coverage: 'AOI consultada',
+    quality: { cloudCover: 12 },
+    publishedAt: '2026-11-19'
   });
   assert.equal(point.available, true);
   assert.equal(point.value, 0);
@@ -41,6 +54,12 @@ test('DataPoint conserva valor cero y solo declara metadatos entregados explíci
   assert.equal(point.metadata.acquisitionDate, '2026-11-20');
   assert.equal(point.metadata.crs, 'EPSG:4326');
   assert.equal(point.metadata.license, 'CC BY 4.0');
+  assert.equal(point.metadata.sensor, 'Sentinel-2');
+  assert.equal(point.metadata.product, 'L2A');
+  assert.deepEqual(point.metadata.geometry, { type: 'Point', coordinates: [-58, -27] });
+  assert.equal(point.metadata.coverage, 'AOI consultada');
+  assert.deepEqual(point.metadata.quality, { cloudCover: 12 });
+  assert.equal(point.metadata.publishedAt, '2026-11-19');
   assert.equal(point.metadata.temporalResolution, 'adquisición puntual');
 });
 
