@@ -202,6 +202,12 @@ def search_stac_catalog(req: STACSearchRequest):
             if not red_asset or not nir_asset or not scl_asset:
                 continue
 
+            red_href = red_asset.get("href")
+            nir_href = nir_asset.get("href")
+            scl_href = scl_asset.get("href")
+            if not red_href or not nir_href or not scl_href:
+                continue
+
             red_scale, red_offset, red_resolution = _stac_asset_calibration(red_asset)
             nir_scale, nir_offset, nir_resolution = _stac_asset_calibration(nir_asset)
             if None in (red_scale, red_offset, nir_scale, nir_offset):
@@ -233,9 +239,9 @@ def search_stac_catalog(req: STACSearchRequest):
                 "quality": {"eo:cloud_cover": cloud_cover_val},
                 "license": None,
                 "assets": {
-                    "red": red_asset.get("href"),
-                    "nir": nir_asset.get("href"),
-                    "scl": scl_asset.get("href"),
+                    "red": red_href,
+                    "nir": nir_href,
+                    "scl": scl_href,
                     "redScale": red_scale,
                     "redOffset": red_offset,
                     "nirScale": nir_scale,
@@ -543,7 +549,7 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
             # Ampliar rango si no hay escena exacta
             target_dt = datetime.datetime.strptime(target_date, "%Y-%m-%d")
             s_range = (target_dt - datetime.timedelta(days=45)).strftime("%Y-%m-%d")
-            e_range = (target_dt + datetime.timedelta(days=45)).strftime("%Y-%m-%d")
+            e_range = target_dt.strftime("%Y-%m-%d")
             stac_res = search_stac_catalog(STACSearchRequest(geometry=req.geometry, startDate=s_range, endDate=e_range, maxCloudCover=30.0))
 
         best = stac_res.get("bestProduct") if stac_res.get("success") else None
@@ -580,9 +586,8 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
 
                     return {
                         "indicator": "NDVI (Normalized Difference Vegetation Index)",
-                        "formula": "NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)",
+                        "formula": "NDVI = (NIR_reflectance - RED_reflectance) / (NIR_reflectance + RED_reflectance); reflectance = DN × scale + offset",
                         "bands": {"NIR": "B08 (842 nm)", "RED": "B04 (665 nm)"},
-                        "spatialResolution": f"{best.get('resolution') or 10} metros",
                         "date": actual_date,
                         "productId": prod_id,
                         "areaHectares": area_ha,
@@ -591,11 +596,14 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                         "sensor": best.get("sensor"),
                         "product": best.get("product"),
                         "spatialResolution": best.get("resolution"),
+                        "resolutionUnit": "m",
+                        "reflectanceScalingApplied": True,
+                        "qualityMaskType": "Sentinel-2 SCL",
                         "acquiredAt": best.get("acquiredAt"),
                         "publishedAt": best.get("publishedAt"),
                         "quality": best.get("quality"),
                         "license": best.get("license"),
-                        "cloudCover": f"{cloud_pct}%",
+                        "cloudCover": f"{cloud_pct}%" if cloud_pct is not None else "NO REGISTRADO",
                         "stats": stats,
                         "decisionVigor": {
                             "clasificacionSimple": v_class,
