@@ -1,224 +1,191 @@
 /**
- * satelliteService.js - Cliente STAC para el catálogo público AWS Earth Search (Sentinel-2 L2A COGs)
- * Endpoint: https://earth-search.aws.element84.com/v1/
+ * Cliente satelital del módulo Forestal.
+ * El backend centraliza Earth Search STAC, conserva radiometría y filtra escenas por geometría exacta.
  */
 
-const EARTH_SEARCH_STAC_URL = 'https://earth-search.aws.element84.com/v1/search';
-const PUBLIC_CATALOG_NAME = 'AWS Earth Search (Sentinel-2 L2A COGs Public Catalog)';
+const BACKEND_STAC_ENDPOINT = '/api/forest/stac';
+const PUBLIC_CATALOG_NAME = 'AWS Earth Search STAC (consulta backend)';
 
-/**
- * Busca imágenes Sentinel-2 L2A en el catálogo STAC para un lote GeoJSON y rango de fechas.
- * Retorna datos exclusivamente reales. Si no se encuentran escenas o falla la consulta,
- * devuelve status NO DISPONIBLE sin fabricar productos ficticios.
- */
-/**
- * Busca imágenes Sentinel-2 L2A en el catálogo STAC alrededor de una fecha objetivo (ventana configurable).
- */
-export async function searchSentinelImagesByTargetDate(geometry, targetDateStr, windowDays = 90, maxCloudCover = 30) {
+export async function searchSentinelImagesByTargetDate(
+  geometry,
+  targetDateStr,
+  windowDays = 90,
+  maxCloudCover = 30,
+  collection = 'sentinel-2-l2a'
+) {
   const targetDate = new Date(targetDateStr);
   if (isNaN(targetDate.getTime())) {
     return unavailableResult(`Fecha objetivo inválida: "${targetDateStr}"`, targetDateStr, windowDays);
   }
 
-  // Búsqueda progresiva ampliando la ventana temporal si no hay resultados en ventanas iniciales
   const windowsToTry = [windowDays, Math.max(windowDays, 60), Math.max(windowDays, 90), 120];
   const uniqueWindows = [...new Set(windowsToTry)];
-
   let searchRes = null;
   let effectiveWindow = windowDays;
   let startDate = '';
   let endDate = '';
 
-  for (const wDays of uniqueWindows) {
-    effectiveWindow = wDays;
-    startDate = new Date(targetDate.getTime() - wDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    endDate = new Date(targetDate.getTime() + wDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  for (const days of uniqueWindows) {
+    effectiveWindow = days;
+    startDate = new Date(targetDate.getTime() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // No se consultan escenas posteriores a la fecha objetivo.
+    endDate = targetDateStr;
 
-    searchRes = await searchSentinelImages(geometry, startDate, endDate, maxCloudCover);
-    if (searchRes.success && searchRes.products && searchRes.products.length > 0) {
-      break;
-    }
-    // Si no se encuentran escenas con el umbral inicial de nubosidad, probar flexibilizando ligeramente la nubosidad en ventanas mayores
-    if (wDays >= 90) {
-      searchRes = await searchSentinelImages(geometry, startDate, endDate, 50);
-      if (searchRes.success && searchRes.products && searchRes.products.length > 0) {
-        break;
-      }
+    searchRes = await searchSentinelImages(geometry, startDate, endDate, maxCloudCover, collection);
+    if (searchRes.success && searchRes.products?.length) break;
+
+    if (days >= 90 && maxCloudCover < 50) {
+      searchRes = await searchSentinelImages(geometry, startDate, endDate, 50, collection);
+      if (searchRes.success && searchRes.products?.length) break;
     }
   }
 
-  if (!searchRes || !searchRes.success || !searchRes.products || searchRes.products.length === 0) {
+  if (!searchRes?.success || !searchRes.products?.length) {
     return {
       ...searchRes,
       targetDate: targetDateStr,
       windowDays: effectiveWindow,
       windowRange: `${startDate} a ${endDate}`,
-      message: `NO DISPONIBLE — No se encontraron escenas Sentinel-2 en la ventana de ±${effectiveWindow} días (${startDate} a ${endDate}) respecto a la fecha objetivo ${targetDateStr}.`
+      message: `NO DISPONIBLE — No se encontraron escenas ${collection} en la ventana histórica de ${effectiveWindow} días (${startDate} a ${endDate}) respecto a ${targetDateStr}.`
     };
   }
 
-  // Calcular diferencia en días respecto a la fecha objetivo para cada escena
-  const productsWithDelta = searchRes.products.map(prod => {
-    const prodDate = new Date(prod.date);
-    const diffMs = Math.abs(prodDate.getTime() - targetDate.getTime());
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-    return {
-      ...prod,
-      targetDate: targetDateStr,
-      daysFromTarget: diffDays
-    };
+  const productsWithDelta = searchRes.products.map(product => {
+    const productDate = new Date(product.date);
+    const diffDays = Math.round(Math.abs(productDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
+    return { ...product, targetDate: targetDateStr, daysFromTarget: diffDays };
   });
 
-  // Criterio explícito de selección: menor nubosidad y cercanía a fecha objetivo (desconocidos al final)
   productsWithDelta.sort((a, b) => {
-    const ccA = a.cloudCover !== null ? a.cloudCover : 999.0;
-    const ccB = b.cloudCover !== null ? b.cloudCover : 999.0;
-    if (Math.abs(ccA - ccB) > 5) {
-      return ccA - ccB;
-    }
+    const cloudA = a.cloudCover !== null ? a.cloudCover : 999;
+    const cloudB = b.cloudCover !== null ? b.cloudCover : 999;
+    if (Math.abs(cloudA - cloudB) > 5) return cloudA - cloudB;
     return a.daysFromTarget - b.daysFromTarget;
   });
 
-  const best = productsWithDelta[0];
-
   return {
-    success: true,
-    source: PUBLIC_CATALOG_NAME,
-    catalogUrl: 'https://earth-search.aws.element84.com/v1/',
-    productsCount: productsWithDelta.length,
+    ...searchRes,
+    source: searchRes.source || PUBLIC_CATALOG_NAME,
     targetDate: targetDateStr,
     windowDays: effectiveWindow,
     windowRange: `${startDate} a ${endDate}`,
-    cloudCoverThreshold: searchRes.cloudCoverThreshold ?? maxCloudCover,
-    bestProduct: best,
+    bestProduct: productsWithDelta[0],
     products: productsWithDelta
   };
 }
 
-export async function searchSentinelImages(geometry, startDate, endDate, maxCloudCover = 30) {
+/**
+ * Consulta el endpoint STAC del backend. No replica filtros ni inventa resoluciones/radiometría.
+ */
+export async function searchSentinelImages(
+  geometry,
+  startDate,
+  endDate,
+  maxCloudCover = 30,
+  collection = 'sentinel-2-l2a'
+) {
   try {
     const geojson = geometry?.type === 'Feature' ? geometry.geometry : geometry;
     if (!geojson || !['Polygon', 'MultiPolygon'].includes(geojson.type)) {
-      return unavailableResult('La búsqueda Sentinel-2 requiere un polígono GeoJSON válido.');
+      return unavailableResult('La búsqueda satelital requiere un polígono GeoJSON válido.');
     }
-
-    const searchBody = {
-      collections: ['sentinel-2-l2a'],
-      intersects: geojson,
-      datetime: `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
-      limit: 10,
-      query: {
-        'eo:cloud_cover': {
-          lte: maxCloudCover
-        }
-      }
-    };
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
-    let respAws;
+    let response;
     try {
-      respAws = await fetch(EARTH_SEARCH_STAC_URL, {
+      response = await fetch(BACKEND_STAC_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json' },
-        body: JSON.stringify(searchBody),
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          geometry: geojson,
+          startDate,
+          endDate,
+          maxCloudCover,
+          collection
+        }),
         signal: controller.signal
       });
     } finally {
       clearTimeout(timeout);
     }
 
-    if (!respAws.ok) {
-      return unavailableResult(`Error de servicio STAC (HTTP ${respAws.status})`);
+    if (!response.ok) {
+      return unavailableResult(`Error de servicio STAC backend (HTTP ${response.status}).`);
     }
 
-    const dataAws = await respAws.json();
-    const featuresAws = dataAws.features || [];
-
-    if (!featuresAws.length) {
-      return unavailableResult(`No se encontraron imágenes Sentinel-2 reales con nubosidad <= ${maxCloudCover}% para el período seleccionado (${startDate} a ${endDate}).`);
+    const data = await response.json();
+    if (!data.success || !Array.isArray(data.products) || data.products.length === 0) {
+      return {
+        ...unavailableResult(data.message || 'No se encontraron escenas satelitales válidas.'),
+        collection,
+        cloudCoverThreshold: maxCloudCover,
+        calibrationRejectedCount: data.calibrationRejectedCount || 0
+      };
     }
 
-    const productsAws = featuresAws.map(feat => parseSTACItem(feat, 'AWS Earth Search (Sentinel-2 L2A COG)'));
-    productsAws.sort((a, b) => (a.cloudCover !== null ? a.cloudCover : 999.0) - (b.cloudCover !== null ? b.cloudCover : 999.0));
-
+    const products = data.products.map(normalizeBackendProduct);
     return {
       success: true,
-      source: PUBLIC_CATALOG_NAME,
+      source: data.source || PUBLIC_CATALOG_NAME,
       catalogUrl: 'https://earth-search.aws.element84.com/v1/',
-      productsCount: productsAws.length,
+      collection,
+      productsCount: products.length,
       cloudCoverThreshold: maxCloudCover,
-      bestProduct: productsAws[0],
-      products: productsAws
+      calibrationRejectedCount: data.calibrationRejectedCount || 0,
+      bestProduct: products[0],
+      products
     };
-
-  } catch (err) {
-    console.error('[satelliteService] Error al consultar catálogo STAC:', err);
-    const detail = err?.name === 'AbortError' ? 'La consulta STAC superó el límite de 20 segundos.' : `Error de conexión: ${err.message}`;
-    return unavailableResult(`No se pudo consultar el catálogo Sentinel-2. ${detail}`);
+  } catch (error) {
+    const detail = error?.name === 'AbortError'
+      ? 'La consulta STAC superó el límite de 20 segundos.'
+      : `Error de conexión: ${error.message}`;
+    return unavailableResult(`No se pudo consultar el catálogo satelital. ${detail}`);
   }
 }
 
-/**
- * Mapea un elemento STAC individual a la estructura normalizada de trazabilidad
- */
-function parseSTACItem(item, customSource = null) {
-  const props = item.properties || {};
-  const assets = item.assets || {};
-
-  const rawCloud = props['eo:cloud_cover'];
-  const cloudCover = (typeof rawCloud === 'number' && !isNaN(rawCloud))
-    ? Math.round(rawCloud * 10) / 10
-    : null;
-
-  const date = props.datetime
-    ? props.datetime.split('T')[0]
-    : 'NO DISPONIBLE';
-
-  const productId = item.id || 'NO DISPONIBLE';
-
+function normalizeBackendProduct(product) {
+  const assets = product.assets || {};
+  const resolution = product.resolution;
   return {
-    id: productId,
-    date: date,
-    datetime: props.datetime || null,
-    cloudCover: cloudCover,
-    cloudCoverDisplay: cloudCover !== null ? `${cloudCover}%` : 'NO REGISTRADO',
-    collection: 'sentinel-2-l2a',
-    source: customSource || 'Sentinel-2 L2A Public STAC',
-    productType: 'Level-2A (Bottom of Atmosphere Reflectance)',
-    spatialResolution: '10 metros',
-    bands: [
-      { name: 'B04', description: 'Red (665 nm)', resolution: '10m' },
-      { name: 'B08', description: 'Near Infrared / NIR (842 nm)', resolution: '10m' }
-    ],
+    ...product,
+    productType: product.product,
+    spatialResolution: resolution !== null && resolution !== undefined ? `${resolution} metros` : 'NO DISPONIBLE',
+    bands: (product.bands || []).map(name => ({
+      name,
+      description: name,
+      resolution: resolution !== null && resolution !== undefined ? `${resolution}m` : 'NO DISPONIBLE'
+    })),
     assets: {
-      thumbnail: assets.thumbnail?.href || assets.preview?.href || null,
-      visual: assets.visual?.href || assets.rendered_preview?.href || null,
-      b04: assets.B04_10m?.href || assets.B04?.href || null,
-      b08: assets.B08_10m?.href || assets.B08?.href || assets.nir?.href || null,
-      scl: assets.scl?.href || assets.SCL?.href || null
+      ...assets,
+      b04: assets.red || null,
+      b08: assets.nir || null,
+      thumbnail: assets.thumbnail || null,
+      visual: assets.visual || null,
+      scl: assets.scl || null,
+      qaPixel: assets.qaPixel || null
     },
-    bbox: item.bbox || null,
-    stacSelf: item.links?.find(l => l.rel === 'self')?.href || null
+    bbox: product.geometry?.bbox || null,
+    stacSelf: null
   };
 }
 
 /**
- * Consulta la API Backend para el procesamiento de imágenes Radar SAR Sentinel-1 (Banda C penetrante de nubes y todo clima)
+ * Consulta la API Backend para el procesamiento de imágenes Radar SAR Sentinel-1.
  */
 export async function getSentinel1SarAnalysis(geometry, startDate = null, endDate = null) {
   try {
-    const resp = await fetch('/api/forest/sar', {
+    const response = await fetch('/api/forest/sar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ geometry, startDate, endDate })
     });
-    if (!resp.ok) {
-      return { status: 'UNAVAILABLE', message: `HTTP ${resp.status} - No se pudo conectar con la API Radar SAR.` };
+    if (!response.ok) {
+      return { status: 'UNAVAILABLE', message: `HTTP ${response.status} - No se pudo conectar con la API Radar SAR.` };
     }
-    return await resp.json();
-  } catch (err) {
-    return { status: 'UNAVAILABLE', message: `Error de red al consultar Radar SAR: ${err.message}` };
+    return await response.json();
+  } catch (error) {
+    return { status: 'UNAVAILABLE', message: `Error de red al consultar Radar SAR: ${error.message}` };
   }
 }
 
@@ -228,8 +195,8 @@ function unavailableResult(message, targetDate = null, windowDays = null) {
     source: PUBLIC_CATALOG_NAME,
     catalogUrl: 'https://earth-search.aws.element84.com/v1/',
     productsCount: 0,
-    targetDate: targetDate,
-    windowDays: windowDays,
+    targetDate,
+    windowDays,
     bestProduct: null,
     products: [],
     message: message || 'NO DISPONIBLE'
