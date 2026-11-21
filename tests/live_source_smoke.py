@@ -190,6 +190,30 @@ def check_stac_point(province: str, coords: dict):
                 features = data.get("features", [])
                 result["items_returned"] = len(features)
                 result["sample_item_ids"] = [feature.get("id") for feature in features[:1]]
+                sample_metadata = []
+                for feature in features[:1]:
+                    props = feature.get("properties", {})
+                    asset_keys = ("red", "nir", "nir08", "scl", "qa_pixel", "cloud_qa", "vv", "vh")
+                    assets = feature.get("assets", {})
+                    sample_metadata.append({
+                        "collection": feature.get("collection"),
+                        "properties": {
+                            key: props.get(key) for key in (
+                                "datetime", "platform", "eo:cloud_cover",
+                                "landsat:cloud_cover_land", "landsat:cloud_cover",
+                                "landsat:wrs_path", "landsat:wrs_row"
+                            ) if props.get(key) is not None
+                        },
+                        "assets": {
+                            key: {
+                                "present": key in assets,
+                                "type": assets.get(key, {}).get("type"),
+                                "roles": assets.get(key, {}).get("roles"),
+                                "raster_bands": assets.get(key, {}).get("raster:bands")
+                            } for key in asset_keys if key in assets
+                        }
+                    })
+                result["sample_item_metadata"] = sample_metadata
             except Exception as exc:
                 result["status"] = "INVALID_RESPONSE"
                 result["error"] = f"{type(exc).__name__}: {exc}"
