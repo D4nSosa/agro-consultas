@@ -84,7 +84,7 @@ def request_range(url: str, timeout: int = 20):
                 "content_range": response.headers.get("Content-Range"),
                 "range_supported": response.status == 206,
                 "first_bytes_hex": body[:16].hex(),
-                "looks_like_geotiff": body[:4] in (b"II*\\x00", b"MM\\x00*"),
+                "looks_like_geotiff": body[:4] in (b"II*\x00", b"MM\x00*"),
                 "elapsed_ms": round((time.monotonic() - started) * 1000),
             }
     except urllib.error.HTTPError as exc:
