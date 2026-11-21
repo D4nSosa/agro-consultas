@@ -76,3 +76,30 @@ def test_http_401_is_authentication_failure_not_quota(monkeypatch):
 
     assert result["valid"] is False
     assert result["rateLimited"] is False
+
+def test_generic_transaction_error_is_not_misclassified_as_quota():
+    message = fire._firms_rejection_message(403, "Transaction processing failed.")
+    assert "límite temporal" not in message.lower()
+    assert "validez de la map_key queda sin confirmar" in message.lower()
+
+
+def test_empty_mapkey_status_counters_do_not_confirm_authentication(monkeypatch):
+    _reset(monkeypatch)
+
+    def status_without_counters(request, timeout=10):
+        return FakeResponse(json.dumps({
+            "transaction_limit": None,
+            "current_transactions": None,
+            "transaction_interval": ""
+        }).encode())
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", status_without_counters)
+    monkeypatch.setattr(
+        fire,
+        "_fetch_firms_availability",
+        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("NASA respondió HTTP 403 sin detalle."))
+    )
+    result = fire.historical_fires_status()
+
+    assert result["valid"] is None
+    assert result["rateLimited"] is False
