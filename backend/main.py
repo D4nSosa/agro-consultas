@@ -13,6 +13,7 @@ import math
 import datetime
 import urllib.request
 import urllib.parse
+import concurrent.futures
 import json
 import io
 import numpy as np
@@ -48,6 +49,199 @@ app.add_middleware(
 )
 
 EARTH_SEARCH_STAC_URL = "https://earth-search.aws.element84.com/v1/search"
+
+INTA_CIRN_WMS_URL = "https://geo-nodo05.inta.gob.ar/geoserver/wms"
+INTA_SOIL_CACHE = {}
+INTA_SOIL_CACHE_TTL_SECONDS = 6 * 60 * 60
+
+INTA_SOIL_PRODUCTS = {
+    "ph_0_30": {
+        "layer": "geonode:ph_0_30_nuevo_recorte_m_4d4cbbd459875375ae3e856e2870841f",
+        "title": "Argentina - pH del suelo 0-30 cm",
+        "depth": "0-30 cm",
+        "unit": "pH",
+        "resolution": 1000,
+        "rmse": 0.84,
+        "r2": 0.456,
+        "bounds": {"west": -74.82579, "south": -55.11495, "east": -48.56087, "north": -21.57148},
+        "kind": "ph"
+    },
+    "ph_30_100": {
+        "layer": "geonode:ph_30_100_nuevo_recorte_m_cbccd7b512bb4f943ad9672e961bee3d",
+        "title": "Argentina - pH del suelo 30-100 cm",
+        "depth": "30-100 cm",
+        "unit": "pH",
+        "resolution": 1000,
+        "rmse": 0.80,
+        "r2": 0.523,
+        "bounds": {"west": -74.52172, "south": -56.12095, "east": -47.16572, "north": -21.34695},
+        "kind": "ph"
+    },
+    "salinity_0_30": {
+        "layer": "geonode:suelos_salinos_0_30_recorte_9622e0e127b7ae1d157c7f49d41605f3",
+        "title": "Argentina - Suelos afectados por sales 0-30 cm",
+        "depth": "0-30 cm",
+        "unit": None,
+        "resolution": None,
+        "bounds": {"west": -74.52172, "south": -56.12095, "east": -47.16572, "north": -21.34695},
+        "kind": "salinity"
+    },
+    "salinity_30_100": {
+        "layer": "geonode:suelos_salinos_30_100_recorte_437dcf998c66ee96455f4cb196eda5b1",
+        "title": "Argentina - Suelos afectados por sales 30-100 cm",
+        "depth": "30-100 cm",
+        "unit": None,
+        "resolution": None,
+        "bounds": {"west": -74.52172, "south": -56.12095, "east": -47.16572, "north": -21.34695},
+        "kind": "salinity"
+    }
+}
+
+
+def _query_inta_soil_pixel(product_key, product, lat, lng):
+    """Consulta un único píxel WMS. Conserva valores crudos y no interpreta clases sin leyenda."""
+    delta = 0.01
+    params = urllib.parse.urlencode({
+        "service": "WMS",
+        "version": "1.1.1",
+        "request": "GetFeatureInfo",
+        "layers": product["layer"],
+        "query_layers": product["layer"],
+        "styles": "",
+        "srs": "EPSG:4326",
+        "bbox": f"{lng - delta},{lat - delta},{lng + delta},{lat + delta}",
+        "width": "101",
+        "height": "101",
+        "x": "50",
+        "y": "50",
+        "format": "image/png",
+        "info_format": "application/json",
+        "feature_count": "1"
+    })
+    request = urllib.request.Request(
+        f"{INTA_CIRN_WMS_URL}?{params}",
+        headers={"Accept": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            payload = json.loads(response.read(1_000_000).decode("utf-8"))
+        features = payload.get("features", [])
+        if not features:
+            return {"status": "NO_DATA", "value": None, "rawValue": None}
+        properties = features[0].get("properties") or {}
+        raw_value = properties.get("GRAY_INDEX")
+        try:
+            raw_value = float(raw_value) if raw_value is not None else None
+        except (TypeError, ValueError):
+            raw_value = None
+
+        if raw_value is None:
+            return {"status": "NO_VALUE", "value": None, "rawValue": None}
+
+        if product["kind"] == "ph":
+            # pH outside the physically meaningful 0–14 interval is a NoData/sentinel value.
+            if not 0.0 <= raw_value <= 14.0:
+                return {"status": "NODATA_SENTINEL", "value": None, "rawValue": raw_value}
+            return {"status": "CARTOGRAPHIC", "value": round(raw_value, 3), "rawValue": raw_value}
+
+        # Salinity layer returns raw classes (0/1/2 in the live sample); no interpretation until legend is verified.
+        if raw_value == -9999:
+            return {"status": "NODATA_SENTINEL", "value": None, "rawValue": raw_value}
+        return {"status": "RAW_CLASS", "value": None, "rawValue": raw_value, "rawClass": raw_value}
+
+    except urllib.error.HTTPError as exc:
+        return {"status": "HTTP_ERROR", "value": None, "rawValue": None, "httpStatus": exc.code}
+    except Exception as exc:
+        return {"status": "UNAVAILABLE", "value": None, "rawValue": None, "error": f"{type(exc).__name__}: {exc}"}
+
+
+@app.get("/api/soil/inta")
+def get_inta_national_soil_data(lat: float, lng: float):
+    """Consulta pH y suelos afectados por sales en las capas nacionales INTA-CIRN."""
+    if not math.isfinite(lat) or not math.isfinite(lng) or not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+        raise HTTPException(status_code=400, detail="Coordenadas inválidas; se requiere latitud y longitud WGS84.")
+
+    cache_key = f"{round(lat, 3)}:{round(lng, 3)}"
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cached = INTA_SOIL_CACHE.get(cache_key)
+    if cached and (now - cached["cached_at"]).total_seconds() < INTA_SOIL_CACHE_TTL_SECONDS:
+        result = dict(cached["data"])
+        result["cacheHit"] = True
+        return result
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {
+            key: pool.submit(_query_inta_soil_pixel, key, product, lat, lng)
+            for key, product in INTA_SOIL_PRODUCTS.items()
+        }
+        raw_results = {key: future.result() for key, future in futures.items()}
+
+    products = {}
+    for key, metadata in INTA_SOIL_PRODUCTS.items():
+        sample = raw_results[key]
+        products[key] = {
+            "title": metadata["title"],
+            "dataset": metadata["layer"],
+            "depth": metadata["depth"],
+            "value": sample.get("value"),
+            "rawValue": sample.get("rawValue"),
+            "rawClass": sample.get("rawClass"),
+            "unit": metadata["unit"],
+            "resolution": metadata["resolution"],
+            "resolutionUnit": "m" if metadata["resolution"] else None,
+            "crs": "EPSG:4326",
+            "coverage": metadata["bounds"],
+            "quality": (
+                {"rmse": metadata["rmse"], "r2": metadata["r2"]}
+                if metadata.get("kind") == "ph" else None
+            ),
+            "status": sample["status"],
+            "limitations": (
+                ["Modelo cartográfico de pH; pixel de 1 km; no equivale a análisis de laboratorio ni medición puntual."]
+                if metadata.get("kind") == "ph"
+                else ["Valor/clase cruda del WMS; leyenda y resolución deben verificarse antes de asignar significado agronómico."]
+            )
+        }
+
+    valid_values = [
+        item for item in products.values()
+        if item["value"] is not None or item["rawClass"] is not None
+    ]
+    status = "CARTOGRAPHIC" if valid_values else "UNAVAILABLE"
+    if valid_values and any(item["status"] not in ("CARTOGRAPHIC", "RAW_CLASS") for item in products.values()):
+        status = "PARTIAL"
+
+    result = {
+        "source": "INTA - Centro de Investigación de Recursos Naturales (CIRN)",
+        "sourceUrl": INTA_CIRN_WMS_URL,
+        "dataset": "Mapas nacionales de pH y suelos afectados por sales",
+        "sensor": None,
+        "product": "Cartografía edáfica modelada",
+        "geometry": {"type": "Point", "coordinates": [lng, lat]},
+        "coverage": "Consultar bounding box de cada capa en products.*.coverage",
+        "crs": "EPSG:4326",
+        "license": None,
+        "acquiredAt": None,
+        "publishedAt": None,
+        "retrievedAt": now.isoformat(),
+        "sampleMethod": "Punto de consulta; si proviene de un lote, representa únicamente el centroide enviado.",
+        "status": status,
+        "quality": None,
+        "limitations": [
+            "El resultado es una consulta puntual de píxel y no una estadística zonal del polígono completo.",
+            "Los mapas de pH tienen pixel de 1 km y métricas de ajuste publicadas por INTA.",
+            "Las capas de suelos afectados por sales se entregan como clase/valor crudo hasta verificar su leyenda.",
+            "Los valores NoData o fuera del rango de pH 0–14 se devuelven como null."
+        ],
+        "products": products,
+        "cacheHit": False
+    }
+
+    if valid_values:
+        INTA_SOIL_CACHE[cache_key] = {"cached_at": now, "data": result}
+    return result
+
+
 
 def get_default_dates():
     now = datetime.datetime.now(datetime.timezone.utc)
