@@ -14,10 +14,16 @@ const upper = value => String(value || '').toUpperCase();
 export function summarizeEvidenceQuality(soilData = {}, climateData = {}) {
   const soilStatus = upper(soilData.status);
   const climateStatus = upper(climateData.climatologyStatus || climateData.status);
+  const hasNumericPh = typeof soilData.ph === 'number' && Number.isFinite(soilData.ph);
+  const hasDescriptiveSoilValue = ['textura', 'drenaje', 'limitantes', 'aptitud'].some(key =>
+    typeof soilData[key] === 'string' &&
+    soilData[key].trim() !== '' &&
+    !/no disponible|no informado|no especificad/i.test(soilData[key])
+  );
+  // A product label such as "Cartografía modelada de pH" is provenance,
+  // not evidence that a usable soil variable was returned.
   const soilAvailable = soilStatus !== DataStatus.UNAVAILABLE &&
-    Boolean(soilData.ph !== null && soilData.ph !== undefined ||
-      soilData.tipo && !/no disponible/i.test(String(soilData.tipo)) ||
-      soilData.textura && !/no disponible/i.test(String(soilData.textura)));
+    (hasNumericPh || hasDescriptiveSoilValue);
   const climateAvailable = climateStatus !== DataStatus.UNAVAILABLE &&
     (climateData.temperaturaMediaVal !== null && climateData.temperaturaMediaVal !== undefined ||
       climateData.precipitacionesAnualesVal !== null && climateData.precipitacionesAnualesVal !== undefined);
