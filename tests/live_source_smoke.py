@@ -121,15 +121,34 @@ def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
         try:
             root = ET.fromstring(body)
             metadata = []
+            soil_metadata = []
             for layer in root.iter():
                 if layer.tag.rsplit("}", 1)[-1] != "Layer":
                     continue
                 name = next((node.text.strip() for node in layer if node.tag.rsplit("}", 1)[-1] == "Name" and node.text), None)
-                if name and ("AQM" in name or "INC_SIART" in name or "DSS_" in name or "MHS_" in name):
-                    title = next((node.text for node in layer if node.tag.rsplit("}", 1)[-1] == "Title"), None)
-                    abstract = next((node.text for node in layer if node.tag.rsplit("}", 1)[-1] == "Abstract"), None)
-                    metadata.append({"name": name, "title": title, "abstract": abstract, "queryable": layer.attrib.get("queryable")})
+                if not name:
+                    continue
+                title = next((node.text for node in layer if node.tag.rsplit("}", 1)[-1] == "Title"), None)
+                abstract = next((node.text for node in layer if node.tag.rsplit("}", 1)[-1] == "Abstract"), None)
+                crs = []
+                for node in layer:
+                    if node.tag.rsplit("}", 1)[-1] in ("CRS", "SRS"):
+                        crs.extend(value for value in (node.text or "").split() if value)
+                boxes = [
+                    {"crs": node.attrib.get("CRS") or node.attrib.get("SRS"),
+                     "minx": node.attrib.get("minx"), "miny": node.attrib.get("miny"),
+                     "maxx": node.attrib.get("maxx"), "maxy": node.attrib.get("maxy")}
+                    for node in layer if node.tag.rsplit("}", 1)[-1] == "BoundingBox"
+                ]
+                item = {"name": name, "title": title, "abstract": abstract,
+                        "queryable": layer.attrib.get("queryable"), "crs": crs,
+                        "bounding_boxes": boxes}
+                if ("AQM" in name or "INC_SIART" in name or "DSS_" in name or "MHS_" in name):
+                    metadata.append(item)
+                if any(term in name.lower() for term in ("suel", "soil", "edaf", "textur", "ph_")):
+                    soil_metadata.append(item)
             result["product_layer_metadata_sample"] = metadata[:30]
+            result["soil_layer_metadata"] = soil_metadata[:60]
         except ET.ParseError:
             result["product_layer_metadata_sample"] = []
     return result
