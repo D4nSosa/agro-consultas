@@ -700,12 +700,21 @@ def main():
             for name, endpoint in inta_nodes
         ]
         report["checks"]["inta_regional_wms"] = [future.result() for future in futures]
-    report["checks"]["idecorr_wms"] = check_wms(
+    idecorr_result = check_wms(
         "IDECorr WMS",
         "https://geoportal.corrientes.gob.ar/geoserver/wms",
         [],
         timeout=8
     )
+    idecorr_error = (idecorr_result.get("error") or "").upper()
+    if "CERTIFICATE_VERIFY_FAILED" in idecorr_error or "SSLCERTVERIFICATIONERROR" in idecorr_error:
+        idecorr_result["status"] = "UPSTREAM_TLS_CERTIFICATE_ERROR"
+        idecorr_result["diagnosis"] = (
+            "El endpoint oficial de IDECorr no presenta una cadena TLS verificable. "
+            "No se intenta HTTP ni se desactiva la validación del certificado."
+        )
+    idecorr_result["official_portal"] = "https://ide.corrientes.gob.ar/articulo/geoservicios"
+    report["checks"]["idecorr_wms"] = idecorr_result
     report["checks"]["official_admin_wfs_samples"] = {
         "IGN provincias": check_wfs_feature_sample(
             "IGN provincias", "https://wms.ign.gob.ar/geoserver/ows", "ign:provincia"
