@@ -52,7 +52,7 @@ Documentación detallada: [FIRE_MONITORING.md](FIRE_MONITORING.md).
 | Landsat 8/9 / Microsoft Planetary Computer | Integrado en la rama PR #94: C2 L2, escala/offset, QA_PIXEL y token SAS público temporal; prueba NDVI de punto en Mendoza. |
 | Sentinel-1 / AWS Earth Search STAC | Integrado con limitaciones: estadísticas VV/VH en DN crudos; sin calibración sigma0 ni inferencias biofísicas. |
 | INTA-CIRN | Integrado en la rama PR #94: pH 0–30/30–100 cm y clases crudas de salinidad; pH modelado 1 km, salinidad pendiente de leyenda. |
-| MapBiomas Argentina | WMS contextual integrado en el visor: unidades de vegetación, ecorregiones, regiones forestales y áreas protegidas. La serie anual nacional de cobertura/uso no está integrada como ráster consultable por lote; la descarga GeoTIFF directa probada respondió 403 y la automatización GEE requiere acceso autorizado. |
+| MapBiomas Argentina | Colección 3 integrada como teselas XYZ anuales en el visor (1985–2025, 30 m), además de WMS contextuales de unidades de vegetación, ecorregiones, regiones forestales y áreas protegidas. La capa anual es visual: no equivale a estadística zonal por lote ni habilita exportación de assets. |
 | IDERA / IGN / INDEC | Catálogo IDERA dinámico; capas WMS de IGN e INTA descubiertas en el visor. La selección de capas WFS/INDEC y otras capas nacionales sigue pendiente de validación por producto. |
 | IDECorr | Servicio identificado; disponibilidad WMS/SSL inestable en las pruebas actuales. |
 | Open-Meteo | Geocodificación y pronóstico meteorológico. |
