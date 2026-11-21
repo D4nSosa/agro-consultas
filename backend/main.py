@@ -180,7 +180,7 @@ def _query_inta_soil_pixel(product_key, product, lat, lng):
         except (TypeError, ValueError):
             raw_value = None
 
-        if raw_value is None:
+        if raw_value is None or not math.isfinite(raw_value):
             return {"status": "NO_VALUE", "value": None, "rawValue": None}
 
         if product["kind"] == "ph":
