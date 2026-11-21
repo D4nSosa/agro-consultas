@@ -9,7 +9,7 @@ const OFFICIAL_LAYER_RULES = {
   idecorr: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural|incendio|agua/i,
   ign: /provincia|departamento|hidrog|ruta|camino|localidad|limite|l[ií]mite|red.?vial/i,
   inta: /suelo|soil|edaf|cartografia|aptitud|salin|ph|capacidad.?de.?uso/i,
-  conae_saocom: /DSS_MSM_|DSS_PSM_/i,
+  conae_saocom: /DSS_(MSM|PSM)(KR)?_[1-7]/i,
   conae_smap: /SMAP_Pasada/i
 };
 
