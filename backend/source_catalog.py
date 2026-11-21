@@ -31,6 +31,8 @@ _cache_lock = threading.Lock()
 OGC_SERVICES = {
     "idecor": {"wms": IDECOR_OWS, "wfs": IDECOR_OWS, "scope": "Córdoba, Argentina"},
     "idecorr": {"wms": "https://geoportal.corrientes.gob.ar/geoserver/wms", "scope": "Corrientes, Argentina"},
+    "ign": {"wms": "https://wms.ign.gob.ar/geoserver/ows", "wfs": "https://wms.ign.gob.ar/geoserver/ows", "scope": "Argentina"},
+    "inta": {"wms": "https://geo-nodo05.inta.gob.ar/geoserver/wms", "scope": "INTA-CIRN; productos nacionales puntuales y capas del nodo según metadatos"},
     "conae_saocom": {"wms": CONAE_SAOCOM_WMS, "scope": "Productos SAOCOM publicados por CONAE; cobertura según capa"},
     "conae_smap": {"wms": CONAE_SMAP_WMS, "scope": "Humedad superficial SMAP/SMOS; cobertura según capa"},
 }
