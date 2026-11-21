@@ -610,6 +610,24 @@ def main():
         check_wfs("CONAE focos MODIS/VIIRS geoservicios2", "https://geoservicios2.conae.gov.ar/geoserver/FocosDeCalor/wfs",
                   ["GeoServiciosCONAE:FocosDeCalor", "GeoServiciosCONAE:FocosDeCalorVIIRS"])
     ]
+    frontend_wfs_endpoint = "https://geoservicios.conae.gov.ar/geoserver/GeoServiciosCONAE/wfs"
+    report["checks"]["conae_frontend_wfs"] = {
+        "capabilities": check_wfs(
+            "CONAE WFS usado por la interfaz",
+            frontend_wfs_endpoint,
+            ["GeoServiciosCONAE:FocosDeCalor", "GeoServiciosCONAE:FocosDeCalorVIIRS"]
+        ),
+        "modis_sample": check_wfs_feature_sample(
+            "CONAE WFS MODIS usado por la interfaz",
+            frontend_wfs_endpoint,
+            "GeoServiciosCONAE:FocosDeCalor"
+        ),
+        "viirs_sample": check_wfs_feature_sample(
+            "CONAE WFS VIIRS usado por la interfaz",
+            frontend_wfs_endpoint,
+            "GeoServiciosCONAE:FocosDeCalorVIIRS"
+        )
+    }
     burned_endpoint = "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms"
     report["checks"]["conae_aqm_getmap"] = [
         check_wms_layer_render("CONAE AQM unqualified layer", burned_endpoint, "MODIS_AQM_1"),
