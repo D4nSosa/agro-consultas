@@ -12,7 +12,8 @@ const OFFICIAL_LAYER_RULES = {
   conae_saocom: /DSS_(MSM|PSM)(KR)?_[1-7]/i,
   conae_smap: /SMAP_Pasada/i,
   conae_fuel: /INC_SIARTIVGEO/i,
-  conae_burned: /area.?quemada|burned|aqm|incendio/i
+  conae_burned: /area.?quemada|burned|aqm|incendio/i,
+  mapbiomas: /vegetation_unit|ecorregion|regiones_forestales|protected_areas/i
 };
 
 /** Returns true only for layers relevant to existing Agro/Forestal analysis. */
@@ -114,6 +115,7 @@ export class MapViewer {
       { id: 'idecorr', label: 'IDECorr Corrientes', category: 'Territorio · Corrientes' },
       { id: 'ign', label: 'IGN Argentina', category: 'Cartografía oficial · Nacional' },
       { id: 'inta', label: 'INTA-CIRN', category: 'Suelos · Cartografía' },
+      { id: 'mapbiomas', label: 'MapBiomas Argentina', category: 'Territorio · Vegetación y conservación' },
       { id: 'conae_saocom', label: 'CONAE SAOCOM', category: 'Suelo · Humedad' },
       { id: 'conae_smap', label: 'CONAE SMAP', category: 'Suelo · Humedad superficial' },
       { id: 'conae_fuel', label: 'CONAE Combustibles', category: 'Incendios · Combustibles' },
@@ -140,7 +142,9 @@ export class MapViewer {
                 ? 'IGN · Cartografía oficial de Argentina'
                 : provider.id === 'inta'
                   ? 'INTA-CIRN · Cobertura y escala según capa publicada'
-                  : 'CONAE · ' + provider.label;
+                  : provider.id === 'mapbiomas'
+                    ? 'MapBiomas Argentina · Capas contextuales; no son la serie anual de cobertura'
+                    : 'CONAE · ' + provider.label;
           const layer = L.tileLayer.wms(metadata.endpoint, {
             layers: item.name,
             format: 'image/png',
