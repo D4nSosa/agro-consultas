@@ -180,6 +180,16 @@ Referencias:
 - USGS Surface Reflectance (resolución global 30 m y sensores): https://www.usgs.gov/landsat-missions/landsat-collection-2-surface-reflectance
 - USGS licencia/dominio público en la nube: https://www.usgs.gov/faqs/are-landsat-data-cloud-still-considered-be-within-public-domain
 
+### Sentinel-1: corrección del nivel de dato
+
+El STAC item de ejemplo de Earth Search para `sentinel-1-grd` publica assets VV/VH como COG `uint16`, NoData 0 y sin `scale` ni `offset` radiométrico en `raster:bands`. Los assets apuntan a mediciones GRD de Sentinel-1 L1C. Referencia del esquema STAC: https://github.com/stac-extensions/sentinel-1/blob/main/examples/earthsearch-s1-grd.json
+
+La implementación anterior convertía DN a dB con una constante fija de -83 dB y asignaba valores artificiales cuando DN era cero. No existía evidencia en los metadatos consultados que justificara esa calibración constante. Se eliminó esa conversión y los valores por defecto.
+
+La rama ahora conserva estadísticas VV/VH en DN crudos, identifica `RAW_DN_UNCALIBRATED` y no calcula diferencias VH−VV en dB ni infiere humedad, biomasa, especie, sanidad o estructura forestal. No aplica calibración sigma0 ni corrección de terreno. Por tanto, los DN no deben compararse como magnitudes físicas entre escenas/órbitas. La fuente se mantiene como observación real con limitaciones, no como producto biofísico calibrado.
+
+Para ofrecer sigma0 comparable será necesario un producto con calibración documentada o implementar el flujo de calibración con LUT de Sentinel-1 y validación radiométrica/geométrica; no se reintroducirá un factor fijo.
+
 ### Centralización de consultas STAC del módulo Forestal
 
 El cliente frontend `forestal/services/satelliteService.js` dejó de consultar Earth Search directamente. Ahora consume `POST /api/forest/stac`, que aplica geometría exacta `intersects`, filtro temporal y nubosidad, y devuelve metadatos radiométricos y activos. Esto evita mantener dos implementaciones STAC con filtros y resoluciones diferentes.
