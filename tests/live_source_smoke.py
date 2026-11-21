@@ -121,6 +121,10 @@ def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
     result["regional_layer_candidates"] = [
         name for name in names if any(term in name.lower() for term in regional_terms)
     ][:150]
+    national_terms = ("provincia", "departamento", "limite", "hidrograf", "ruta", "camino", "localidad", "administr")
+    result["national_layer_candidates"] = [
+        name for name in names if any(term in name.lower() for term in national_terms)
+    ][:150]
     if result["status"] == "HTTP_OK":
         try:
             root = ET.fromstring(body)
@@ -175,6 +179,11 @@ def check_wfs(name: str, endpoint: str, expected: list[str]):
     names = xml_layer_names(body) if result["status"] == "HTTP_OK" else []
     result["service"] = name
     result["capabilities_feature_types_count"] = len(names)
+    result["feature_type_names_sample"] = names[:100]
+    national_terms = ("provincia", "departamento", "limite", "hidrograf", "ruta", "camino", "localidad", "administr")
+    result["national_feature_type_candidates"] = [
+        name for name in names if any(term in name.lower() for term in national_terms)
+    ][:150]
     result["expected_layers_found"] = [layer for layer in expected if layer in names]
     result["expected_layers_missing"] = [layer for layer in expected if layer not in names]
     return result
