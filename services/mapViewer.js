@@ -16,6 +16,8 @@ export function isRelevantOfficialLayer(provider, layer) {
   return Boolean(rule && rule.test([layer?.name, layer?.title, layer?.abstract].filter(Boolean).join(' ')));
 }
 
+const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
 export const BASE_MAPS = {
   NORMAL: {
     id: 'normal',
@@ -195,6 +197,7 @@ export class MapViewer {
   }
 
   renderControlPanel(containerElementId) {
+    this.options.layerControlContainerId = containerElementId;
     const container = document.getElementById(containerElementId);
     if (!container) return;
 
@@ -220,7 +223,7 @@ export class MapViewer {
           <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; padding: 4px 0; border-bottom: 1px dashed #eee; cursor: pointer;">
             <span style="display: flex; align-items: center; gap: 6px;">
               <input type="checkbox" class="chk-overlay-layer" data-layer="${o.key}" ${isChecked ? 'checked' : ''} />
-              <span>${o.name}</span>
+              <span>${escapeHTML(o.name)}</span>
             </span>
             <span style="font-size: 0.72rem; color: #27ae60; font-weight: 600;">ACTIVA</span>
           </label>
