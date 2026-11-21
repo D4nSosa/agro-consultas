@@ -334,7 +334,6 @@ def get_sample_lots():
     """Retorna respuesta informativa sobre soporte de lotes: no hay lotes de ejemplo predeterminados"""
     return []
 
-@app.post("/api/forest/stac")
 def _stac_asset_calibration(asset):
     """Extrae escala, offset y resolución publicados en raster:bands."""
     bands = asset.get("raster:bands") or []
@@ -351,6 +350,7 @@ def _stac_asset_calibration(asset):
     return scale, offset, resolution
 
 
+@app.post("/api/forest/stac")
 def search_stac_catalog(req: STACSearchRequest):
     """Consulta escenas Sentinel-2 L2A usando la geometría exacta y conserva calibración radiométrica STAC."""
     try:
