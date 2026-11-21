@@ -568,7 +568,7 @@ def process_cog_raster_ndvi_cropped(
                             scl_filter_applied = True
                             scl_warning = None
                     except Exception as scl_error:
-                        scl_warning = f"No se pudo leer la máscara SCL: {scl_error}"
+                        scl_warning = f"No se pudo cargar o alinear la máscara SCL: {scl_error}"
 
                 ndvi_pt = calculate_scaled_ndvi(
                     val_red, val_nir, red_scale, red_offset, nir_scale, nir_offset
