@@ -1250,69 +1250,75 @@ def calculate_change_detection(req: ChangeDetectionRequest):
         raise HTTPException(status_code=400, detail=f"Error en detección de cambios: {str(e)}")
 
 def process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape):
-    """Procesa y recorta exactamente los píxeles radar SAR Sentinel-1 COG para el ROI del lote."""
+    """
+    Extrae DN crudos de los COG Sentinel-1 GRD.
+    No aplica una calibración sigma0: los assets STAC consultados publican uint16 sin escala/offset.
+    """
     try:
-        # Importar Rasterio dentro del procesador evita que su fallo nativo tumbe toda la API.
         import rasterio
         from rasterio.mask import mask as rasterio_mask
         from rasterio.vrt import WarpedVRT
 
-        with rasterio.env.Env(AWS_NO_SIGN_REQUEST='YES'):
+        with rasterio.Env(AWS_NO_SIGN_REQUEST="YES"):
             with rasterio.open(vv_url) as src_vv, rasterio.open(vh_url) as src_vh:
-                with WarpedVRT(src_vv, crs='EPSG:4326') as vrt_vv, WarpedVRT(src_vh, crs='EPSG:4326') as vrt_vh:
-                    if geom_shape.geom_type == 'Point':
-                        pt_x, pt_y = geom_shape.x, geom_shape.y
-                        row_v, col_v = vrt_vv.index(pt_x, pt_y)
+                with WarpedVRT(src_vv, crs="EPSG:4326") as vrt_vv, WarpedVRT(src_vh, crs="EPSG:4326") as vrt_vh:
+                    if geom_shape.geom_type == "Point":
+                        row_v, col_v = vrt_vv.index(geom_shape.x, geom_shape.y)
+                        row_h, col_h = vrt_vh.index(geom_shape.x, geom_shape.y)
+                        if (row_v < 0 or col_v < 0 or row_v >= vrt_vv.height or col_v >= vrt_vv.width or
+                            row_h < 0 or col_h < 0 or row_h >= vrt_vh.height or col_h >= vrt_vh.width):
+                            return None, "El punto está fuera de la cobertura VV/VH de la escena."
                         val_vv = float(vrt_vv.read(1, window=rasterio.windows.Window(col_v, row_v, 1, 1))[0, 0])
-                        val_vh = float(vrt_vh.read(1, window=rasterio.windows.Window(col_v, row_v, 1, 1))[0, 0])
-                        vv_db = round(10 * math.log10(val_vv**2 + 1e-6) - 83.0, 2) if val_vv > 0 else -25.0
-                        vh_db = round(10 * math.log10(val_vh**2 + 1e-6) - 83.0, 2) if val_vh > 0 else -30.0
-                        ratio_db = round(vh_db - vv_db, 2)
+                        val_vh = float(vrt_vh.read(1, window=rasterio.windows.Window(col_h, row_h, 1, 1))[0, 0])
+                        if val_vv <= 0 or val_vh <= 0:
+                            return None, "El píxel VV o VH es NoData (DN <= 0)."
                         return {
-                            "vv_mean_dB": vv_db,
-                            "vh_mean_dB": vh_db,
-                            "vh_vv_ratio_dB": ratio_db,
+                            "vv_mean_dn": round(val_vv, 2),
+                            "vh_mean_dn": round(val_vh, 2),
+                            "vv_median_dn": round(val_vv, 2),
+                            "vh_median_dn": round(val_vh, 2),
+                            "vv_min_dn": round(val_vv, 2),
+                            "vv_max_dn": round(val_vv, 2),
+                            "vh_min_dn": round(val_vh, 2),
+                            "vh_max_dn": round(val_vh, 2),
+                            "vv_std_dn": 0.0,
+                            "vh_std_dn": 0.0,
+                            "vvSampleCount": 1,
+                            "vhSampleCount": 1,
                             "sampleCount": 1,
+                            "unit": "DN",
+                            "calibrationStatus": "RAW_DN_UNCALIBRATED",
                             "isPoint": True
                         }, None
-                    else:
-                        out_vv, _ = rasterio_mask(vrt_vv, [geom_shape], crop=True)
-                        out_vh, _ = rasterio_mask(vrt_vh, [geom_shape], crop=True)
-                        vv_vals = out_vv[0][out_vv[0] > 0].astype(float)
-                        vh_vals = out_vh[0][out_vh[0] > 0].astype(float)
-                        if len(vv_vals) == 0 or len(vh_vals) == 0:
-                            return None, "No se obtuvieron píxeles válidos de radar en el polígono seleccionado."
 
-                        vv_db = round(float(np.mean(10 * np.log10(np.square(vv_vals) + 1e-6) - 83.0)), 2)
-                        vh_db = round(float(np.mean(10 * np.log10(np.square(vh_vals) + 1e-6) - 83.0)), 2)
-                        ratio_db = round(vh_db - vv_db, 2)
-                        return {
-                            "vv_mean_dB": vv_db,
-                            "vh_mean_dB": vh_db,
-                            "vh_vv_ratio_dB": ratio_db,
-                            "sampleCount": int(len(vv_vals)),
-                            "isPoint": False
-                        }, None
+                    out_vv, _ = rasterio_mask(vrt_vv, [geom_shape], crop=True)
+                    out_vh, _ = rasterio_mask(vrt_vh, [geom_shape], crop=True)
+                    vv_vals = out_vv[0][out_vv[0] > 0].astype(np.float64)
+                    vh_vals = out_vh[0][out_vh[0] > 0].astype(np.float64)
+                    if len(vv_vals) == 0 or len(vh_vals) == 0:
+                        return None, "No se obtuvieron píxeles VV/VH válidos dentro del polígono."
+
+                    return {
+                        "vv_mean_dn": round(float(np.mean(vv_vals)), 2),
+                        "vh_mean_dn": round(float(np.mean(vh_vals)), 2),
+                        "vv_median_dn": round(float(np.median(vv_vals)), 2),
+                        "vh_median_dn": round(float(np.median(vh_vals)), 2),
+                        "vv_min_dn": round(float(np.min(vv_vals)), 2),
+                        "vv_max_dn": round(float(np.max(vv_vals)), 2),
+                        "vh_min_dn": round(float(np.min(vh_vals)), 2),
+                        "vh_max_dn": round(float(np.max(vh_vals)), 2),
+                        "vv_std_dn": round(float(np.std(vv_vals)), 2),
+                        "vh_std_dn": round(float(np.std(vh_vals)), 2),
+                        "vvSampleCount": int(len(vv_vals)),
+                        "vhSampleCount": int(len(vh_vals)),
+                        "sampleCount": int(min(len(vv_vals), len(vh_vals))),
+                        "unit": "DN",
+                        "calibrationStatus": "RAW_DN_UNCALIBRATED",
+                        "isPoint": False
+                    }, None
     except Exception as e:
         return None, str(e)
 
-def interpret_sar_indicators(vv_db, ratio_db):
-    """Describe señales de retrodispersión sin presentarlas como mediciones directas de campo."""
-    if vv_db > -8.0:
-        moisture = "Retrodispersión VV alta. Puede relacionarse con humedad superficial, rugosidad, agua o estructura; requiere contexto local."
-    elif vv_db > -14.0:
-        moisture = "Retrodispersión VV intermedia. No permite determinar por sí sola la humedad del suelo."
-    else:
-        moisture = "Retrodispersión VV baja. Puede responder a superficie lisa/seca u otras condiciones; no confirma sequedad."
-
-    if ratio_db > -8.0:
-        structure = "Relación VH−VV relativamente alta, compatible con mayor dispersión volumétrica en algunos contextos; no cuantifica biomasa."
-    elif ratio_db > -12.0:
-        structure = "Relación VH−VV intermedia. La estructura de la cubierta no puede determinarse de forma concluyente con este valor aislado."
-    else:
-        structure = "Relación VH−VV baja. No confirma suelo desnudo ni ausencia de biomasa."
-
-    return moisture, structure
 
 @app.post("/api/forest/sar")
 def get_sar_analysis(req: SARAnalysisRequest):
@@ -1402,28 +1408,51 @@ def get_sar_analysis(req: SARAnalysisRequest):
                 scene_errors.append(f"{prod_id or 'escena sin ID'}: {err_msg or 'sin píxeles válidos'}")
                 continue
 
-            moisture_desc, structure_desc = interpret_sar_indicators(
-                stats["vv_mean_dB"], stats["vh_vv_ratio_dB"]
-            )
+            polarizations = props.get("sar:polarizations") or ["VV", "VH"]
+            instrument_mode = props.get("sar:instrument_mode")
+            sensor = props.get("platform") or "Sentinel-1"
             return {
-                "indicator": "Radar SAR Sentinel-1 (Banda C / todo clima)",
-                "polarizations": ["VV (Vertical-Vertical)", "VH (Vertical-Horizontal)"],
-                "ratioMeaning": "Diferencia VH−VV en dB; indicador de respuesta de dispersión, no medición directa de biomasa.",
+                "indicator": "Sentinel-1 GRD — valores digitales sin calibrar",
+                "product": "Sentinel-1 GRD Level-1C",
+                "sensor": sensor,
+                "polarizations": polarizations,
+                "unit": "DN (Digital Number)",
+                "calibrationStatus": "RAW_DN_UNCALIBRATED",
                 "date": actual_date,
+                "acquiredAt": props.get("datetime"),
+                "publishedAt": props.get("created"),
                 "productId": prod_id,
                 "orbitState": orbit_state,
+                "instrumentMode": instrument_mode,
+                "spatialResolution": props.get("sar:resolution_range"),
+                "crs": "EPSG:4326",
+                "geometry": feat.get("geometry"),
+                "coverage": feat.get("bbox"),
+                "quality": {
+                    "polarizations": polarizations,
+                    "instrumentMode": instrument_mode,
+                    "orbitState": orbit_state
+                },
+                "license": None,
                 "areaHectares": area_ha,
                 "isPoint": is_point,
                 "allWeather": True,
                 "cloudIndependent": True,
-                "source": "AWS Earth Search STAC (Sentinel-1 GRD COGs)",
+                "source": "Copernicus Sentinel-1 GRD / AWS Earth Search STAC",
+                "sourceUrl": "https://earth-search.aws.element84.com/v1/collections/sentinel-1-grd",
                 "stats": stats,
                 "interpretation": {
-                    "sueloHumedad": moisture_desc,
-                    "estructuraBiomasa": structure_desc
+                    "status": "NOT_INFERRED",
+                    "message": "No se infieren humedad del suelo, biomasa, especie, sanidad ni estructura forestal a partir de DN sin calibración radiométrica validada."
                 },
+                "limitations": [
+                    "Los COG consultados publican muestras uint16 sin escala/offset radiométrico; se conservan DN crudos.",
+                    "No se aplica calibración sigma0 ni corrección radiométrica/terreno adicional.",
+                    "Los DN dependen del producto, órbita, geometría de adquisición y procesamiento; no deben compararse como magnitudes físicas entre escenas.",
+                    "Las estadísticas VV y VH se calculan por separado sobre píxeles DN > 0."
+                ],
                 "status": "REAL",
-                "message": f"Se procesó la escena real {prod_id} ({actual_date or 'fecha no registrada'})."
+                "message": f"Se procesó la escena real {prod_id} ({actual_date or 'fecha no registrada'}); se muestran DN sin calibración sigma0."
             }
 
         detail = " | ".join(scene_errors[:5])
