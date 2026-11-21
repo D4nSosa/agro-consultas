@@ -1621,5 +1621,7 @@ def calculate_shapely_area(geom_shape):
 # Public FAO GAEZ v5 and Global Forest Watch lot-level analysis endpoints.
 from backend.territorial_analysis import router as territorial_analysis_router
 from backend.open_forest_data import router as open_forest_data_router
+from backend.source_catalog import router as source_catalog_router
+app.include_router(source_catalog_router)
 app.include_router(territorial_analysis_router)
 app.include_router(open_forest_data_router)
