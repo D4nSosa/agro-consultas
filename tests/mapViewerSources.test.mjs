@@ -15,5 +15,8 @@ test('official map layer discovery keeps only thematic layers relevant to existi
   assert.equal(isRelevantOfficialLayer('conae_smap', { name: 'HumedadDeSuelos:SMAP_Pasada_Ascendente' }), true);
   assert.equal(isRelevantOfficialLayer('conae_fuel', { name: 'AlertaTemprana:INC_SIARTIVGEOL89_DC_1' }), true);
   assert.equal(isRelevantOfficialLayer('conae_burned', { title: 'Área quemada AQM' }), true);
+  assert.equal(isRelevantOfficialLayer('mapbiomas', { name: 'mapbiomas-argentina:regiones_forestales' }), true);
+  assert.equal(isRelevantOfficialLayer('mapbiomas', { name: 'mapbiomas-argentina:ecorregion' }), true);
+  assert.equal(isRelevantOfficialLayer('mapbiomas', { name: 'mapbiomas-arida:land_cover_and_use_2019' }), false);
   assert.equal(isRelevantOfficialLayer('unknown', { name: 'anything' }), false);
 });
