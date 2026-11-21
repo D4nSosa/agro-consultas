@@ -167,6 +167,52 @@ def check_wfs(name: str, endpoint: str, expected: list[str]):
 
 
 
+
+def check_inta_national_soil_sample(province: str, coords: dict):
+    endpoint = "https://geo-nodo05.inta.gob.ar/geoserver/wms"
+    layers = [
+        "geonode:ph_0_30_nuevo_recorte_m_4d4cbbd459875375ae3e856e2870841f",
+        "geonode:ph_30_100_nuevo_recorte_m_cbccd7b512bb4f943ad9672e961bee3d",
+        "geonode:suelos_salinos_0_30_recorte_9622e0e127b7ae1d157c7f49d41605f3",
+        "geonode:suelos_salinos_30_100_recorte_437dcf998c66ee96455f4cb196eda5b1",
+    ]
+    layer_list = ",".join(layers)
+    params = urllib.parse.urlencode({
+        "service": "WMS",
+        "version": "1.1.1",
+        "request": "GetFeatureInfo",
+        "layers": layer_list,
+        "query_layers": layer_list,
+        "styles": "",
+        "srs": "EPSG:4326",
+        "bbox": f"{coords['lng'] - 0.01},{coords['lat'] - 0.01},{coords['lng'] + 0.01},{coords['lat'] + 0.01}",
+        "width": "101",
+        "height": "101",
+        "x": "50",
+        "y": "50",
+        "format": "image/png",
+        "info_format": "application/json",
+        "feature_count": "10",
+    })
+    result = request(endpoint + "?" + params, timeout=20)
+    body = result.pop("body", b"")
+    result["province_sample"] = province
+    result["layers_queried"] = layers
+    if result["status"] == "HTTP_OK":
+        try:
+            data = json.loads(body.decode("utf-8"))
+            features = data.get("features", [])
+            result["features_returned"] = len(features)
+            result["feature_properties"] = [
+                {"id": feature.get("id"), "properties": feature.get("properties", {})}
+                for feature in features[:10]
+            ]
+        except Exception:
+            result["status"] = "NON_JSON_RESPONSE"
+            result["response_preview"] = body[:500].decode("utf-8", errors="replace")
+    return result
+
+
 def check_wms_feature_info(province: str, coords: dict):
     endpoint = "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms"
     layer = "EmergenciasCONAE:MODIS_AQM_1"
@@ -349,6 +395,12 @@ def main():
             for province in SAMPLES
         ]
         report["checks"]["conae_aqm_point_samples"] = [future.result() for future in futures]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [
+            pool.submit(check_inta_national_soil_sample, province, provinces[province]["coordenadas"])
+            for province in SAMPLES
+        ]
+        report["checks"]["inta_national_soil_samples"] = [future.result() for future in futures]
     report["checks"]["inta_wms"] = check_wms(
         "INTA GeoNode central",
         "https://geo-backend.inta.gob.ar/geoserver/ows",
@@ -450,6 +502,10 @@ def main():
         aqm_ok = sum(1 for item in aqm_samples if item.get("status") == "HTTP_OK")
         aqm_values = sum(1 for item in aqm_samples if item.get("value_available"))
         rows.append(f"| CONAE AQM GetFeatureInfo | {aqm_ok}/24 consultas HTTP OK; {aqm_values} con feature | Muestreo puntual de centroides provinciales; no es estadística de lote |")
+        inta_samples = report["checks"]["inta_national_soil_samples"]
+        inta_ok = sum(1 for item in inta_samples if item.get("status") == "HTTP_OK")
+        inta_values = sum(1 for item in inta_samples if item.get("features_returned", 0) > 0)
+        rows.append(f"| INTA pH/salinidad nacional GetFeatureInfo | {inta_ok}/24 consultas HTTP OK; {inta_values} con features | Capas cartográficas puntuales, no medición de campo |")
         for name, item in report["checks"]["catalog_portals"].items():
             rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')} |")
         idera = report["checks"]["idera_service_registry"]
