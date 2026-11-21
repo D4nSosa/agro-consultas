@@ -54,6 +54,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: national-source-smoke-report
-          path: artifacts/live-source-smoke.json
+          path: |
+            artifacts/live-source-smoke.json
+            artifacts/inta-legend-*.png
           if-no-files-found: warn
           retention-days: 7

@@ -541,6 +541,8 @@ def main():
         inta_ok = sum(1 for item in inta_samples if item.get("status") == "HTTP_OK")
         inta_values = sum(1 for item in inta_samples if item.get("features_returned", 0) > 0)
         rows.append(f"| INTA pH/salinidad nacional GetFeatureInfo | {inta_ok}/24 consultas HTTP OK; {inta_values} con features | Capas cartográficas puntuales, no medición de campo |")
+        for legend in report["checks"]["inta_legends"]:
+            rows.append(f"| Leyenda INTA {legend.get('layer')} | {legend.get('status')} | HTTP {legend.get('http_status')}; PNG {legend.get('artifact_path', 'no disponible')} |")
         for name, item in report["checks"]["catalog_portals"].items():
             rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')} |")
         idera = report["checks"]["idera_service_registry"]
