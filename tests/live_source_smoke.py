@@ -320,6 +320,8 @@ def main():
         for item in report["checks"]["conae"]:
             rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; capas: {item.get('capabilities_layers_count', item.get('capabilities_feature_types_count', 0))} |")
         rows.append(f"| INTA WMS | {report['checks']['inta_wms'].get('status')} | HTTP {report['checks']['inta_wms'].get('http_status')} |")
+        for item in report["checks"]["conae_aqm_getmap"]:
+            rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; PNG: {item.get('png_signature_valid')} |")
         for name, item in report["checks"]["catalog_portals"].items():
             rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')} |")
         idera = report["checks"]["idera_service_registry"]
