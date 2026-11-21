@@ -240,3 +240,77 @@ def test_api_sar_stac_search_sends_intersects_without_bbox(monkeypatch):
     assert response.json()["status"] == "UNAVAILABLE"
     assert "intersects" in captured["body"]
     assert "bbox" not in captured["body"]
+
+
+
+def test_scaled_ndvi_uses_reflectance_scale_and_offset():
+    from backend.main import calculate_scaled_ndvi
+
+    # Sentinel-2 example: DN 3000/7000 with scale 0.0001 and offset -0.1.
+    value = calculate_scaled_ndvi(3000, 7000, 0.0001, -0.1, 0.0001, -0.1)
+    assert value == pytest.approx(0.5)
+    # Landsat C2 L2 example: scale 0.0000275 and offset -0.2.
+    landsat = calculate_scaled_ndvi(10000, 20000, 0.0000275, -0.2, 0.0000275, -0.2)
+    assert landsat == pytest.approx(0.6470588235)
+
+
+def test_sentinel2_scl_rejects_cloud_shadow_snow_and_nodata():
+    from backend.main import is_sentinel2_scl_clear
+
+    for excluded in (0, 1, 3, 8, 9, 10, 11):
+        assert is_sentinel2_scl_clear(excluded) is False
+    for accepted in (2, 4, 5, 6, 7):
+        assert is_sentinel2_scl_clear(accepted) is True
+
+
+def test_stac_search_uses_exact_geometry_and_preserves_band_radiometry(monkeypatch):
+    import json
+    import backend.main as forest_backend
+
+    captured = {}
+    feature = {
+        "id": "sentinel2-calibrated-scene",
+        "geometry": SAMPLE_POLYGON_GEOMETRY,
+        "properties": {
+            "datetime": "2025-12-31T14:12:51Z",
+            "platform": "sentinel-2c",
+            "eo:cloud_cover": 0.01
+        },
+        "assets": {
+            "red": {"href": "https://example.test/red.tif", "raster:bands": [{"scale": 0.0001, "offset": -0.1, "spatial_resolution": 10}]},
+            "nir": {"href": "https://example.test/nir.tif", "raster:bands": [{"scale": 0.0001, "offset": -0.1, "spatial_resolution": 10}]},
+            "scl": {"href": "https://example.test/scl.tif"}
+        }
+    }
+
+    class FakeResponse:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps({"features": [feature]}).encode("utf-8")
+
+    def fake_urlopen(request, timeout=0):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr(forest_backend.urllib.request, "urlopen", fake_urlopen)
+    result = forest_backend.search_stac_catalog(
+        forest_backend.STACSearchRequest(
+            geometry=SAMPLE_POLYGON_GEOMETRY,
+            startDate="2025-12-01",
+            endDate="2025-12-31",
+            maxCloudCover=30
+        )
+    )
+
+    assert "intersects" in captured["body"]
+    assert "bbox" not in captured["body"]
+    assert result["success"] is True
+    assert result["bestProduct"]["assets"]["redScale"] == 0.0001
+    assert result["bestProduct"]["assets"]["redOffset"] == -0.1
+    assert result["bestProduct"]["assets"]["nirScale"] == 0.0001
+    assert result["bestProduct"]["assets"]["nirOffset"] == -0.1
+    assert result["bestProduct"]["resolution"] == 10

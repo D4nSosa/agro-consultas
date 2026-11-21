@@ -141,73 +141,122 @@ def get_sample_lots():
     return []
 
 @app.post("/api/forest/stac")
+def _stac_asset_calibration(asset):
+    """Extrae escala, offset y resolución publicados en raster:bands."""
+    bands = asset.get("raster:bands") or []
+    band = bands[0] if bands else {}
+    scale = band.get("scale")
+    offset = band.get("offset")
+    resolution = band.get("spatial_resolution")
+    try:
+        scale = float(scale) if scale is not None else None
+        offset = float(offset) if offset is not None else None
+        resolution = float(resolution) if resolution is not None else None
+    except (TypeError, ValueError):
+        return None, None, None
+    return scale, offset, resolution
+
+
 def search_stac_catalog(req: STACSearchRequest):
-    """Consulta el catálogo público AWS Earth Search STAC para Sentinel-2 L2A"""
+    """Consulta escenas Sentinel-2 L2A usando la geometría exacta y conserva calibración radiométrica STAC."""
     try:
         start_def, date_a_def, date_b_def = get_default_dates()
         s_date = req.startDate or start_def
         e_date = req.endDate or date_b_def
 
-        geom_shape = validate_geometry_shape(get_geom_dict(req.geometry))
-        bounds = geom_shape.bounds
+        geom_dict = get_geom_dict(req.geometry)
+        validate_geometry_shape(geom_dict)
 
         search_body = {
             "collections": ["sentinel-2-l2a"],
-            "bbox": [bounds[0], bounds[1], bounds[2], bounds[3]],
+            "intersects": geom_dict,
             "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
-            "limit": 10,
+            "limit": 20,
             "query": {
                 "eo:cloud_cover": {"lte": req.maxCloudCover}
             }
         }
 
-        # Consulta catálogo anónimo AWS Earth Search STAC
-        try:
-            req_data = json.dumps(search_body).encode('utf-8')
-            aws_req = urllib.request.Request(
-                EARTH_SEARCH_STAC_URL,
-                data=req_data,
-                headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
-            )
-            with urllib.request.urlopen(aws_req, timeout=8) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode('utf-8'))
-                    features = data.get("features", [])
-                    if features:
-                        parsed_products = []
-                        for feat in features:
-                            props = feat.get("properties", {})
-                            assets = feat.get("assets", {})
-                            raw_cc = props.get("eo:cloud_cover")
-                            cloud_cover_val = round(float(raw_cc), 1) if raw_cc is not None else None
-                            parsed_products.append({
-                                "id": feat.get("id"),
-                                "date": props.get("datetime", "").split("T")[0] if props.get("datetime") else "NO DISPONIBLE",
-                                "cloudCover": cloud_cover_val,
-                                "cloudCoverDisplay": f"{cloud_cover_val}%" if cloud_cover_val is not None else "NO REGISTRADO",
-                                "collection": "sentinel-2-l2a",
-                                "source": "AWS Earth Search (Sentinel-2 L2A COGs)",
-                                "resolution": "10m",
-                                "bands": ["B04 (Red)", "B08 (NIR)"],
-                                "assets": {
-                                    "red": assets.get("red", {}).get("href") or assets.get("B04", {}).get("href"),
-                                    "nir": assets.get("nir", {}).get("href") or assets.get("B08", {}).get("href"),
-                                    "scl": assets.get("scl", {}).get("href"),
-                                    "visual": assets.get("visual", {}).get("href"),
-                                    "thumbnail": assets.get("thumbnail", {}).get("href")
-                                }
-                            })
-                        # Ordenar priorizando menor nubosidad real conocida; colocar desconocidos (None / 999.0) al final
-                        parsed_products.sort(key=lambda x: x["cloudCover"] if x["cloudCover"] is not None else 999.0)
-                        return {
-                            "success": True,
-                            "source": "AWS Earth Search (Sentinel-2 L2A COGs Public Catalog)",
-                            "productsCount": len(parsed_products),
-                            "bestProduct": parsed_products[0],
-                            "products": parsed_products
-                        }
-        except Exception as aws_err:
-            pass
+        req_data = json.dumps(search_body).encode('utf-8')
+        aws_req = urllib.request.Request(
+            EARTH_SEARCH_STAC_URL,
+            data=req_data,
+            headers={'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json'}
+        )
+        with urllib.request.urlopen(aws_req, timeout=15) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Earth Search respondió HTTP {resp.status}")
+            data = json.loads(resp.read().decode('utf-8'))
+
+        features = data.get("features", [])
+        parsed_products = []
+        calibration_rejected = 0
+
+        for feat in features:
+            props = feat.get("properties", {})
+            item_assets = feat.get("assets", {})
+            red_asset = item_assets.get("red") or item_assets.get("B04")
+            nir_asset = item_assets.get("nir") or item_assets.get("B08")
+            scl_asset = item_assets.get("scl")
+
+            if not red_asset or not nir_asset or not scl_asset:
+                continue
+
+            red_scale, red_offset, red_resolution = _stac_asset_calibration(red_asset)
+            nir_scale, nir_offset, nir_resolution = _stac_asset_calibration(nir_asset)
+            if None in (red_scale, red_offset, nir_scale, nir_offset):
+                calibration_rejected += 1
+                continue
+
+            raw_cc = props.get("eo:cloud_cover")
+            try:
+                cloud_cover_val = round(float(raw_cc), 2) if raw_cc is not None else None
+            except (TypeError, ValueError):
+                cloud_cover_val = None
+
+            actual_date = props.get("datetime")
+            parsed_products.append({
+                "id": feat.get("id"),
+                "date": actual_date.split("T")[0] if actual_date else None,
+                "acquiredAt": actual_date,
+                "publishedAt": props.get("created"),
+                "cloudCover": cloud_cover_val,
+                "cloudCoverDisplay": f"{cloud_cover_val}%" if cloud_cover_val is not None else "NO REGISTRADO",
+                "collection": "sentinel-2-l2a",
+                "sensor": props.get("platform"),
+                "product": "Sentinel-2 L2A Surface Reflectance",
+                "source": "Copernicus Sentinel-2 / AWS Earth Search STAC",
+                "sourceUrl": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a",
+                "resolution": red_resolution,
+                "bands": ["B04 (Red)", "B08 (NIR)"],
+                "geometry": feat.get("geometry"),
+                "quality": {"eo:cloud_cover": cloud_cover_val},
+                "license": None,
+                "assets": {
+                    "red": red_asset.get("href"),
+                    "nir": nir_asset.get("href"),
+                    "scl": scl_asset.get("href"),
+                    "redScale": red_scale,
+                    "redOffset": red_offset,
+                    "nirScale": nir_scale,
+                    "nirOffset": nir_offset,
+                    "redResolution": red_resolution,
+                    "nirResolution": nir_resolution,
+                    "visual": item_assets.get("visual", {}).get("href"),
+                    "thumbnail": item_assets.get("thumbnail", {}).get("href")
+                }
+            })
+
+        parsed_products.sort(key=lambda item: item["cloudCover"] if item["cloudCover"] is not None else 999.0)
+        if parsed_products:
+            return {
+                "success": True,
+                "source": "Copernicus Sentinel-2 L2A / AWS Earth Search STAC",
+                "productsCount": len(parsed_products),
+                "bestProduct": parsed_products[0],
+                "products": parsed_products,
+                "calibrationRejectedCount": calibration_rejected
+            }
 
         return {
             "success": False,
@@ -215,10 +264,20 @@ def search_stac_catalog(req: STACSearchRequest):
             "productsCount": 0,
             "bestProduct": None,
             "products": [],
-            "message": "NO DISPONIBLE / No se encontraron escenas reales o la API no respondió"
+            "calibrationRejectedCount": calibration_rejected,
+            "message": "No se encontraron escenas Sentinel-2 con bandas RED/NIR, SCL y calibración radiométrica completa para la geometría y período solicitados."
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error procesando búsqueda STAC: {str(e)}")
+        return {
+            "success": False,
+            "source": "AWS Earth Search STAC",
+            "productsCount": 0,
+            "bestProduct": None,
+            "products": [],
+            "message": f"No se pudo consultar Earth Search STAC: {str(e)}"
+        }
 
 
 def _project_roi_geometry(geometry, transformer):
@@ -226,51 +285,92 @@ def _project_roi_geometry(geometry, transformer):
     return transform_geometry(lambda x, y, z=None: transformer.transform(x, y), geometry)
 
 
-def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
+def calculate_scaled_ndvi(red_dn, nir_dn, red_scale, red_offset, nir_scale, nir_offset):
+    """Calcula NDVI sobre reflectancia calibrada, no sobre DN enteros."""
+    red_reflectance = float(red_dn) * float(red_scale) + float(red_offset)
+    nir_reflectance = float(nir_dn) * float(nir_scale) + float(nir_offset)
+    denominator = nir_reflectance + red_reflectance
+    if not math.isfinite(denominator) or abs(denominator) <= 1e-8:
+        return None
+    value = (nir_reflectance - red_reflectance) / denominator
+    return value if math.isfinite(value) else None
+
+
+def is_sentinel2_scl_clear(value):
+    """Clases SCL excluidas: NoData, saturado/defectuoso, sombra, nubes y nieve."""
+    try:
+        return int(value) not in {0, 1, 3, 8, 9, 10, 11}
+    except (TypeError, ValueError):
+        return False
+
+
+def process_cog_raster_ndvi_cropped(
+    red_url, nir_url, scl_url, geom_shape,
+    red_scale=1.0, red_offset=0.0, nir_scale=1.0, nir_offset=0.0
+):
     """
-    Procesa y recorta exactamente los píxeles COG que intersectan con la geometría ROI del lote.
-    Garantiza estricta alineación geoespacial, reproyección si difieren CRS o grillas,
-    y remuestreo apropiado (bilineal para bandas espectrales, nearest para SCL categórica).
+    Recorta RED/NIR, aplica escala y offset STAC antes de NDVI y exige máscara SCL.
+    Reproyecta SCL con nearest-neighbour y bandas espectrales con bilinear.
     """
     try:
-        # Dependencias geoespaciales nativas: cargar solo al procesar rásteres.
         import rasterio
         from rasterio.mask import mask as rasterio_mask
         from rasterio.warp import reproject, Resampling
         import pyproj
 
+        red_scale = float(red_scale)
+        red_offset = float(red_offset)
+        nir_scale = float(nir_scale)
+        nir_offset = float(nir_offset)
+        if not all(math.isfinite(v) for v in (red_scale, red_offset, nir_scale, nir_offset)):
+            return None, "La calibración radiométrica STAC es inválida."
+
+        if not scl_url:
+            return None, "La escena no publica SCL; no se calcula NDVI sin máscara de calidad."
+
         with rasterio.open(red_url) as src_red, rasterio.open(nir_url) as src_nir:
-            # 1. Transformar la geometría GeoJSON a la proyección de la banda RED
             transformer = pyproj.Transformer.from_crs('EPSG:4326', src_red.crs, always_xy=True)
             geom_proj = _project_roi_geometry(geom_shape, transformer)
 
             if geom_shape.geom_type == 'Point':
                 row_r, col_r = src_red.index(geom_proj.x, geom_proj.y)
-                window_r = rasterio.windows.Window(col_r, row_r, 1, 1)
-                val_red = src_red.read(1, window=window_r)[0, 0]
+                if row_r < 0 or col_r < 0 or row_r >= src_red.height or col_r >= src_red.width:
+                    return None, "El punto está fuera de la escena RED."
+                val_red = src_red.read(1, window=rasterio.windows.Window(col_r, row_r, 1, 1))[0, 0]
 
-                # Reproyectar el punto al CRS propio de NIR cuando sea diferente
                 if src_nir.crs == src_red.crs:
                     pt_x_n, pt_y_n = geom_proj.x, geom_proj.y
                 else:
                     transformer_nir_pt = pyproj.Transformer.from_crs('EPSG:4326', src_nir.crs, always_xy=True)
                     pt_x_n, pt_y_n = transformer_nir_pt.transform(geom_shape.x, geom_shape.y)
-
                 row_n, col_n = src_nir.index(pt_x_n, pt_y_n)
-                window_n = rasterio.windows.Window(col_n, row_n, 1, 1)
-                val_nir = src_nir.read(1, window=window_n)[0, 0]
+                if row_n < 0 or col_n < 0 or row_n >= src_nir.height or col_n >= src_nir.width:
+                    return None, "El punto está fuera de la escena NIR."
+                val_nir = src_nir.read(1, window=rasterio.windows.Window(col_n, row_n, 1, 1))[0, 0]
 
-                # Tratar nodata / valores de borde
-                if src_red.nodata is not None and val_red == src_red.nodata:
-                    return None, "Punto fuera de rango o píxel nodata."
-                if src_nir.nodata is not None and val_nir == src_nir.nodata:
-                    return None, "Punto fuera de rango o píxel nodata."
+                if (src_red.nodata is not None and val_red == src_red.nodata) or val_red <= 0:
+                    return None, "El punto RED es NoData."
+                if (src_nir.nodata is not None and val_nir == src_nir.nodata) or val_nir <= 0:
+                    return None, "El punto NIR es NoData."
 
-                denom = float(val_nir) + float(val_red)
-                if denom <= 0 or val_red <= 0 or val_nir <= 0:
-                    return None, "Punto fuera de rango o valor de reflectancia inválido/nulo."
+                with rasterio.open(scl_url) as src_scl:
+                    transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
+                    scl_x, scl_y = transformer_scl.transform(geom_shape.x, geom_shape.y)
+                    row_scl, col_scl = src_scl.index(scl_x, scl_y)
+                    if row_scl < 0 or col_scl < 0 or row_scl >= src_scl.height or col_scl >= src_scl.width:
+                        return None, "El punto está fuera de la máscara SCL."
+                    scl_value = src_scl.read(1, window=rasterio.windows.Window(col_scl, row_scl, 1, 1))[0, 0]
+                    if src_scl.nodata is not None and scl_value == src_scl.nodata:
+                        return None, "El punto tiene SCL NoData."
+                    if not is_sentinel2_scl_clear(scl_value):
+                        return None, f"El píxel fue excluido por la clase SCL {int(scl_value)}."
 
-                ndvi_pt = round((float(val_nir) - float(val_red)) / denom, 4)
+                ndvi_pt = calculate_scaled_ndvi(
+                    val_red, val_nir, red_scale, red_offset, nir_scale, nir_offset
+                )
+                if ndvi_pt is None:
+                    return None, "Reflectancia calibrada con denominador NDVI inválido."
+                ndvi_pt = round(float(ndvi_pt), 4)
                 return {
                     "min": ndvi_pt,
                     "max": ndvi_pt,
@@ -279,41 +379,46 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                     "stdDev": 0.0,
                     "validPixelsPercent": 100.0,
                     "sampleCount": 1,
-                    "isPoint": True
+                    "isPoint": True,
+                    "sclFilterApplied": True,
+                    "qualityMaskType": "Sentinel-2 SCL",
+                    "reflectanceScalingApplied": True,
+                    "redScale": red_scale,
+                    "redOffset": red_offset,
+                    "nirScale": nir_scale,
+                    "nirOffset": nir_offset
                 }, None
 
-            # 2. Recortar banda RED al polígono ROI (malla de referencia principal)
-            out_red, transform_red = rasterio_mask(src_red, [geom_proj], crop=True, nodata=src_red.nodata)
+            out_red, transform_red = rasterio_mask(
+                src_red, [geom_proj], crop=True, nodata=src_red.nodata
+            )
             red_data = out_red[0]
-
-            # Construir máscara booleana de píxeles que pertenecen estrictamente al interior del polígono ROI
-            # rasterio_mask asigna nodata a los píxeles fuera del polígono
             red_nodata = src_red.nodata if src_red.nodata is not None else 0
-            roi_mask = (red_data != red_nodata)
+            roi_mask = (red_data != red_nodata) & (red_data > 0)
             roi_pixel_count = int(np.sum(roi_mask))
             if roi_pixel_count == 0:
-                # Si todos los píxeles dentro del recorte tienen valor nodata/fuera del ROI
-                roi_pixel_count = red_data.size
+                return None, "La geometría no contiene píxeles RED válidos."
 
-            # Transformar geometría al CRS propio de NIR antes de recortar
             if src_nir.crs == src_red.crs:
                 geom_proj_nir = geom_proj
             else:
                 transformer_nir = pyproj.Transformer.from_crs('EPSG:4326', src_nir.crs, always_xy=True)
                 geom_proj_nir = _project_roi_geometry(geom_shape, transformer_nir)
 
-            # 3. Recortar y reproyectar/alinear banda NIR a la grilla exacta de RED
-            out_nir_raw, transform_nir = rasterio_mask(src_nir, [geom_proj_nir], crop=True, nodata=src_nir.nodata)
+            out_nir_raw, transform_nir = rasterio_mask(
+                src_nir, [geom_proj_nir], crop=True, nodata=src_nir.nodata
+            )
             nir_raw = out_nir_raw[0]
 
-            # Verificar si las grillas espectrales RED y NIR están 100% alineadas
             if (src_red.crs == src_nir.crs and
                 src_red.transform == src_nir.transform and
                 nir_raw.shape == red_data.shape):
                 nir_aligned = nir_raw
             else:
-                # Reproyectar NIR a la grilla de referencia de RED usando remuestreo bilineal
-                nir_aligned = np.full_like(red_data, src_nir.nodata if src_nir.nodata is not None else 0, dtype=nir_raw.dtype)
+                nir_nodata_value = src_nir.nodata if src_nir.nodata is not None else 0
+                nir_aligned = np.full(
+                    red_data.shape, nir_nodata_value, dtype=nir_raw.dtype
+                )
                 reproject(
                     source=nir_raw,
                     destination=nir_aligned,
@@ -323,82 +428,68 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                     dst_crs=src_red.crs,
                     resampling=Resampling.bilinear,
                     src_nodata=src_nir.nodata,
-                    dst_nodata=src_nir.nodata
+                    dst_nodata=nir_nodata_value
                 )
 
-            # 4. Procesar y reproyectar/alinear SCL (Scene Classification Layer) si está disponible
-            scl_aligned = None
-            scl_error_reason = None
-            scl_filter_applied = False
+            with rasterio.open(scl_url) as src_scl:
+                if src_scl.crs == src_red.crs:
+                    geom_proj_scl = geom_proj
+                else:
+                    transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
+                    geom_proj_scl = _project_roi_geometry(geom_shape, transformer_scl)
 
-            if scl_url:
-                try:
-                    with rasterio.open(scl_url) as src_scl:
-                        if src_scl.crs == src_red.crs:
-                            geom_proj_scl = geom_proj
-                        else:
-                            transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
-                            geom_proj_scl = _project_roi_geometry(geom_shape, transformer_scl)
+                out_scl_raw, transform_scl = rasterio_mask(
+                    src_scl, [geom_proj_scl], crop=True, nodata=src_scl.nodata
+                )
+                scl_raw = out_scl_raw[0]
 
-                        out_scl_raw, transform_scl = rasterio_mask(src_scl, [geom_proj_scl], crop=True, nodata=src_scl.nodata)
-                        scl_raw = out_scl_raw[0]
+                if (src_scl.crs == src_red.crs and
+                    src_scl.transform == src_red.transform and
+                    scl_raw.shape == red_data.shape):
+                    scl_aligned = scl_raw
+                else:
+                    scl_aligned = np.zeros(red_data.shape, dtype=scl_raw.dtype)
+                    reproject(
+                        source=scl_raw,
+                        destination=scl_aligned,
+                        src_transform=transform_scl,
+                        src_crs=src_scl.crs,
+                        dst_transform=transform_red,
+                        dst_crs=src_red.crs,
+                        resampling=Resampling.nearest,
+                        src_nodata=src_scl.nodata,
+                        dst_nodata=0
+                    )
 
-                        if (src_scl.crs == src_red.crs and
-                            src_scl.transform == src_red.transform and
-                            scl_raw.shape == red_data.shape):
-                            scl_aligned = scl_raw
-                        else:
-                            # Reproyectar SCL a la grilla RED usando remuestreo Nearest Neighbor (categórico)
-                            scl_aligned = np.zeros_like(red_data, dtype=scl_raw.dtype)
-                            reproject(
-                                source=scl_raw,
-                                destination=scl_aligned,
-                                src_transform=transform_scl,
-                                src_crs=src_scl.crs,
-                                dst_transform=transform_red,
-                                dst_crs=src_red.crs,
-                                resampling=Resampling.nearest,
-                                src_nodata=src_scl.nodata,
-                                dst_nodata=0
-                            )
-                        scl_filter_applied = True
-                except Exception as scl_err:
-                    scl_aligned = None
-                    scl_filter_applied = False
-                    scl_error_reason = f"No se pudo cargar o alinear la capa de clasificación SCL ({str(scl_err)})."
-
-            # 5. Máscara de píxeles válidos (reflectancia real > 0 y nodata)
             nir_nodata = src_nir.nodata if src_nir.nodata is not None else 0
-
             valid_red = (red_data != red_nodata) & (red_data > 0)
             valid_nir = (nir_aligned != nir_nodata) & (nir_aligned > 0)
-            denom = nir_aligned.astype(float) + red_data.astype(float)
+            red_reflectance = red_data.astype(np.float64) * red_scale + red_offset
+            nir_reflectance = nir_aligned.astype(np.float64) * nir_scale + nir_offset
+            denominator = nir_reflectance + red_reflectance
 
-            valid = valid_red & valid_nir & (denom > 0)
+            scl_excluded = np.isin(scl_aligned, [0, 1, 3, 8, 9, 10, 11])
+            valid = (
+                valid_red & valid_nir & (~scl_excluded) &
+                np.isfinite(red_reflectance) & np.isfinite(nir_reflectance) &
+                np.isfinite(denominator) & (np.abs(denominator) > 1e-8)
+            )
 
-            # Aplicar filtro de nubes/sombras SCL categórico si está disponible
-            if scl_aligned is not None:
-                # Clases SCL a descartar: 3 (Sombra de nube), 8 (Nube probabilidad media), 9 (Nube probabilidad alta), 10 (Cirrus), 11 (Nieve/Hielo)
-                cloud_mask = (scl_aligned == 3) | (scl_aligned == 8) | (scl_aligned == 9) | (scl_aligned == 10) | (scl_aligned == 11)
-                valid = valid & (~cloud_mask)
-
-            # 6. Cálculo NDVI
-            ndvi_array = np.where(valid, (nir_aligned.astype(float) - red_data.astype(float)) / np.where(valid, denom, 1.0), np.nan)
-            valid_ndvi = ndvi_array[~np.isnan(ndvi_array)]
-
+            ndvi_array = np.full(red_data.shape, np.nan, dtype=np.float64)
+            ndvi_array[valid] = (
+                nir_reflectance[valid] - red_reflectance[valid]
+            ) / denominator[valid]
+            valid_ndvi = ndvi_array[np.isfinite(ndvi_array)]
             if len(valid_ndvi) == 0:
-                return None, "No se obtuvieron píxeles válidos/libres de nubes dentro del polígono ROI del lote."
+                return None, "No se obtuvieron píxeles válidos libres de nubes/sombras dentro del lote."
 
             min_val = round(float(np.min(valid_ndvi)), 4)
             max_val = round(float(np.max(valid_ndvi)), 4)
             mean_val = round(float(np.mean(valid_ndvi)), 4)
             median_val = round(float(np.median(valid_ndvi)), 4)
             std_val = round(float(np.std(valid_ndvi)), 4)
-            # Calcular porcentaje de píxeles válidos respecto a los píxeles reales que pertenecen al polígono ROI
             valid_pct = round((float(len(valid_ndvi)) / float(roi_pixel_count)) * 100.0, 1)
-
-            # Reemplazar NaN por None para cumplir estricta conformidad JSON
-            clean_matrix = np.where(np.isnan(ndvi_array), None, ndvi_array).tolist()
+            clean_matrix = np.where(np.isfinite(ndvi_array), ndvi_array, None).tolist()
 
             return {
                 "min": min_val,
@@ -409,8 +500,14 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
                 "validPixelsPercent": valid_pct,
                 "sampleCount": int(len(valid_ndvi)),
                 "roiPixelCount": int(roi_pixel_count),
-                "sclFilterApplied": scl_filter_applied,
-                "sclWarning": scl_error_reason if (scl_url and not scl_filter_applied) else None,
+                "sclFilterApplied": True,
+                "sclWarning": None,
+                "qualityMaskType": "Sentinel-2 SCL",
+                "reflectanceScalingApplied": True,
+                "redScale": red_scale,
+                "redOffset": red_offset,
+                "nirScale": nir_scale,
+                "nirOffset": nir_offset,
                 "crs": str(src_red.crs),
                 "transform": list(transform_red)[:6],
                 "shape": list(red_data.shape),
@@ -420,6 +517,7 @@ def process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape):
 
     except Exception as e:
         return None, str(e)
+
 
 @app.post("/api/forest/ndvi")
 def calculate_ndvi(req: NDVIAnalysisRequest):
@@ -457,7 +555,13 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
             scl_url = assets.get("scl")
 
             if red_url and nir_url:
-                stats, err_msg = process_cog_raster_ndvi_cropped(red_url, nir_url, scl_url, geom_shape)
+                stats, err_msg = process_cog_raster_ndvi_cropped(
+                    red_url, nir_url, scl_url, geom_shape,
+                    red_scale=assets.get("redScale", 1.0),
+                    red_offset=assets.get("redOffset", 0.0),
+                    nir_scale=assets.get("nirScale", 1.0),
+                    nir_offset=assets.get("nirOffset", 0.0)
+                )
                 prod_id = best.get("id")
                 cloud_pct = best.get("cloudCover", 0.0)
                 actual_date = best.get("date", target_date)
@@ -467,8 +571,8 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                     v_class = "Excelente vigor vegetativo" if mean_val >= 0.65 else ("Vigor vegetativo moderado" if mean_val >= 0.45 else "Cobertura/vigor bajo")
 
                     scl_warn = stats.get("sclWarning")
-                    base_msg = "NDVI por píxel calculated con éxito a partir de bandas COG reales de Sentinel-2."
-                    base_detail = f"Procesado anónimamente desde píxeles COG reales de B04/B08 (Escena: {prod_id}, Fecha: {actual_date})."
+                    base_msg = "NDVI calculado sobre reflectancia superficial calibrada (escala y offset STAC) y máscara SCL por píxel."
+                    base_detail = f"Procesado desde COGs Sentinel-2 L2A; reflectancia escalada con metadatos STAC y píxeles SCL de nubes/sombras excluidos (Escena: {prod_id}, Fecha: {actual_date})."
 
                     if scl_warn:
                         base_msg += f" (LIMITACIÓN: {scl_warn})"
@@ -478,12 +582,19 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                         "indicator": "NDVI (Normalized Difference Vegetation Index)",
                         "formula": "NDVI = (B08_NIR - B04_RED) / (B08_NIR + B04_RED)",
                         "bands": {"NIR": "B08 (842 nm)", "RED": "B04 (665 nm)"},
-                        "spatialResolution": "10 metros",
+                        "spatialResolution": f"{best.get('resolution') or 10} metros",
                         "date": actual_date,
                         "productId": prod_id,
                         "areaHectares": area_ha,
                         "isPoint": is_point,
-                        "source": "AWS Earth Search (Sentinel-2 L2A COGs)",
+                        "source": best.get("source", "Copernicus Sentinel-2 / AWS Earth Search STAC"),
+                        "sensor": best.get("sensor"),
+                        "product": best.get("product"),
+                        "spatialResolution": best.get("resolution"),
+                        "acquiredAt": best.get("acquiredAt"),
+                        "publishedAt": best.get("publishedAt"),
+                        "quality": best.get("quality"),
+                        "license": best.get("license"),
                         "cloudCover": f"{cloud_pct}%",
                         "stats": stats,
                         "decisionVigor": {
