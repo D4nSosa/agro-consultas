@@ -1188,8 +1188,8 @@ def calculate_change_detection(req: ChangeDetectionRequest):
 
                 # Verificar correspondencia exacta de CRS y transformadas de grilla espacial entre fechas
                 grid_matches = (
-                    (crsA is None or crsB is None or crsA == crsB) and
-                    (trA is None or trB is None or trA == trB)
+                    crsA is not None and crsB is not None and crsA == crsB and
+                    trA is not None and trB is not None and trA == trB
                 )
 
                 matA = np.array(rawA, dtype=float)
