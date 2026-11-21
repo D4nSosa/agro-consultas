@@ -53,3 +53,22 @@ test('los perfiles regionales permanecen regionales y nunca obtienen confianza a
   assert.notEqual(quality.confidence, ConfidenceLevel.HIGH);
   assert.equal(quality.recommendationEligibility, false);
 });
+
+test('un descriptor cartográfico sin variables utilizables no cuenta como evidencia edáfica', () => {
+  const quality = summarizeEvidenceQuality(
+    {
+      status: 'CARTOGRAPHIC',
+      evidenceType: 'CARTOGRAPHIC',
+      tipo: 'Cartografía modelada de pH del suelo (INTA-CIRN)',
+      ph: 'NO DISPONIBLE',
+      textura: null,
+      drenaje: null,
+      salinidad_0_30_raw: 0,
+      salinityClassInterpretation: 'NOT_INTERPRETED'
+    },
+    { status: DataStatus.REAL, climatologyStatus: DataStatus.REAL, temperaturaMediaVal: 20, precipitacionesAnualesVal: 1000 }
+  );
+  assert.equal(quality.components.soil.available, false);
+  assert.equal(quality.confidence, ConfidenceLevel.LOW);
+  assert.equal(quality.recommendationEligibility, false);
+});
