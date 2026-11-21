@@ -59,6 +59,21 @@ Fuentes del monitor:
 - INTA Salta/Jujuy: https://controlserviciosidera.iado-conicet.gob.ar/resource/501?lang=es_BO
 - Listado INTA: https://controlserviciosidera.iado-conicet.gob.ar/resources?lang=es_BO&tag=INTA
 
+## Hallazgo INTA nacional: pH y suelos afectados por sales
+
+El nodo WMS del Centro de Investigación de Recursos Naturales de INTA (`https://geo-nodo05.inta.gob.ar/geoserver/wms`) publica cuatro capas nacionales queryable:
+
+| Capa | Profundidad | Cobertura publicada | Resolución / calidad |
+|---|---|---|---|
+| `geonode:ph_0_30_nuevo_recorte_m_4d4cbbd459875375ae3e856e2870841f` | 0–30 cm | Argentina; bounding box WMS aprox. lon -74.83 a -48.56, lat -55.11 a -21.57 | Pixel 1 km; RMSE 0,84; R² 0,456 |
+| `geonode:ph_30_100_nuevo_recorte_m_cbccd7b512bb4f943ad9672e961bee3d` | 30–100 cm | Argentina; bounding box WMS aprox. lon -74.52 a -47.17, lat -56.12 a -21.35 | Pixel 1 km; RMSE 0,80; R² 0,523 |
+| `geonode:suelos_salinos_0_30_recorte_9622e0e127b7ae1d157c7f49d41605f3` | 0–30 cm | Argentina; bounding box WMS equivalente al producto nacional publicado | Resolución y métricas no informadas en Abstract WMS |
+| `geonode:suelos_salinos_30_100_recorte_437dcf998c66ee96455f4cb196eda5b1` | 30–100 cm | Argentina; bounding box WMS equivalente al producto nacional publicado | Resolución y métricas no informadas en Abstract WMS |
+
+Las cuatro capas anuncian `queryable=1` y CRS `EPSG:4326` / `CRS:84`. El pH se describe como mapa modelado con pixel de 1 km y métricas de ajuste; no es análisis de laboratorio ni medición del lote. Los productos de salinidad tampoco deben interpretarse como diagnóstico de campo. Se integrarán como cartografía/modelos de referencia, mostrando profundidad, resolución y calidad cuando estén publicadas.
+
+La validación añadida a GitHub Actions consulta GetFeatureInfo para las cuatro capas en los centroides de las 24 jurisdicciones. La aceptación de integración dependerá de que los valores y atributos reales se devuelvan correctamente; el GetCapabilities por sí solo no basta.
+
 ## Inventario ampliado de productos CONAE
 
 Este inventario no declara productos integrados.
