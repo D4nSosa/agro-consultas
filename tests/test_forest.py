@@ -403,7 +403,7 @@ def test_api_ndvi_landsat_8_point_uses_qa_pixel_mask():
         collection="landsat-c2-l2"
     ))
 
-    assert result["status"] == "REAL", result
+    assert result["status"] == "REAL", {"message": result.get("message"), "details": result.get("details"), "attempts": result.get("attempts")}
     assert result["collection"] == "landsat-c2-l2"
     assert result["sensor"] in ("landsat-8", "landsat-9")
     assert result["qualityMaskType"] == "Landsat QA_PIXEL"
