@@ -128,6 +128,18 @@ La búsqueda STAC usa `intersects` con la geometría exacta del lote, en vez de 
 
 La corrección se prueba con valores de referencia sintéticos y con metadatos STAC simulados; la consulta real de las 24 jurisdicciones se verifica aparte en GitHub Actions.
 
+### Resultado de muestreo nacional INTA-CIRN (24 jurisdicciones)
+
+En la ejecución de GitHub Actions del 21/11/2026, GetFeatureInfo devolvió valores pH válidos en los centroides de las 23 provincias y NoData en CABA. El muestreo no prueba cobertura completa de cada provincia, pero sí confirma consulta puntual en todas las provincias:
+
+- pH 0–30 cm: 23/23 provincias; mínimo 4,93, máximo 8,58, mediana 7,59.
+- pH 30–100 cm: 23/23 provincias; mínimo 5,10, máximo 8,54, mediana 7,99.
+- CABA: el WMS devuelve 100, tratado como sentinel/NoData y no como valor pH.
+- Suelos afectados por sales 0–30 cm: valores crudos 0 (18 puntos), 1 (1 punto), 2 (4 puntos).
+- Suelos afectados por sales 30–100 cm: valores crudos 0 (16 puntos), 1 (2 puntos), 2 (5 puntos).
+
+Los valores de salinidad permanecen sin interpretación hasta leer la leyenda oficial. Los valores pH se presentan como estimaciones/modelos cartográficos con pixel de 1 km, RMSE 0,84 / 0,80 y R² 0,456 / 0,523; no son análisis de laboratorio ni deben usarse como mediciones puntuales del lote.
+
 ## MapBiomas: restricciones de acceso y licencia
 
 La página oficial de descarga indica que la descarga GeoTIFF directa está temporalmente suspendida y que los assets de Google Earth Engine requieren cuenta. La Collection 2 2024 tiene una URL pública documentada, pero el probe HTTP Range desde GitHub Actions respondió 403. Esto no prueba que la colección sea inexistente: sí demuestra que el acceso automatizado probado no está disponible desde el runner.
