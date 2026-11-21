@@ -167,6 +167,34 @@ export class MapViewer {
         console.warn('[MapViewer] No se pudieron descubrir capas oficiales ' + provider.id + ':', error);
       }
     }));
+    // MapBiomas publishes annual Collection 3 tiles through its public platform API.
+    // The backend validates the Google Earth Engine host and caches each requested year.
+    try {
+      const response = await fetch('/api/sources/mapbiomas/tiles/2025', {
+        headers: { Accept: 'application/json' }
+      });
+      if (response.ok) {
+        const metadata = await response.json();
+        if (metadata.status === 'LIVE_XYZ_TILES' && metadata.tileUrlTemplate && !this.overlayLayers.official_mapbiomas_coverage_2025) {
+          const layer = L.tileLayer(metadata.tileUrlTemplate, {
+            maxZoom: 18,
+            attribution: metadata.attribution + ' · MapBiomas Argentina',
+            opacity: 0.78
+          });
+          this.registerOverlayLayer(
+            'official_mapbiomas_coverage_2025',
+            layer,
+            'MapBiomas · Cobertura y uso 2025 · Colección 3 (30 m)',
+            true,
+            'Cobertura y uso del suelo'
+          );
+          const panel = this.options.layerControlContainerId;
+          if (panel) this.renderControlPanel(panel);
+        }
+      }
+    } catch (error) {
+      console.warn('[MapViewer] No se pudo cargar la tesela anual de MapBiomas:', error);
+    }
   }
 
   setBaseMode(modeKey) {
