@@ -1489,7 +1489,7 @@ def get_sar_analysis(req: SARAnalysisRequest):
             instrument_mode = props.get("sar:instrument_mode")
             sensor = props.get("platform") or "Sentinel-1"
             return {
-                "indicator": "Sentinel-1 GRD — valores digitales sin calibrar",
+                "indicator": "Radar SAR Sentinel-1 GRD — valores digitales sin calibrar",
                 "product": "Sentinel-1 GRD Level-1C",
                 "sensor": sensor,
                 "polarizations": polarizations,
