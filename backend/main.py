@@ -399,7 +399,6 @@ def _stac_asset_calibration(asset):
 
 
 @app.post("/api/forest/stac")
-@app.post("/api/forest/stac")
 def search_stac_catalog(req: STACSearchRequest):
     """Consulta Sentinel-2 L2A o Landsat 8/9 C2 L2 con geometría exacta y radiometría STAC."""
     try:
