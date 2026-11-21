@@ -489,7 +489,16 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
     lastSoilReportCache = soilReport;
     lastClimateReportCache = climateReport;
 
-    const soilBadgeText = soilReport.status === 'CARTOGRAPHIC' ? 'Cartografía INTA' : 'Sin dato edáfico verificado';
+    const soilBadgeText = soilReport.status === 'CARTOGRAPHIC' || soilReport.status === 'PARTIAL' ? 'Cartografía INTA-CIRN' : 'Sin dato edáfico verificado';
+    const soilPh030Text = soilReport.ph_0_30 !== null && soilReport.ph_0_30 !== undefined && Number.isFinite(Number(soilReport.ph_0_30))
+      ? `${Number(soilReport.ph_0_30).toFixed(2)} pH` : 'NO DISPONIBLE';
+    const soilPh30100Text = soilReport.ph_30_100 !== null && soilReport.ph_30_100 !== undefined && Number.isFinite(Number(soilReport.ph_30_100))
+      ? `${Number(soilReport.ph_30_100).toFixed(2)} pH` : 'NO DISPONIBLE';
+    const soilSalinity030Text = soilReport.salinidad_0_30_raw !== null && soilReport.salinidad_0_30_raw !== undefined
+      ? `${soilReport.salinidad_0_30_raw} (valor crudo; sin interpretar)` : 'NO DISPONIBLE';
+    const soilPhQuality = soilReport.ph_0_30_quality
+      ? `RMSE ${soilReport.ph_0_30_quality.rmse}; R² ${soilReport.ph_0_30_quality.r2}`
+      : 'Métricas no disponibles';
     const climateBadgeText = climateReport.liveWeatherPoint?.available ? 'Estimación meteorológica puntual (Open-Meteo)' : 'Referencia regional / no disponible';
 
     const levelText = geoVal?.spatialLevel || currentSpatialLevel || "PUNTO DE REFERENCIA";
@@ -546,8 +555,24 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
         <span style="font-size:0.8rem; color: var(--texto-secundario);">${soilReport.fuente}</span>
       </div>` : ""}
       <div class="info-item">
-        <strong>Tipo y Clasificación:</strong>
+        <strong>Producto edáfico:</strong>
         <span>${soilReport.tipo}</span>
+      </div>
+      <div class="info-item">
+        <strong>pH modelado 0-30 cm (pixel 1 km):</strong>
+        <span>${soilPh030Text}</span>
+      </div>
+      <div class="info-item">
+        <strong>pH modelado 30-100 cm (pixel 1 km):</strong>
+        <span>${soilPh30100Text}</span>
+      </div>
+      <div class="info-item">
+        <strong>Calidad del modelo pH 0-30 cm:</strong>
+        <span>${soilPhQuality}</span>
+      </div>
+      <div class="info-item">
+        <strong>Suelos afectados por sales 0-30 cm:</strong>
+        <span>${soilSalinity030Text}</span>
       </div>
       <div class="info-item">
         <strong>Textura Predominante:</strong>
@@ -560,6 +585,10 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
       <div class="info-item">
         <strong>Limitantes Edáficas:</strong>
         <span>${soilReport.limitantes}</span>
+      </div>
+      ${soilReport.fechaConsulta ? `<div class="info-item"><strong>Consulta:</strong><span>${new Date(soilReport.fechaConsulta).toLocaleString('es-AR')}</span></div>` : ''}
+      <div style="font-size:0.76rem;color:var(--texto-secundario);margin-top:4px;">
+        Los valores pH son cartografía modelada de INTA-CIRN a 1 km, no análisis de laboratorio. La salinidad se muestra como valor WMS sin interpretar hasta verificar su leyenda. La consulta representa el punto/centroide, no estadísticas de toda la superficie del lote.
       </div>
 
       <!-- Clima Regional -->
