@@ -1,6 +1,9 @@
 import json
+import ssl
+import urllib.error
 
 import pytest
+from fastapi import HTTPException
 
 from backend import source_catalog as catalog
 
@@ -154,3 +157,24 @@ def test_mapbiomas_annual_tile_endpoint_uses_public_collection_and_cache(monkeyp
     assert first["cacheHit"] is False
     assert second["cacheHit"] is True
     assert len(calls) == 5
+
+def test_idecorr_tls_certificate_failure_is_reported_without_disabling_verification(monkeypatch):
+    catalog._cache.clear()
+
+    def raise_certificate_error(*_args, **_kwargs):
+        raise urllib.error.URLError(ssl.SSLCertVerificationError(
+            1, "certificate verify failed: unable to get local issuer certificate"
+        ))
+
+    monkeypatch.setattr(catalog, "_read_url", raise_certificate_error)
+
+    with pytest.raises(HTTPException) as error:
+        catalog.get_ogc_capabilities("idecorr", "wms")
+
+    assert error.value.status_code == 503
+    assert error.value.detail["code"] == "UPSTREAM_TLS_CERTIFICATE_ERROR"
+    assert error.value.detail["endpoint"] == "https://geoportal.corrientes.gob.ar/geoserver/wms"
+    assert "no usa HTTP" in error.value.detail["action"]
+    assert catalog.SOURCE_REFERENCE["idecorr"]["serviceStatus"] == "UNAVAILABLE_UNTIL_PROVIDER_CERTIFICATE_IS_FIXED"
+
+
