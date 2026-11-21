@@ -296,6 +296,7 @@ class STACSearchRequest(BaseModel):
     startDate: Optional[str] = None
     endDate: Optional[str] = None
     maxCloudCover: float = 30.0
+    collection: str = "sentinel-2-l2a"
 
 class NDVIAnalysisRequest(BaseModel):
     geometry: GeoJSONGeometry
@@ -351,55 +352,79 @@ def _stac_asset_calibration(asset):
 
 
 @app.post("/api/forest/stac")
+@app.post("/api/forest/stac")
 def search_stac_catalog(req: STACSearchRequest):
-    """Consulta escenas Sentinel-2 L2A usando la geometría exacta y conserva calibración radiométrica STAC."""
+    """Consulta Sentinel-2 L2A o Landsat 8/9 C2 L2 con geometría exacta y radiometría STAC."""
     try:
+        collection = req.collection or "sentinel-2-l2a"
+        if collection not in ("sentinel-2-l2a", "landsat-c2-l2"):
+            raise HTTPException(status_code=400, detail="Colección STAC no permitida.")
+
         start_def, date_a_def, date_b_def = get_default_dates()
         s_date = req.startDate or start_def
         e_date = req.endDate or date_b_def
-
         geom_dict = get_geom_dict(req.geometry)
         validate_geometry_shape(geom_dict)
 
         search_body = {
-            "collections": ["sentinel-2-l2a"],
+            "collections": [collection],
             "intersects": geom_dict,
             "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
-            "limit": 20,
-            "query": {
-                "eo:cloud_cover": {"lte": req.maxCloudCover}
-            }
+            "limit": 30,
+            "query": {"eo:cloud_cover": {"lte": req.maxCloudCover}}
         }
-
-        req_data = json.dumps(search_body).encode('utf-8')
+        req_data = json.dumps(search_body).encode("utf-8")
         aws_req = urllib.request.Request(
             EARTH_SEARCH_STAC_URL,
             data=req_data,
-            headers={'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json'}
+            headers={"Content-Type": "application/json", "Accept": "application/geo+json, application/json"}
         )
         with urllib.request.urlopen(aws_req, timeout=15) as resp:
             if resp.status != 200:
                 raise RuntimeError(f"Earth Search respondió HTTP {resp.status}")
-            data = json.loads(resp.read().decode('utf-8'))
+            data = json.loads(resp.read().decode("utf-8"))
 
         features = data.get("features", [])
         parsed_products = []
         calibration_rejected = 0
+        platform_rejected = 0
 
         for feat in features:
             props = feat.get("properties", {})
-            item_assets = feat.get("assets", {})
-            red_asset = item_assets.get("red") or item_assets.get("B04")
-            nir_asset = item_assets.get("nir") or item_assets.get("B08")
-            scl_asset = item_assets.get("scl")
+            platform = props.get("platform")
 
-            if not red_asset or not nir_asset or not scl_asset:
+            if collection == "landsat-c2-l2" and platform not in ("landsat-8", "landsat-9"):
+                platform_rejected += 1
+                continue
+
+            item_assets = feat.get("assets", {})
+            red_asset = item_assets.get("red")
+            if collection == "sentinel-2-l2a":
+                nir_asset = item_assets.get("nir")
+                scl_asset = item_assets.get("scl")
+                qa_asset = None
+                quality_asset = scl_asset
+                quality_kind = "scl"
+                product_name = "Sentinel-2 L2A Surface Reflectance"
+                source_name = "Copernicus Sentinel-2 / AWS Earth Search STAC"
+                bands = ["B04 (Red)", "B08 (NIR)"]
+            else:
+                nir_asset = item_assets.get("nir08")
+                scl_asset = None
+                qa_asset = item_assets.get("qa_pixel")
+                quality_asset = qa_asset
+                quality_kind = "qa_pixel"
+                product_name = "Landsat Collection 2 Level-2 Surface Reflectance"
+                source_name = "USGS Landsat 8/9 / AWS Earth Search STAC"
+                bands = ["SR_B4 (Red)", "SR_B5 / SR_B5? (NIR)"]
+
+            if not red_asset or not nir_asset or not quality_asset:
                 continue
 
             red_href = red_asset.get("href")
             nir_href = nir_asset.get("href")
-            scl_href = scl_asset.get("href")
-            if not red_href or not nir_href or not scl_href:
+            quality_href = quality_asset.get("href")
+            if not red_href or not nir_href or not quality_href:
                 continue
 
             red_scale, red_offset, red_resolution = _stac_asset_calibration(red_asset)
@@ -422,20 +447,28 @@ def search_stac_catalog(req: STACSearchRequest):
                 "publishedAt": props.get("created"),
                 "cloudCover": cloud_cover_val,
                 "cloudCoverDisplay": f"{cloud_cover_val}%" if cloud_cover_val is not None else "NO REGISTRADO",
-                "collection": "sentinel-2-l2a",
-                "sensor": props.get("platform"),
-                "product": "Sentinel-2 L2A Surface Reflectance",
-                "source": "Copernicus Sentinel-2 / AWS Earth Search STAC",
-                "sourceUrl": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a",
+                "collection": collection,
+                "sensor": platform,
+                "product": product_name,
+                "source": source_name,
+                "sourceUrl": f"https://earth-search.aws.element84.com/v1/collections/{collection}",
                 "resolution": red_resolution,
-                "bands": ["B04 (Red)", "B08 (NIR)"],
+                "bands": bands,
                 "geometry": feat.get("geometry"),
-                "quality": {"eo:cloud_cover": cloud_cover_val},
-                "license": None,
+                "quality": {
+                    "eo:cloud_cover": cloud_cover_val,
+                    "qualityMaskAsset": quality_kind
+                },
+                "license": (
+                    "USGS public domain; attribution recommended. Earth Search collection metadata declares a conflicting license; verify before redistributing raw assets."
+                    if collection == "landsat-c2-l2" else None
+                ),
                 "assets": {
                     "red": red_href,
                     "nir": nir_href,
-                    "scl": scl_href,
+                    "scl": scl_asset.get("href") if scl_asset else None,
+                    "qaPixel": qa_asset.get("href") if qa_asset else None,
+                    "qualityMaskAsset": quality_kind,
                     "redScale": red_scale,
                     "redOffset": red_offset,
                     "nirScale": nir_scale,
@@ -451,21 +484,25 @@ def search_stac_catalog(req: STACSearchRequest):
         if parsed_products:
             return {
                 "success": True,
-                "source": "Copernicus Sentinel-2 L2A / AWS Earth Search STAC",
+                "source": parsed_products[0]["source"],
+                "collection": collection,
                 "productsCount": len(parsed_products),
                 "bestProduct": parsed_products[0],
                 "products": parsed_products,
-                "calibrationRejectedCount": calibration_rejected
+                "calibrationRejectedCount": calibration_rejected,
+                "platformRejectedCount": platform_rejected
             }
 
         return {
             "success": False,
             "source": "AWS Earth Search STAC",
+            "collection": collection,
             "productsCount": 0,
             "bestProduct": None,
             "products": [],
             "calibrationRejectedCount": calibration_rejected,
-            "message": "No se encontraron escenas Sentinel-2 con bandas RED/NIR, SCL y calibración radiométrica completa para la geometría y período solicitados."
+            "platformRejectedCount": platform_rejected,
+            "message": "No se encontraron escenas con bandas RED/NIR, máscara de calidad y calibración radiométrica completa para la geometría y período solicitados."
         }
     except HTTPException:
         raise
@@ -473,6 +510,7 @@ def search_stac_catalog(req: STACSearchRequest):
         return {
             "success": False,
             "source": "AWS Earth Search STAC",
+            "collection": req.collection,
             "productsCount": 0,
             "bestProduct": None,
             "products": [],
