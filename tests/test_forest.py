@@ -314,3 +314,99 @@ def test_stac_search_uses_exact_geometry_and_preserves_band_radiometry(monkeypat
     assert result["bestProduct"]["assets"]["nirScale"] == 0.0001
     assert result["bestProduct"]["assets"]["nirOffset"] == -0.1
     assert result["bestProduct"]["resolution"] == 10
+
+
+
+def test_landsat_qa_pixel_clear_mask_excludes_fill_cloud_shadow_and_snow():
+    from backend.main import is_landsat_qa_pixel_clear
+
+    assert is_landsat_qa_pixel_clear(0) is True
+    assert is_landsat_qa_pixel_clear(1 << 7) is True  # Water flag is retained, not a cloud flag.
+    for bit in range(6):
+        assert is_landsat_qa_pixel_clear(1 << bit) is False
+
+
+def test_landsat_stac_search_filters_to_landsat_8_9_and_preserves_calibration(monkeypatch):
+    import json
+    import backend.main as forest_backend
+
+    captured = {}
+
+    def feature(platform, item_id):
+        return {
+            "id": item_id,
+            "geometry": SAMPLE_POLYGON_GEOMETRY,
+            "properties": {
+                "datetime": "2025-12-27T14:21:57Z",
+                "platform": platform,
+                "eo:cloud_cover": 0.0,
+                "landsat:collection_category": "T1"
+            },
+            "assets": {
+                "red": {"href": f"https://example.test/{item_id}-red.tif", "raster:bands": [{"scale": 2.75e-5, "offset": -0.2, "spatial_resolution": 30}]},
+                "nir08": {"href": f"https://example.test/{item_id}-nir.tif", "raster:bands": [{"scale": 2.75e-5, "offset": -0.2, "spatial_resolution": 30}]},
+                "qa_pixel": {"href": f"https://example.test/{item_id}-qa.tif", "raster:bands": [{"nodata": 1, "data_type": "uint16", "spatial_resolution": 30}]}
+            }
+        }
+
+    class FakeResponse:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps({
+                "features": [
+                    feature("landsat-8", "LC08_L2SP_test"),
+                    feature("landsat-5", "LT05_L2SP_test")
+                ]
+            }).encode("utf-8")
+
+    def fake_urlopen(request, timeout=0):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr(forest_backend.urllib.request, "urlopen", fake_urlopen)
+    result = forest_backend.search_stac_catalog(
+        forest_backend.STACSearchRequest(
+            geometry=SAMPLE_POLYGON_GEOMETRY,
+            startDate="2025-12-01",
+            endDate="2025-12-31",
+            maxCloudCover=100,
+            collection="landsat-c2-l2"
+        )
+    )
+
+    assert captured["body"]["collections"] == ["landsat-c2-l2"]
+    assert "intersects" in captured["body"]
+    assert result["success"] is True
+    assert result["productsCount"] == 1
+    assert result["platformRejectedCount"] == 1
+    product = result["bestProduct"]
+    assert product["sensor"] == "landsat-8"
+    assert product["resolution"] == 30
+    assert product["assets"]["redScale"] == 2.75e-5
+    assert product["assets"]["redOffset"] == -0.2
+    assert product["assets"]["nirScale"] == 2.75e-5
+    assert product["assets"]["nirOffset"] == -0.2
+    assert product["assets"]["qaPixel"].endswith("-qa.tif")
+    assert product["assets"]["qualityMaskAsset"] == "qa_pixel"
+
+
+def test_api_ndvi_landsat_8_point_uses_qa_pixel_mask():
+    from backend.main import calculate_ndvi, NDVIAnalysisRequest
+
+    result = calculate_ndvi(NDVIAnalysisRequest(
+        geometry={"type": "Point", "coordinates": [-68.5831, -34.6297]},
+        date="2025-12-31",
+        collection="landsat-c2-l2"
+    ))
+
+    assert result["status"] == "REAL", result
+    assert result["collection"] == "landsat-c2-l2"
+    assert result["sensor"] in ("landsat-8", "landsat-9")
+    assert result["qualityMaskType"] == "Landsat QA_PIXEL"
+    assert result["spatialResolution"] == 30
+    assert result["reflectanceScalingApplied"] is True
+    assert result["stats"]["qaPixelFilterApplied"] is True
