@@ -198,7 +198,7 @@ El buscador histórico de escenas termina siempre en la fecha objetivo; no incor
 
 ### Integración Landsat 8/9 en la rama PR #94
 
-La rama ya incorpora el adaptador STAC para `landsat-c2-l2`, filtrando `platform=landsat-8` y `platform=landsat-9`, con activos RED, NIR (`nir08`) y QA_PIXEL. La búsqueda utiliza `intersects` con la geometría exacta.
+La rama ya incorpora el adaptador STAC para `landsat-c2-l2` mediante Microsoft Planetary Computer, filtrando `platform=landsat-8` y `platform=landsat-9`, con activos RED, NIR (`nir08`) y QA_PIXEL. La búsqueda utiliza `intersects` con la geometría exacta. Earth Search devolvió assets en un bucket AWS Requester Pays y la lectura anónima falló; por eso el adaptador usa Planetary Computer, cuyo STAC es público y ofrece tokens SAS anónimos de corta duración para leer los COGs. El backend firma los tres assets necesarios y cachea el token; no se exponen credenciales permanentes.
 
 El procesador NDVI:
 - Aplica escala 0.0000275 y offset -0.2 a RED y NIR antes de calcular NDVI.
@@ -207,7 +207,7 @@ El procesador NDVI:
 - Permite fallback automático desde Sentinel-2 a Landsat cuando no hay píxeles válidos.
 - En comparaciones temporales, fuerza la misma colección/sensor para ambas fechas; no compara Sentinel-2 contra Landsat.
 
-El fallback no usa escenas posteriores a la fecha solicitada. Se prueban hasta cinco escenas ordenadas por nubosidad para encontrar píxeles válidos.
+El fallback no usa escenas posteriores a la fecha solicitada. Se prueban hasta cinco escenas ordenadas por nubosidad para encontrar píxeles válidos. Los datos Landsat C2 L2 son de dominio público USGS; se conserva atribución al proveedor.
 
 ## Primera validación en vivo desde GitHub Actions
 
