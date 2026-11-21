@@ -126,7 +126,12 @@ export class MapViewer {
         const response = await fetch('/api/sources/ogc/' + provider.id + '/wms', {
           headers: { Accept: 'application/json' }
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (provider.id === 'idecorr' && response.status === 503) {
+            console.info('[MapViewer] IDECorr no se incorpora: el servidor provincial debe corregir su certificado TLS.');
+          }
+          return;
+        }
         const metadata = await response.json();
         const relevant = (metadata.layers || []).filter(layer =>
           isRelevantOfficialLayer(provider.id, layer)
