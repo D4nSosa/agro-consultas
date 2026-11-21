@@ -104,8 +104,8 @@ def xml_layer_names(body: bytes):
     return names
 
 
-def check_wms(name: str, endpoint: str, expected: list[str]):
-    result = request(endpoint + "?service=WMS&version=1.3.0&request=GetCapabilities")
+def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
+    result = request(endpoint + "?service=WMS&version=1.3.0&request=GetCapabilities", timeout=timeout)
     body = result.pop("body", b"")
     names = xml_layer_names(body) if result["status"] == "HTTP_OK" else []
     result["service"] = name
@@ -268,6 +268,32 @@ def main():
         "https://geoserver.inta.gob.ar/geoserver/wms",
         []
     )
+    inta_nodes = [
+        ("INTA Región Salta-Jujuy", "https://geo-nodo01.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Santiago del Estero-Tucumán", "https://geo-nodo02.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Entre Ríos", "https://geo-nodo03.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Río Negro-Neuquén", "https://geo-nodo04.inta.gob.ar/geoserver/wms"),
+        ("INTA Centro de Investigación de Recursos Naturales", "https://geo-nodo05.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Santa Cruz-Chubut-Tierra del Fuego", "https://geo-nodo06.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Buenos Aires", "https://geo-nodo07.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Córdoba", "https://geo-nodo08.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Corrientes", "https://geo-nodo09.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Santa Fe", "https://geo-nodo10.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Catamarca-La Rioja", "https://geo-nodo11.inta.gob.ar/geoserver/wms"),
+        ("INTA Región Mendoza-San Juan", "https://geo-nodo12.inta.gob.ar/geoserver/wms"),
+    ]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [
+            pool.submit(check_wms, name, endpoint, [], 8)
+            for name, endpoint in inta_nodes
+        ]
+        report["checks"]["inta_regional_wms"] = [future.result() for future in futures]
+    report["checks"]["idecorr_wms"] = check_wms(
+        "IDECorr WMS",
+        "https://geoportal.corrientes.gob.ar/geoserver/wms",
+        [],
+        timeout=8
+    )
 
     portal_urls = {
         "idera_portal": "https://www.idera.gob.ar/index.php/servicios/geoservicios",
@@ -319,7 +345,11 @@ def main():
         ]
         for item in report["checks"]["conae"]:
             rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; capas: {item.get('capabilities_layers_count', item.get('capabilities_feature_types_count', 0))} |")
-        rows.append(f"| INTA WMS | {report['checks']['inta_wms'].get('status')} | HTTP {report['checks']['inta_wms'].get('http_status')} |")
+        rows.append(f"| INTA WMS central | {report['checks']['inta_wms'].get('status')} | HTTP {report['checks']['inta_wms'].get('http_status')} |")
+        regional = report["checks"]["inta_regional_wms"]
+        regional_ok = sum(1 for item in regional if item.get("status") == "HTTP_OK")
+        rows.append(f"| INTA nodos regionales WMS | {regional_ok}/{len(regional)} activos | Prueba GetCapabilities |")
+        rows.append(f"| IDECorr WMS | {report['checks']['idecorr_wms'].get('status')} | HTTP {report['checks']['idecorr_wms'].get('http_status')} |")
         for item in report["checks"]["conae_aqm_getmap"]:
             rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; PNG: {item.get('png_signature_valid')} |")
         for name, item in report["checks"]["catalog_portals"].items():
