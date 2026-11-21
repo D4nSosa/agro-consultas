@@ -240,3 +240,86 @@ def test_fire_forecast_serves_stale_cache_when_provider_is_unavailable(monkeypat
     assert stale["meta"]["cached"] is True
     assert stale["meta"]["stale"] is True
     assert "Open-Meteo no respondió" in stale["meta"]["warning"]
+
+
+
+def test_conae_wms_metadata_preserves_published_crs_bounds_and_queryability(monkeypatch):
+    fire.CONAE_METADATA_CACHE.clear()
+    xml = b"""<?xml version="1.0"?>
+    <WMS_Capabilities version="1.3.0">
+      <Service><Title>CONAE test service</Title></Service>
+      <Capability><Layer><Title>Root</Title>
+        <Layer queryable="1">
+          <Name>EmergenciasCONAE:MODIS_AQM_1</Name>
+          <Title>Monthly burned area</Title>
+          <Abstract>MODIS Burn_Date product</Abstract>
+          <CRS>EPSG:4326 EPSG:3857</CRS>
+          <EX_GeographicBoundingBox>
+            <westBoundLongitude>-75</westBoundLongitude>
+            <eastBoundLongitude>-53</eastBoundLongitude>
+            <southBoundLatitude>-56</southBoundLatitude>
+            <northBoundLatitude>-21</northBoundLatitude>
+          </EX_GeographicBoundingBox>
+          <BoundingBox CRS="EPSG:4326" minx="-75" miny="-56" maxx="-53" maxy="-21"/>
+          <Style><Name>burn_date</Name><Title>Burn date</Title></Style>
+        </Layer>
+      </Layer></Capability>
+    </WMS_Capabilities>"""
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return xml
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", lambda *_a, **_k: FakeResponse())
+    payload = fire.conae_wms_metadata("burned")
+    layer = next(item for item in payload["layers"] if item["name"] == "EmergenciasCONAE:MODIS_AQM_1")
+
+    assert layer["queryable"] is True
+    assert layer["crs"] == ["EPSG:4326", "EPSG:3857"]
+    assert layer["geographicBounds"]["westBoundLongitude"] == "-75"
+    assert layer["boundingBoxes"][0]["crs"] == "EPSG:4326"
+    assert layer["styles"][0]["name"] == "burn_date"
+    assert layer["abstract"] == "MODIS Burn_Date product"
+
+
+def test_conae_wms_metadata_does_not_invent_missing_spatial_metadata(monkeypatch):
+    fire.CONAE_METADATA_CACHE.clear()
+    xml = b"""<WMS_Capabilities><Capability><Layer>
+      <Layer><Name>AlertaTemprana:unknown</Name><Title>Unknown metadata</Title></Layer>
+    </Layer></Capability></WMS_Capabilities>"""
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return xml
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", lambda *_a, **_k: FakeResponse())
+    payload = fire.conae_wms_metadata("fuel")
+    layer = payload["layers"][0]
+
+    assert layer["crs"] == []
+    assert layer["boundingBoxes"] == []
+    assert layer["geographicBounds"] is None
+    assert layer["queryable"] is None
+
+
+def test_conae_wms_metadata_rejects_unknown_product_kind():
+    from fastapi import HTTPException
+
+    try:
+        fire.conae_wms_metadata("unknown")
+    except HTTPException as exc:
+        assert exc.status_code == 400
+    else:
+        raise AssertionError("Se esperaba HTTP 400 para un producto CONAE desconocido")

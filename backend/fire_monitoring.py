@@ -895,15 +895,81 @@ def conae_wms_metadata(kind: str):
             name = layer.findtext("{*}Name")
             if not name:
                 continue
-            legend_url = None
-            online = layer.find(".//{*}LegendURL/{*}OnlineResource")
-            if online is not None:
-                legend_url = online.attrib.get("{http://www.w3.org/1999/xlink}href") or online.attrib.get("href")
+
+            # Preserve only metadata explicitly published by this layer.
+            # Missing CRS/bounds/queryability must remain unknown, not inferred.
+            crs_values = []
+            for tag in ("SRS", "CRS"):
+                for node in layer.findall(f"./{{*}}{tag}"):
+                    crs_values.extend(value for value in (node.text or "").split() if value)
+
+            bounding_boxes = []
+            for bbox in layer.findall("./{*}BoundingBox"):
+                bounding_boxes.append({
+                    "crs": bbox.attrib.get("CRS") or bbox.attrib.get("SRS"),
+                    "minx": bbox.attrib.get("minx"),
+                    "miny": bbox.attrib.get("miny"),
+                    "maxx": bbox.attrib.get("maxx"),
+                    "maxy": bbox.attrib.get("maxy"),
+                })
+
+            geographic_bounds = None
+            geographic_box = layer.find("./{*}EX_GeographicBoundingBox")
+            if geographic_box is not None:
+                geographic_bounds = {}
+                for field in (
+                    "westBoundLongitude", "eastBoundLongitude",
+                    "southBoundLatitude", "northBoundLatitude",
+                ):
+                    value = geographic_box.findtext(f"{{*}}{field}")
+                    geographic_bounds[field] = value
+
+            legacy_box = layer.find("./{*}LatLonBoundingBox")
+            if geographic_bounds is None and legacy_box is not None:
+                geographic_bounds = {
+                    "westBoundLongitude": legacy_box.attrib.get("minx"),
+                    "eastBoundLongitude": legacy_box.attrib.get("maxx"),
+                    "southBoundLatitude": legacy_box.attrib.get("miny"),
+                    "northBoundLatitude": legacy_box.attrib.get("maxy"),
+                }
+
+            styles = []
+            for style in layer.findall("./{*}Style"):
+                style_name = style.findtext("{*}Name")
+                if not style_name:
+                    continue
+                style_legend = None
+                style_online = style.find(".//{*}LegendURL/{*}OnlineResource")
+                if style_online is not None:
+                    style_legend = (
+                        style_online.attrib.get("{http://www.w3.org/1999/xlink}href")
+                        or style_online.attrib.get("href")
+                    )
+                styles.append({
+                    "name": style_name,
+                    "title": style.findtext("{*}Title") or style_name,
+                    "legend": style_legend,
+                })
+
+            legend_url = next((item["legend"] for item in styles if item["legend"]), None)
+            if not legend_url:
+                online = layer.find(".//{*}LegendURL/{*}OnlineResource")
+                if online is not None:
+                    legend_url = online.attrib.get("{http://www.w3.org/1999/xlink}href") or online.attrib.get("href")
+
+            queryable_raw = layer.attrib.get("queryable")
             layers.append({
                 "name": name,
                 "title": layer.findtext("{*}Title") or name,
                 "abstract": layer.findtext("{*}Abstract") or "",
                 "legend": legend_url,
+                "styles": styles,
+                "crs": list(dict.fromkeys(crs_values)),
+                "boundingBoxes": bounding_boxes,
+                "geographicBounds": geographic_bounds,
+                "queryable": None if queryable_raw is None else queryable_raw in ("1", "true", "TRUE"),
+                "minScaleDenominator": layer.findtext("{*}MinScaleDenominator"),
+                "maxScaleDenominator": layer.findtext("{*}MaxScaleDenominator"),
             })
         if not layers:
             raise ValueError("El documento WMS no publicó capas identificables.")
