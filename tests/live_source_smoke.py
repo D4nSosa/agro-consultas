@@ -167,6 +167,8 @@ def main():
     report["checks"]["conae"] = [
         check_wfs("CONAE focos MODIS/VIIRS", "https://geoservicios.conae.gov.ar/geoserver/FocosDeCalor/wfs",
                   ["GeoServiciosCONAE:FocosDeCalor", "GeoServiciosCONAE:FocosDeCalorVIIRS"]),
+        check_wms("CONAE áreas quemadas MODIS AQM", "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms",
+                  ["EmergenciasCONAE:MODIS_AQM_1"]),
         check_wms("CONAE disponibilidad de combustibles", "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms",
                   ["AlertaTemprana:INC_SIARTIVGEOL89_DC_1", "AlertaTemprana:INC_SIARTIVGEOSNPP_DC_1"]),
         check_wms("CONAE SAOCOM humedad", "https://geoservicios3.conae.gov.ar/geoserver/HumedadDeSuelos/wms",
