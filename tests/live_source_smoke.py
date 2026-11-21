@@ -472,6 +472,29 @@ def main():
         [],
         timeout=8
     )
+    report["checks"]["idera_discovered_services"] = {
+        "IGN WMS": check_wms(
+            "IGN WMS", "https://wms.ign.gob.ar/geoserver/ows", [], timeout=10
+        ),
+        "IGN WFS": check_wfs(
+            "IGN WFS", "https://wms.ign.gob.ar/geoserver/ows", []
+        ),
+        "INDEC WMS": check_wms(
+            "INDEC WMS", "https://geonode.indec.gob.ar/geoserver/geonode/wms", [], timeout=10
+        ),
+        "INDEC WFS": check_wfs(
+            "INDEC WFS", "https://geonode.indec.gob.ar/geoserver/geonode/wfs", []
+        ),
+        "MapBiomas alerts GeoServer WMS": check_wms(
+            "MapBiomas alerts GeoServer WMS", "https://maps.alerta.mapbiomas.org/geoserver/ows", [], timeout=10
+        ),
+        "MapBiomas layers GeoServer WMS": check_wms(
+            "MapBiomas layers GeoServer WMS", "https://geoserver.layers.mapbiomas.org/geoserver/ows", [], timeout=10
+        ),
+        "MapBiomas shared GeoServer WMS": check_wms(
+            "MapBiomas shared GeoServer WMS", "https://shared-geoserver.mapbiomas.org/geoserver/ows", [], timeout=10
+        )
+    }
 
     portal_urls = {
         "idera_portal": "https://www.idera.gob.ar/index.php/servicios/geoservicios",
@@ -531,6 +554,8 @@ def main():
         rows.append(f"| INTA nodos regionales WMS | {regional_ok}/{len(regional)} activos | Prueba GetCapabilities |")
         rows.append(f"| Capas INTA candidatas de suelo | {soil_count} en {len(soil_nodes)} nodos | Requieren revisar atributos, escala y geometría |")
         rows.append(f"| IDECorr WMS | {report['checks']['idecorr_wms'].get('status')} | HTTP {report['checks']['idecorr_wms'].get('http_status')} |")
+        for name, item in report["checks"]["idera_discovered_services"].items():
+            rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')}; capas {item.get('capabilities_layers_count', item.get('capabilities_feature_types_count', 0))} |")
         for item in report["checks"]["conae_aqm_getmap"]:
             rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; PNG: {item.get('png_signature_valid')} |")
         aqm_samples = report["checks"]["conae_aqm_point_samples"]
