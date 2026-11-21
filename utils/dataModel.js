@@ -1,13 +1,14 @@
 /**
- * utils/dataModel.js — Modelo Unificado y Estándar de Datos Territoriales y Agroambientales
- * Define las estructuras normalizadas para cualquier dato o métrica espacial en Agro Consultas.
- * Garantiza cero datos ficticios y trazabilidad completa de metadatos.
+ * Modelo común de datos territoriales y agroambientales.
+ * Los metadatos describen únicamente lo que la fuente o el proceso informa:
+ * no se completan cobertura, resolución, fechas ni metodología por defecto.
  */
 
 export const DataStatus = {
   REAL: 'REAL',
   ESTIMATED: 'ESTIMATED',
   REGIONAL: 'REGIONAL',
+  CARTOGRAPHIC: 'CARTOGRAPHIC',
   CALCULATED: 'CALCULATED',
   UNAVAILABLE: 'UNAVAILABLE'
 };
@@ -19,9 +20,6 @@ export const ConfidenceLevel = {
   NONE: 'none'
 };
 
-/**
- * Crea una estructura de metadatos estandarizada para trazabilidad.
- */
 export function createMetadata({
   source = "Desconocida",
   sourceUrl = null,
@@ -29,11 +27,13 @@ export function createMetadata({
   api = null,
   variable = null,
   unit = null,
-  spatialResolution = "N/D",
-  temporalResolution = "N/D",
+  spatialResolution = null,
+  temporalResolution = null,
   acquisitionDate = null,
   updateDate = null,
-  geographicCoverage = "Argentina",
+  geographicCoverage = null,
+  crs = null,
+  license = null,
   methodology = null,
   limitations = null
 } = {}) {
@@ -46,17 +46,16 @@ export function createMetadata({
     unit,
     spatialResolution,
     temporalResolution,
-    acquisitionDate: acquisitionDate || new Date().toISOString().split('T')[0],
-    updateDate: updateDate || new Date().toISOString().split('T')[0],
+    acquisitionDate: acquisitionDate || null,
+    updateDate: updateDate || null,
     geographicCoverage,
-    methodology: methodology || "Consulta directa a servicio oficial o dataset de referencia.",
-    limitations: limitations || "Sujeto a la resolución espacial y temporal de la fuente primaria."
+    crs,
+    license,
+    methodology,
+    limitations
   };
 }
 
-/**
- * Empaqueta un valor o conjunto de valores en la estructura estándar DataPoint.
- */
 export function createDataPoint({
   value = null,
   unit = null,
@@ -69,18 +68,23 @@ export function createDataPoint({
   temporalResolution = null,
   acquisitionDate = null,
   updateDate = null,
-  geographicCoverage = "Argentina",
+  geographicCoverage = null,
+  crs = null,
+  license = null,
   methodology = null,
   limitations = null,
   date = null,
   retrievedAt = null,
   resolution = null,
   scale = null,
-  status = DataStatus.REAL,
-  confidence = ConfidenceLevel.HIGH,
+  status = DataStatus.UNAVAILABLE,
+  confidence = ConfidenceLevel.NONE,
   message = null
-}) {
+} = {}) {
   const isAvailable = status !== DataStatus.UNAVAILABLE && value !== null && value !== undefined;
+  const effectiveResolution = spatialResolution ?? resolution ?? null;
+  const effectiveAcquisitionDate = acquisitionDate ?? date ?? null;
+  const actualRetrievedAt = retrievedAt || new Date().toISOString();
 
   const metadata = createMetadata({
     source,
@@ -89,11 +93,13 @@ export function createDataPoint({
     api,
     variable,
     unit,
-    spatialResolution: spatialResolution || resolution || "15 km (Radio local)",
-    temporalResolution: temporalResolution || "Serie histórica / Tiempo real",
-    acquisitionDate: acquisitionDate || date || new Date().toISOString().split('T')[0],
+    spatialResolution: effectiveResolution,
+    temporalResolution,
+    acquisitionDate: effectiveAcquisitionDate,
     updateDate,
     geographicCoverage,
+    crs,
+    license,
     methodology,
     limitations
   });
@@ -101,32 +107,31 @@ export function createDataPoint({
   return {
     available: isAvailable,
     value: isAvailable ? value : null,
-    unit: unit,
-    source: source,
-    sourceUrl: sourceUrl,
-    dataset: dataset,
-    metadata: metadata,
-    date: date || new Date().toISOString().split('T')[0],
-    retrievedAt: retrievedAt || new Date().toISOString(),
-    resolution: resolution || spatialResolution || "15 km",
-    scale: scale,
-    methodology: methodology,
+    unit,
+    source,
+    sourceUrl,
+    dataset,
+    metadata,
+    date: effectiveAcquisitionDate,
+    retrievedAt: actualRetrievedAt,
+    resolution: effectiveResolution,
+    scale,
+    methodology,
     status: isAvailable ? status : DataStatus.UNAVAILABLE,
     confidence: isAvailable ? confidence : ConfidenceLevel.NONE,
     message: message || (isAvailable ? null : "Datos no disponibles para esta ubicación")
   };
 }
 
-/**
- * Retorna un DataPoint estándar para cuando una fuente no está disponible o no tiene cobertura.
- */
-export function createUnavailableDataPoint(source, message = "Datos no disponibles para esta ubicación") {
+export function createUnavailableDataPoint(
+  source,
+  message = "La fuente no devolvió datos utilizables para esta consulta"
+) {
   return createDataPoint({
     value: null,
-    source: source,
+    source,
     status: DataStatus.UNAVAILABLE,
     confidence: ConfidenceLevel.NONE,
-    message: message,
-    limitations: "La fuente consultada no posee cobertura o presentó error de servicio para las coordenadas indicadas."
+    message
   });
 }

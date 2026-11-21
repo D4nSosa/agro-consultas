@@ -13,7 +13,7 @@ Agro-Consultas es un desarrollo independiente orientado a explorar información 
 |---|---|---|
 | Aptitud territorial | Catálogos agrícolas y forestales, selección provincial, motor multicriterio y consulta de variables climáticas/edáficas. | Los perfiles forestales provinciales se muestran por separado de los agrícolas. Su inclusión en el catálogo habilita la evaluación, pero no implica aptitud local. La respuesta WMS de INTA es evidencia cartográfica, no medición puntual. |
 | Forestal | Delimitación de lotes, búsqueda de escenas Sentinel-2 L2A mediante AWS Earth Search STAC, metadatos, análisis NDVI cuando existen estadísticas ráster válidas, evidencia fotográfica y registro de variables de campo. | Una escena identificada se informa como tal, con NDVI no disponible hasta contar con estadísticas de píxeles válidos. El recorte reproyecta Polygon y MultiPolygon conservando huecos. El inventario manual usa supuestos orientativos; no es inventario dasométrico validado. |
-| Incendios | Vista nacional de anomalías térmicas recientes NASA FIRMS MODIS/VIIRS y GOES-19; consulta por lote; importación local de CSV históricos; previsión meteorológica orientativa. | El histórico integrado todavía depende de CSV importados por el usuario. No existe aún una serie histórica automática por provincia o lote. Un foco satelital no confirma un incendio ni representa un perímetro quemado. |
+| Incendios | Vista nacional de anomalías térmicas recientes NASA FIRMS MODIS/VIIRS y GOES-19; consulta por lote; consulta histórica automática NASA FIRMS mediante API en backend, con importación local de CSV como herramienta offline secundaria; previsión meteorológica orientativa. | El histórico integrado consulta automáticamente NASA FIRMS desde el backend mediante `POST /api/fires/history`, selecciona productos SP/NRT según disponibilidad publicada y recorta los resultados a la geometría del lote. La importación CSV permanece como alternativa offline. Un foco satelital no confirma un incendio ni representa un perímetro quemado. |
 | Tracking GPS | Geolocalización, registro de recorridos y geometrías, medición de superficie/perímetro y exportación. | El GeoJSON conserva muestras y precisión GNSS declarada (mediana y máximo) cuando el dispositivo la informa. La superficie es estimada y no es una mensura. |
 | Selección territorial | Dibujo e importación de polígonos GeoJSON y contexto de lote compartido entre módulos compatibles. | La geometría representa el área de interés; no certifica límites parcelarios ni titularidad. |
 
@@ -37,7 +37,7 @@ Documentación detallada: [FIRE_MONITORING.md](FIRE_MONITORING.md).
 
 | Fuente | Uso |
 |---|---|
-| NASA FIRMS | Detecciones de anomalías térmicas MODIS/VIIRS y archivos históricos importados por el usuario. |
+| NASA FIRMS | Detecciones MODIS/VIIRS recientes y consulta histórica automática SP/NRT mediante API; importación CSV secundaria offline. |
 | NOAA GOES-19 Open Data | Producto ABI L2 FDCF para alertas térmicas rápidas. |
 | Geoservicios OGC de CONAE | Capas WFS de focos MODIS y VIIRS cuando responden correctamente. |
 | AWS Earth Search STAC | Catálogo público de escenas Sentinel-2 L2A. |
