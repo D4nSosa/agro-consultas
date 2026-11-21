@@ -132,11 +132,21 @@ def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
     result["national_layer_candidates"] = [
         name for name in names if any(term in name.lower() for term in national_terms)
     ][:150]
+    result["mapbiomas_argentina_layer_candidates"] = [
+        name for name in names if name.lower().startswith("mapbiomas-argentina:")
+    ][:250]
+    result["mapbiomas_landcover_candidates"] = [
+        name for name in names
+        if name.lower().startswith(("mapbiomas-argentina:", "mapbiomas-pampa:", "mapbiomas-arida:", "mapbiomas-chaco:"))
+        and any(term in name.lower() for term in ("land_cover", "land-cover", "coverage", "transition"))
+    ][:250]
     if result["status"] == "HTTP_OK":
         try:
             root = ET.fromstring(body)
             metadata = []
             soil_metadata = []
+            national_metadata = []
+            mapbiomas_metadata = []
             for layer in root.iter():
                 if layer.tag.rsplit("}", 1)[-1] != "Layer":
                     continue
@@ -173,10 +183,42 @@ def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
                     metadata.append(item)
                 if any(term in name.lower() for term in ("suel", "soil", "edaf", "textur", "ph_")):
                     soil_metadata.append(item)
+                if any(term in name.lower() for term in national_terms):
+                    national_metadata.append(item)
+                if name.lower().startswith(("mapbiomas-argentina:", "mapbiomas-pampa:", "mapbiomas-arida:", "mapbiomas-chaco:")):
+                    mapbiomas_metadata.append(item)
             result["product_layer_metadata_sample"] = metadata[:30]
             result["soil_layer_metadata"] = soil_metadata[:60]
+            result["national_layer_metadata"] = national_metadata[:60]
+            result["mapbiomas_layer_metadata"] = mapbiomas_metadata[:100]
         except ET.ParseError:
             result["product_layer_metadata_sample"] = []
+    return result
+
+
+def check_wfs_feature_sample(name: str, endpoint: str, typename: str):
+    params = urllib.parse.urlencode({
+        "service": "WFS",
+        "version": "2.0.0",
+        "request": "GetFeature",
+        "typeNames": typename,
+        "count": "1",
+        "outputFormat": "application/json"
+    })
+    result = request(endpoint + "?" + params, timeout=20)
+    body = result.pop("body", b"")
+    result["service"] = name
+    result["typeName"] = typename
+    if result["status"] == "HTTP_OK":
+        try:
+            data = json.loads(body.decode("utf-8"))
+            features = data.get("features", [])
+            result["features_returned"] = len(features)
+            result["geometry_type"] = features[0].get("geometry", {}).get("type") if features else None
+            result["property_names"] = list((features[0].get("properties") or {}).keys())[:40] if features else []
+        except Exception:
+            result["status"] = "INVALID_RESPONSE"
+            result["response_preview"] = body[:500].decode("utf-8", errors="replace")
     return result
 
 
@@ -541,6 +583,21 @@ def main():
         [],
         timeout=8
     )
+    report["checks"]["official_admin_wfs_samples"] = {
+        "IGN provincias": check_wfs_feature_sample(
+            "IGN provincias", "https://wms.ign.gob.ar/geoserver/ows", "ign:provincia"
+        ),
+        "IGN departamentos": check_wfs_feature_sample(
+            "IGN departamentos", "https://wms.ign.gob.ar/geoserver/ows", "ign:departamento"
+        ),
+        "INDEC departamentos": check_wfs_feature_sample(
+            "INDEC departamentos", "https://geonode.indec.gob.ar/geoserver/geonode/wfs", "geonode:departamentos"
+        )
+    }
+    report["checks"]["official_map_layer_renders"] = [
+        check_wms_layer_render("IGN provincias", "https://wms.ign.gob.ar/geoserver/ows", "ign:provincia"),
+        check_wms_layer_render("IGN departamentos", "https://wms.ign.gob.ar/geoserver/ows", "ign:departamento")
+    ]
     report["checks"]["idera_discovered_services"] = {
         "IGN WMS": check_wms(
             "IGN WMS", "https://wms.ign.gob.ar/geoserver/ows", [], timeout=10
