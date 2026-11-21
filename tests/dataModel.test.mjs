@@ -49,7 +49,7 @@ test('DataPoint conserva valor cero y solo declara metadatos entregados explíci
   });
   assert.equal(point.available, true);
   assert.equal(point.value, 0);
-  assert.equal(point.metadata.geographicCoverage, 'polígono consultado');
+  assert.equal(point.metadata.geographicCoverage, 'AOI consultada');
   assert.equal(point.metadata.spatialResolution, '30 m');
   assert.equal(point.metadata.acquisitionDate, '2026-11-20');
   assert.equal(point.metadata.crs, 'EPSG:4326');
