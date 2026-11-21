@@ -505,3 +505,11 @@ def test_temporal_ndvi_comparison_falls_back_to_landsat_without_mixing_sensors(m
     assert result["deltaNDVI"] == 0.2
     assert result["spatialComparisonAvailable"] is False
     assert "NDVI no mide biomasa directamente." in result["limitations"]
+
+def test_stac_post_route_is_registered_exactly_once():
+    matching = [
+        route for route in app.routes
+        if getattr(route, "path", None) == "/api/forest/stac"
+        and "POST" in (getattr(route, "methods", None) or set())
+    ]
+    assert len(matching) == 1
