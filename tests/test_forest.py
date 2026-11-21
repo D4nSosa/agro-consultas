@@ -513,3 +513,35 @@ def test_stac_post_route_is_registered_exactly_once():
         and "POST" in (getattr(route, "methods", None) or set())
     ]
     assert len(matching) == 1
+
+def test_change_detection_does_not_claim_pixel_alignment_when_grid_metadata_is_missing(monkeypatch):
+    import backend.main as forest_backend
+
+    dates = iter(["2025-01-01", "2025-12-31"])
+
+    def fake_calculate_ndvi(req):
+        return {
+            "status": "REAL",
+            "date": req.date,
+            "collection": "sentinel-2-l2a",
+            "sensor": "sentinel-2",
+            "stats": {
+                "mean": 0.6 if req.date == "2025-01-01" else 0.7,
+                "ndviMatrix": [[0.5, 0.6], [0.7, 0.8]],
+                "crs": None,
+                "transform": None
+            }
+        }
+
+    monkeypatch.setattr(forest_backend, "calculate_ndvi", fake_calculate_ndvi)
+    result = forest_backend.calculate_change_detection(
+        forest_backend.ChangeDetectionRequest(
+            geometry=SAMPLE_POLYGON_GEOMETRY,
+            dateA="2025-01-01",
+            dateB="2025-12-31"
+        )
+    )
+
+    assert result["status"] == "REAL"
+    assert result["spatialComparisonAvailable"] is False
+    assert result["breakdown"]["decrease"]["percent"] == "N/D"
