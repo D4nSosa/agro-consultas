@@ -180,6 +180,12 @@ Referencias:
 - USGS Surface Reflectance (resolución global 30 m y sensores): https://www.usgs.gov/landsat-missions/landsat-collection-2-surface-reflectance
 - USGS licencia/dominio público en la nube: https://www.usgs.gov/faqs/are-landsat-data-cloud-still-considered-be-within-public-domain
 
+### Centralización de consultas STAC del módulo Forestal
+
+El cliente frontend `forestal/services/satelliteService.js` dejó de consultar Earth Search directamente. Ahora consume `POST /api/forest/stac`, que aplica geometría exacta `intersects`, filtro temporal y nubosidad, y devuelve metadatos radiométricos y activos. Esto evita mantener dos implementaciones STAC con filtros y resoluciones diferentes.
+
+El buscador histórico de escenas termina siempre en la fecha objetivo; no incorpora escenas futuras para completar una ventana.
+
 ### Integración Landsat 8/9 en la rama PR #94
 
 La rama ya incorpora el adaptador STAC para `landsat-c2-l2`, filtrando `platform=landsat-8` y `platform=landsat-9`, con activos RED, NIR (`nir08`) y QA_PIXEL. La búsqueda utiliza `intersects` con la geometría exacta.
