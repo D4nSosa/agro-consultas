@@ -398,23 +398,82 @@ def test_landsat_stac_search_filters_to_landsat_8_9_and_preserves_calibration(mo
     assert product["assets"]["qualityMaskAsset"] == "qa_pixel"
 
 
-def test_api_ndvi_landsat_8_point_uses_qa_pixel_mask():
-    from backend.main import calculate_ndvi, NDVIAnalysisRequest
+def test_api_ndvi_landsat_8_point_uses_qa_pixel_mask(monkeypatch):
+    import backend.main as forest_backend
 
-    result = calculate_ndvi(NDVIAnalysisRequest(
+    product = {
+        "id": "LC08_L2SP_test",
+        "date": "2025-12-27",
+        "collection": "landsat-c2-l2",
+        "sensor": "landsat-8",
+        "product": "Landsat Collection 2 Level-2 Surface Reflectance",
+        "source": "USGS Landsat 8/9 / Microsoft Planetary Computer STAC",
+        "sourceUrl": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/landsat-c2-l2",
+        "license": "Public domain (USGS Landsat); attribution recommended.",
+        "acquiredAt": "2025-12-27T14:21:57Z",
+        "publishedAt": "2025-12-28T00:00:00Z",
+        "retrievedAt": "2026-11-21T00:00:00Z",
+        "geometry": SAMPLE_POLYGON_GEOMETRY,
+        "coverage": [-69.0, -35.0, -68.0, -34.0],
+        "crs": "EPSG:32619",
+        "quality": {"eo:cloud_cover": 0, "qualityMaskAsset": "qa_pixel"},
+        "resolution": 30,
+        "bands": ["SR_B4 (Red)", "SR_B5 (NIR)"],
+        "cloudCover": 0,
+        "assets": {
+            "red": "https://example.test/SR_B4.TIF",
+            "nir": "https://example.test/SR_B5.TIF",
+            "scl": None,
+            "qaPixel": "https://example.test/QA_PIXEL.TIF",
+            "redScale": 2.75e-5,
+            "redOffset": -0.2,
+            "nirScale": 2.75e-5,
+            "nirOffset": -0.2
+        }
+    }
+    stats = {
+        "mean": 0.62,
+        "min": 0.60,
+        "max": 0.64,
+        "median": 0.62,
+        "stdDev": 0.01,
+        "validPixelsPercent": 100.0,
+        "sampleCount": 1,
+        "isPoint": True,
+        "qualityMaskApplied": True,
+        "qualityMaskType": "Landsat QA_PIXEL",
+        "qaPixelFilterApplied": True,
+        "qaPixelWarning": None,
+        "sclFilterApplied": False,
+        "sclWarning": "No aplica a Landsat",
+        "reflectanceScalingApplied": True
+    }
+
+    monkeypatch.setattr(
+        forest_backend,
+        "search_stac_catalog",
+        lambda _request: {"success": True, "products": [product], "productsCount": 1}
+    )
+    monkeypatch.setattr(forest_backend, "_sign_planetary_computer_asset", lambda href: href)
+    monkeypatch.setattr(
+        forest_backend,
+        "process_cog_raster_ndvi_cropped",
+        lambda *_args, **_kwargs: (stats, None)
+    )
+
+    result = forest_backend.calculate_ndvi(forest_backend.NDVIAnalysisRequest(
         geometry={"type": "Point", "coordinates": [-68.5831, -34.6297]},
         date="2025-12-31",
         collection="landsat-c2-l2"
     ))
 
-    assert result["status"] == "REAL", {"message": result.get("message"), "details": result.get("details"), "attempts": result.get("attempts")}
+    assert result["status"] == "REAL"
     assert result["collection"] == "landsat-c2-l2"
-    assert result["sensor"] in ("landsat-8", "landsat-9")
+    assert result["sensor"] == "landsat-8"
     assert result["qualityMaskType"] == "Landsat QA_PIXEL"
     assert result["spatialResolution"] == 30
     assert result["reflectanceScalingApplied"] is True
     assert result["stats"]["qaPixelFilterApplied"] is True
-
 
 
 def test_planetary_computer_landsat_assets_are_signed_with_cached_public_sas_token(monkeypatch):
