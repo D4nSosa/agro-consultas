@@ -1076,7 +1076,7 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                 ndvi_resA, ndvi_resB = candidate_a, candidate_b
                 break
 
-        if ndvi_resA.get("status") == "REAL" and ndvi_resB.get("status") == "REAL":
+        if ndvi_resA and ndvi_resB and ndvi_resA.get("status") == "REAL" and ndvi_resB.get("status") == "REAL":
             statsA = ndvi_resA.get("stats", {})
             statsB = ndvi_resB.get("stats", {})
             meanA = statsA.get("mean")
