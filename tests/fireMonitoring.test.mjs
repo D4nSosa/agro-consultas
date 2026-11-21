@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { harmonizeFireDetections, aggregateFireDays, parseFireCsv, filterFireDetectionsToGeometry, aggregateFireMonths, aggregateFireYears } from '../services/fireMonitoringService.mjs';
+import { fetchFireDetections, harmonizeFireDetections, aggregateFireDays, parseFireCsv, filterFireDetectionsToGeometry, aggregateFireMonths, aggregateFireYears } from '../services/fireMonitoringService.mjs';
 const point=(source,date,lon,lat,confidence=80,powerMw=10)=>({type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:{source,date,confidence,powerMw}});
 test('harmonizes same-day MODIS and VIIRS detections within 1 km',()=>{const events=harmonizeFireDetections([point('MODIS','2026-11-01',-56,-27),point('VIIRS','2026-11-01',-55.999,-27)]);assert.equal(events.length,1);assert.deepEqual(events[0].sources,['MODIS','VIIRS']);assert.equal(events[0].harmonization,'coincident');});
 test('does not match detections from different dates or distant pixels',()=>{const events=harmonizeFireDetections([point('MODIS','2026-11-01',-56,-27),point('VIIRS','2026-11-02',-56,-27),point('VIIRS','2026-11-01',-55.9,-27)]);assert.equal(events.length,3);assert.ok(events.every(event=>event.harmonization==='single-sensor'));});
@@ -55,4 +55,27 @@ test('categorical FIRMS confidence is preserved and is not treated as a numeric 
  assert.equal(filtered.length,1);
  assert.equal(filtered[0].properties.confidence,null);
  assert.equal(filtered[0].properties.confidenceLabel,'nominal');
+});
+
+test('aborts CONAE WFS requests when the provider does not respond before the timeout', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (_url, options = {}) => new Promise((_resolve, reject) => {
+    if (options.signal?.aborted) {
+      reject(new Error('aborted'));
+      return;
+    }
+    options.signal?.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+  });
+  const geometry = {
+    type: 'Polygon',
+    coordinates: [[[-56.1, -28.1], [-56.0, -28.1], [-56.0, -28.0], [-56.1, -28.0], [-56.1, -28.1]]]
+  };
+  try {
+    await assert.rejects(
+      fetchFireDetections({ geometry, timeoutMs: 10 }),
+      /aborted|AbortError/i
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
