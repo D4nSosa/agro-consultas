@@ -22,7 +22,7 @@ jobs:
       - name: Validate unified workspace integration
         run: python tests/workspace_integration.test.py -v
       - name: Validate shared lot geometry and territorial analysis
-        run: node --experimental-default-type=module --test tests/lotContext.test.mjs tests/userPreferences.test.mjs tests/fireMonitoring.test.mjs tests/firePageContent.test.mjs tests/forestGeo.test.mjs tests/territorial-recommendations.test.mjs tests/coreAnalysis.test.mjs tests/climateService.test.mjs tests/crop-visibility-and-mobile-nav.test.mjs tests/forestry-candidates-ui.test.mjs tests/satelliteService.test.mjs tests/reportPageContent.test.mjs
+        run: node --experimental-default-type=module --test tests/lotContext.test.mjs tests/userPreferences.test.mjs tests/fireMonitoring.test.mjs tests/firePageContent.test.mjs tests/forestGeo.test.mjs tests/territorial-recommendations.test.mjs tests/coreAnalysis.test.mjs tests/climateService.test.mjs tests/crop-visibility-and-mobile-nav.test.mjs tests/forestry-candidates-ui.test.mjs tests/satelliteService.test.mjs tests/reportPageContent.test.mjs tests/dataModel.test.mjs
 
   backend-tests:
     runs-on: ubuntu-latest
