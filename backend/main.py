@@ -1310,6 +1310,16 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                     "sensor": ndvi_resA.get("sensor"),
                     "spatialResolution": ndvi_resA.get("spatialResolution"),
                     "qualityMaskType": ndvi_resA.get("qualityMaskType"),
+                    "source": ndvi_resA.get("source"),
+                    "sourceUrl": ndvi_resA.get("sourceUrl"),
+                    "license": ndvi_resA.get("license"),
+                    "acquiredAt": {
+                        "dateA": ndvi_resA.get("acquiredAt"),
+                        "dateB": ndvi_resB.get("acquiredAt")
+                    },
+                    "limitations": list(dict.fromkeys(
+                        (ndvi_resA.get("limitations") or []) + (ndvi_resB.get("limitations") or [])
+                    )),
                     "products": {
                         "productA": ndvi_resA.get("productId"),
                         "productB": ndvi_resB.get("productId")
