@@ -395,7 +395,10 @@ def main():
         rows.append(f"| INTA WMS central | {report['checks']['inta_wms'].get('status')} | HTTP {report['checks']['inta_wms'].get('http_status')} |")
         regional = report["checks"]["inta_regional_wms"]
         regional_ok = sum(1 for item in regional if item.get("status") == "HTTP_OK")
+        soil_nodes = [item.get("service") for item in regional if item.get("soil_layer_metadata")]
+        soil_count = sum(len(item.get("soil_layer_metadata", [])) for item in regional)
         rows.append(f"| INTA nodos regionales WMS | {regional_ok}/{len(regional)} activos | Prueba GetCapabilities |")
+        rows.append(f"| Capas INTA candidatas de suelo | {soil_count} en {len(soil_nodes)} nodos | Requieren revisar atributos, escala y geometría |")
         rows.append(f"| IDECorr WMS | {report['checks']['idecorr_wms'].get('status')} | HTTP {report['checks']['idecorr_wms'].get('http_status')} |")
         for item in report["checks"]["conae_aqm_getmap"]:
             rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; PNG: {item.get('png_signature_valid')} |")
