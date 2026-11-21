@@ -7,6 +7,8 @@
 const OFFICIAL_LAYER_RULES = {
   idecor: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural/i,
   idecorr: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural|incendio|agua/i,
+  ign: /provincia|departamento|hidrog|ruta|camino|localidad|limite|l[ií]mite|red.?vial/i,
+  inta: /suelo|soil|edaf|cartografia|aptitud|salin|ph|capacidad.?de.?uso/i,
   conae_saocom: /DSS_MSM_|DSS_PSM_/i,
   conae_smap: /SMAP_Pasada/i
 };
@@ -108,6 +110,8 @@ export class MapViewer {
     const providers = [
       { id: 'idecor', label: 'IDECOR Córdoba', category: 'Territorio · Córdoba' },
       { id: 'idecorr', label: 'IDECorr Corrientes', category: 'Territorio · Corrientes' },
+      { id: 'ign', label: 'IGN Argentina', category: 'Cartografía oficial · Nacional' },
+      { id: 'inta', label: 'INTA-CIRN', category: 'Suelos · Cartografía' },
       { id: 'conae_saocom', label: 'CONAE SAOCOM', category: 'Suelo · Humedad' },
       { id: 'conae_smap', label: 'CONAE SMAP', category: 'Suelo · Humedad superficial' }
     ];
@@ -128,7 +132,11 @@ export class MapViewer {
             ? 'IDECOR · Cobertura: Córdoba, Argentina'
             : provider.id === 'idecorr'
               ? 'IDECorr · Cobertura: Corrientes, Argentina'
-              : 'CONAE · ' + provider.label;
+              : provider.id === 'ign'
+                ? 'IGN · Cartografía oficial de Argentina'
+                : provider.id === 'inta'
+                  ? 'INTA-CIRN · Cobertura y escala según capa publicada'
+                  : 'CONAE · ' + provider.label;
           const layer = L.tileLayer.wms(metadata.endpoint, {
             layers: item.name,
             format: 'image/png',
