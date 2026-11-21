@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -196,6 +197,25 @@ def main():
     output = ROOT / "artifacts" / "live-source-smoke.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_path:
+        rows = [
+            "| Servicio / prueba | Estado | Detalle |",
+            "|---|---|---|",
+            f"| Earth Search STAC collections | {collection_result.get('status')} | Encontradas: {', '.join(collection_result.get('expected_collections_found', [])) or 'sin confirmación'} |",
+        ]
+        for item in report["checks"]["conae"]:
+            rows.append(f"| {item.get('service')} | {item.get('status')} | HTTP {item.get('http_status')}; capas: {item.get('capabilities_layers_count', item.get('capabilities_feature_types_count', 0))} |")
+        rows.append(f"| INTA WMS | {report['checks']['inta_wms'].get('status')} | HTTP {report['checks']['inta_wms'].get('http_status')} |")
+        for name, item in report["checks"]["catalog_portals"].items():
+            rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')} |")
+        stac_rows = report["checks"]["stac_provincial_samples"]
+        ok_points = sum(1 for item in stac_rows if item.get("status") == "HTTP_OK" and item.get("items_returned", 0) > 0)
+        rows.append(f"| STAC muestras provinciales | {ok_points}/24 con al menos un ítem | Consulta puntual en centroides; no certifica cobertura provincial completa |")
+        with open(summary_path, "a", encoding="utf-8") as summary:
+            summary.write("\n## Smoke test de fuentes públicas\n\n")
+            summary.write("\n".join(rows))
+            summary.write("\n\nReporte JSON: artifacts/live-source-smoke.json\n")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     print(f"Report written to {output.relative_to(ROOT)}")
 
