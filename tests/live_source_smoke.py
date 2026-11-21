@@ -86,6 +86,7 @@ def check_wms(name: str, endpoint: str, expected: list[str]):
     result["capabilities_layers_count"] = len(names)
     result["expected_layers_found"] = [layer for layer in expected if layer in names]
     result["expected_layers_missing"] = [layer for layer in expected if layer not in names]
+    result["layer_names_sample"] = names[:60]
     return result
 
 
@@ -101,33 +102,41 @@ def check_wfs(name: str, endpoint: str, expected: list[str]):
 
 
 def check_stac_point(province: str, coords: dict):
-    payload = {
-        "collections": COLLECTIONS,
-        "intersects": {"type": "Point", "coordinates": [coords["lng"], coords["lat"]]},
-        "datetime": "2025-01-01T00:00:00Z/2025-12-31T23:59:59Z",
-        "limit": 3,
-    }
-    result = request(STAC + "/search", payload, timeout=20)
-    body = result.pop("body", b"")
-    if result["status"] == "HTTP_OK":
-        try:
-            data = json.loads(body.decode("utf-8"))
-            features = data.get("features", [])
-            found = sorted({
-                feature.get("collection") or feature.get("properties", {}).get("collection")
-                for feature in features
-                if feature.get("collection") or feature.get("properties", {}).get("collection")
-            })
-            result["items_returned"] = len(features)
-            result["collections_found"] = found
-            result["collections_not_returned_in_sample"] = [c for c in COLLECTIONS if c not in found]
-        except Exception as exc:
-            result["status"] = "INVALID_RESPONSE"
-            result["error"] = f"{type(exc).__name__}: {exc}"
-    result["province_sample"] = province
-    result["sample_kind"] = "provincial centroid from data/provincias.json"
-    return result
+    collection_results = {}
+    for collection in COLLECTIONS:
+        payload = {
+            "collections": [collection],
+            "intersects": {"type": "Point", "coordinates": [coords["lng"], coords["lat"]]},
+            "datetime": "2025-01-01T00:00:00Z/2025-12-31T23:59:59Z",
+            "limit": 1,
+        }
+        result = request(STAC + "/search", payload, timeout=20)
+        body = result.pop("body", b"")
+        if result["status"] == "HTTP_OK":
+            try:
+                data = json.loads(body.decode("utf-8"))
+                features = data.get("features", [])
+                result["items_returned"] = len(features)
+                result["sample_item_ids"] = [feature.get("id") for feature in features[:1]]
+            except Exception as exc:
+                result["status"] = "INVALID_RESPONSE"
+                result["error"] = f"{type(exc).__name__}: {exc}"
+                result["items_returned"] = 0
+        else:
+            result["items_returned"] = 0
+        collection_results[collection] = result
 
+    found = [name for name, result in collection_results.items()
+             if result.get("status") == "HTTP_OK" and result.get("items_returned", 0) > 0]
+    statuses = [result.get("status") for result in collection_results.values()]
+    return {
+        "province_sample": province,
+        "sample_kind": "provincial centroid from data/provincias.json",
+        "status": "HTTP_OK" if all(status == "HTTP_OK" for status in statuses) else "PARTIAL",
+        "collections_with_items": found,
+        "collections_without_items_at_this_point": [name for name in COLLECTIONS if name not in found],
+        "collection_queries": collection_results,
+    }
 
 def main():
     provinces = json.loads((ROOT / "data/provincias.json").read_text(encoding="utf-8"))
@@ -177,9 +186,14 @@ def main():
                   ["Cultivos:MHS_DSS_ASU_1", "Cultivos:MHS_DSS_NSU_1", "Cultivos:MHS_DSS_AWH_1", "Cultivos:MHS_DSS_NWH_1"])
     ]
     report["checks"]["inta_wms"] = check_wms(
-        "INTA cartografía de suelos",
+        "INTA GeoNode central",
+        "https://geo-backend.inta.gob.ar/geoserver/ows",
+        []
+    )
+    report["checks"]["inta_wms_legacy"] = check_wms(
+        "INTA endpoint legacy",
         "https://geoserver.inta.gob.ar/geoserver/wms",
-        ["suelos:cartografia_nacional"]
+        []
     )
 
     portal_urls = {
