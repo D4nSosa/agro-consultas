@@ -92,7 +92,7 @@ def test_source_reference_discloses_mapbiomas_automation_limitations(monkeypatch
     assert mapbiomas["period"] == "1985-2025"
     assert mapbiomas["spatialResolutionM"] == 30
     assert mapbiomas["license"] == "CC BY 4.0"
-    assert "requieren sesión/cuenta GEE" in " ".join(mapbiomas["limitations"])
+    assert "flujo autorizado de MapBiomas/GEE" in " ".join(mapbiomas["limitations"])
 
 
 def test_mapbiomas_wms_is_allowlisted_and_restricted_to_argentina_workspace(monkeypatch):
@@ -108,4 +108,49 @@ def test_mapbiomas_wms_is_allowlisted_and_restricted_to_argentina_workspace(monk
 
     assert result["endpoint"] == "https://shared-geoserver.mapbiomas.org/geoserver/ows"
     assert [layer["name"] for layer in result["layers"]] == ["mapbiomas-argentina:regiones_forestales"]
-    assert catalog.SOURCE_REFERENCE["mapbiomas"]["status"] == "WMS_CONTEXT_LAYERS_AVAILABLE_ANNUAL_RASTER_PENDING"
+    assert catalog.SOURCE_REFERENCE["mapbiomas"]["status"] == "ANNUAL_TILE_SERVICE_VERIFIED"
+
+
+def test_mapbiomas_tile_template_rejects_untrusted_hosts_and_query_strings():
+    safe = "https://earthengine.googleapis.com/v1/projects/mapbiomas/maps/abc123/tiles/{z}/{x}/{y}"
+    assert catalog._safe_mapbiomas_tile_template(safe) is True
+    assert catalog._safe_mapbiomas_tile_template(safe + "?token=secret") is False
+    assert catalog._safe_mapbiomas_tile_template(safe.replace("earthengine.googleapis.com", "evil.example")) is False
+
+
+def test_mapbiomas_annual_tile_endpoint_uses_public_collection_and_cache(monkeypatch):
+    calls = []
+    years = list(range(1985, 2026))
+
+    def fake_json(url, timeout=20):
+        calls.append(url)
+        if url.endswith("/projects?type=dashboard"):
+            return {"projects": [{"key": "argentina", "active": True}]}
+        if "/argentina/themes/subthemes?" in url:
+            return {"subthemes": [{
+                "key": "cobertura-copia-coverage-123",
+                "dataType": "annual",
+                "asset": {"years": years, "assetId": "projects/mapbiomas/collection-3/coverage"}
+            }]}
+        if "/argentina/legends?" in url:
+            return {"legends": [{"id": "legend-1", "key": "coverage-default"}]}
+        if url.endswith("/argentina/legends/legend-1"):
+            return {"legend": {"items": [{"pixelValue": 1}, {"pixelValue": 2}, {"pixelValue": 3}]}}
+        if "/argentina/maps/map?" in url:
+            return {"url": "https://earthengine.googleapis.com/v1/projects/mapbiomas/maps/abc123/tiles/{z}/{x}/{y}"}
+        raise AssertionError(url)
+
+    monkeypatch.setattr(catalog, "_read_json_url", fake_json)
+    catalog._cache.clear()
+
+    first = catalog.get_mapbiomas_tiles(2025)
+    second = catalog.get_mapbiomas_tiles(2025)
+
+    assert first["status"] == "LIVE_XYZ_TILES"
+    assert first["year"] == 2025
+    assert first["yearRange"] == {"min": 1985, "max": 2025}
+    assert first["spatialResolutionM"] == 30
+    assert first["legendClasses"] == 3
+    assert first["cacheHit"] is False
+    assert second["cacheHit"] is True
+    assert len(calls) == 5
