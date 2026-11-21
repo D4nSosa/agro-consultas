@@ -786,6 +786,12 @@ def main():
         ),
         "CONAE SMAP/SMOS WMS": check_wms(
             "CONAE SMAP/SMOS WMS", "https://geoservicios2.conae.gov.ar/geoserver/HumedadDeSuelos/wms", [], timeout=10
+        ),
+        "CONAE fuel availability WMS": check_wms(
+            "CONAE fuel availability WMS", "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms", [], timeout=10
+        ),
+        "CONAE burned-area WMS": check_wms(
+            "CONAE burned-area WMS", "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms", [], timeout=10
         )
     }
 
