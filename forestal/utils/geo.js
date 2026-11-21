@@ -258,132 +258,56 @@ export function getBoundingBox(geometry) {
 /**
  * Exporta la geometría a formato KML para QField / SW Maps / Google Earth
  */
+function xmlEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;'
+  })[char]);
+}
+function exportGeometry(feature) {
+  const geometry = feature?.type === 'Feature' ? feature.geometry : feature;
+  if (!geometry || !['Point','LineString','Polygon','MultiPolygon'].includes(geometry.type)) throw new TypeError('Geometría no soportada para exportación.');
+  const positions = geometry.type === 'Point' ? [geometry.coordinates] :
+    geometry.type === 'LineString' ? geometry.coordinates :
+    geometry.type === 'Polygon' ? geometry.coordinates.flat() : geometry.coordinates.flat(2);
+  const valid = p => Array.isArray(p) && p.length >= 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])) && Number(p[0]) >= -180 && Number(p[0]) <= 180 && Number(p[1]) >= -90 && Number(p[1]) <= 90;
+  if (!Array.isArray(positions) || !positions.length || positions.some(p => !valid(p))) throw new TypeError('La geometría contiene coordenadas WGS84 inválidas.');
+  return geometry;
+}
+function kmlCoordinates(ring) {
+  return ring.map(p => Number(p[0]) + ',' + Number(p[1]) + ',' + (Number.isFinite(Number(p[2])) ? Number(p[2]) : 0)).join(' ');
+}
+function kmlPolygon(rings) {
+  if (!Array.isArray(rings) || !rings.length) throw new TypeError('Polígono sin anillo exterior.');
+  const boundary = (ring, kind) => '<' + kind + '><LinearRing><coordinates>' + kmlCoordinates(ring) + '</coordinates></LinearRing></' + kind + '>';
+  return '<Polygon>' + boundary(rings[0], 'outerBoundaryIs') + rings.slice(1).map(r => boundary(r, 'innerBoundaryIs')).join('') + '</Polygon>';
+}
+function kmlGeometry(g) {
+  if (g.type === 'Point') return '<Point><coordinates>' + kmlCoordinates([g.coordinates]) + '</coordinates></Point>';
+  if (g.type === 'LineString') return '<LineString><tessellate>1</tessellate><coordinates>' + kmlCoordinates(g.coordinates) + '</coordinates></LineString>';
+  if (g.type === 'Polygon') return kmlPolygon(g.coordinates);
+  return '<MultiGeometry>' + g.coordinates.map(kmlPolygon).join('') + '</MultiGeometry>';
+}
 export function exportToKML(feature, name = 'Lote Forestal') {
-  const geom = feature.geometry || feature;
-  let coordsText = '';
-
-  if (geom.type === 'Polygon') {
-    coordsText = geom.coordinates[0].map(pt => `${pt[0]},${pt[1]},0`).join(' ');
-  } else if (geom.type === 'Point') {
-    coordsText = `${geom.coordinates[0]},${geom.coordinates[1]},0`;
-  }
-
-  const kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>${name}</name>
-    <description>Lote Forestal Exportado desde Agro Consultas - Interoperabilidad Campo/QField</description>
-    <Style id="forestStyle">
-      <LineStyle>
-        <color>ff27ae60</color>
-        <width>3</width>
-      </LineStyle>
-      <PolyStyle>
-        <color>402ecc71</color>
-      </PolyStyle>
-    </Style>
-    <Placemark>
-      <name>${name}</name>
-      <styleUrl>#forestStyle</styleUrl>
-      ${geom.type === 'Polygon' ? `
-      <Polygon>
-        <outerBoundaryIs>
-          <LinearRing>
-            <coordinates>${coordsText}</coordinates>
-          </LinearRing>
-        </outerBoundaryIs>
-      </Polygon>` : `
-      <Point>
-        <coordinates>${coordsText}</coordinates>
-      </Point>`}
-    </Placemark>
-  </Document>
-</kml>`;
-  return kml;
+  const g = exportGeometry(feature), n = xmlEscape(name);
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>' + n + '</name><Style id="forestStyle"><LineStyle><color>ff27ae60</color><width>3</width></LineStyle><PolyStyle><color>402ecc71</color></PolyStyle></Style><Placemark><name>' + n + '</name><styleUrl>#forestStyle</styleUrl>' + kmlGeometry(g) + '</Placemark></Document></kml>';
 }
-
-/**
- * Exporta la geometría a formato GPX para GPS de mano Garmin en campo
- */
+function gpxTrack(positions, label) {
+  return '<trk><name>' + xmlEscape(label) + '</name><trkseg>' + positions.map((p,i) => '<trkpt lat="' + Number(p[1]) + '" lon="' + Number(p[0]) + '"><name>' + (i+1) + '</name></trkpt>').join('') + '</trkseg></trk>';
+}
 export function exportToGPX(feature, name = 'Lote Forestal') {
-  const centroid = calculateCentroid(feature);
-  const geom = feature.geometry || feature;
-  let pointsXml = '';
-
-  if (geom.type === 'Polygon') {
-    pointsXml = geom.coordinates[0].map((pt, idx) => `
-    <trkpt lat="${pt[1]}" lon="${pt[0]}">
-      <name>Vértice ${idx + 1}</name>
-    </trkpt>`).join('');
-  } else if (geom.type === 'Point') {
-    pointsXml = `
-    <trkpt lat="${geom.coordinates[1]}" lon="${geom.coordinates[0]}">
-      <name>${name}</name>
-    </trkpt>`;
+  const g = exportGeometry(feature), n = xmlEscape(name), tracks = [];
+  if (g.type === 'Point') tracks.push(gpxTrack([g.coordinates], n));
+  else if (g.type === 'LineString') tracks.push(gpxTrack(g.coordinates, n));
+  else {
+    const polygons = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+    polygons.forEach((rings,pi) => rings.forEach((ring,ri) => tracks.push(gpxTrack(ring, n + ' - polígono ' + (pi+1) + ', anillo ' + (ri+1)))));
   }
-
-  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Agro Consultas - Garmin/Field GPS Export" xmlns="http://www.topografix.com/GPX/1/1">
-  <metadata>
-    <name>${name}</name>
-    <time>${new Date().toISOString()}</time>
-  </metadata>
-  <wpt lat="${centroid.lat}" lon="${centroid.lng}">
-    <name>${name} - Centroide</name>
-    <sym>Forest</sym>
-  </wpt>
-  <trk>
-    <name>${name} - Perímetro Lote</name>
-    <trkseg>${pointsXml}
-    </trkseg>
-  </trk>
-</gpx>`;
-  return gpx;
+  const c = calculateCentroid(g);
+  const waypoint = c ? '<wpt lat="' + c.lat + '" lon="' + c.lng + '"><name>' + n + ' - Centroide</name></wpt>' : '';
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Agro-Consultas" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>' + n + '</name><time>' + new Date().toISOString() + '</time></metadata>' + waypoint + tracks.join('') + '</gpx>';
 }
-
-/**
- * Genera un script Python/PyQGIS para automatización en QGIS y PostGIS
- */
 export function exportToPyQGISScript(feature, name = 'Lote Forestal') {
-  const geojsonStr = JSON.stringify(feature);
-  const centroid = calculateCentroid(feature);
-
-  const pyScript = `# ==============================================================================
-# Script de Automatización PyQGIS / QGIS 3.x - Agro Consultas
-# Procesamiento de Lote Forestal y Carga en PostGIS / QGIS Canvas
-# Generado para: ${name}
-# Centroide: Lat ${centroid.lat.toFixed(5)}, Lng ${centroid.lng.toFixed(5)}
-# ==============================================================================
-
-import json
-from qgis.core import (
-    QgsVectorLayer,
-    QgsFeature,
-    QgsGeometry,
-    QgsProject,
-    QgsCoordinateReferenceSystem
-)
-
-geojson_data = '''${geojsonStr}'''
-
-# 1. Crear capa vectorial temporal WGS84 (EPSG:4326) / POSGAR 2007 (EPSG:5343)
-v_layer = QgsVectorLayer("Polygon?crs=epsg:4326", "${name}", "memory")
-pr = v_layer.dataProvider()
-
-# 2. Parsear geometría
-data = json.loads(geojson_data)
-geom_obj = QgsGeometry.fromGeoJson(json.dumps(data["geometry"]))
-
-feat = QgsFeature()
-feat.setGeometry(geom_obj)
-pr.addFeatures([feat])
-v_layer.updateExtents()
-
-# 3. Agregar a proyecto QGIS actual
-QgsProject.instance().addMapLayer(v_layer)
-
-print("✅ Capa '${name}' cargada con éxito en QGIS.")
-print("ℹ️ Superficie aproximada calculada en canvas WGS84/POSGAR.")
-`;
-  return pyScript;
+  const g = exportGeometry(feature);
+  const f = feature?.type === 'Feature' ? feature : {type:'Feature',properties:{},geometry:g};
+  return '# PyQGIS generado por Agro-Consultas\nimport json\nfrom qgis.core import QgsVectorLayer, QgsFeature, QgsGeometry, QgsProject\ngeojson_data = json.loads(' + JSON.stringify(JSON.stringify(f)) + ')\nlayer_name = ' + JSON.stringify(String(name)) + '\nlayer = QgsVectorLayer("Unknown?crs=EPSG:4326", layer_name, "memory")\nif not layer.isValid(): raise RuntimeError("No se pudo crear la capa EPSG:4326")\nfeature = QgsFeature()\nfeature.setGeometry(QgsGeometry.fromGeoJson(json.dumps(geojson_data["geometry"])))\nprovider = layer.dataProvider()\nprovider.addFeatures([feature])\nlayer.updateExtents()\nQgsProject.instance().addMapLayer(layer)\n';
 }
