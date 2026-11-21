@@ -21,6 +21,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 STAC = "https://earth-search.aws.element84.com/v1"
+PLANETARY_COMPUTER_STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
+PLANETARY_COMPUTER_SAS_TOKEN = "https://planetarycomputer.microsoft.com/api/sas/v1/token/landsateuwest/landsat-c2"
+STAC_URLS = {
+    "sentinel-1-grd": STAC + "/search",
+    "sentinel-2-l2a": STAC + "/search",
+    "landsat-c2-l2": PLANETARY_COMPUTER_STAC + "/search"
+}
 COLLECTIONS = ["sentinel-1-grd", "sentinel-2-l2a", "landsat-c2-l2"]
 SAMPLES = [
     "buenos aires", "ciudad autonoma de buenos aires", "catamarca", "chaco",
@@ -237,6 +244,45 @@ def check_inta_national_soil_sample(province: str, coords: dict):
     return result
 
 
+def check_planetary_computer_landsat_asset(provincial_samples: list[dict]):
+    """Comprueba token SAS anónimo y lectura Range de un COG Landsat; nunca registra el token."""
+    sample = next((item for item in provincial_samples if item.get("province_sample") == "mendoza"), None)
+    if not sample:
+        return {"status": "NO_SAMPLE", "message": "No se encontró muestra de Mendoza."}
+    query = sample.get("collection_queries", {}).get("landsat-c2-l2", {})
+    metadata = (query.get("sample_item_metadata") or [{}])[0]
+    red_asset = (metadata.get("assets") or {}).get("red") or {}
+    href = red_asset.get("href")
+    if not href:
+        return {"status": "NO_ASSET", "provider": "Microsoft Planetary Computer"}
+    token_result = request(PLANETARY_COMPUTER_SAS_TOKEN, timeout=12)
+    token_body = token_result.pop("body", b"")
+    if token_result.get("status") != "HTTP_OK":
+        return {"status": "SAS_TOKEN_UNAVAILABLE", "token_http_status": token_result.get("http_status")}
+    try:
+        token_data = json.loads(token_body.decode("utf-8"))
+        token = token_data.get("token")
+        expiry = token_data.get("msft:expiry")
+    except Exception as exc:
+        return {"status": "SAS_TOKEN_INVALID", "error": f"{type(exc).__name__}: {exc}"}
+    if not token:
+        return {"status": "SAS_TOKEN_MISSING"}
+    signed_href = href + ("&" if "?" in href else "?") + token
+    range_result = request_range(signed_href, timeout=20)
+    return {
+        "status": "HTTP_OK" if range_result.get("status") == "HTTP_OK" and range_result.get("looks_like_geotiff") else "ASSET_READ_FAILED",
+        "provider": "Microsoft Planetary Computer",
+        "asset": "red",
+        "asset_host": urllib.parse.urlparse(href).netloc,
+        "token_available": True,
+        "token_expiry": expiry,
+        "range_http_status": range_result.get("http_status"),
+        "range_supported": range_result.get("range_supported"),
+        "looks_like_geotiff": range_result.get("looks_like_geotiff"),
+        "content_type": range_result.get("content_type")
+    }
+
+
 def check_wms_feature_info(province: str, coords: dict):
     endpoint = "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms"
     layer = "EmergenciasCONAE:MODIS_AQM_1"
@@ -309,7 +355,8 @@ def check_stac_point(province: str, coords: dict):
             "datetime": "2025-01-01T00:00:00Z/2025-12-31T23:59:59Z",
             "limit": 1,
         }
-        result = request(STAC + "/search", payload, timeout=20)
+        result = request(STAC_URLS[collection], payload, timeout=20)
+        result["provider"] = "Microsoft Planetary Computer" if collection == "landsat-c2-l2" else "AWS Earth Search"
         body = result.pop("body", b"")
         if result["status"] == "HTTP_OK":
             try:
@@ -336,7 +383,9 @@ def check_stac_point(province: str, coords: dict):
                                 "present": key in assets,
                                 "type": assets.get(key, {}).get("type"),
                                 "roles": assets.get(key, {}).get("roles"),
-                                "raster_bands": assets.get(key, {}).get("raster:bands")
+                                "raster_bands": assets.get(key, {}).get("raster:bands"),
+                                "href": assets.get(key, {}).get("href"),
+                                "href_host": urllib.parse.urlparse(assets.get(key, {}).get("href", "")).netloc
                             } for key in asset_keys if key in assets
                         }
                     })
@@ -395,6 +444,9 @@ def main():
             for province in SAMPLES
         ]
         report["checks"]["stac_provincial_samples"] = [future.result() for future in futures]
+        report["checks"]["planetary_computer_landsat_asset"] = check_planetary_computer_landsat_asset(
+            report["checks"]["stac_provincial_samples"]
+        )
 
     report["checks"]["conae"] = [
         check_wfs("CONAE focos MODIS/VIIRS", "https://geoservicios.conae.gov.ar/geoserver/FocosDeCalor/wfs",
