@@ -56,7 +56,7 @@ Este inventario no declara productos integrados.
 - IDERA, geoservicios WMS/WFS/WCS/CSW: https://www.idera.gob.ar/index.php/servicios/geoservicios
 - MapBiomas Argentina, descargas y Colección 3 (GeoTIFF directo suspendido temporalmente; GEE requiere cuenta): https://argentina.mapbiomas.org/descargas/mapas-de-la-coleccion/
 - MapBiomas Argentina, series históricas: https://argentina.mapbiomas.org/mapas-de-la-coleccion/
-- IDECorr, geoservicios: https://ide.corrientes.gob.ar/articulo/geoservicios
+- IDECorr, geoservicios: https://ide.corrientes.gob.ar/articulo/geoservicios (portal; respuesta HTTP 403 desde GitHub Actions en la primera prueba)
 - IDECOR, servicios web y APIs: https://www.idecor.gob.ar/web-service-y-apis/
 - CONAE, catálogo general: https://catalogos.conae.gov.ar/catalogo/catalogoGeo.html
 - CONAE, catálogo WMS/WFS (capas, productos, identificadores y descripciones): https://catalogos.conae.gov.ar/catalogo/catalogoGeoServiciosOGC.html
@@ -68,6 +68,25 @@ Este inventario no declara productos integrados.
 - Copernicus Data Space, STAC: https://documentation.dataspace.copernicus.eu/APIs/STAC.html
 - USGS, Landsat STAC: https://www.usgs.gov/landsat-missions/spatiotemporal-asset-catalog-stac
 - NASA FIRMS Area API: https://firms.modaps.eosdis.nasa.gov/api/area
+
+## Primera validación en vivo desde GitHub Actions
+
+**Ejecución:** https://github.com/D4nSosa/agro-consultas/actions/runs/44901226369  
+**Fecha de consulta:** 21 de noviembre de 2026.  
+**Artefacto:** `national-source-smoke-report`.
+
+Resultados de esa ejecución:
+
+- Earth Search `/collections`: HTTP 200; el catálogo devolvió `sentinel-1-grd`, `sentinel-2-l2a` y `landsat-c2-l2`.
+- Búsquedas STAC separadas por colección, con fecha 2025 y punto en el centroide de cada jurisdicción: las tres colecciones devolvieron al menos un ítem en las 24 jurisdicciones. Esto demuestra disponibilidad de escenas en esos puntos y período; no certifica cobertura completa de cada provincia ni disponibilidad en cualquier fecha/lote.
+- CONAE AQM MODIS: GetCapabilities HTTP 200 y 31 nombres de capas; se identificaron `MODIS_AQM_1` a `MODIS_AQM_13`. En ese documento los nombres aparecen sin el prefijo de workspace. El frontend actual envía `EmergenciasCONAE:MODIS_AQM_1`; hay que comprobar GetMap con y sin prefijo antes de modificarlo.
+- CONAE Focos MODIS/VIIRS, disponibilidad de combustibles, humedad SAOCOM y capas de cultivos: los GetCapabilities agotaron el timeout de 12 segundos desde el runner de GitHub Actions. Se registra como timeout en esa ejecución, no como inexistencia del producto.
+- INTA: `https://geo-backend.inta.gob.ar/geoserver/ows` agotó el timeout de lectura; el endpoint antiguo `geoserver.inta.gob.ar` no resolvió DNS. El monitor IDERA publicó una prueba exitosa del servicio central INTA el 20/11/2026; ambas observaciones deben reconciliarse antes de cambiar el adaptador.
+- IDERA: portal HTTP 200. IDECorr: portal HTTP 403 desde el runner. El monitor de geoservicios consultado listaba IDECorr con 0% de disponibilidad en su vista del 21/11/2026.
+- MapBiomas: portal de descargas HTTP 200. Esto no demuestra que el ráster pueda leerse por HTTP Range ni que la colección más reciente esté disponible sin GEE.
+- NASA FIRMS: no se probó en CI porque la API key permanece como secreto del backend.
+
+La consulta STAC se corrigió para consultar cada colección de forma independiente. La primera versión combinaba tres colecciones y limitaba a tres resultados, lo que sesgaba la detección de colecciones por punto; no se utilizan esos resultados para conclusiones de cobertura por sensor.
 
 ## Condiciones para declarar una fuente integrada
 
