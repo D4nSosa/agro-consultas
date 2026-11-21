@@ -286,6 +286,109 @@ def check_inta_national_soil_sample(province: str, coords: dict):
     return result
 
 
+def check_mapbiomas_platform_api():
+    """Consulta API pública de MapBiomas Argentina y prueba una tesela XYZ con tenant-id."""
+    base = "https://prd.plataforma.mapbiomas.org/api/v1"
+    headers = {"User-Agent": "Agro-Consultas source audit", "tenant-id": "mapbiomas", "Accept": "application/json"}
+
+    def get_json(path, params=None):
+        url = base + path
+        if params:
+            url += "?" + urllib.parse.urlencode(params, doseq=True)
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=25) as response:
+            return json.loads(response.read(5_000_000).decode("utf-8"))
+
+    try:
+        projects = get_json("/projects", [("type", "dashboard")])
+        regions = projects.get("projects") or []
+        argentina = next((item for item in regions if item.get("key") == "argentina" and item.get("active")), None)
+        if not argentina:
+            return {"status": "NO_ACTIVE_ARGENTINA_REGION", "regions_found": [x.get("key") for x in regions]}
+
+        subthemes_payload = get_json("/argentina/themes/subthemes", [("pageSize", 200)])
+        candidates = []
+        derived_markers = ("number_of", "number-of", "transitions", "stable", "changes", "classes")
+        for item in subthemes_payload.get("subthemes") or []:
+            key = item.get("key") or ""
+            years = [y for y in ((item.get("asset") or {}).get("years") or []) if isinstance(y, (int, float))]
+            if not key.startswith("coverage") or item.get("dataType") != "annual" or not years:
+                continue
+            if any(marker in key for marker in derived_markers):
+                continue
+            score = (5 if "30m" in key else 0) + len(years) / 100
+            candidates.append((score, item, sorted(int(y) for y in years)))
+        if not candidates:
+            return {"status": "NO_ANNUAL_COVERAGE_SUBTHEME", "subthemes": [x.get("key") for x in subthemes_payload.get("subthemes", [])]}
+        _, subtheme, years = max(candidates, key=lambda item: item[0])
+
+        legends_payload = get_json("/argentina/legends", [
+            ("subthemeKey", subtheme["key"]), ("pageSize", 50)
+        ])
+        legends = legends_payload.get("legends") or []
+        if not legends:
+            return {"status": "NO_LEGEND", "subtheme_key": subtheme["key"], "years": years}
+        preferred = next((x for x in legends if x.get("key") == "default"), None)
+        if preferred is None:
+            preferred = next((x for x in legends if (x.get("key") or "").startswith("coverage")), legends[0])
+        legend_payload = get_json(f"/argentina/legends/{preferred['id']}")
+        legend = legend_payload.get("legend", legend_payload)
+
+        pixel_values = []
+        def walk(items):
+            for item in items or []:
+                if item.get("visible", True) and item.get("pixelValue") is not None:
+                    pixel_values.append(int(item["pixelValue"]))
+                walk(item.get("children"))
+        walk(legend.get("items"))
+        if not pixel_values:
+            return {"status": "EMPTY_LEGEND", "subtheme_key": subtheme["key"], "legend_key": preferred.get("key")}
+
+        params = [
+            ("subthemeKey", subtheme["key"]),
+            ("legendKey", preferred.get("key") or ""),
+            ("year", max(years))
+        ] + [("pixelValue", value) for value in pixel_values]
+        map_payload = get_json("/argentina/maps/map", params)
+        tile_template = map_payload.get("url")
+        if not tile_template:
+            return {"status": "NO_TILE_URL", "subtheme_key": subtheme["key"], "legend_key": preferred.get("key")}
+
+        parsed = urllib.parse.urlparse(tile_template)
+        z = 4
+        lon, lat = -64.0, -34.0
+        x = int((lon + 180.0) / 360.0 * (2 ** z))
+        import math
+        lat_rad = math.radians(lat)
+        y = int((1 - math.asinh(math.tan(lat_rad)) / math.pi) / 2 * (2 ** z))
+        tile_url = tile_template.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
+        tile_result = request(tile_url, timeout=20)
+        tile_body = tile_result.pop("body", b"")
+        is_png = tile_body.startswith(b"\x89PNG\r\n\x1a\n")
+        return {
+            "status": "HTTP_OK" if tile_result.get("status") == "HTTP_OK" and is_png else "TILE_READ_FAILED",
+            "region": argentina.get("key"),
+            "subtheme_key": subtheme.get("key"),
+            "subtheme_id": subtheme.get("id"),
+            "years_count": len(years),
+            "year_min": min(years),
+            "year_max": max(years),
+            "collection_label": next((segment for segment in (subtheme.get("asset") or {}).get("assetId", "").split("/") if segment.lower().startswith("collection")), None),
+            "legend_key": preferred.get("key"),
+            "legend_classes": len(pixel_values),
+            "tile_template_host": parsed.netloc,
+            "tile_template_path": parsed.path,
+            "sample_tile_http_status": tile_result.get("http_status"),
+            "sample_tile_content_type": tile_result.get("content_type"),
+            "sample_tile_png": is_png,
+            "sample_zoom": z
+        }
+    except urllib.error.HTTPError as error:
+        return {"status": "HTTP_ERROR", "http_status": error.code, "message": str(error)[:300]}
+    except Exception as error:
+        return {"status": "ERROR", "message": f"{type(error).__name__}: {error}"[:500]}
+
+
 def check_planetary_computer_landsat_asset(provincial_samples: list[dict]):
     """Comprueba token SAS anónimo y lectura Range de un COG Landsat; nunca registra el token."""
     sample = next((item for item in provincial_samples if item.get("province_sample") == "mendoza"), None)
@@ -489,6 +592,7 @@ def main():
         report["checks"]["planetary_computer_landsat_asset"] = check_planetary_computer_landsat_asset(
             report["checks"]["stac_provincial_samples"]
         )
+        report["checks"]["mapbiomas_platform_api"] = check_mapbiomas_platform_api()
 
     report["checks"]["conae"] = [
         check_wfs("CONAE focos MODIS/VIIRS", "https://geoservicios.conae.gov.ar/geoserver/FocosDeCalor/wfs",
