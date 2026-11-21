@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import ssl
 import threading
 import time
 import urllib.error
@@ -75,10 +76,16 @@ SOURCE_REFERENCE = {
         "id": "idecorr",
         "name": "Infraestructura de Datos Espaciales de Corrientes",
         "family": "regional_territory",
-        "status": "OGC_DISCOVERY",
+        "status": "UPSTREAM_TLS_CERTIFICATE_ERROR",
+        "serviceStatus": "UNAVAILABLE_UNTIL_PROVIDER_CERTIFICATE_IS_FIXED",
         "wms": "https://geoportal.corrientes.gob.ar/geoserver/wms",
+        "portal": "https://ide.corrientes.gob.ar/articulo/geoservicios",
         "scope": "Provincia de Corrientes, Argentina",
-        "limitations": ["Fuente provincial complementaria; no representa cobertura nacional."]
+        "limitations": [
+            "El endpoint WMS oficial presenta un error de cadena de certificado TLS en validadores externos.",
+            "No se desactiva la verificación TLS ni se utiliza HTTP como alternativa insegura.",
+            "La integración WMS se reactivará cuando el proveedor publique una cadena de certificados verificable."
+        ]
     },
     "conae": {
         "id": "conae",
@@ -100,6 +107,18 @@ SOURCE_REFERENCE = {
         ]
     }
 }
+
+def _is_tls_certificate_error(exc: Exception) -> bool:
+    """Detect certificate-chain failures without weakening TLS verification."""
+    current = exc
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, ssl.SSLCertVerificationError):
+            return True
+        current = getattr(current, "reason", None) or getattr(current, "__cause__", None)
+    return False
+
 
 def _read_url(url: str, timeout: int = 10, max_bytes: int = 2_000_000) -> bytes:
     request = urllib.request.Request(
@@ -369,6 +388,18 @@ def get_ogc_capabilities(
             }
             _store(key, payload)
         except Exception as exc:
+            if provider == "idecorr" and _is_tls_certificate_error(exc):
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "code": "UPSTREAM_TLS_CERTIFICATE_ERROR",
+                        "provider": "IDECorr",
+                        "endpoint": endpoint,
+                        "portal": SOURCE_REFERENCE["idecorr"]["portal"],
+                        "message": "El servidor oficial de IDECorr no entrega una cadena de certificados TLS verificable. La consulta se bloqueó de forma segura.",
+                        "action": "Corregir la cadena TLS en el servidor de IDECorr. Agro-Consultas mantiene la verificación de certificados activa y no usa HTTP como fallback."
+                    },
+                )
             raise HTTPException(status_code=502, detail=f"No se pudo consultar GetCapabilities de {provider}: {type(exc).__name__}: {str(exc)[:140]}")
     # Direct unit calls receive FastAPI's Query sentinel as the default;
     # HTTP requests receive the validated string value.
