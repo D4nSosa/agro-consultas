@@ -105,7 +105,7 @@ test('GPX exporta partes y anillos como tracks separados',()=>{
 test('PyQGIS usa geometría genérica EPSG:4326 y protege nombres',()=>{
  const script=exportToPyQGISScript({type:'MultiPolygon',coordinates:[[square]]},'Lote "A"');
  assert.ok(script.includes('Unknown?crs=EPSG:4326'));
- assert.match(script,/QgsGeometry\\.fromGeoJson/);
+ assert.ok(script.includes('QgsGeometry.fromGeoJson'));
  assert.match(script,/Lote/);
 });
 test('exportadores rechazan coordenadas WGS84 inválidas',()=>{
