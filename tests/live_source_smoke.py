@@ -274,6 +274,11 @@ def main():
         rows.append(f"| INTA WMS | {report['checks']['inta_wms'].get('status')} | HTTP {report['checks']['inta_wms'].get('http_status')} |")
         for name, item in report["checks"]["catalog_portals"].items():
             rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')} |")
+        idera = report["checks"]["idera_service_registry"]
+        rows.append(f"| IDERA source registry | {idera.get('status')} | {idera.get('registered_sources', 'sin parsear')} servicios registrados |")
+        for key, label in (("mapbiomas_collection2_2024_geotiff_range", "MapBiomas C2 2024 GeoTIFF"), ("mapbiomas_collection3_2025_geotiff_range", "MapBiomas C3 2025 GeoTIFF")):
+            item = report["checks"][key]
+            rows.append(f"| {label} | {item.get('status')} | HTTP {item.get('http_status')}; Range: {item.get('range_supported')} |")
         stac_rows = report["checks"]["stac_provincial_samples"]
         ok_points = sum(1 for item in stac_rows if item.get("status") == "HTTP_OK" and item.get("items_returned", 0) > 0)
         rows.append(f"| STAC muestras provinciales | {ok_points}/24 con al menos un ítem | Consulta puntual en centroides; no certifica cobertura provincial completa |")
