@@ -302,11 +302,13 @@ class NDVIAnalysisRequest(BaseModel):
     geometry: GeoJSONGeometry
     date: Optional[str] = None
     productId: Optional[str] = None
+    collection: str = "auto"
 
 class ChangeDetectionRequest(BaseModel):
     geometry: GeoJSONGeometry
     dateA: Optional[str] = None
     dateB: Optional[str] = None
+    collection: str = "auto"
 
 class SARAnalysisRequest(BaseModel):
     geometry: GeoJSONGeometry
@@ -870,136 +872,169 @@ def process_cog_raster_ndvi_cropped(
 
 @app.post("/api/forest/ndvi")
 def calculate_ndvi(req: NDVIAnalysisRequest):
-    """Calcula el índice NDVI real por píxeles (NIR - RED) / (NIR + RED) leyendo COGs de AWS Open Data sin credenciales obligatorias."""
+    """Calcula NDVI con Sentinel-2 o Landsat 8/9 y exige una máscara de calidad válida."""
     try:
         start_def, date_a_def, date_b_def = get_default_dates()
         target_date = req.date or date_b_def
+        target_dt = datetime.datetime.strptime(target_date, "%Y-%m-%d")
+        start_range = (target_dt - datetime.timedelta(days=45)).strftime("%Y-%m-%d")
+        end_range = target_dt.strftime("%Y-%m-%d")
 
         geom_dict = get_geom_dict(req.geometry)
         geom_shape = validate_geometry_shape(geom_dict)
-        if geom_shape.geom_type == 'Point':
+        if geom_shape.geom_type == "Point":
             area_ha = 0.0
             is_point = True
         else:
-            area_sq_m = calculate_shapely_area(geom_shape)
-            area_ha = round(area_sq_m / 10000.0, 2)
+            area_ha = round(calculate_shapely_area(geom_shape) / 10000.0, 2)
             is_point = False
 
-        # 1. Consultar escena pública en AWS Earth Search STAC
-        stac_res = search_stac_catalog(STACSearchRequest(geometry=req.geometry, startDate=target_date[:7] + "-01", endDate=target_date, maxCloudCover=30.0))
+        allowed_collections = ("sentinel-2-l2a", "landsat-c2-l2")
+        if req.collection == "auto":
+            collections_to_try = list(allowed_collections)
+        elif req.collection in allowed_collections:
+            collections_to_try = [req.collection]
+        else:
+            raise HTTPException(status_code=400, detail="Colección NDVI no permitida.")
 
-        if not stac_res.get("success") or not stac_res.get("bestProduct"):
-            # Ampliar rango si no hay escena exacta
-            target_dt = datetime.datetime.strptime(target_date, "%Y-%m-%d")
-            s_range = (target_dt - datetime.timedelta(days=45)).strftime("%Y-%m-%d")
-            e_range = target_dt.strftime("%Y-%m-%d")
-            stac_res = search_stac_catalog(STACSearchRequest(geometry=req.geometry, startDate=s_range, endDate=e_range, maxCloudCover=30.0))
+        selected_product = None
+        selected_stats = None
+        selected_error = None
+        attempts = []
 
-        best = stac_res.get("bestProduct") if stac_res.get("success") else None
+        for collection in collections_to_try:
+            max_cloud = 30.0 if collection == "sentinel-2-l2a" else 100.0
+            stac_result = search_stac_catalog(STACSearchRequest(
+                geometry=req.geometry,
+                startDate=start_range,
+                endDate=end_range,
+                maxCloudCover=max_cloud,
+                collection=collection
+            ))
+            products = stac_result.get("products", [])
+            if req.productId:
+                products = [item for item in products if item.get("id") == req.productId]
 
-        if best and best.get("assets"):
-            assets = best.get("assets", {})
-            red_url = assets.get("red")
-            nir_url = assets.get("nir")
-            scl_url = assets.get("scl")
+            if not products:
+                attempts.append({
+                    "collection": collection,
+                    "status": "NO_SCENES",
+                    "message": stac_result.get("message", "No se encontraron escenas calibradas.")
+                })
+                continue
 
-            if red_url and nir_url:
-                stats, err_msg = process_cog_raster_ndvi_cropped(
-                    red_url, nir_url, scl_url, geom_shape,
+            for candidate in products[:5]:
+                assets = candidate.get("assets") or {}
+                stats, error_message = process_cog_raster_ndvi_cropped(
+                    assets.get("red"),
+                    assets.get("nir"),
+                    assets.get("scl"),
+                    geom_shape,
                     red_scale=assets.get("redScale", 1.0),
                     red_offset=assets.get("redOffset", 0.0),
                     nir_scale=assets.get("nirScale", 1.0),
-                    nir_offset=assets.get("nirOffset", 0.0)
+                    nir_offset=assets.get("nirOffset", 0.0),
+                    qa_pixel_url=assets.get("qaPixel")
                 )
-                prod_id = best.get("id")
-                cloud_pct = best.get("cloudCover", 0.0)
-                actual_date = best.get("date", target_date)
+                if stats and stats.get("qualityMaskApplied"):
+                    selected_product = candidate
+                    selected_stats = stats
+                    break
+                selected_error = error_message or (stats or {}).get("sclWarning") or (stats or {}).get("qaPixelWarning")
+            if selected_product:
+                break
+            attempts.append({
+                "collection": collection,
+                "status": "NO_VALID_PIXELS",
+                "message": selected_error or "Las escenas encontradas no produjeron píxeles válidos con máscara de calidad."
+            })
 
-                if stats and not stats.get("sclFilterApplied"):
-                    return {
-                        "indicator": "NDVI (Índice de Vegetación)",
-                        "date": req.date,
-                        "productId": best.get("id"),
-                        "status": "UNAVAILABLE",
-                        "source": best.get("source", "Copernicus Sentinel-2 / AWS Earth Search STAC"),
-                        "message": "No se entrega NDVI porque no pudo aplicarse la máscara SCL de calidad.",
-                        "details": stats.get("sclWarning")
-                    }
-                if stats:
-                    mean_val = stats["mean"]
-                    v_class = "Excelente vigor vegetativo" if mean_val >= 0.65 else ("Vigor vegetativo moderado" if mean_val >= 0.45 else "Cobertura/vigor bajo")
+        if not selected_product or not selected_stats:
+            return {
+                "indicator": "NDVI (Índice de Vegetación)",
+                "date": target_date,
+                "requestedDate": target_date,
+                "areaHectares": area_ha,
+                "isPoint": is_point,
+                "status": "UNAVAILABLE",
+                "source": "Copernicus Sentinel-2 / USGS Landsat 8/9 vía AWS Earth Search STAC",
+                "message": "No se obtuvieron píxeles NDVI válidos con máscara de calidad en Sentinel-2 ni Landsat 8/9 para el período consultado.",
+                "attempts": attempts,
+                "details": selected_error
+            }
 
-                    scl_warn = stats.get("sclWarning")
-                    base_msg = "NDVI calculado sobre reflectancia superficial calibrada (escala y offset STAC) y máscara SCL por píxel."
-                    base_detail = f"Procesado desde COGs Sentinel-2 L2A; reflectancia escalada con metadatos STAC y píxeles SCL de nubes/sombras excluidos (Escena: {prod_id}, Fecha: {actual_date})."
+        mean_val = selected_stats["mean"]
+        actual_date = selected_product.get("date") or target_date
+        cloud_pct = selected_product.get("cloudCover")
+        if mean_val >= 0.65:
+            v_class = "Vegetación densa / vigor alto"
+            desc = "La respuesta espectral NDVI es alta en los píxeles válidos observados."
+        elif mean_val >= 0.35:
+            v_class = "Vegetación moderada"
+            desc = "La respuesta espectral NDVI es intermedia en los píxeles válidos observados."
+        elif mean_val >= 0.15:
+            v_class = "Vegetación escasa"
+            desc = "La respuesta espectral NDVI es baja en los píxeles válidos observados."
+        else:
+            v_class = "Baja respuesta de vegetación"
+            desc = "La respuesta espectral NDVI es muy baja; puede corresponder a suelo, agua, cobertura escasa u otras condiciones."
 
-                    if scl_warn:
-                        base_msg += f" (LIMITACIÓN: {scl_warn})"
-                        base_detail += f" LIMITACIÓN SCL: {scl_warn}"
-
-                    return {
-                        "indicator": "NDVI (Normalized Difference Vegetation Index)",
-                        "formula": "NDVI = (NIR_reflectance - RED_reflectance) / (NIR_reflectance + RED_reflectance); reflectance = DN × scale + offset",
-                        "bands": {"NIR": "B08 (842 nm)", "RED": "B04 (665 nm)"},
-                        "date": actual_date,
-                        "productId": prod_id,
-                        "areaHectares": area_ha,
-                        "isPoint": is_point,
-                        "source": best.get("source", "Copernicus Sentinel-2 / AWS Earth Search STAC"),
-                        "sensor": best.get("sensor"),
-                        "product": best.get("product"),
-                        "spatialResolution": best.get("resolution"),
-                        "resolutionUnit": "m",
-                        "reflectanceScalingApplied": True,
-                        "qualityMaskType": "Sentinel-2 SCL",
-                        "acquiredAt": best.get("acquiredAt"),
-                        "publishedAt": best.get("publishedAt"),
-                        "quality": best.get("quality"),
-                        "license": best.get("license"),
-                        "cloudCover": f"{cloud_pct}%" if cloud_pct is not None else "NO REGISTRADO",
-                        "stats": stats,
-                        "decisionVigor": {
-                            "clasificacionSimple": v_class,
-                            "icono": "🟢" if mean_val >= 0.5 else "🟡",
-                            "detalleTecnico": base_detail
-                        },
-                        "status": "REAL",
-                        "message": base_msg
-                    }
-                else:
-                    return {
-                        "indicator": "NDVI (Normalized Difference Vegetation Index)",
-                        "date": actual_date,
-                        "productId": prod_id,
-                        "areaHectares": area_ha,
-                        "isPoint": is_point,
-                        "stats": None,
-                        "status": "UNAVAILABLE",
-                        "message": f"ERROR RÁSTER: No se pudieron extraer píxeles válidos ({err_msg})"
-                    }
+        collection = selected_product.get("collection")
+        quality_mask_type = selected_stats.get("qualityMaskType")
+        limitations = [
+            "NDVI es un índice espectral; no mide directamente biomasa, rendimiento, sanidad ni humedad del suelo.",
+            "El resultado resume únicamente los píxeles válidos dentro de la geometría consultada."
+        ]
+        if collection == "landsat-c2-l2":
+            limitations.append("Se enmascaran bits QA_PIXEL 0–5; QA_RADSAT no se aplica en esta versión.")
+        else:
+            limitations.append("Se excluyen clases SCL de NoData, saturación/defecto, sombra, nubes y nieve.")
 
         return {
-            "indicator": "NDVI (Normalized Difference Vegetation Index)",
-            "date": target_date,
-            "productId": "NO DISPONIBLE",
+            "indicator": "NDVI (Índice de Vegetación)",
+            "date": actual_date,
+            "requestedDate": target_date,
+            "productId": selected_product.get("id"),
+            "collection": collection,
+            "sensor": selected_product.get("sensor"),
+            "product": selected_product.get("product"),
+            "source": selected_product.get("source"),
+            "sourceUrl": selected_product.get("sourceUrl"),
+            "license": selected_product.get("license"),
+            "acquiredAt": selected_product.get("acquiredAt"),
+            "publishedAt": selected_product.get("publishedAt"),
+            "geometry": selected_product.get("geometry"),
+            "quality": selected_product.get("quality"),
+            "spatialResolution": selected_product.get("resolution"),
+            "resolutionUnit": "m",
+            "qualityMaskType": quality_mask_type,
+            "reflectanceScalingApplied": True,
+            "bands": selected_product.get("bands"),
+            "formula": "NDVI = (NIR_reflectance - RED_reflectance) / (NIR_reflectance + RED_reflectance); reflectance = DN × scale + offset",
+            "cloudCover": f"{cloud_pct}%" if cloud_pct is not None else "NO REGISTRADO",
             "areaHectares": area_ha,
             "isPoint": is_point,
-            "stats": None,
-            "status": "UNAVAILABLE",
-            "message": "NO DISPONIBLE: No se encontraron escenas Sentinel-2 públicas con nubosidad aceptable para la fecha seleccionada."
+            "stats": selected_stats,
+            "status": "REAL",
+            "classification": v_class,
+            "description": desc,
+            "limitations": limitations,
+            "message": f"NDVI calculado sobre reflectancia calibrada y máscara {quality_mask_type} (escena {selected_product.get('id')}, {actual_date}).",
+            "details": f"Se procesaron COGs reales de {selected_product.get('product')} con escala y offset publicados por STAC."
         }
 
     except HTTPException:
         raise
     except Exception as e:
         return {
-            "indicator": "NDVI (Normalized Difference Vegetation Index)",
-            "date": target_date,
-            "areaHectares": area_ha if 'area_ha' in locals() else 0.0,
-            "stats": None,
+            "indicator": "NDVI (Índice de Vegetación)",
+            "date": req.date or get_default_dates()[2],
+            "productId": None,
             "status": "UNAVAILABLE",
-            "message": f"NO DISPONIBLE: Error en procesamiento ráster ({str(e)})"
+            "source": "Copernicus Sentinel-2 / USGS Landsat 8/9 vía AWS Earth Search STAC",
+            "message": f"No se pudo calcular NDVI: {str(e)}"
         }
+
 
 @app.post("/api/forest/changes")
 def calculate_change_detection(req: ChangeDetectionRequest):
