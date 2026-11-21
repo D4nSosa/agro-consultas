@@ -93,3 +93,19 @@ def test_source_reference_discloses_mapbiomas_automation_limitations(monkeypatch
     assert mapbiomas["spatialResolutionM"] == 30
     assert mapbiomas["license"] == "CC BY 4.0"
     assert "requieren sesión/cuenta GEE" in " ".join(mapbiomas["limitations"])
+
+
+def test_mapbiomas_wms_is_allowlisted_and_restricted_to_argentina_workspace(monkeypatch):
+    xml = b"""<WMS_Capabilities xmlns='http://www.opengis.net/wms'>
+    <Capability><Layer>
+      <Layer><Name>mapbiomas-argentina:regiones_forestales</Name><Title>Regiones forestales</Title></Layer>
+      <Layer><Name>mapbiomas-arida:land_cover_and_use_2019</Name><Title>Land cover semiarid</Title></Layer>
+    </Layer></Capability></WMS_Capabilities>"""
+    monkeypatch.setattr(catalog, "_read_url", lambda *_args, **_kwargs: xml)
+    catalog._cache.clear()
+
+    result = catalog.get_ogc_capabilities("mapbiomas", "wms")
+
+    assert result["endpoint"] == "https://shared-geoserver.mapbiomas.org/geoserver/ows"
+    assert [layer["name"] for layer in result["layers"]] == ["mapbiomas-argentina:regiones_forestales"]
+    assert catalog.SOURCE_REFERENCE["mapbiomas"]["status"] == "WMS_CONTEXT_LAYERS_AVAILABLE_ANNUAL_RASTER_PENDING"
