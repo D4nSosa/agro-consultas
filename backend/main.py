@@ -1054,9 +1054,27 @@ def calculate_change_detection(req: ChangeDetectionRequest):
             area_ha = round(area_sq_m / 10000.0, 2)
             is_point = False
 
-        # Calcular NDVI con píxeles reales para ambas fechas
-        ndvi_resA = calculate_ndvi(NDVIAnalysisRequest(geometry=req.geometry, date=dA))
-        ndvi_resB = calculate_ndvi(NDVIAnalysisRequest(geometry=req.geometry, date=dB))
+        allowed_collections = ("sentinel-2-l2a", "landsat-c2-l2")
+        if req.collection == "auto":
+            collections_to_try = list(allowed_collections)
+        elif req.collection in allowed_collections:
+            collections_to_try = [req.collection]
+        else:
+            raise HTTPException(status_code=400, detail="Colección de comparación no permitida.")
+
+        # Ambas fechas deben usar el mismo sensor/colección: nunca mezclar S2 y Landsat en una comparación.
+        ndvi_resA = None
+        ndvi_resB = None
+        for collection in collections_to_try:
+            candidate_a = calculate_ndvi(NDVIAnalysisRequest(
+                geometry=req.geometry, date=dA, collection=collection
+            ))
+            candidate_b = calculate_ndvi(NDVIAnalysisRequest(
+                geometry=req.geometry, date=dB, collection=collection
+            ))
+            if candidate_a.get("status") == "REAL" and candidate_b.get("status") == "REAL":
+                ndvi_resA, ndvi_resB = candidate_a, candidate_b
+                break
 
         if ndvi_resA.get("status") == "REAL" and ndvi_resB.get("status") == "REAL":
             statsA = ndvi_resA.get("stats", {})
@@ -1112,15 +1130,15 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                 if dec_pct > 30.0 or delta_ndvi <= -0.15:
                     classification = "DISMINUCION_SIGNIFICATIVA"
                     msg = f"Disminución significativa del índice de vegetación detectada (ΔNDVI: {delta_ndvi})."
-                    desc = f"Se observa reducción del vigor vegetativo en {dec_ha} ha ({dec_pct}% del lote). Puede deberse a raleo, cosecha o eventos climáticos. Se sugiere verificación de campo."
+                    desc = f"Se observa una disminución del NDVI en {dec_ha} ha ({dec_pct}% del lote). Puede responder a cambios de cobertura, manejo, estacionalidad u otros factores; requiere verificación de campo."
                 elif inc_pct > 30.0 or delta_ndvi >= 0.15:
                     classification = "AUMENTO_SIGNIFICATIVO"
                     msg = f"Aumento significativo del índice de vegetación detectado (ΔNDVI: +{delta_ndvi})."
-                    desc = f"Se observa incremento del vigor vegetativo en {inc_ha} ha ({inc_pct}% del lote)."
+                    desc = f"Se observa un incremento de la respuesta NDVI en {inc_ha} ha ({inc_pct}% del lote)."
                 else:
                     classification = "ESTABLE"
                     msg = f"Cobertura vegetativa estable entre ambas observaciones (ΔNDVI: {delta_ndvi})."
-                    desc = f"El {st_pct}% de la superficie del lote ({st_ha} ha) se mantiene estable dentro de los márgenes normales de variación estacional."
+                    desc = f"El {st_pct}% de la superficie del lote ({st_ha} ha) permanece dentro del umbral de variación NDVI de ±0,15 utilizado por este análisis."
 
                 return {
                     "period": {"dateA": ndvi_resA.get("date", dA), "dateB": ndvi_resB.get("date", dB)},
@@ -1139,6 +1157,14 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                         "stable": {"hectares": st_ha, "percent": st_pct},
                         "increase": {"hectares": inc_ha, "percent": inc_pct}
                     },
+                    "collection": ndvi_resA.get("collection"),
+                    "sensor": ndvi_resA.get("sensor"),
+                    "spatialResolution": ndvi_resA.get("spatialResolution"),
+                    "qualityMaskType": ndvi_resA.get("qualityMaskType"),
+                    "collection": ndvi_resA.get("collection"),
+                    "sensor": ndvi_resA.get("sensor"),
+                    "spatialResolution": ndvi_resA.get("spatialResolution"),
+                    "qualityMaskType": ndvi_resA.get("qualityMaskType"),
                     "products": {
                         "productA": ndvi_resA.get("productId"),
                         "productB": ndvi_resB.get("productId")
@@ -1152,15 +1178,15 @@ def calculate_change_detection(req: ChangeDetectionRequest):
                 if delta_ndvi <= -0.15:
                     classification = "DISMINUCION_SIGNIFICATIVA"
                     msg = f"Disminución del índice de vegetación medio (ΔNDVI: {delta_ndvi})."
-                    desc = "Se observa una reducción del vigor vegetativo medio entre ambas fechas."
+                    desc = "Se observa una reducción del NDVI medio entre ambas fechas; no equivale por sí sola a pérdida de biomasa o deterioro sanitario."
                 elif delta_ndvi >= 0.15:
                     classification = "AUMENTO_SIGNIFICATIVO"
                     msg = f"Aumento del índice de vegetación medio (ΔNDVI: +{delta_ndvi})."
-                    desc = "Se observa un incremento en la cobertura/biomasa vegetativa media entre ambas fechas."
+                    desc = "Se observa un incremento del NDVI medio entre ambas fechas; no equivale por sí solo a aumento de biomasa."
                 else:
                     classification = "ESTABLE"
                     msg = f"Respuesta espectral media estable entre ambas observaciones (ΔNDVI: {delta_ndvi})."
-                    desc = "La variación del índice medio de vegetación se mantiene estable."
+                    desc = "La variación del NDVI medio se mantiene dentro del umbral de ±0,15 utilizado."
 
                 return {
                     "period": {"dateA": ndvi_resA.get("date", dA), "dateB": ndvi_resB.get("date", dB)},
