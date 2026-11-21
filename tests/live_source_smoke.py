@@ -66,6 +66,31 @@ def request(url: str, payload: dict | None = None, timeout: int = 12):
         }
 
 
+def request_range(url: str, timeout: int = 20):
+    headers = {
+        "User-Agent": "Agro-Consultas-National-Source-Smoke/1.0",
+        "Range": "bytes=0-1023",
+    }
+    req = urllib.request.Request(url, headers=headers)
+    started = time.monotonic()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            body = response.read(1024)
+            return {
+                "status": "HTTP_OK" if 200 <= response.status < 300 else "HTTP_ERROR",
+                "http_status": response.status,
+                "content_type": response.headers.get("Content-Type"),
+                "content_length": response.headers.get("Content-Length"),
+                "content_range": response.headers.get("Content-Range"),
+                "range_supported": response.status == 206,
+                "first_bytes_hex": body[:16].hex(),
+                "looks_like_geotiff": body[:4] in (b"II*\\x00", b"MM\\x00*"),
+                "elapsed_ms": round((time.monotonic() - started) * 1000),
+            }
+    except urllib.error.HTTPError as exc:
+        return {"status": "HTTP_ERROR", "http_status": exc.code, "error": str(exc.reason)}
+    except Exception as exc:
+        return {"status": "UNREACHABLE", "http_status": None, "error": f"{type(exc).__name__}: {exc}"}
 def xml_layer_names(body: bytes):
     try:
         root = ET.fromstring(body)
@@ -205,6 +230,30 @@ def main():
         name: {k: v for k, v in request(url).items() if k != "body"}
         for name, url in portal_urls.items()
     }
+    report["checks"]["idera_service_registry"] = request(
+        "https://raw.githubusercontent.com/idera/geoservicios/master/sources.json"
+    )
+    registry_body = report["checks"]["idera_service_registry"].pop("body", b"")
+    if report["checks"]["idera_service_registry"]["status"] == "HTTP_OK":
+        try:
+            registry = json.loads(registry_body.decode("utf-8"))
+            report["checks"]["idera_service_registry"]["provider_groups"] = len(registry)
+            report["checks"]["idera_service_registry"]["registered_sources"] = sum(
+                len(items) for items in registry.values() if isinstance(items, list)
+            )
+            report["checks"]["idera_service_registry"]["source_ids"] = sorted({
+                item.get("id") for items in registry.values() if isinstance(items, list)
+                for item in items if item.get("id")
+            })
+        except Exception as exc:
+            report["checks"]["idera_service_registry"]["status"] = "INVALID_RESPONSE"
+            report["checks"]["idera_service_registry"]["error"] = f"{type(exc).__name__}: {exc}"
+    report["checks"]["mapbiomas_collection2_2024_geotiff_range"] = request_range(
+        "https://storage.googleapis.com/mapbiomas-public/initiatives/argentina/collection-2/coverage/argentina_coverage_2024.tif"
+    )
+    report["checks"]["mapbiomas_collection3_2025_geotiff_range"] = request_range(
+        "https://storage.googleapis.com/mapbiomas-public/initiatives/argentina/collection-3/coverage/argentina_coverage_2025.tif"
+    )
     report["checks"]["nasa_firms"] = {
         "status": "SKIPPED",
         "reason": "MAP_KEY is a protected runtime secret and is not exposed to this CI smoke test."
