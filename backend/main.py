@@ -429,10 +429,11 @@ def search_stac_catalog(req: STACSearchRequest):
         )
         with urllib.request.urlopen(aws_req, timeout=15) as resp:
             if resp.status != 200:
-                raise RuntimeError(f"Earth Search respondió HTTP {resp.status}")
+                raise RuntimeError(f"El proveedor STAC respondió HTTP {resp.status}")
             data = json.loads(resp.read().decode("utf-8"))
 
         features = data.get("features", [])
+        retrieved_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         parsed_products = []
         calibration_rejected = 0
         platform_rejected = 0
@@ -507,6 +508,14 @@ def search_stac_catalog(req: STACSearchRequest):
                 "resolution": red_resolution,
                 "bands": bands,
                 "geometry": feat.get("geometry"),
+                "coverage": feat.get("bbox"),
+                "crs": props.get("proj:code") or (
+                    f"EPSG:{props.get('proj:epsg')}" if props.get("proj:epsg") is not None else None
+                ),
+                "resolutionUnit": "m" if red_resolution is not None else None,
+                "status": "AVAILABLE",
+                "limitations": ["Metadatos STAC de escena; las estadísticas se calculan al procesar los activos ráster."],
+                "retrievedAt": retrieved_at,
                 "quality": {
                     "eo:cloud_cover": cloud_cover_val,
                     "landsat:collection_category": props.get("landsat:collection_category"),
@@ -540,6 +549,7 @@ def search_stac_catalog(req: STACSearchRequest):
                 "source": parsed_products[0]["source"],
                 "collection": collection,
                 "productsCount": len(parsed_products),
+                "retrievedAt": retrieved_at,
                 "bestProduct": parsed_products[0],
                 "products": parsed_products,
                 "calibrationRejectedCount": calibration_rejected,
@@ -551,6 +561,7 @@ def search_stac_catalog(req: STACSearchRequest):
             "source": "AWS Earth Search / Microsoft Planetary Computer STAC",
             "collection": collection,
             "productsCount": 0,
+            "retrievedAt": retrieved_at,
             "bestProduct": None,
             "products": [],
             "calibrationRejectedCount": calibration_rejected,
@@ -567,7 +578,7 @@ def search_stac_catalog(req: STACSearchRequest):
             "productsCount": 0,
             "bestProduct": None,
             "products": [],
-            "message": f"No se pudo consultar Earth Search STAC: {str(e)}"
+            "message": f"No se pudo consultar el catálogo STAC: {str(e)}"
         }
 
 
@@ -1084,7 +1095,10 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
             "license": selected_product.get("license"),
             "acquiredAt": selected_product.get("acquiredAt"),
             "publishedAt": selected_product.get("publishedAt"),
+            "retrievedAt": selected_product.get("retrievedAt"),
             "geometry": selected_product.get("geometry"),
+            "coverage": selected_product.get("coverage"),
+            "crs": selected_product.get("crs"),
             "quality": selected_product.get("quality"),
             "spatialResolution": selected_product.get("resolution"),
             "resolutionUnit": "m",
@@ -1484,6 +1498,7 @@ def get_sar_analysis(req: SARAnalysisRequest):
                 "date": actual_date,
                 "acquiredAt": props.get("datetime"),
                 "publishedAt": props.get("created"),
+                "retrievedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "productId": prod_id,
                 "orbitState": orbit_state,
                 "instrumentMode": instrument_mode,
