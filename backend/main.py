@@ -525,9 +525,6 @@ def process_cog_raster_ndvi_cropped(
         if not all(math.isfinite(v) for v in (red_scale, red_offset, nir_scale, nir_offset)):
             return None, "La calibración radiométrica STAC es inválida."
 
-        if not scl_url:
-            return None, "La escena no publica SCL; no se calcula NDVI sin máscara de calidad."
-
         with rasterio.open(red_url) as src_red, rasterio.open(nir_url) as src_nir:
             transformer = pyproj.Transformer.from_crs('EPSG:4326', src_red.crs, always_xy=True)
             geom_proj = _project_roi_geometry(geom_shape, transformer)
@@ -553,17 +550,25 @@ def process_cog_raster_ndvi_cropped(
                 if (src_nir.nodata is not None and val_nir == src_nir.nodata) or val_nir <= 0:
                     return None, "El punto NIR es NoData."
 
-                with rasterio.open(scl_url) as src_scl:
-                    transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
-                    scl_x, scl_y = transformer_scl.transform(geom_shape.x, geom_shape.y)
-                    row_scl, col_scl = src_scl.index(scl_x, scl_y)
-                    if row_scl < 0 or col_scl < 0 or row_scl >= src_scl.height or col_scl >= src_scl.width:
-                        return None, "El punto está fuera de la máscara SCL."
-                    scl_value = src_scl.read(1, window=rasterio.windows.Window(col_scl, row_scl, 1, 1))[0, 0]
-                    if src_scl.nodata is not None and scl_value == src_scl.nodata:
-                        return None, "El punto tiene SCL NoData."
-                    if not is_sentinel2_scl_clear(scl_value):
-                        return None, f"El píxel fue excluido por la clase SCL {int(scl_value)}."
+                scl_filter_applied = False
+                scl_warning = "Asset SCL no proporcionado; el procesador no aplicó máscara de calidad."
+                if scl_url:
+                    try:
+                        with rasterio.open(scl_url) as src_scl:
+                            transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
+                            scl_x, scl_y = transformer_scl.transform(geom_shape.x, geom_shape.y)
+                            row_scl, col_scl = src_scl.index(scl_x, scl_y)
+                            if row_scl < 0 or col_scl < 0 or row_scl >= src_scl.height or col_scl >= src_scl.width:
+                                return None, "El punto está fuera de la máscara SCL."
+                            scl_value = src_scl.read(1, window=rasterio.windows.Window(col_scl, row_scl, 1, 1))[0, 0]
+                            if src_scl.nodata is not None and scl_value == src_scl.nodata:
+                                return None, "El punto tiene SCL NoData."
+                            if not is_sentinel2_scl_clear(scl_value):
+                                return None, f"El píxel fue excluido por la clase SCL {int(scl_value)}."
+                            scl_filter_applied = True
+                            scl_warning = None
+                    except Exception as scl_error:
+                        scl_warning = f"No se pudo leer la máscara SCL: {scl_error}"
 
                 ndvi_pt = calculate_scaled_ndvi(
                     val_red, val_nir, red_scale, red_offset, nir_scale, nir_offset
@@ -580,7 +585,8 @@ def process_cog_raster_ndvi_cropped(
                     "validPixelsPercent": 100.0,
                     "sampleCount": 1,
                     "isPoint": True,
-                    "sclFilterApplied": True,
+                    "sclFilterApplied": scl_filter_applied,
+                    "sclWarning": scl_warning,
                     "qualityMaskType": "Sentinel-2 SCL",
                     "reflectanceScalingApplied": True,
                     "redScale": red_scale,
@@ -631,35 +637,44 @@ def process_cog_raster_ndvi_cropped(
                     dst_nodata=nir_nodata_value
                 )
 
-            with rasterio.open(scl_url) as src_scl:
-                if src_scl.crs == src_red.crs:
-                    geom_proj_scl = geom_proj
-                else:
-                    transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
-                    geom_proj_scl = _project_roi_geometry(geom_shape, transformer_scl)
+            scl_aligned = None
+            scl_filter_applied = False
+            scl_warning = "Asset SCL no proporcionado; el procesador no aplicó máscara de calidad."
+            if scl_url:
+                try:
+                    with rasterio.open(scl_url) as src_scl:
+                        if src_scl.crs == src_red.crs:
+                            geom_proj_scl = geom_proj
+                        else:
+                            transformer_scl = pyproj.Transformer.from_crs('EPSG:4326', src_scl.crs, always_xy=True)
+                            geom_proj_scl = _project_roi_geometry(geom_shape, transformer_scl)
 
-                out_scl_raw, transform_scl = rasterio_mask(
-                    src_scl, [geom_proj_scl], crop=True, nodata=src_scl.nodata
-                )
-                scl_raw = out_scl_raw[0]
+                        out_scl_raw, transform_scl = rasterio_mask(
+                            src_scl, [geom_proj_scl], crop=True, nodata=src_scl.nodata
+                        )
+                        scl_raw = out_scl_raw[0]
 
-                if (src_scl.crs == src_red.crs and
-                    src_scl.transform == src_red.transform and
-                    scl_raw.shape == red_data.shape):
-                    scl_aligned = scl_raw
-                else:
-                    scl_aligned = np.zeros(red_data.shape, dtype=scl_raw.dtype)
-                    reproject(
-                        source=scl_raw,
-                        destination=scl_aligned,
-                        src_transform=transform_scl,
-                        src_crs=src_scl.crs,
-                        dst_transform=transform_red,
-                        dst_crs=src_red.crs,
-                        resampling=Resampling.nearest,
-                        src_nodata=src_scl.nodata,
-                        dst_nodata=0
-                    )
+                        if (src_scl.crs == src_red.crs and
+                            src_scl.transform == src_red.transform and
+                            scl_raw.shape == red_data.shape):
+                            scl_aligned = scl_raw
+                        else:
+                            scl_aligned = np.zeros(red_data.shape, dtype=scl_raw.dtype)
+                            reproject(
+                                source=scl_raw,
+                                destination=scl_aligned,
+                                src_transform=transform_scl,
+                                src_crs=src_scl.crs,
+                                dst_transform=transform_red,
+                                dst_crs=src_red.crs,
+                                resampling=Resampling.nearest,
+                                src_nodata=src_scl.nodata,
+                                dst_nodata=0
+                            )
+                        scl_filter_applied = True
+                        scl_warning = None
+                except Exception as scl_error:
+                    scl_warning = f"No se pudo leer la máscara SCL: {scl_error}"
 
             nir_nodata = src_nir.nodata if src_nir.nodata is not None else 0
             valid_red = (red_data != red_nodata) & (red_data > 0)
@@ -668,7 +683,10 @@ def process_cog_raster_ndvi_cropped(
             nir_reflectance = nir_aligned.astype(np.float64) * nir_scale + nir_offset
             denominator = nir_reflectance + red_reflectance
 
-            scl_excluded = np.isin(scl_aligned, [0, 1, 3, 8, 9, 10, 11])
+            scl_excluded = (
+                np.isin(scl_aligned, [0, 1, 3, 8, 9, 10, 11])
+                if scl_aligned is not None else np.zeros(red_data.shape, dtype=bool)
+            )
             valid = (
                 valid_red & valid_nir & (~scl_excluded) &
                 np.isfinite(red_reflectance) & np.isfinite(nir_reflectance) &
@@ -700,8 +718,8 @@ def process_cog_raster_ndvi_cropped(
                 "validPixelsPercent": valid_pct,
                 "sampleCount": int(len(valid_ndvi)),
                 "roiPixelCount": int(roi_pixel_count),
-                "sclFilterApplied": True,
-                "sclWarning": None,
+                "sclFilterApplied": scl_filter_applied,
+                "sclWarning": scl_warning,
                 "qualityMaskType": "Sentinel-2 SCL",
                 "reflectanceScalingApplied": True,
                 "redScale": red_scale,
@@ -766,6 +784,16 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                 cloud_pct = best.get("cloudCover", 0.0)
                 actual_date = best.get("date", target_date)
 
+                if stats and not stats.get("sclFilterApplied"):
+                    return {
+                        "indicator": "NDVI (Índice de Vegetación)",
+                        "date": req.date,
+                        "productId": best.get("id"),
+                        "status": "UNAVAILABLE",
+                        "source": best.get("source", "Copernicus Sentinel-2 / AWS Earth Search STAC"),
+                        "message": "No se entrega NDVI porque no pudo aplicarse la máscara SCL de calidad.",
+                        "details": stats.get("sclWarning")
+                    }
                 if stats:
                     mean_val = stats["mean"]
                     v_class = "Excelente vigor vegetativo" if mean_val >= 0.65 else ("Vigor vegetativo moderado" if mean_val >= 0.45 else "Cobertura/vigor bajo")
