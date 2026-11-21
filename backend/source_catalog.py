@@ -33,6 +33,7 @@ _cache_lock = threading.Lock()
 OGC_SERVICES = {
     "idecor": {"wms": IDECOR_OWS, "wfs": IDECOR_OWS, "scope": "Córdoba, Argentina"},
     "idecorr": {"wms": "https://geoportal.corrientes.gob.ar/geoserver/wms", "scope": "Corrientes, Argentina"},
+    "mapbiomas": {"wms": "https://shared-geoserver.mapbiomas.org/geoserver/ows", "scope": "Capas contextuales del workspace mapbiomas-argentina; no implica cobertura anual nacional"},
     "ign": {"wms": "https://wms.ign.gob.ar/geoserver/ows", "wfs": "https://wms.ign.gob.ar/geoserver/ows", "scope": "Argentina"},
     "inta": {"wms": "https://geo-nodo05.inta.gob.ar/geoserver/wms", "scope": "INTA-CIRN; productos nacionales puntuales y capas del nodo según metadatos"},
     "conae_saocom": {"wms": CONAE_SAOCOM_WMS, "scope": "Productos SAOCOM publicados por CONAE; cobertura según capa"},
@@ -46,7 +47,9 @@ SOURCE_REFERENCE = {
         "id": "mapbiomas_argentina",
         "name": "MapBiomas Argentina",
         "family": "land_cover",
-        "status": "REFERENCE_ONLY_AUTH_REQUIRED_FOR_AUTOMATION",
+        "status": "WMS_CONTEXT_LAYERS_AVAILABLE_ANNUAL_RASTER_PENDING",
+        "ogcWms": "https://shared-geoserver.mapbiomas.org/geoserver/ows",
+        "availableArgentinaContextLayers": ["mapbiomas-argentina:vegetation_unit", "mapbiomas-argentina:ecorregion", "mapbiomas-argentina:regiones_forestales", "mapbiomas-argentina:national_protected_areas", "mapbiomas-argentina:subnational_protected_areas"],
         "collection": "Colección 3",
         "period": "1985-2025",
         "spatialResolutionM": 30,
@@ -58,6 +61,7 @@ SOURCE_REFERENCE = {
         "methodology": "https://argentina.mapbiomas.org/iniciativas-y-productos/cobertura-y-uso-del-suelo/cobertura-30m/nueva-pagina/",
         "limitations": [
             "La descarga GeoTIFF directa está temporalmente suspendida según el portal oficial.",
+            "El WMS compartido publica capas contextuales de vegetación, ecorregiones, regiones forestales y áreas protegidas de Argentina; no equivale a la serie anual nacional de cobertura.",
             "La plataforma y los assets de Google Earth Engine requieren sesión/cuenta GEE para exportación automatizada.",
             "No se ejecuta ni se simula una estadística zonal sin acceso autenticado a los assets.",
             "No usar la Colección 2 como si fuera la Colección 3."
@@ -221,6 +225,9 @@ def get_ogc_capabilities(
         try:
             body = _read_url(endpoint + "?" + params, timeout=12, max_bytes=8_000_000)
             layers = _parse_capabilities(body, service)
+            if provider == "mapbiomas" and service == "wms":
+                # Expose only Argentina workspace; regional Brazil workspaces are out of scope.
+                layers = [item for item in layers if item["name"].lower().startswith("mapbiomas-argentina:")]
             if not layers:
                 raise ValueError("El servicio no publicó capas identificables.")
             payload = {
