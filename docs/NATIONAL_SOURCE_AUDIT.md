@@ -180,6 +180,19 @@ Referencias:
 - USGS Surface Reflectance (resolución global 30 m y sensores): https://www.usgs.gov/landsat-missions/landsat-collection-2-surface-reflectance
 - USGS licencia/dominio público en la nube: https://www.usgs.gov/faqs/are-landsat-data-cloud-still-considered-be-within-public-domain
 
+### Integración Landsat 8/9 en la rama PR #94
+
+La rama ya incorpora el adaptador STAC para `landsat-c2-l2`, filtrando `platform=landsat-8` y `platform=landsat-9`, con activos RED, NIR (`nir08`) y QA_PIXEL. La búsqueda utiliza `intersects` con la geometría exacta.
+
+El procesador NDVI:
+- Aplica escala 0.0000275 y offset -0.2 a RED y NIR antes de calcular NDVI.
+- Enmascara QA_PIXEL bits 0–5 (fill, nube dilatada, cirrus, nube, sombra y nieve).
+- Informa resolución 30 m, sensor, colección, producto, fecha, porcentaje de nubes, máscara aplicada y limitaciones.
+- Permite fallback automático desde Sentinel-2 a Landsat cuando no hay píxeles válidos.
+- En comparaciones temporales, fuerza la misma colección/sensor para ambas fechas; no compara Sentinel-2 contra Landsat.
+
+El fallback no usa escenas posteriores a la fecha solicitada. Se prueban hasta cinco escenas ordenadas por nubosidad para encontrar píxeles válidos.
+
 ## Primera validación en vivo desde GitHub Actions
 
 **Ejecución:** https://github.com/D4nSosa/agro-consultas/actions/runs/44901226369  
@@ -190,7 +203,7 @@ Resultados de esa ejecución:
 
 - Earth Search `/collections`: HTTP 200; el catálogo devolvió `sentinel-1-grd`, `sentinel-2-l2a` y `landsat-c2-l2`.
 - Búsquedas STAC separadas por colección, con fecha 2025 y punto en el centroide de cada jurisdicción: las tres colecciones devolvieron al menos un ítem en las 24 jurisdicciones. Esto demuestra disponibilidad de escenas en esos puntos y período; no certifica cobertura completa de cada provincia ni disponibilidad en cualquier fecha/lote.
-- CONAE AQM MODIS: GetCapabilities HTTP 200 y 31 nombres de capas; se identificaron `MODIS_AQM_1` a `MODIS_AQM_13`. En ese documento los nombres aparecen sin el prefijo de workspace. El frontend actual envía `EmergenciasCONAE:MODIS_AQM_1`; hay que comprobar GetMap con y sin prefijo antes de modificarlo.
+- CONAE AQM MODIS: GetCapabilities HTTP 200 y 31 nombres de capas; se identificaron `MODIS_AQM_1` a `MODIS_AQM_13`. En ese documento los nombres aparecen sin el prefijo de workspace. GetMap respondió HTTP 200 con PNG válido tanto para `MODIS_AQM_1` como para `EmergenciasCONAE:MODIS_AQM_1`; el frontend actual usa el nombre calificado y no requiere cambio por este motivo.
 - CONAE Focos MODIS/VIIRS, disponibilidad de combustibles, humedad SAOCOM y capas de cultivos: los GetCapabilities agotaron el timeout de 12 segundos desde el runner de GitHub Actions. Se registra como timeout en esa ejecución, no como inexistencia del producto.
 - INTA: `https://geo-backend.inta.gob.ar/geoserver/ows` agotó el timeout de lectura; el endpoint antiguo `geoserver.inta.gob.ar` no resolvió DNS. El monitor IDERA publicó una prueba exitosa del servicio central INTA el 20/11/2026; ambas observaciones deben reconciliarse antes de cambiar el adaptador.
 - IDERA: portal HTTP 200. IDECorr: portal HTTP 403 desde el runner. El monitor de geoservicios consultado listaba IDECorr con 0% de disponibilidad en su vista del 21/11/2026.
