@@ -8,6 +8,17 @@
 
 Se separan tres estados: presente en el código, documentado por el proveedor y validación operativa pendiente. Una página de catálogo o un GetCapabilities exitoso no demuestra que la capa entregue píxeles o entidades válidas para todas las provincias.
 
+## Hallazgos transversales de código y condiciones de publicación
+
+- **Límite de uso de APIs públicas:** no se encontró un limitador distribuido por IP/cliente en las rutas costosas. En particular, `POST /api/fires/history` utiliza `FIRMS_MAP_KEY` del servidor y puede disparar varias transacciones NASA por solicitud; limita el período a 31 días, pero no limita explícitamente el área ni la frecuencia del solicitante. Antes de abrir tráfico sostenido debe configurarse rate limiting en el borde o un almacén compartido, y un límite de superficie/consultas. Un contador en memoria de una Function serverless no sería una protección suficiente.
+- **Otras rutas de consumo:** NDVI, SAR, cambios forestales, análisis territorial y consultas INTA también realizan trabajo o llamadas externas sin una política compartida de cuota por cliente. Deben quedar bajo la misma política de protección.
+- **Pruebas de fuentes:** `live_source_smoke.py` es deliberadamente observacional: genera un informe y no falla el workflow por cada proveedor inaccesible. Un job verde significa que el informe se produjo; no significa que CONAE, MapBiomas, IDECorr o INDEC estén disponibles. Las pruebas que exigen datos reales de proveedores dentro de `pytest` también deben aislarse de las pruebas unitarias deterministas para evitar fallos intermitentes.
+- **Higiene del repositorio:** se retiró `server.log`, que contenía registros locales de navegación y coordenadas, y se agregaron exclusiones para logs y artefactos generados.
+- **Rutas FastAPI:** se detectó y eliminó un registro duplicado de `POST /api/forest/stac`; se agregó una prueba que impide volver a registrarlo dos veces.
+- **Comparación ráster:** la comparación píxel a píxel ahora exige CRS y transformada explícitos e idénticos en ambas fechas. Si falta cualquiera de esos metadatos, el resultado conserva la comparación de medias, pero no declara disponibilidad espacial.
+- **CONAE WFS:** la consulta directa usada por la interfaz ahora tiene timeout y aborta si el proveedor no responde; se añadió una prueba del timeout y un smoke test contra el endpoint exacto de la interfaz.
+- **INTA:** los valores ráster no finitos se descartan antes de construir la respuesta; un NaN/Infinity no puede convertirse en una clase de salinidad válida ni contaminar JSON.
+
 ## Cobertura territorial del producto
 
 El catálogo `data/provincias.json` contiene 24 claves administrativas: las 23 provincias y CABA. La prueba `tests/territorial-recommendations.test.mjs` verifica esa lista y que cada perfil tenga información de referencia de suelo y clima.
