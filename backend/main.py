@@ -552,7 +552,7 @@ def is_landsat_qa_pixel_clear(value):
         return False
 
 
-def process_cog_raster_ndvi_cropped(
+def _process_cog_raster_ndvi_cropped_impl(
     red_url, nir_url, scl_url, geom_shape,
     red_scale=1.0, red_offset=0.0, nir_scale=1.0, nir_offset=0.0,
     qa_pixel_url=None
@@ -868,6 +868,24 @@ def process_cog_raster_ndvi_cropped(
 
     except Exception as e:
         return None, str(e)
+
+
+def process_cog_raster_ndvi_cropped(
+    red_url, nir_url, scl_url, geom_shape,
+    red_scale=1.0, red_offset=0.0, nir_scale=1.0, nir_offset=0.0,
+    qa_pixel_url=None
+):
+    """Procesa COGs públicos S3/HTTPS sin requerir credenciales AWS."""
+    import rasterio
+    with rasterio.Env(AWS_NO_SIGN_REQUEST="YES"):
+        return _process_cog_raster_ndvi_cropped_impl(
+            red_url, nir_url, scl_url, geom_shape,
+            red_scale=red_scale,
+            red_offset=red_offset,
+            nir_scale=nir_scale,
+            nir_offset=nir_offset,
+            qa_pixel_url=qa_pixel_url
+        )
 
 
 @app.post("/api/forest/ndvi")
