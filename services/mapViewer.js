@@ -3,6 +3,19 @@
  * Agro Consultas - Plataforma de Inteligencia Territorial
  */
 
+
+const OFFICIAL_LAYER_RULES = {
+  idecor: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural/i,
+  conae_saocom: /DSS_MSM_|DSS_PSM_/i,
+  conae_smap: /SMAP_Pasada/i
+};
+
+/** Returns true only for layers relevant to existing Agro/Forestal analysis. */
+export function isRelevantOfficialLayer(provider, layer) {
+  const rule = OFFICIAL_LAYER_RULES[provider];
+  return Boolean(rule && rule.test([layer?.name, layer?.title, layer?.abstract].filter(Boolean).join(' ')));
+}
+
 export const BASE_MAPS = {
   NORMAL: {
     id: 'normal',
@@ -80,8 +93,58 @@ export class MapViewer {
     this.currentBaseMode = 'normal';
 
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);
+    // Discovery is asynchronous and non-blocking; no source layer is activated by default.
+    this.discoverOfficialSourceOverlays();
 
     return this.map;
+  }
+
+
+  async discoverOfficialSourceOverlays() {
+    if (!this.map || typeof L.tileLayer?.wms !== 'function') return;
+    const providers = [
+      { id: 'idecor', label: 'IDECOR Córdoba', category: 'Territorio · Córdoba' },
+      { id: 'conae_saocom', label: 'CONAE SAOCOM', category: 'Suelo · Humedad' },
+      { id: 'conae_smap', label: 'CONAE SMAP', category: 'Suelo · Humedad superficial' }
+    ];
+    await Promise.all(providers.map(async provider => {
+      try {
+        const response = await fetch('/api/sources/ogc/' + provider.id + '/wms', {
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) return;
+        const metadata = await response.json();
+        const relevant = (metadata.layers || []).filter(layer =>
+          isRelevantOfficialLayer(provider.id, layer)
+        ).slice(0, provider.id === 'idecor' ? 8 : 14);
+        for (const item of relevant) {
+          const key = 'official_' + provider.id + '_' + item.name.replace(/[^a-z0-9_-]/gi, '_');
+          if (this.overlayLayers[key]) continue;
+          const attribution = provider.id === 'idecor'
+            ? 'IDECOR · Cobertura: Córdoba, Argentina'
+            : 'CONAE · ' + provider.label;
+          const layer = L.tileLayer.wms(metadata.endpoint, {
+            layers: item.name,
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.1',
+            attribution,
+            opacity: 0.72
+          });
+          this.registerOverlayLayer(
+            key,
+            layer,
+            provider.label + ' · ' + (item.title || item.name),
+            true,
+            provider.category
+          );
+        }
+        const panel = this.options.layerControlContainerId;
+        if (panel) this.renderControlPanel(panel);
+      } catch (error) {
+        console.warn('[MapViewer] No se pudieron descubrir capas oficiales ' + provider.id + ':', error);
+      }
+    }));
   }
 
   setBaseMode(modeKey) {
