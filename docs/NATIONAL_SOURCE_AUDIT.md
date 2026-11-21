@@ -174,6 +174,21 @@ Resultados de esa ejecución:
 
 La consulta STAC se corrigió para consultar cada colección de forma independiente. La primera versión combinaba tres colecciones y limitaba a tres resultados, lo que sesgaba la detección de colecciones por punto; no se utilizan esos resultados para conclusiones de cobertura por sensor.
 
+## Segunda validación en vivo: valores de píxel y servicios WMS
+
+**Ejecución:** https://github.com/D4nSosa/agro-consultas/actions/runs/44901860577  
+**Fecha:** 21 de noviembre de 2026.  
+**Artefacto:** `national-source-smoke-report`.
+
+Resultados:
+
+- CONAE AQM: GetMap respondió HTTP 200 y PNG válido con el nombre de capa `MODIS_AQM_1` y también con `EmergenciasCONAE:MODIS_AQM_1`. Ambos formatos de nombre son aceptados por el servidor.
+- CONAE AQM GetFeatureInfo: 24/24 centroides jurisdiccionales respondieron HTTP 200 y devolvieron un valor `AQM=0` en la capa `MODIS_AQM_1`. Esto describe únicamente el píxel consultado en el producto mensual más reciente disponible (2026-09); no demuestra ausencia de áreas quemadas en toda la provincia ni en el lote.
+- INTA-CIRN GetFeatureInfo: 24/24 centroides respondieron HTTP 200 y devolvieron cuatro features, correspondientes a pH 0–30 cm, pH 30–100 cm y las dos capas de suelos afectados por sales.
+- Los valores pH de los puntos válidos se devolvieron en `GRAY_INDEX`; el punto de CABA devolvió 100 en ambas capas pH, fuera del rango físico de pH, por lo que debe tratarse como NoData y no como pH 100.
+- Las capas de suelos afectados por sales devolvieron valores `GRAY_INDEX` 0, 1, 2 y -9999. Hasta verificar leyenda y valor NoData, deben conservarse como valores/clases crudas, sin asignarles significado agronómico ni unidad.
+- Los resultados confirman que las capas nacionales INTA son consultables en puntos de las 24 jurisdicciones. No convierten el dato cartográfico en una medición del lote; la consulta actual es un muestreo puntual del centroide.
+
 ## Condiciones para declarar una fuente integrada
 
 Para cada producto se conservará evidencia del endpoint y método de consulta, respuesta HTTP y fecha de prueba, colección/versión, geometría consultada, resultado espacial, cobertura real, resolución/escala, fechas de adquisición/publicación/actualización, CRS, unidades, NoData, calidad, licencia y módulo consumidor.
