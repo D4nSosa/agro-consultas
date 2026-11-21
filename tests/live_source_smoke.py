@@ -777,6 +777,18 @@ def main():
     report["checks"]["mapbiomas_collection3_2025_geotiff_range"] = request_range(
         "https://storage.googleapis.com/mapbiomas-public/initiatives/argentina/collection-3/coverage/argentina_coverage_2025.tif"
     )
+    report["checks"]["additional_ogc_services"] = {
+        "IDECOR WMS (Córdoba)": check_wms(
+            "IDECOR official WMS", "https://idecor-ws.mapascordoba.gob.ar/geoserver/ows", [], timeout=10
+        ),
+        "CONAE SAOCOM profile WMS": check_wms(
+            "CONAE SAOCOM profile WMS", "https://geoservicios3.conae.gov.ar/geoserver/HumedadDeSuelos/wms", [], timeout=10
+        ),
+        "CONAE SMAP/SMOS WMS": check_wms(
+            "CONAE SMAP/SMOS WMS", "https://geoservicios2.conae.gov.ar/geoserver/HumedadDeSuelos/wms", [], timeout=10
+        )
+    }
+
     report["checks"]["nasa_firms"] = {
         "status": "SKIPPED",
         "reason": "MAP_KEY is a protected runtime secret and is not exposed to this CI smoke test."
@@ -802,6 +814,8 @@ def main():
         rows.append(f"| INTA nodos regionales WMS | {regional_ok}/{len(regional)} activos | Prueba GetCapabilities |")
         rows.append(f"| Capas INTA candidatas de suelo | {soil_count} en {len(soil_nodes)} nodos | Requieren revisar atributos, escala y geometría |")
         rows.append(f"| IDECorr WMS | {report['checks']['idecorr_wms'].get('status')} | HTTP {report['checks']['idecorr_wms'].get('http_status')} |")
+        for name, item in report["checks"]["additional_ogc_services"].items():
+            rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')}; capas {item.get('capabilities_layers_count', 0)} |")
         for name, item in report["checks"]["idera_discovered_services"].items():
             rows.append(f"| {name} | {item.get('status')} | HTTP {item.get('http_status')}; capas {item.get('capabilities_layers_count', item.get('capabilities_feature_types_count', 0))} |")
         for item in report["checks"]["conae_aqm_getmap"]:
