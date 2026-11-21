@@ -6,6 +6,7 @@
 
 const OFFICIAL_LAYER_RULES = {
   idecor: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural/i,
+  idecorr: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural|incendio|agua/i,
   conae_saocom: /DSS_MSM_|DSS_PSM_/i,
   conae_smap: /SMAP_Pasada/i
 };
@@ -106,6 +107,7 @@ export class MapViewer {
     if (!this.map || typeof L.tileLayer?.wms !== 'function') return;
     const providers = [
       { id: 'idecor', label: 'IDECOR Córdoba', category: 'Territorio · Córdoba' },
+      { id: 'idecorr', label: 'IDECorr Corrientes', category: 'Territorio · Corrientes' },
       { id: 'conae_saocom', label: 'CONAE SAOCOM', category: 'Suelo · Humedad' },
       { id: 'conae_smap', label: 'CONAE SMAP', category: 'Suelo · Humedad superficial' }
     ];
@@ -124,7 +126,9 @@ export class MapViewer {
           if (this.overlayLayers[key]) continue;
           const attribution = provider.id === 'idecor'
             ? 'IDECOR · Cobertura: Córdoba, Argentina'
-            : 'CONAE · ' + provider.label;
+            : provider.id === 'idecorr'
+              ? 'IDECorr · Cobertura: Corrientes, Argentina'
+              : 'CONAE · ' + provider.label;
           const layer = L.tileLayer.wms(metadata.endpoint, {
             layers: item.name,
             format: 'image/png',
