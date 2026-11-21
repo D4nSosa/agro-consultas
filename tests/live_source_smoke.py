@@ -378,6 +378,7 @@ def check_mapbiomas_platform_api():
             "legend_classes": len(pixel_values),
             "tile_template_host": parsed.netloc,
             "tile_template_path": parsed.path,
+            "tile_template_has_query": bool(parsed.query),
             "sample_tile_http_status": tile_result.get("http_status"),
             "sample_tile_content_type": tile_result.get("content_type"),
             "sample_tile_png": is_png,
