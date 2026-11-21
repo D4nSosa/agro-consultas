@@ -117,6 +117,10 @@ def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
     result["soil_layer_candidates"] = [
         name for name in names if any(term in name.lower() for term in soil_terms)
     ]
+    regional_terms = ("argentina", "arg_", "_arg", "pampa", "pampas", "arida", "chaco", "patagonia", "uruguay")
+    result["regional_layer_candidates"] = [
+        name for name in names if any(term in name.lower() for term in regional_terms)
+    ][:150]
     if result["status"] == "HTTP_OK":
         try:
             root = ET.fromstring(body)
