@@ -275,3 +275,19 @@ Se incorporó backend/source_catalog.py y se montó en FastAPI bajo /api/sources
 - MapBiomas queda documentado con período, resolución, clases, licencia y enlaces oficiales, pero no se incorpora como estadística por lote porque la descarga directa está suspendida y la exportación GEE requiere sesión. La plataforma no inventa resultados cuando no hay acceso automatizado.
 
 Pruebas agregadas: parser WMS/WFS, allowlist anti-SSRF, normalización del registro IDERA y reglas de selección temática del visor. El smoke test público consulta WMS IDECOR, MapBiomas Argentina y CONAE SAOCOM/SMAP; verifica la API de teselas MapBiomas C3 1985–2025 y render PNG de las capas contextuales, y deja el resultado como artefacto de CI.
+
+
+## Tercera validación en vivo: teselas MapBiomas y red regional INTA
+
+**Ejecución:** https://github.com/D4nSosa/agro-consultas/actions/runs/44930611659  
+**Fecha:** 21 de noviembre de 2026.  
+**Artefacto:** `national-source-smoke-report`.
+
+- **MapBiomas Argentina:** la API pública devolvió el subtema anual de cobertura de Colección 3, 41 años disponibles (1985–2025), leyenda de 25 entradas y una URL XYZ de Google Earth Engine sin query string. La tesela de muestra respondió HTTP 200, `image/png` y firma PNG válida. El endpoint backend valida el host/ruta y cachea la URL por año. El visor incorpora 2025 como capa visual opcional; no calcula estadísticas zonales.
+- **MapBiomas WMS contextual:** `vegetation_unit`, `ecorregion` y `regiones_forestales` devolvieron HTTP 200 e imagen PNG válida.
+- **STAC:** Sentinel-1 GRD, Sentinel-2 L2A y Landsat C2 L2 devolvieron al menos un ítem en los 24 puntos jurisdiccionales muestreados (24/24 por colección). Es una prueba de disponibilidad puntual en el período consultado, no de cobertura completa de cada provincia o lote.
+- **INTA:** los 12/12 nodos regionales WMS respondieron GetCapabilities HTTP 200 en esta ejecución. Las cuatro capas nacionales INTA devolvieron GetFeatureInfo en 24/24 puntos jurisdiccionales. La disponibilidad del servicio no implica que cada capa regional cubra toda su provincia ni que todas tengan atributos equivalentes.
+- **CONAE AQM:** GetMap respondió HTTP 200 y PNG válido; GetFeatureInfo respondió HTTP 200 en 24/24 puntos. Los otros endpoints probados de focos, combustibles, SAOCOM y anomalías de cultivos presentaron timeouts o 404 desde el runner. No se deshabilita TLS ni se declara disponible un servicio que no responde.
+- **IDECorr:** GetCapabilities falló por `CERTIFICATE_VERIFY_FAILED` desde GitHub Actions; el portal provincial respondió 403. La integración queda en descubrimiento con error visible, sin omitir validación de certificados.
+
+El workflow terminó con todos los jobs de validación aprobados. El reporte es una observación fechada de endpoints públicos; no certifica cobertura espacial integral, calidad agronómica ni disponibilidad futura.
