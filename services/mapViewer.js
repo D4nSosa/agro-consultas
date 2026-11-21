@@ -10,7 +10,9 @@ const OFFICIAL_LAYER_RULES = {
   ign: /provincia|departamento|hidrog|ruta|camino|localidad|limite|l[ií]mite|red.?vial/i,
   inta: /suelo|soil|edaf|cartografia|aptitud|salin|ph|capacidad.?de.?uso/i,
   conae_saocom: /DSS_(MSM|PSM)(KR)?_[1-7]/i,
-  conae_smap: /SMAP_Pasada/i
+  conae_smap: /SMAP_Pasada/i,
+  conae_fuel: /INC_SIARTIVGEO/i,
+  conae_burned: /area.?quemada|burned|aqm|incendio/i
 };
 
 /** Returns true only for layers relevant to existing Agro/Forestal analysis. */
@@ -113,7 +115,9 @@ export class MapViewer {
       { id: 'ign', label: 'IGN Argentina', category: 'Cartografía oficial · Nacional' },
       { id: 'inta', label: 'INTA-CIRN', category: 'Suelos · Cartografía' },
       { id: 'conae_saocom', label: 'CONAE SAOCOM', category: 'Suelo · Humedad' },
-      { id: 'conae_smap', label: 'CONAE SMAP', category: 'Suelo · Humedad superficial' }
+      { id: 'conae_smap', label: 'CONAE SMAP', category: 'Suelo · Humedad superficial' },
+      { id: 'conae_fuel', label: 'CONAE Combustibles', category: 'Incendios · Combustibles' },
+      { id: 'conae_burned', label: 'CONAE Áreas quemadas', category: 'Incendios · Área afectada' }
     ];
     await Promise.all(providers.map(async provider => {
       try {
