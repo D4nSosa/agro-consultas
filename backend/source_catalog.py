@@ -23,6 +23,8 @@ IDERA_REGISTRY_URL = "https://raw.githubusercontent.com/idera/geoservicios/maste
 IDECOR_OWS = "https://idecor-ws.mapascordoba.gob.ar/geoserver/ows"
 CONAE_SAOCOM_WMS = "https://geoservicios3.conae.gov.ar/geoserver/HumedadDeSuelos/wms"
 CONAE_SMAP_WMS = "https://geoservicios2.conae.gov.ar/geoserver/HumedadDeSuelos/wms"
+CONAE_FUEL_WMS = "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms"
+CONAE_BURNED_WMS = "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms"
 CACHE_TTL = 6 * 60 * 60
 _cache = {}
 _cache_lock = threading.Lock()
@@ -35,6 +37,8 @@ OGC_SERVICES = {
     "inta": {"wms": "https://geo-nodo05.inta.gob.ar/geoserver/wms", "scope": "INTA-CIRN; productos nacionales puntuales y capas del nodo según metadatos"},
     "conae_saocom": {"wms": CONAE_SAOCOM_WMS, "scope": "Productos SAOCOM publicados por CONAE; cobertura según capa"},
     "conae_smap": {"wms": CONAE_SMAP_WMS, "scope": "Humedad superficial SMAP/SMOS; cobertura según capa"},
+    "conae_fuel": {"wms": CONAE_FUEL_WMS, "scope": "Productos CONAE de disponibilidad de combustibles; cobertura según capa"},
+    "conae_burned": {"wms": CONAE_BURNED_WMS, "scope": "Productos CONAE de áreas quemadas; cobertura según capa"},
 }
 
 SOURCE_REFERENCE = {
@@ -77,6 +81,9 @@ SOURCE_REFERENCE = {
             {"id": "saocom_profile", "title": "Humedad del perfil de suelo hasta 50 cm", "layers": [f"HumedadDeSuelos:DSS_MSM_{i}" for i in range(1, 8)], "unit": "% volumétrico", "method": "Estimación por zonas homogéneas", "period": "Últimos 7 días", "krigingAlternative": [f"HumedadDeSuelos:DSS_MSMKR_{i}" for i in range(1, 8)]},
             {"id": "saocom_percentile", "title": "Percentiles de humedad del perfil hasta 50 cm", "layers": [f"HumedadDeSuelos:DSS_PSM_{i}" for i in range(1, 8)], "period": "Últimos 7 días", "krigingAlternative": [f"HumedadDeSuelos:DSS_PSMKR_{i}" for i in range(1, 8)]},
             {"id": "smap_surface", "title": "Humedad superficial SMAP", "layers": ["HumedadDeSuelos:SMAP_Pasada_Ascendente", "HumedadDeSuelos:SMAP_Pasada_Descendente"]},
+            {"id": "fuel_availability_l89", "title": "Disponibilidad de combustibles L89", "layers": [f"AlertaTemprana:INC_SIARTIVGEOL89_DC_{i}" for i in range(1, 4)], "method": "Desmezclado espectral Landsat 8/9", "components": ["vegetación verde", "vegetación seca/senescente", "suelo descubierto"]},
+            {"id": "fuel_availability_snpp", "title": "Disponibilidad de combustibles SNPP", "layers": [f"AlertaTemprana:INC_SIARTIVGEOSNPP_DC_{i}" for i in range(1, 7)], "method": "Desmezclado espectral de producto VIIRS VNP13A1"},
+            {"id": "burned_area_aqm", "title": "Áreas quemadas AQM", "service": "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms", "method": "Producto de área quemada; no equivale a foco térmico activo"},
         ],
         "limitations": [
             "La humedad SAOCOM es un promedio estimado por zonas homogéneas hasta 50 cm; no es una medición puntual del lote.",
