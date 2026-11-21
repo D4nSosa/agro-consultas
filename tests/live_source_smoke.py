@@ -140,9 +140,20 @@ def check_wms(name: str, endpoint: str, expected: list[str], timeout: int = 12):
                      "maxx": node.attrib.get("maxx"), "maxy": node.attrib.get("maxy")}
                     for node in layer if node.tag.rsplit("}", 1)[-1] == "BoundingBox"
                 ]
+                styles = []
+                for style in layer:
+                    if style.tag.rsplit("}", 1)[-1] != "Style":
+                        continue
+                    style_name = next((node.text for node in style if node.tag.rsplit("}", 1)[-1] == "Name"), None)
+                    style_title = next((node.text for node in style if node.tag.rsplit("}", 1)[-1] == "Title"), None)
+                    online = next((node for node in style.iter() if node.tag.rsplit("}", 1)[-1] == "OnlineResource"), None)
+                    legend_url = None
+                    if online is not None:
+                        legend_url = online.attrib.get("{http://www.w3.org/1999/xlink}href") or online.attrib.get("href")
+                    styles.append({"name": style_name, "title": style_title, "legend_url": legend_url})
                 item = {"name": name, "title": title, "abstract": abstract,
                         "queryable": layer.attrib.get("queryable"), "crs": crs,
-                        "bounding_boxes": boxes}
+                        "bounding_boxes": boxes, "styles": styles}
                 if ("AQM" in name or "INC_SIART" in name or "DSS_" in name or "MHS_" in name):
                     metadata.append(item)
                 if any(term in name.lower() for term in ("suel", "soil", "edaf", "textur", "ph_")):
@@ -406,6 +417,30 @@ def main():
         "https://geo-backend.inta.gob.ar/geoserver/ows",
         []
     )
+    # Fetch legends for the national INTA pH/salinity products so their raw classes can be interpreted.
+    legend_layers = [
+        "geonode:ph_0_30_nuevo_recorte_m_4d4cbbd459875375ae3e856e2870841f",
+        "geonode:ph_30_100_nuevo_recorte_m_cbccd7b512bb4f943ad9672e961bee3d",
+        "geonode:suelos_salinos_0_30_recorte_9622e0e127b7ae1d157c7f49d41605f3",
+        "geonode:suelos_salinos_30_100_recorte_437dcf998c66ee96455f4cb196eda5b1",
+    ]
+    report["checks"]["inta_legends"] = []
+    for layer_name in legend_layers:
+        params = urllib.parse.urlencode({
+            "service": "WMS", "version": "1.1.1", "request": "GetLegendGraphic",
+            "format": "image/png", "layer": layer_name
+        })
+        legend_result = request("https://geo-nodo05.inta.gob.ar/geoserver/wms?" + params, timeout=15)
+        legend_body = legend_result.pop("body", b"")
+        legend_result["layer"] = layer_name
+        if legend_result.get("status") == "HTTP_OK" and legend_body[:8] == b"\\x89PNG\\r\\n\\x1a\\n":
+            legend_path = ROOT / "artifacts" / f"inta-legend-{len(report['checks']['inta_legends']) + 1}.png"
+            legend_path.parent.mkdir(parents=True, exist_ok=True)
+            legend_path.write_bytes(legend_body)
+            legend_result["artifact_path"] = str(legend_path.relative_to(ROOT))
+        else:
+            legend_result["response_preview"] = legend_body[:300].decode("utf-8", errors="replace")
+        report["checks"]["inta_legends"].append(legend_result)
     report["checks"]["inta_wms_legacy"] = check_wms(
         "INTA endpoint legacy",
         "https://geoserver.inta.gob.ar/geoserver/wms",
