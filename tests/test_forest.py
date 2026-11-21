@@ -453,3 +453,55 @@ def test_planetary_computer_landsat_assets_are_signed_with_cached_public_sas_tok
     assert untouched == "https://example.test/other.tif"
     assert len(calls) == 1
     assert "api/sas/v1/token/landsateuwest/landsat-c2" in calls[0]
+
+
+
+def test_temporal_ndvi_comparison_falls_back_to_landsat_without_mixing_sensors(monkeypatch):
+    import backend.main as forest_backend
+
+    calls = []
+
+    def fake_calculate_ndvi(req):
+        calls.append((req.date, req.collection))
+        if req.collection == "sentinel-2-l2a":
+            return {"status": "UNAVAILABLE", "message": "No SCL-valid pixels"}
+        value = 0.5 if req.date == "2025-01-01" else 0.7
+        return {
+            "status": "REAL",
+            "date": req.date,
+            "productId": f"LC09_{req.date}",
+            "collection": "landsat-c2-l2",
+            "sensor": "landsat-9",
+            "spatialResolution": 30,
+            "qualityMaskType": "Landsat QA_PIXEL",
+            "source": "USGS Landsat / Microsoft Planetary Computer",
+            "sourceUrl": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/landsat-c2-l2",
+            "license": "Public domain (USGS Landsat)",
+            "acquiredAt": f"{req.date}T14:00:00Z",
+            "limitations": ["NDVI no mide biomasa directamente."],
+            "stats": {"mean": value}
+        }
+
+    monkeypatch.setattr(forest_backend, "calculate_ndvi", fake_calculate_ndvi)
+    result = forest_backend.calculate_change_detection(
+        forest_backend.ChangeDetectionRequest(
+            geometry=SAMPLE_POLYGON_GEOMETRY,
+            dateA="2025-01-01",
+            dateB="2025-12-31"
+        )
+    )
+
+    assert calls == [
+        ("2025-01-01", "sentinel-2-l2a"),
+        ("2025-12-31", "sentinel-2-l2a"),
+        ("2025-01-01", "landsat-c2-l2"),
+        ("2025-12-31", "landsat-c2-l2")
+    ]
+    assert result["status"] == "REAL"
+    assert result["collection"] == "landsat-c2-l2"
+    assert result["sensor"] == "landsat-9"
+    assert result["spatialResolution"] == 30
+    assert result["source"] == "USGS Landsat / Microsoft Planetary Computer"
+    assert result["deltaNDVI"] == 0.2
+    assert result["spatialComparisonAvailable"] is False
+    assert "NDVI no mide biomasa directamente." in result["limitations"]
