@@ -221,11 +221,11 @@ def process_sentinel1_grd(
     vh = _process_polarisation(vh_href, vh_calibration_href, vh_noise_href, geometry, region)
     combined = {}
     for key, value in vv.items():
-        if key.startswith("sigma0_") or key.startswith("sigma0SampleCount") or key in ("sampleCount", "noiseRemovalApplied", "noiseWarning"):
-            combined["vv_" + key if key.startswith("sigma0_") else key.replace("sigma0", "vv_sigma0")] = value
+        if key.startswith("sigma0_"):
+            combined["vv_" + key.replace("sigma0_", "")] = value
     for key, value in vh.items():
-        if key.startswith("sigma0_") or key.startswith("sigma0SampleCount") or key in ("sampleCount", "noiseRemovalApplied", "noiseWarning"):
-            combined["vh_" + key if key.startswith("sigma0_") else key.replace("sigma0", "vh_sigma0")] = value
+        if key.startswith("sigma0_"):
+            combined["vh_" + key.replace("sigma0_", "")] = value
     combined["vvSampleCount"] = vv["sigma0SampleCount"]
     combined["vhSampleCount"] = vh["sigma0SampleCount"]
     combined["sampleCount"] = min(vv["sigma0SampleCount"], vh["sigma0SampleCount"])
