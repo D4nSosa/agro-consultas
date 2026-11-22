@@ -344,6 +344,7 @@ class STACSearchRequest(BaseModel):
     endDate: Optional[str] = None
     maxCloudCover: float = 30.0
     collection: str = "sentinel-2-l2a"
+    productId: Optional[str] = None
 
 class NDVIAnalysisRequest(BaseModel):
     geometry: GeoJSONGeometry
@@ -422,17 +423,31 @@ def search_stac_catalog(req: STACSearchRequest):
             "limit": 30,
             "query": {"eo:cloud_cover": {"lte": req.maxCloudCover}}
         }
-        req_data = json.dumps(search_body).encode("utf-8")
         stac_url = EARTH_SEARCH_STAC_URL if collection == "sentinel-2-l2a" else PLANETARY_COMPUTER_STAC_URL
-        aws_req = urllib.request.Request(
-            stac_url,
-            data=req_data,
-            headers={"Content-Type": "application/json", "Accept": "application/geo+json, application/json"}
-        )
-        with urllib.request.urlopen(aws_req, timeout=15) as resp:
-            if resp.status != 200:
-                raise RuntimeError(f"El proveedor STAC respondió HTTP {resp.status}")
-            data = json.loads(resp.read().decode("utf-8"))
+        headers = {"Accept": "application/geo+json, application/json"}
+        if req.productId:
+            # Fetch the exact STAC item by ID; do not rely on a truncated search page.
+            item_url = stac_url.rsplit("/search", 1)[0] + (
+                f"/collections/{urllib.parse.quote(collection, safe='')}/items/{urllib.parse.quote(req.productId, safe='')}"
+            )
+            aws_req = urllib.request.Request(item_url, headers=headers)
+            with urllib.request.urlopen(aws_req, timeout=15) as resp:
+                if resp.status != 200:
+                    raise RuntimeError(f"El proveedor STAC respondió HTTP {resp.status}")
+                item = json.loads(resp.read().decode("utf-8"))
+            data = {"features": [item] if item.get("type") == "Feature" else []}
+        else:
+            req_data = json.dumps(search_body).encode("utf-8")
+            aws_req = urllib.request.Request(
+                stac_url,
+                data=req_data,
+                headers={**headers, "Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(aws_req, timeout=15) as resp:
+                if resp.status != 200:
+                    raise RuntimeError(f"El proveedor STAC respondió HTTP {resp.status}")
+                data = json.loads(resp.read().decode("utf-8"))
 
         features = data.get("features", [])
         retrieved_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -991,7 +1006,8 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
                 startDate=start_range,
                 endDate=end_range,
                 maxCloudCover=max_cloud,
-                collection=collection
+                collection=collection,
+                productId=req.productId
             ))
             products = stac_result.get("products", [])
             if req.productId:
@@ -1382,27 +1398,48 @@ def get_sar_analysis(req: SARAnalysisRequest):
             "collections": ["sentinel-1-grd"],
             "intersects": geom_dict,
             "datetime": f"{s_date}T00:00:00Z/{e_date}T23:59:59Z",
-            "limit": 10
+            "limit": 100
         }
 
-        req_data = json.dumps(search_body).encode('utf-8')
-        aws_req = urllib.request.Request(
-            EARTH_SEARCH_STAC_URL,
-            data=req_data,
-            headers={'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json'}
-        )
-
-        with urllib.request.urlopen(aws_req, timeout=15) as resp:
-            if resp.status != 200:
-                return {
-                    "indicator": "Radar SAR Sentinel-1",
-                    "date": e_date,
-                    "productId": None,
-                    "areaHectares": area_ha,
-                    "status": "UNAVAILABLE",
-                    "message": f"El catálogo Sentinel-1 respondió HTTP {resp.status}."
-                }
-            data = json.loads(resp.read().decode('utf-8'))
+        if req.productId:
+            item_url = EARTH_SEARCH_STAC_URL.rsplit("/search", 1)[0] + (
+                f"/collections/sentinel-1-grd/items/{urllib.parse.quote(req.productId, safe='')}"
+            )
+            aws_req = urllib.request.Request(
+                item_url,
+                headers={'Accept': 'application/geo+json, application/json'}
+            )
+            with urllib.request.urlopen(aws_req, timeout=15) as resp:
+                if resp.status != 200:
+                    return {
+                        "indicator": "Radar SAR Sentinel-1",
+                        "date": e_date,
+                        "productId": req.productId,
+                        "areaHectares": area_ha,
+                        "status": "UNAVAILABLE",
+                        "message": f"El catálogo Sentinel-1 respondió HTTP {resp.status} al recuperar la escena solicitada."
+                    }
+                item = json.loads(resp.read().decode('utf-8'))
+            data = {"features": [item] if item.get("type") == "Feature" else []}
+        else:
+            req_data = json.dumps(search_body).encode('utf-8')
+            aws_req = urllib.request.Request(
+                EARTH_SEARCH_STAC_URL,
+                data=req_data,
+                headers={'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json'},
+                method="POST"
+            )
+            with urllib.request.urlopen(aws_req, timeout=15) as resp:
+                if resp.status != 200:
+                    return {
+                        "indicator": "Radar SAR Sentinel-1",
+                        "date": e_date,
+                        "productId": None,
+                        "areaHectares": area_ha,
+                        "status": "UNAVAILABLE",
+                        "message": f"El catálogo Sentinel-1 respondió HTTP {resp.status}."
+                    }
+                data = json.loads(resp.read().decode('utf-8'))
 
         features = data.get("features", [])
         if not features:
