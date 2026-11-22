@@ -83,6 +83,74 @@ def test_invalid_or_unsupported_geometry_is_rejected(geometry):
       "endDate":"2026-11-22","collections":["sentinel-1-grd"]})
     assert response.status_code==422
 
+
+def test_process_dispatches_exact_sentinel1_scene_to_existing_processor(monkeypatch):
+    from backend import main as forest_api
+
+    calls = {}
+    def fake_sar(req):
+        calls["productId"] = req.productId
+        calls["startDate"] = req.startDate
+        calls["endDate"] = req.endDate
+        return {"status": "REAL", "productId": req.productId, "stats": {"vv_mean_db": -12.3}}
+
+    monkeypatch.setattr(forest_api, "get_sar_analysis", fake_sar)
+    response = client.post("/api/engine/process", json={
+        "geometry": AOI,
+        "collection": "sentinel-1-grd",
+        "productId": "S1A_EXACT_SCENE",
+        "date": "2026-11-10",
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "PROCESSED"
+    assert payload["assetAccessVerified"] is True
+    assert payload["processor"] == "forest.sar"
+    assert calls == {
+        "productId": "S1A_EXACT_SCENE",
+        "startDate": "2026-11-10",
+        "endDate": "2026-11-10",
+    }
+
+
+def test_process_dispatches_optical_scene_to_existing_ndvi_processor(monkeypatch):
+    from backend import main as forest_api
+
+    calls = {}
+    def fake_ndvi(req):
+        calls["productId"] = req.productId
+        calls["collection"] = req.collection
+        calls["date"] = req.date
+        return {"status": "REAL", "productId": req.productId, "stats": {"mean": 0.52}}
+
+    monkeypatch.setattr(forest_api, "calculate_ndvi", fake_ndvi)
+    response = client.post("/api/engine/process", json={
+        "geometry": {"type": "Feature", "properties": {}, "geometry": AOI},
+        "collection": "sentinel-2-l2a",
+        "productId": "S2_EXACT_SCENE",
+        "date": "2026-11-10",
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "PROCESSED"
+    assert payload["processor"] == "forest.ndvi"
+    assert calls == {
+        "productId": "S2_EXACT_SCENE",
+        "collection": "sentinel-2-l2a",
+        "date": "2026-11-10",
+    }
+
+
+def test_process_rejects_unknown_collection_before_dispatch():
+    response = client.post("/api/engine/process", json={
+        "geometry": AOI,
+        "collection": "arbitrary",
+        "productId": "SCENE",
+        "date": "2026-11-10",
+    })
+    assert response.status_code == 422
+
+
 def test_unknown_collection_and_reversed_dates_are_rejected():
     unknown=client.post("/api/engine/scenes",json={"geometry":AOI,"startDate":"2026-11-01",
       "endDate":"2026-11-22","collections":["arbitrary-url"]})
