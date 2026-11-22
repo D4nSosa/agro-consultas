@@ -15,6 +15,22 @@ test('selecting a fire detection brings the map into view automatically', () => 
   assert.match(page, /scrollIntoView\(\{behavior:'smooth',block:'center'\}\)/);
 });
 
+
+test('clicking a detection opens its popup without triggering map forecast selection', () => {
+  assert.match(page, /function bindDetectionPopup\(marker, content\)/);
+  assert.match(page, /marker\.on\('click',event=>L\.DomEvent\.stopPropagation\(event\.originalEvent\)\)/);
+  assert.match(page, /bindDetectionPopup\(L\.circleMarker/);
+  assert.match(page, /map\.on\('click',e=>\{/);
+  assert.match(page, /e\.originalEvent\?\.defaultPrevented \|\| e\.originalEvent\?\._stopped/);
+});
+
+test('national fire clusters expose sample detection metadata instead of only a count', () => {
+  assert.match(page, /group\.features\.slice\(0,5\)/);
+  assert.match(page, /Fecha:/);
+  assert.match(page, /Satélite:/);
+  assert.match(page, /Confianza:/);
+});
+
 test('historical error copy does not send users to the technical status panel', () => {
   assert.doesNotMatch(page, /Revisá el estado de la fuente NASA FIRMS/i);
   assert.doesNotMatch(page, /Revisá el estado de NASA FIRMS/i);

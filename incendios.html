@@ -308,12 +308,20 @@ function persistFireReportSection(section,payload){
 let liveWatchId=null,livePosition=null,liveMarker=null,liveAccuracy=null,lastLiveForecast=null;
 const fmt=v=>v===null||v===undefined||v===''?'No informado':Number.isFinite(Number(v))?Number(v).toLocaleString('es-AR',{maximumFractionDigits:1}):String(v);
 function popup(feature){const p=feature.properties||{},isGoes=p.sensor==='GOES';const rows=isGoes?[['Fuente',p.source],['Satélite',p.satellite],['Clase',p.category+' · '+p.maskCode],['Hora UTC',p.observedAt],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura',fmt(p.temperatureK)+' K'],['Área del píxel',fmt(p.areaM2)+' m²']]:[['Fuente',p.source],['Sensor',p.sensor],['Satélite',p.satellite],['Fecha / hora UTC',(p.date||'')+' '+(p.timeUtc||'')],['Confianza',p.confidence??p.confidenceLabel??'No informada'],['Potencia radiativa',fmt(p.powerMw)+' MW'],['Temperatura de brillo',fmt(p.brightness)+' K'],['Día / noche',p.daynight]];return '<strong>'+esc(isGoes?'Alerta GOES-19':'Detección '+p.sensor)+'</strong>'+rows.filter(x=>x[1]!==undefined&&x[1]!==null&&x[1]!=='').map(x=>'<div><b>'+esc(x[0])+':</b> '+esc(x[1])+'</div>').join('')+'<small>Anomalía térmica satelital; no equivale a incendio confirmado.</small>';}
+function bindDetectionPopup(marker, content){
+ marker.on('click',event=>L.DomEvent.stopPropagation(event.originalEvent));
+ marker.bindPopup(content);
+ return marker;
+}
 function drawDetections(){
  detectionLayer.clearLayers();goesLayer.clearLayers();
  const zoom=map.getZoom();
  const draw=(items,layer,color,radius,label)=>{
   if(zoom>=7){
-   items.forEach(f=>{const c=f.geometry.coordinates;L.circleMarker([c[1],c[0]],{radius,color,weight:1.5,fillColor:color,fillOpacity:.78}).bindPopup(popup(f)).addTo(layer);});
+   items.forEach(f=>{
+    const c=f.geometry.coordinates;
+    bindDetectionPopup(L.circleMarker([c[1],c[0]],{radius,color,weight:1.5,fillColor:color,fillOpacity:.78}),popup(f)).addTo(layer);
+   });
    return;
   }
   // Agrupar por celdas de pantalla para que la vista nacional no quede cubierta
@@ -328,10 +336,15 @@ function drawDetections(){
   cells.forEach(group=>{
    const count=group.features.length,lat=group.lat/count,lng=group.lng/count;
    const size=Math.min(22,8+Math.log2(count+1)*2);
-   const summary='<strong>'+count.toLocaleString('es-AR')+' '+esc(label)+'</strong><small>Acercá el mapa para ver cada detección individual.</small>';
-   L.circleMarker([lat,lng],{radius:size,color,weight:2,fillColor:color,fillOpacity:.78})
-    .bindTooltip(String(count),{permanent:true,direction:'center',className:'fire-cluster-label',opacity:.95})
-    .bindPopup(summary).addTo(layer);
+   const details=group.features.slice(0,5).map((feature,index)=>
+    '<div style="margin-top:6px;border-top:1px solid rgba(128,128,128,.25);padding-top:5px"><b>'+esc(feature.properties?.sensor||label)+' '+(index+1)+'</b><br>'+
+    'Fecha: '+esc(feature.properties?.date||'No informada')+' · Hora UTC: '+esc(feature.properties?.timeUtc||'No informada')+'<br>'+
+    'Satélite: '+esc(feature.properties?.satellite||'No informado')+' · Confianza: '+esc(feature.properties?.confidence??feature.properties?.confidenceLabel??'No informada')+'</div>'
+   ).join('');
+   const remaining=count>5?'<small> y '+(count-5)+' detecciones más. Acercá el mapa para seleccionarlas individualmente.</small>':'';
+   const summary='<strong>'+count.toLocaleString('es-AR')+' '+esc(label)+'</strong>'+details+remaining;
+   const marker=bindDetectionPopup(L.circleMarker([lat,lng],{radius:size,color,weight:2,fillColor:color,fillOpacity:.78}),summary);
+   marker.addTo(layer);
   });
  };
  draw(modisViirs.filter(f=>f.properties.sensor==='MODIS'&&$('show-modis').checked),detectionLayer,'#e53935',5.5,'detecciones MODIS');
@@ -436,7 +449,11 @@ function startLiveLocation(){
 }
 
 async function loadForecast(lat,lon,label){if(forecastController)forecastController.abort();const requestId=++forecastRequest;forecastController=new AbortController();const signal=forecastController.signal;selectedPoint={lat,lon,label};if(forecastMarker)map.removeLayer(forecastMarker);forecastMarker=L.circleMarker([lat,lon],{radius:8,color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.9}).addTo(map).bindPopup('Ubicación de previsión: '+esc(label));$('forecast-location').textContent=label;$('forecast-status').textContent='Consultando pronóstico meteorológico…';$('forecast-days').innerHTML='<div class="fire-empty">Cargando variables meteorológicas…</div>';try{const r=await fetch('/api/fires/forecast?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store',signal});const data=await r.json();if(!r.ok)throw Error(data.detail||'No se pudo consultar el pronóstico.');const lotCenter=lot?centroid(lot.geometry):null;if(lotCenter&&Math.abs(lat-lotCenter[1])<0.0001&&Math.abs(lon-lotCenter[0])<0.0001)persistFireReportSection('fire-forecast',data);$('forecast-status').textContent='Previsión para '+data.location.name+' · '+data.meta.source+' · '+data.meta.updatedAt+(data.meta.stale?' · datos guardados temporalmente (proveedor sin respuesta)':data.meta.cached?' · caché reciente':'');$('forecast-days').innerHTML=(data.days||[]).map(d=>'<article class="fire-day"><div><strong>'+esc(d.label)+'</strong><small>Máx. '+fmt(d.temperatureMax)+' °C · HR mín. '+fmt(d.humidityMin)+'%<br>Viento '+fmt(d.windMax)+' km/h · ráfagas '+fmt(d.gustMax)+' km/h · lluvia '+fmt(d.precipitation)+' mm<br>Variables disponibles: '+(d.availableConditions??4)+'/4</small></div><span class="fire-risk">Pronóstico</span></article>').join('')||'<div class="fire-empty">El proveedor no devolvió días de pronóstico.</div>';}catch(e){if(e.name!=='AbortError'&&requestId===forecastRequest){const detail=String(e.message||'');$('forecast-status').textContent=/429|Too Many Requests/i.test(detail)?'El servicio meteorológico está recibiendo demasiadas consultas. Esperá un momento; el mapa y las detecciones siguen disponibles.':'No se pudo consultar el pronóstico para este punto.';$('forecast-days').innerHTML='<div class="fire-empty">Podés continuar consultando las detecciones y volver a intentar más tarde.</div>';}}finally{if(requestId===forecastRequest)forecastController=null;}}
-map.on('click',e=>{const {lat,lng}=e.latlng;loadForecast(lat,lng,lat.toFixed(3)+'°, '+lng.toFixed(3)+'°');});
+map.on('click',e=>{
+ if(e.originalEvent?.defaultPrevented || e.originalEvent?._stopped) return;
+ const {lat,lng}=e.latlng;
+ loadForecast(lat,lng,lat.toFixed(3)+'°, '+lng.toFixed(3)+'°');
+});
 function setLot(feature,{zoomToLot=true}={}){lot=feature||null;lotLayer.clearLayers();lotResultLayer.clearLayers();$('lot-name').textContent=lot?(lot.properties?.name||'Área seleccionada')+' · '+lot.geometry.type:'Sin lote seleccionado';$('query-lot').disabled=!lot||!['Polygon','MultiPolygon'].includes(lot.geometry.type);$('history-apply').disabled=!history.length;if(lot){lotLayer.addData(lot);updateFireSummary();const bounds=lotLayer.getBounds();if(zoomToLot&&bounds.isValid())map.fitBounds(bounds,{padding:[25,25],maxZoom:13});const c=centroid(lot.geometry);if(c)loadForecast(c[1],c[0],lot.properties?.name||'Centro aproximado del lote');$('lot-status').textContent='Lote sincronizado desde Agro Consultas.';if(history.length)applyHistory();}else $('lot-status').textContent='Seleccioná o compartí un lote para analizarlo.';updateFireSummary();}
 onLotContextChange(feature=>setLot(feature,{zoomToLot:true}));
 // Recuperar el lote para análisis, pero conservar la vista nacional al abrir el módulo.

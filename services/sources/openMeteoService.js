@@ -37,16 +37,12 @@ export async function fetchLiveWeather(lat, lng) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    let response;
     try {
-      response = await fetch(url, { signal: controller.signal });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
 
-    if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-
-    const result = await response.json();
+      // El límite cubre la descarga y el parseo del cuerpo, no solo los encabezados.
+      const result = await response.json();
     const weather = result.current || result.current_weather;
 
     if (!weather) throw new Error("Datos meteorológicos ausentes");
@@ -72,7 +68,10 @@ export async function fetchLiveWeather(lat, lng) {
       localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
     } catch (e) {}
 
-    return data;
+      return data;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   } catch (err) {
     console.warn("[OpenMeteo] Fallo o timeout en API externa, verificando respaldo:", err.message);
 
