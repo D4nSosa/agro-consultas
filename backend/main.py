@@ -458,6 +458,11 @@ def search_stac_catalog(req: STACSearchRequest):
         for feat in features:
             props = feat.get("properties", {})
             platform = props.get("platform")
+            actual_datetime = props.get("datetime") or props.get("start_datetime")
+            if req.productId:
+                actual_day = actual_datetime[:10] if isinstance(actual_datetime, str) else None
+                if actual_day is None or not (s_date <= actual_day <= e_date):
+                    continue
 
             if collection == "landsat-c2-l2" and platform not in ("landsat-8", "landsat-9"):
                 platform_rejected += 1
@@ -1462,6 +1467,9 @@ def get_sar_analysis(req: SARAnalysisRequest):
             if req.productId and prod_id != req.productId:
                 continue
             actual_date = props.get("datetime", "").split("T")[0] if props.get("datetime") else None
+            if req.productId and (actual_date is None or not (s_date <= actual_date <= e_date)):
+                scene_errors.append(f"{prod_id or 'escena'}: la fecha del ítem no coincide con el período solicitado")
+                continue
             orbit_state = props.get("sat:orbit_state", "NO DISPONIBLE")
             vv_url = assets.get("vv", {}).get("href")
             vh_url = assets.get("vh", {}).get("href")
