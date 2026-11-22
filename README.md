@@ -5,17 +5,25 @@ Agro-Consultas es un desarrollo independiente orientado a explorar información 
 **Demo pública:** https://agro-consultas.vercel.app  
 **Repositorio:** https://github.com/D4nSosa/agro-consultas
 
-> Estado de referencia: documentación revisada el 17 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
+> Estado de referencia: documentación revisada el 21 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
 
 ## Alcance y estado de los módulos
 
 | Módulo | Alcance implementado | Qué debe tenerse en cuenta |
 |---|---|---|
-| Aptitud territorial | Catálogos agrícolas y forestales, selección provincial, motor multicriterio y consulta de variables climáticas/edáficas. | Los perfiles forestales provinciales se muestran por separado de los agrícolas. Su inclusión en el catálogo habilita la evaluación, pero no implica aptitud local. La respuesta WMS de INTA es evidencia cartográfica, no medición puntual. |
-| Forestal | Delimitación de lotes, búsqueda de escenas Sentinel-2 L2A mediante AWS Earth Search STAC, metadatos, análisis NDVI cuando existen estadísticas ráster válidas, evidencia fotográfica y registro de variables de campo. | Una escena identificada se informa como tal, con NDVI no disponible hasta contar con estadísticas de píxeles válidos. El recorte reproyecta Polygon y MultiPolygon conservando huecos. El inventario manual usa supuestos orientativos; no es inventario dasométrico validado. |
-| Incendios | Vista nacional de anomalías térmicas recientes NASA FIRMS MODIS/VIIRS y GOES-19; consulta por lote; importación local de CSV históricos; previsión meteorológica orientativa. | El histórico integrado todavía depende de CSV importados por el usuario. No existe aún una serie histórica automática por provincia o lote. Un foco satelital no confirma un incendio ni representa un perímetro quemado. |
+| Aptitud territorial | Catálogos agrícolas y forestales, selección provincial, motor multicriterio y consulta de variables climáticas/edáficas. Se incorpora consulta cartográfica nacional INTA-CIRN de pH a 0–30 y 30–100 cm y capas de suelos afectados por sales. | Los perfiles forestales provinciales se muestran por separado de los agrícolas. Los valores pH son modelos cartográficos de 1 km, no análisis de laboratorio; las clases de salinidad se muestran sin interpretación hasta verificar su leyenda. |
+| Forestal | Delimitación de lotes, búsqueda STAC centralizada en backend, Sentinel-2 L2A, NDVI con escala/offset y máscara SCL, Landsat 8/9 C2 L2 mediante Planetary Computer con escala/offset y QA_PIXEL, fallback automático entre sensores y comparación temporal con sensor consistente. Sentinel-1 aporta DN VV/VH crudos. | Landsat se procesa a 30 m y Sentinel-2 a la resolución del activo consultado. Sentinel-1 permanece sin calibración sigma0: no se infiere humedad, biomasa, especie ni sanidad. El NDVI no es medición directa de biomasa ni inventario. El inventario manual usa supuestos orientativos; no es inventario dasométrico validado. |
+| Incendios | Vista nacional de anomalías térmicas recientes NASA FIRMS MODIS/VIIRS y GOES-19; consulta por lote; consulta histórica automática NASA FIRMS mediante API en backend, con importación local de CSV como herramienta offline secundaria; previsión meteorológica orientativa. | El histórico integrado consulta automáticamente NASA FIRMS desde el backend mediante `POST /api/fires/history`, selecciona productos SP/NRT según disponibilidad publicada y recorta los resultados a la geometría del lote. La importación CSV permanece como alternativa offline. Un foco satelital no confirma un incendio ni representa un perímetro quemado. |
 | Tracking GPS | Geolocalización, registro de recorridos y geometrías, medición de superficie/perímetro y exportación. | El GeoJSON conserva muestras y precisión GNSS declarada (mediana y máximo) cuando el dispositivo la informa. La superficie es estimada y no es una mensura. |
 | Selección territorial | Dibujo e importación de polígonos GeoJSON y contexto de lote compartido entre módulos compatibles. | La geometría representa el área de interés; no certifica límites parcelarios ni titularidad. |
+
+## Cobertura nacional
+
+La arquitectura y la validación se diseñan para las 23 provincias y CABA, sin limitarse al NEA. Cada dataset declara su cobertura real, resolución/escala, período y limitaciones. La disponibilidad en una provincia se verifica por producto y no se deduce de que el proveedor tenga un portal nacional.
+
+El muestreo automatizado de INTA-CIRN consultó centroides de las 23 provincias: obtuvo pH válido en 23/23 y NoData en CABA. Esto valida consultas puntuales distribuidas nacionalmente, no cobertura uniforme de cada provincia.
+
+Auditoría técnica y matriz de cobertura: [docs/NATIONAL_SOURCE_AUDIT.md](docs/NATIONAL_SOURCE_AUDIT.md).
 
 ## Monitoreo de incendios
 
@@ -37,13 +45,18 @@ Documentación detallada: [FIRE_MONITORING.md](FIRE_MONITORING.md).
 
 | Fuente | Uso |
 |---|---|
-| NASA FIRMS | Detecciones de anomalías térmicas MODIS/VIIRS y archivos históricos importados por el usuario. |
-| NOAA GOES-19 Open Data | Producto ABI L2 FDCF para alertas térmicas rápidas. |
-| Geoservicios OGC de CONAE | Capas WFS de focos MODIS y VIIRS cuando responden correctamente. |
-| AWS Earth Search STAC | Catálogo público de escenas Sentinel-2 L2A. |
+| NASA FIRMS | Integrado: detecciones MODIS/VIIRS recientes e histórico automático SP/NRT mediante API backend; CSV offline secundario. |
+| NOAA GOES-19 Open Data | Integrado: ABI L2 FDCF para alertas térmicas rápidas. |
+| CONAE | AQM de áreas quemadas: GetMap PNG y metadatos verificados. WFS de focos y disponibilidad de combustibles/SAOCOM/anomalías: servicios en validación; algunos endpoints presentan timeouts. |
+| Sentinel-2 / AWS Earth Search STAC | Integrado: catálogo backend, bandas RED/NIR, escala/offset STAC y máscara SCL. |
+| Landsat 8/9 / Microsoft Planetary Computer | Integrado en la rama PR #94: C2 L2, escala/offset, QA_PIXEL y token SAS público temporal; prueba NDVI de punto en Mendoza. |
+| Sentinel-1 / AWS Earth Search STAC | Integrado con limitaciones: estadísticas VV/VH en DN crudos; sin calibración sigma0 ni inferencias biofísicas. |
+| INTA-CIRN | Integrado en la rama PR #94: pH 0–30/30–100 cm y clases crudas de salinidad; pH modelado 1 km, salinidad pendiente de leyenda. |
+| MapBiomas Argentina | Colección 3 integrada como teselas XYZ anuales en el visor (1985–2025, 30 m), además de WMS contextuales de unidades de vegetación, ecorregiones, regiones forestales y áreas protegidas. La capa anual es visual: no equivale a estadística zonal por lote ni habilita exportación de assets. |
+| IDERA / IGN / INDEC | Catálogo IDERA dinámico; capas WMS de IGN e INTA descubiertas en el visor. La selección de capas WFS/INDEC y otras capas nacionales sigue pendiente de validación por producto. |
+| IDECorr | Servicio identificado; disponibilidad WMS/SSL inestable en las pruebas actuales. |
 | Open-Meteo | Geocodificación y pronóstico meteorológico. |
 | NASA POWER | Variables climatológicas e históricas de escala de grilla. |
-| INTA | Servicios cartográficos de suelos consultados mediante WMS, con alcance según la capa disponible. |
 | IGN Georef | Referencias geográficas y geocodificación administrativa. |
 
 La disponibilidad, latencia, cobertura, licencias y condiciones de uso de cada proveedor deben comprobarse para cada caso de aplicación. La presencia de una fuente en el código no constituye aval institucional ni convenio con el organismo proveedor.

@@ -3,6 +3,27 @@
  * Agro Consultas - Plataforma de Inteligencia Territorial
  */
 
+
+const OFFICIAL_LAYER_RULES = {
+  idecor: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural/i,
+  idecorr: /suelo|soil|cobertura|uso.?del.?suelo|forest|bosque|hidrog|erosion|aptitud|agro|rural|incendio|agua/i,
+  ign: /provincia|departamento|hidrog|ruta|camino|localidad|limite|l[ií]mite|red.?vial/i,
+  inta: /suelo|soil|edaf|cartografia|aptitud|salin|ph|capacidad.?de.?uso/i,
+  conae_saocom: /DSS_(MSM|PSM)(KR)?_[1-7]/i,
+  conae_smap: /SMAP_Pasada/i,
+  conae_fuel: /INC_SIARTIVGEO/i,
+  conae_burned: /area.?quemada|burned|aqm|incendio/i,
+  mapbiomas: /vegetation_unit|ecorregion|regiones_forestales|protected_areas/i
+};
+
+/** Returns true only for layers relevant to existing Agro/Forestal analysis. */
+export function isRelevantOfficialLayer(provider, layer) {
+  const rule = OFFICIAL_LAYER_RULES[provider];
+  return Boolean(rule && rule.test([layer?.name, layer?.title, layer?.abstract].filter(Boolean).join(' ')));
+}
+
+const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
 export const BASE_MAPS = {
   NORMAL: {
     id: 'normal',
@@ -80,8 +101,105 @@ export class MapViewer {
     this.currentBaseMode = 'normal';
 
     L.control.scale({ imperial: false, metric: true }).addTo(this.map);
+    // Discovery is asynchronous and non-blocking; no source layer is activated by default.
+    this.discoverOfficialSourceOverlays();
 
     return this.map;
+  }
+
+
+  async discoverOfficialSourceOverlays() {
+    if (!this.map || typeof L.tileLayer?.wms !== 'function') return;
+    const providers = [
+      { id: 'idecor', label: 'IDECOR Córdoba', category: 'Territorio · Córdoba' },
+      { id: 'idecorr', label: 'IDECorr Corrientes', category: 'Territorio · Corrientes' },
+      { id: 'ign', label: 'IGN Argentina', category: 'Cartografía oficial · Nacional' },
+      { id: 'inta', label: 'INTA-CIRN', category: 'Suelos · Cartografía' },
+      { id: 'mapbiomas', label: 'MapBiomas Argentina', category: 'Territorio · Vegetación y conservación' },
+      { id: 'conae_saocom', label: 'CONAE SAOCOM', category: 'Suelo · Humedad' },
+      { id: 'conae_smap', label: 'CONAE SMAP', category: 'Suelo · Humedad superficial' },
+      { id: 'conae_fuel', label: 'CONAE Combustibles', category: 'Incendios · Combustibles' },
+      { id: 'conae_burned', label: 'CONAE Áreas quemadas', category: 'Incendios · Área afectada' }
+    ];
+    await Promise.all(providers.map(async provider => {
+      try {
+        const response = await fetch('/api/sources/ogc/' + provider.id + '/wms', {
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) {
+          if (provider.id === 'idecorr' && response.status === 503) {
+            console.info('[MapViewer] IDECorr no se incorpora: el servidor provincial debe corregir su certificado TLS.');
+          }
+          return;
+        }
+        const metadata = await response.json();
+        const relevant = (metadata.layers || []).filter(layer =>
+          isRelevantOfficialLayer(provider.id, layer)
+        ).slice(0, provider.id === 'idecor' ? 8 : 14);
+        for (const item of relevant) {
+          const key = 'official_' + provider.id + '_' + item.name.replace(/[^a-z0-9_-]/gi, '_');
+          if (this.overlayLayers[key]) continue;
+          const attribution = provider.id === 'idecor'
+            ? 'IDECOR · Cobertura: Córdoba, Argentina'
+            : provider.id === 'idecorr'
+              ? 'IDECorr · Cobertura: Corrientes, Argentina'
+              : provider.id === 'ign'
+                ? 'IGN · Cartografía oficial de Argentina'
+                : provider.id === 'inta'
+                  ? 'INTA-CIRN · Cobertura y escala según capa publicada'
+                  : provider.id === 'mapbiomas'
+                    ? 'MapBiomas Argentina · Capas contextuales; no son la serie anual de cobertura'
+                    : 'CONAE · ' + provider.label;
+          const layer = L.tileLayer.wms(metadata.endpoint, {
+            layers: item.name,
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.1',
+            attribution,
+            opacity: 0.72
+          });
+          this.registerOverlayLayer(
+            key,
+            layer,
+            provider.label + ' · ' + (item.title || item.name),
+            true,
+            provider.category
+          );
+        }
+        const panel = this.options.layerControlContainerId;
+        if (panel) this.renderControlPanel(panel);
+      } catch (error) {
+        console.warn('[MapViewer] No se pudieron descubrir capas oficiales ' + provider.id + ':', error);
+      }
+    }));
+    // MapBiomas publishes annual Collection 3 tiles through its public platform API.
+    // The backend validates the Google Earth Engine host and caches each requested year.
+    try {
+      const response = await fetch('/api/sources/mapbiomas/tiles/2025', {
+        headers: { Accept: 'application/json' }
+      });
+      if (response.ok) {
+        const metadata = await response.json();
+        if (metadata.status === 'LIVE_XYZ_TILES' && metadata.tileUrlTemplate && !this.overlayLayers.official_mapbiomas_coverage_2025) {
+          const layer = L.tileLayer(metadata.tileUrlTemplate, {
+            maxZoom: 18,
+            attribution: metadata.attribution + ' · MapBiomas Argentina',
+            opacity: 0.78
+          });
+          this.registerOverlayLayer(
+            'official_mapbiomas_coverage_2025',
+            layer,
+            'MapBiomas · Cobertura y uso 2025 · Colección 3 (30 m)',
+            true,
+            'Cobertura y uso del suelo'
+          );
+          const panel = this.options.layerControlContainerId;
+          if (panel) this.renderControlPanel(panel);
+        }
+      }
+    } catch (error) {
+      console.warn('[MapViewer] No se pudo cargar la tesela anual de MapBiomas:', error);
+    }
   }
 
   setBaseMode(modeKey) {
@@ -132,6 +250,7 @@ export class MapViewer {
   }
 
   renderControlPanel(containerElementId) {
+    this.options.layerControlContainerId = containerElementId;
     const container = document.getElementById(containerElementId);
     if (!container) return;
 
@@ -157,7 +276,7 @@ export class MapViewer {
           <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; padding: 4px 0; border-bottom: 1px dashed #eee; cursor: pointer;">
             <span style="display: flex; align-items: center; gap: 6px;">
               <input type="checkbox" class="chk-overlay-layer" data-layer="${o.key}" ${isChecked ? 'checked' : ''} />
-              <span>${o.name}</span>
+              <span>${escapeHTML(o.name)}</span>
             </span>
             <span style="font-size: 0.72rem; color: #27ae60; font-weight: 600;">ACTIVA</span>
           </label>

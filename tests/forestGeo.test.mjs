@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateArea } from '../forestal/utils/geo.js';
+import { calculateArea, exportToKML, exportToGPX, exportToPyQGISScript } from '../forestal/utils/geo.js';
 
 const square = [
   [-56.1, -28.1],
@@ -85,4 +85,32 @@ test('pondera el centroide de un MultiPolygon por superficie', async () => {
   const expected = (0.5 + 15 * 100) / 101;
   assert.ok(Math.abs(centroid.lng - expected) < 1e-9);
   assert.ok(Math.abs(centroid.lat - expected) < 1e-9);
+});
+
+
+test('KML conserva huecos, partes MultiPolygon y escapa XML', () => {
+ const hole=[[-56.075,-28.075],[-56.025,-28.075],[-56.025,-28.025],[-56.075,-28.025],[-56.075,-28.075]];
+ const second=square.map(([x,y])=>[x+0.2,y]);
+ const kml=exportToKML({type:'MultiPolygon',coordinates:[[square,hole],[second]]},'Lote <Norte> & "Sur"');
+ assert.equal((kml.match(/<Polygon>/g)||[]).length,2);
+ assert.equal((kml.match(/<innerBoundaryIs>/g)||[]).length,1);
+ assert.match(kml,/Lote &lt;Norte&gt; &amp; &quot;Sur&quot;/);
+});
+test('GPX exporta partes y anillos como tracks separados',()=>{
+ const second=square.map(([x,y])=>[x+0.2,y]);
+ const gpx=exportToGPX({type:'MultiPolygon',coordinates:[[square],[second]]},'Campo');
+ assert.equal((gpx.match(/<trk>/g)||[]).length,2);
+ assert.match(gpx,/Campo - Centroide/);
+});
+test('PyQGIS usa geometría genérica EPSG:4326 y protege nombres',()=>{
+ const script=exportToPyQGISScript({type:'MultiPolygon',coordinates:[[square]]},'Lote "A"');
+ assert.ok(script.includes('Unknown?crs=EPSG:4326'));
+ assert.ok(script.includes('QgsGeometry.fromGeoJson'));
+ assert.match(script,/Lote/);
+});
+test('exportadores rechazan coordenadas WGS84 inválidas',()=>{
+ const bad={type:'Point',coordinates:[300,-28]};
+ assert.throws(()=>exportToKML(bad),/coordenadas WGS84 inválidas/);
+ assert.throws(()=>exportToGPX(bad),/coordenadas WGS84 inválidas/);
+ assert.throws(()=>exportToPyQGISScript(bad),/coordenadas WGS84 inválidas/);
 });

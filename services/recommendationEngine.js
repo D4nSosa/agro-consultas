@@ -259,7 +259,15 @@ export async function generateRecommendations(listadoNombres, soilReport, climat
         confianza: labelConfianza,
         nivelConfianza: classConfianza,
         sostenibilidad: sostenibilidad,
-        fichaTecnica: cropData.fichaTecnica || null
+        fichaTecnica: cropData.fichaTecnica || null,
+        requerimientos: cropData.requerimientos || {},
+        sueloObservado: {
+          ph: typeof safeSoil?.ph === 'number' && Number.isFinite(safeSoil.ph) ? safeSoil.ph : null,
+          textura: safeSoil?.textura && !/no disponible|no especificad/i.test(String(safeSoil.textura)) ? safeSoil.textura : null,
+          drenaje: safeSoil?.drenaje && !/no disponible|no especificad/i.test(String(safeSoil.drenaje)) ? safeSoil.drenaje : null,
+          fuente: safeSoil?.fuente || 'Fuente edáfica no disponible',
+          status: safeSoil?.status || 'UNAVAILABLE'
+        }
       };
     } catch (e) {
       console.error(`[recommendationEngine] Fallo al procesar cultivo ${nombre}:`, e);
