@@ -131,7 +131,7 @@
     import { getClimateHistory } from './services/sources/nasaPowerService.js';
     import { generateRecommendations, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js';
     import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
-    import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
+    import { getReportSnapshot } from './services/reportAnalysisStore.js';
      import { filterFireDetectionsToGeometry } from './services/fireMonitoringService.mjs';
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -310,85 +310,72 @@
               </div>` : '<p style="font-size:.82rem;color:var(--texto-secundario)">El catálogo provincial no registra especies forestales para esta provincia.</p>'}
           </section>` : '';
 
-        let forestHTML = '';
-        if (parsedGeom && ['Polygon', 'MultiPolygon'].includes(parsedGeom.geometry?.type)) {
-          const now = new Date();
-          const yearNow = now.getFullYear();
-          const dateBStr = now.toISOString().split('T')[0];
-          const dateAStr = `${yearNow - 1}-01-01`;
-
-          const featureToAnalyze = {
-            type: "Feature",
-            properties: { name: lotName },
-            geometry: parsedGeom || { type: "Point", coordinates: [lng, lat] }
-          };
-
-          const forestAnalysis = await runFullForestAnalysis(featureToAnalyze, dateAStr, dateBStr);
-
-          const prodA = forestAnalysis?.products?.productA;
-          const prodB = forestAnalysis?.products?.productB;
-          const changes = forestAnalysis?.changes || {};
-          const ndviA = forestAnalysis?.ndvi?.analysisA;
-          const ndviB = forestAnalysis?.ndvi?.analysisB;
-          const timeline = Array.isArray(forestAnalysis?.timeline) ? forestAnalysis.timeline : [];
-          const ndviValue = item => typeof item?.stats?.mean === 'number' ? item.stats.mean.toFixed(3) : 'No procesado';
-
-          forestHTML = `
-            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px dashed var(--borde-suave);">
-              <h2 style="margin-top: 0; color: var(--verde-principal); font-size: 1.3rem; border-bottom: 2px solid var(--verde-principal); padding-bottom: 8px; margin-bottom: 15px;">
-                🌲 Análisis Técnico Forestal, OTBN y Teledetección Satelital
-              </h2>
-
-              <div style="font-size:.78rem;color:var(--texto-secundario);margin:0 0 12px"><strong>Estado de búsqueda:</strong> Fecha A: ${forestAnalysis?.search?.dateA?.message || (prodA ? "Escena encontrada en catálogo STAC." : "No se obtuvo una escena para la fecha A.")} · Fecha B: ${forestAnalysis?.search?.dateB?.message || (prodB ? "Escena encontrada en catálogo STAC." : "No se obtuvo una escena para la fecha B.")}. Se muestran metadatos y vista previa cuando el catálogo los entrega; el NDVI solo aparece como calculado si hay estadísticas ráster válidas.</div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 15px;">
-                <div style="background: rgba(39, 174, 96, 0.05); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-                  <strong style="color: #27ae60; font-size: 0.9rem;">🟢 Escena Satelital Fecha A</strong>
-                  ${prodA ? `
-                    <div style="font-size: 0.82rem; margin-top: 6px; line-height: 1.4;">
-                      <div><strong>ID:</strong> ${prodA.id}</div>
-                      <div><strong>Fecha Adquisición:</strong> ${prodA.date}</div>
-                      <div><strong>Nubosidad:</strong> ${typeof prodA.cloudCover === "number" ? prodA.cloudCover + "%" : "No informada"}</div><div><strong>Fuente:</strong> ${prodA.source || "AWS Earth Search STAC"}</div>${prodA.assets?.thumbnail || prodA.assets?.visual ? `<img loading="lazy" src="${prodA.assets.thumbnail || prodA.assets.visual}" alt="Vista previa Sentinel-2 ${prodA.id}" style="display:block;width:100%;max-height:190px;object-fit:contain;margin-top:8px;border-radius:6px">` : ""}
-                    </div>
-                  ` : `<div style="font-size: 0.82rem; color: var(--texto-secundario); margin-top: 6px;">Escena no disponible</div>`}
-                </div>
-
-                <div style="background: rgba(41, 128, 185, 0.05); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-                  <strong style="color: #2980b9; font-size: 0.9rem;">🔵 Escena Satelital Fecha B</strong>
-                  ${prodB ? `
-                    <div style="font-size: 0.82rem; margin-top: 6px; line-height: 1.4;">
-                      <div><strong>ID:</strong> ${prodB.id}</div>
-                      <div><strong>Fecha Adquisición:</strong> ${prodB.date}</div>
-                      <div><strong>Nubosidad:</strong> ${typeof prodB.cloudCover === "number" ? prodB.cloudCover + "%" : "No informada"}</div><div><strong>Fuente:</strong> ${prodB.source || "AWS Earth Search STAC"}</div>${prodB.assets?.thumbnail || prodB.assets?.visual ? `<img loading="lazy" src="${prodB.assets.thumbnail || prodB.assets.visual}" alt="Vista previa Sentinel-2 ${prodB.id}" style="display:block;width:100%;max-height:190px;object-fit:contain;margin-top:8px;border-radius:6px">` : ""}
-                    </div>
-                  ` : `<div style="font-size: 0.82rem; color: var(--texto-secundario); margin-top: 6px;">Escena no disponible</div>`}
+        // El informe consume resultados previamente guardados por los módulos especialistas.
+        // No busca escenas ni ejecuta análisis forestales desde esta pantalla.
+        const reportSnapshot = parsedGeom?.geometry ? getReportSnapshot(parsedGeom.geometry) : null;
+        const forestSections = reportSnapshot?.sections || {};
+        const forestAnalysis = forestSections['forest-sentinel2']?.payload || null;
+        const prodA = forestAnalysis?.products?.productA || null;
+        const prodB = forestAnalysis?.products?.productB || null;
+        const changes = forestAnalysis?.changes || {};
+        const ndviA = forestAnalysis?.ndvi?.analysisA || null;
+        const ndviB = forestAnalysis?.ndvi?.analysisB || null;
+        const timeline = Array.isArray(forestAnalysis?.timeline) ? forestAnalysis.timeline : [];
+        const ndviValue = item => Number.isFinite(item?.stats?.mean) ? item.stats.mean.toFixed(3) : 'No procesado';
+        const safeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        const safeImage = value => typeof value === 'string' && /^https:\/\//i.test(value) ? value : null;
+        const renderScene = (product, label, color) => {
+          if (!product) return '<p style="font-size:.82rem;color:var(--texto-secundario)">No hay escena registrada para esta fecha.</p>';
+          const preview = safeImage(product.assets?.thumbnail || product.assets?.visual);
+          return `<article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;min-width:0">
+            <strong style="color:${color}">${label}</strong>
+            <div style="font-size:.82rem;line-height:1.5;margin-top:8px">
+              <div><b>Identificador:</b> ${safeText(product.id || 'No informado')}</div>
+              <div><b>Adquisición:</b> ${safeText(product.date || 'No informada')}</div>
+              <div><b>Nubosidad:</b> ${Number.isFinite(product.cloudCover) ? safeText(product.cloudCover + '%') : 'No informada'}</div>
+              <div><b>Fuente:</b> ${safeText(product.source || 'AWS Earth Search STAC')}</div>
+              ${preview ? `<img loading="lazy" src="${preview}" alt="Vista previa de escena ${safeText(product.id)}" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : '<p style="color:var(--texto-secundario)">El catálogo no entregó miniatura para esta escena.</p>'}
+            </div></article>`;
+        };
+        const forestHTML = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type) ? `
+          <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
+            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌲 Teledetección forestal · resultados registrados</h2>
+            ${forestAnalysis ? `
+              <p style="font-size:.8rem;color:var(--texto-secundario)">Análisis realizado desde Forestal · ${safeText(forestAnalysis.timestamp || forestSections['forest-sentinel2']?.updatedAt || 'Fecha no informada')} · Fechas objetivo: ${safeText(forestAnalysis.dates?.dateA || 'N/D')} → ${safeText(forestAnalysis.dates?.dateB || 'N/D')}. Las escenas corresponden a adquisiciones reales del catálogo; la fecha objetivo puede diferir de la fecha de adquisición.</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+                ${renderScene(prodA,'🟢 Escena Fecha A','#27ae60')}
+                ${renderScene(prodB,'🔵 Escena Fecha B','#2980b9')}
+              </div>
+              <div style="margin-top:12px;padding:12px;border:1px solid var(--borde-suave);border-radius:8px">
+                <strong>Comparación espectral</strong>
+                <p style="margin:6px 0;font-size:.84rem">${safeText(changes.primaryMessage || 'No hay diagnóstico registrado.')}</p>
+                <p style="font-size:.82rem;color:var(--texto-secundario)">${safeText(changes.description || 'Sin descripción registrada.')}</p>
+                <div style="display:flex;flex-wrap:wrap;gap:18px;font-size:.82rem">
+                  <span>NDVI A: <b>${ndviValue(ndviA)}</b></span><span>NDVI B: <b>${ndviValue(ndviB)}</b></span>
+                  <span>Delta: <b>${Number.isFinite(changes.deltaNDVI) ? changes.deltaNDVI.toFixed(3) : 'No disponible'}</b></span>
                 </div>
               </div>
+              ${timeline.length ? `<div style="margin-top:12px"><strong>Escenas recuperadas</strong><ul style="font-size:.82rem">${timeline.map(item=>'<li>'+safeText(item.date)+' · '+safeText(item.product)+' · nubosidad '+(Number.isFinite(item.cloudCover)?safeText(item.cloudCover+'%'):'N/D')+'</li>').join('')}</ul></div>` : ''}
+            ` : '<p style="font-size:.84rem;color:var(--texto-secundario)">Todavía no hay un análisis Sentinel-2 guardado para esta geometría. Ejecutá la búsqueda desde el módulo Forestal; este informe no inicia consultas satelitales.</p>'}
+            <p style="font-size:.78rem;color:var(--texto-secundario)">OTBN: no evaluado. No se dispone de una capa oficial validada e intersectada con la geometría de este lote.</p>
+          </section>` : '';
 
-              <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem; margin-bottom: 15px;">
-                <strong>📊 Diagnóstico de Variación Espectral:</strong> ${(prodA || prodB) ? (changes.primaryMessage || 'Escena identificada; procesamiento espectral no confirmado.') : 'No se identificaron escenas disponibles para las fechas consultadas.'}<br>
-                <span style="color: var(--texto-secundario);">${(prodA && prodB) ? (changes.description || 'La identificación de escenas no implica que el NDVI haya sido procesado.') : 'No se dispone de dos escenas Sentinel-2 confirmadas para respaldar una comparación en este informe.'}</span>
-                <div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
-                  <div><strong>NDVI Fecha A:</strong> ${ndviValue(ndviA)}</div>
-                  <div><strong>NDVI Fecha B:</strong> ${ndviValue(ndviB)}</div>
-                  <div><strong>Delta NDVI:</strong> ${typeof changes.deltaNDVI === 'number' ? changes.deltaNDVI.toFixed(3) : 'No disponible'}</div>
-                </div>
-              </div>
-              ${timeline.length ? `
-                <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;margin-bottom:15px;">
-                  <strong>Productos recuperados del catálogo Sentinel-2</strong>
-                  <ul style="margin:8px 0 0;padding-left:20px;font-size:.82rem;">
-                    ${timeline.map(item => `<li>${item.date || 'Fecha no informada'} · ${item.product} · nubosidad: ${typeof item.cloudCover === 'number' ? item.cloudCover + '%' : 'N/D'} · ${item.source || 'Fuente no informada'}</li>`).join('')}
-                  </ul>
-                </div>` : ''}
-              <!-- No se atribuye una categoría OTBN sin intersección espacial validada. -->
-              <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
-                <strong style="color: var(--verde-principal); display: block; margin-bottom: 4px;">🌳 Ordenamiento Territorial de Bosques Nativos (Ley 26.331)</strong>
-                <span style="color: var(--texto-secundario);">No evaluado para este lote: el informe no dispone de una capa OTBN oficial validada e intersectada con la geometría seleccionada.</span>
-              </div>
+        const renderStoredSection = (key, title, description, renderer, sourceLabel) => {
+          const entry = forestSections[key];
+          if (!entry?.payload) return `<article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px"><strong>${title}</strong><p style="font-size:.8rem;color:var(--texto-secundario)">No analizado para esta geometría. Ejecutá el análisis desde Forestal para incorporarlo al informe.</p><small>${sourceLabel}</small></article>`;
+          return `<article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px"><strong>${title}</strong><p style="font-size:.78rem;color:var(--texto-secundario)">${description}</p><div style="font-size:.82rem;white-space:pre-wrap">${renderer(entry.payload)}</div><small style="display:block;margin-top:8px;color:var(--texto-secundario)">Actualizado: ${safeText(entry.updatedAt || 'Fecha no informada')} · ${sourceLabel}</small></article>`;
+        };
+        const territorialAnalysisHTML = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type) ? `
+          <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
+            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌍 Cobertura y pérdida forestal · resultados guardados</h2>
+            <p style="font-size:.82rem;color:var(--texto-secundario)">Esta sección reproduce análisis realizados desde Forestal. No ejecuta consultas, no recalcula indicadores y no ofrece controles de análisis.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+              ${renderStoredSection('gfw-drivers','🌳 GFW / WRI · Drivers de pérdida','Driver dominante por celda (~1 km), período 2001–2025.',p=>(p.drivers||[]).map(x=>safeText(x.driver)+': '+Number(x.area_ha||0).toLocaleString('es-AR')+' ha ('+safeText(x.share_percent)+'%)').join('\n')+'\n'+(p.limitations||[]).map(safeText).join(' '),'WRI / Google DeepMind · COG público · CC BY 4.0')}
+              ${renderStoredSection('hansen','🛰️ Hansen / UMD · Global Forest Change 2025','Cobertura de copa de referencia 2000 y pérdida bruta anual 2001–2025 (~30 m).',p=>['Cobertura media 2000: '+safeText(p.tree_cover_2000?.mean_percent)+'%','Mediana: '+safeText(p.tree_cover_2000?.median_percent)+'%','Pérdida bruta anual:',...Object.entries(p.loss_by_year||{}).map(([year,item])=>year+': '+Number(item.area_ha||0).toLocaleString('es-AR')+' ha'),...(p.limitations||[])].map(safeText).join('\n'),'Hansen / UMD / Google / USGS / NASA · CC BY 4.0')}
+              ${renderStoredSection('jrc','🌲 JRC · Cobertura forestal 2020 v4','Clasificación bosque/no bosque a 10 m.',p=>['Bosque 2020: '+Number(p.forest_area_ha||0).toLocaleString('es-AR')+' ha','No bosque: '+Number(p.nonforest_area_ha||0).toLocaleString('es-AR')+' ha','Proporción de bosque: '+safeText(p.forest_share_percent)+'%','Píxeles válidos: '+safeText(p.valid_pixels),...(p.limitations||[])].map(safeText).join('\n'),'Comisión Europea · Joint Research Centre')}
             </div>
-          `;
-        }
-
+            <p style="font-size:.76rem;color:var(--texto-secundario);margin-top:10px">Los productos globales no identifican por sí solos bosque nativo frente a plantaciones; pérdida de cobertura no equivale automáticamente a deforestación ni a incumplimiento legal.</p>
+          </section>` : '';
         const parseApiResponse = async response => {
           const raw = await response.text();
           let payload;
@@ -573,58 +560,6 @@
           </div>
         `;
 
-        if (isPolygonArea) {
-          const geometryPayload = parsedGeom.geometry;
-          document.getElementById('gfw-run')?.addEventListener('click', async () => {
-            const output = document.getElementById('gfw-result');
-            output.textContent = 'Procesando el mapa público de drivers de pérdida forestal…';
-            try {
-              const response = await fetch('/api/territorial/forest/gfw-drivers/analyze', {
-                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
-              });
-              const payload = await parseApiResponse(response);
-              output.textContent = (payload.drivers || []).map(item => item.driver + ': ' + item.area_ha.toLocaleString('es-AR') + ' ha (' + item.share_percent + '%)').join('\n') + '\n\n' + (payload.limitations || []).join(' ');
-            } catch (error) { output.textContent = error.message; }
-          });
-          document.getElementById('hansen-run')?.addEventListener('click', async () => {
-            const output = document.getElementById('hansen-result');
-            output.textContent = 'Leyendo teselas públicas Hansen para el polígono…';
-            try {
-              const response = await fetch('/api/territorial/forest/hansen/analyze', {
-                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
-              });
-              const payload = await parseApiResponse(response);
-              const losses = Object.entries(payload.loss_by_year || {}).map(([year, item]) => year + ': ' + item.area_ha.toLocaleString('es-AR') + ' ha');
-              output.textContent = [
-                'Cobertura de copa 2000 · media: ' + (payload.tree_cover_2000.mean_percent ?? '—') + '%',
-                'Mediana: ' + (payload.tree_cover_2000.median_percent ?? '—') + '%',
-                'Pérdida bruta anual:',
-                ...(losses.length ? losses : ['Sin píxeles de pérdida registrados en el polígono']),
-                ...(payload.limitations || [])
-              ].join('\n');
-            } catch (error) { output.textContent = error.message; }
-          });
-          document.getElementById('jrc-run')?.addEventListener('click', async () => {
-            const output = document.getElementById('jrc-result');
-            output.textContent = 'Leyendo COG público JRC 2020 a 10 m para el polígono…';
-            try {
-              const response = await fetch('/api/territorial/forest/jrc/analyze', {
-                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({geometry: geometryPayload})
-              });
-              const payload = await parseApiResponse(response);
-              output.textContent = [
-                'Bosque en 2020: ' + payload.forest_area_ha.toLocaleString('es-AR') + ' ha',
-                'No bosque: ' + payload.nonforest_area_ha.toLocaleString('es-AR') + ' ha',
-                'Proporción de bosque: ' + (payload.forest_share_percent ?? '—') + '%',
-                'Píxeles válidos: ' + payload.valid_pixels.toLocaleString('es-AR'),
-                ...(payload.limitations || [])
-              ].join('\n');
-            } catch (error) { output.textContent = error.message; }
-          });
-          document.getElementById('gfw-run')?.click();
-          document.getElementById('hansen-run')?.click();
-          document.getElementById('jrc-run')?.click();
-        }
       } catch (err) {
         analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al generar el análisis del reporte: ${err.message}</p>`;
       }
