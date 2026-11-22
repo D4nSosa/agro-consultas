@@ -19,6 +19,7 @@ import io
 import numpy as np
 import tifffile
 from backend.sentinel1_calibration import process_sentinel1_grd
+from backend.processing_engine import router as processing_engine_router
 from shapely.geometry import shape, Point, Polygon
 from shapely.ops import transform as transform_geometry
 
@@ -1574,6 +1575,7 @@ def calculate_shapely_area(geom_shape):
 from backend.territorial_analysis import router as territorial_analysis_router
 from backend.open_forest_data import router as open_forest_data_router
 from backend.source_catalog import router as source_catalog_router
+app.include_router(processing_engine_router)
 app.include_router(source_catalog_router)
 app.include_router(territorial_analysis_router)
 app.include_router(open_forest_data_router)
