@@ -492,7 +492,11 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
     // Ejecutar SAR también cuando la selección llega desde el mapa/GPS (no solo desde el buscador).
     // Enviar el polígono únicamente cuando la selección actual corresponde al lote dibujado.
     const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;
-    await renderSarRadarUI(currentLat, currentLng, sarGeometry);
+    await ejecutarEtapaConTimeout(
+      'Radar satelital',
+      () => renderSarRadarUI(currentLat, currentLng, sarGeometry),
+      18000
+    );
   } catch (err) {
     console.error("Error en procesarSeleccionCoordenadas:", err);
   } finally {
@@ -994,11 +998,9 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 
     const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateEvidenceForScoring);
     lastRecommendationsCache = recomendaciones;
-    let recomendacionesForestales = [];
-    if (selectedCropKey === 'todos') {
-      const forestNames = await getForestToEvaluate(key);
-      if (forestNames.length) recomendacionesForestales = await generateRecommendations(forestNames, soilReport, climateEvidenceForScoring);
-    }
+    const recomendacionesForestales = selectedCropKey === 'todos'
+      ? recomendaciones.filter(item => item.categoriaCatalogo === 'Forestal')
+      : [];
     persistAgroReportSection('agro-recommendations', {
       province: provDetails?.nombre || provinciaRaw,
       provinceKey: key,
