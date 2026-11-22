@@ -108,7 +108,7 @@
     <div id="report-analysis-container" class="card" style="padding: 20px; margin-bottom: 25px;">
       <div style="text-align: center; padding: 30px;">
         <span style="font-size: 2rem; display: block; margin-bottom: 10px;">⏳</span>
-        <p>Cargando análisis territorial de datos oficiales (INTA, Open-Meteo, NASA POWER)...</p>
+        <p>Recuperando resultados guardados de los módulos Agro, Forestal e Incendios...</p>
       </div>
     </div>
 
@@ -448,7 +448,7 @@
           <h3 style="margin: 20px 0 10px 0; color: var(--verde-principal); font-size: 1.15rem; border-bottom: 1px solid var(--borde-suave); padding-bottom: 6px;">
             🌾 Matriz de Aptitud Agroecológica y Forestal
           </h3>
-          ${!provKey ? '<p style="color:var(--texto-secundario);">No se generó la matriz de cultivos porque no se pudo verificar la provincia del punto. Reintentá el informe cuando el servicio Georef esté disponible.</p>' : ''}
+          ${!provKey ? '<p style="color:var(--texto-secundario);">No hay una evaluación de aptitud guardada desde Agro para esta geometría. Ejecutá la evaluación desde el módulo Agro y volvé a abrir Informes.</p>' : ''}
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
             ${recomendaciones.map(c => `
