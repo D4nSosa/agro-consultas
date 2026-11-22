@@ -289,3 +289,36 @@ def test_history_endpoint_returns_429_when_all_sources_hit_transaction_limit(mon
     except HTTPException as exc:
         assert exc.status_code == 429
         assert "Retry-After" in exc.headers
+
+
+def test_history_query_plan_only_uses_selected_sensor_families():
+    import datetime
+    from backend.fire_monitoring import _history_query_plan
+
+    availability = {
+        "MODIS_SP": {
+            "minDate": datetime.date(2020, 1, 1),
+            "maxDate": datetime.date(2026, 12, 31),
+        },
+        "VIIRS_SNPP_SP": {
+            "minDate": datetime.date(2012, 1, 20),
+            "maxDate": datetime.date(2026, 12, 31),
+        },
+        "VIIRS_NOAA20_SP": {
+            "minDate": datetime.date(2018, 4, 1),
+            "maxDate": datetime.date(2026, 12, 31),
+        },
+        "VIIRS_NOAA21_SP": {
+            "minDate": datetime.date(2024, 1, 17),
+            "maxDate": datetime.date(2026, 12, 31),
+        },
+    }
+    tasks, unavailable = _history_query_plan(
+        datetime.date(2020, 10, 23),
+        datetime.date(2020, 10, 24),
+        availability,
+        ("MODIS", "VIIRS_SNPP"),
+    )
+    assert {task[0] for task in tasks} == {"MODIS", "VIIRS_SNPP"}
+    assert "VIIRS_NOAA20" not in unavailable
+    assert "VIIRS_NOAA21" not in unavailable
