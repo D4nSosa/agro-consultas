@@ -22,7 +22,7 @@ def test_capabilities_lists_allowlisted_global_catalogs():
     response=client.get("/api/engine/capabilities")
     assert response.status_code==200
     assert {p["collection"] for p in response.json()["providers"]}=={"sentinel-1-grd","sentinel-2-l2a","landsat-c2-l2"}
-    assert "does not download or process raster pixels" in response.json()["limitations"][0]
+    assert "POST /process delegates one exact scene" in response.json()["limitations"][0]
 
 def test_scene_discovery_normalizes_all_three_collections(monkeypatch):
     from backend import processing_engine
