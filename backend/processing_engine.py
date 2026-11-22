@@ -188,23 +188,33 @@ def _read_stac_next_page(provider: dict, link: dict) -> dict:
     return payload
 
 
-def _read_stac_pages(provider: dict, body: dict, max_pages: int = 5) -> tuple[list[dict], bool, int]:
+def _read_stac_pages(
+    provider: dict,
+    body: dict,
+    max_pages: int = 5,
+    max_items: int = 100,
+) -> tuple[list[dict], bool, int]:
+    """Read bounded STAC pages without exceeding the caller's total item budget."""
+    if max_pages < 1 or max_items < 1:
+        raise ValueError("Los límites de paginación deben ser positivos.")
     payload = _read_stac_page(provider, body)
-    features = [item for item in payload["features"] if isinstance(item, dict)]
+    features = [item for item in payload["features"] if isinstance(item, dict)][:max_items]
     pages = 1
     next_link = next(
         (link for link in (payload.get("links") or []) if isinstance(link, dict) and link.get("rel") == "next"),
         None,
     )
-    while next_link and pages < max_pages:
+    while next_link and pages < max_pages and len(features) < max_items:
         payload = _read_stac_next_page(provider, next_link)
-        page_features = payload["features"]
-        features.extend(item for item in page_features if isinstance(item, dict))
+        page_features = [item for item in payload["features"] if isinstance(item, dict)]
+        remaining_budget = max_items - len(features)
+        features.extend(page_features[:remaining_budget])
         pages += 1
         next_link = next(
             (link for link in (payload.get("links") or []) if isinstance(link, dict) and link.get("rel") == "next"),
             None,
         )
+    # hasMore means more items exist beyond the returned budget/page budget.
     return features, bool(next_link), pages
 
 
@@ -509,7 +519,7 @@ def discover_scenes(request: SceneSearchRequest):
             "datetime": interval,
             "limit": request.limit,
         }
-        features, remaining, pages = _read_stac_pages(provider, body)
+        features, remaining, pages = _read_stac_pages(provider, body, max_items=request.limit)
         return collection, provider, features, remaining, pages
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(3, len(collections))) as executor:
