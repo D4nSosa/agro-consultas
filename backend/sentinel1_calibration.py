@@ -192,7 +192,8 @@ def _process_polarisation(measurement_href, calibration_href, noise_href, geomet
                     if row < 0 or col < 0 or row >= vrt.height or col >= vrt.width:
                         raise ValueError("El punto está fuera de la cobertura de la escena.")
                     dn = np.asarray([[vrt.read(1, window=rasterio.windows.Window(col, row, 1, 1))[0, 0]]], dtype=np.float64)
-                    xs, ys = np.asarray([geometry.x]), np.asarray([geometry.y])
+                    center_x, center_y = vrt.xy(row, col, offset="center")
+                    xs, ys = np.asarray([center_x]), np.asarray([center_y])
                 else:
                     masked, out_transform = rasterio_mask(vrt, [geometry], crop=True, filled=True, nodata=0)
                     dn = masked[0].astype(np.float64)
