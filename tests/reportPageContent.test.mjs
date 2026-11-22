@@ -87,3 +87,13 @@ test('technical report consumes Agro analysis snapshots rather than recalculatin
   assert.doesNotMatch(report, /generateRecommendations/);
   assert.doesNotMatch(report, /getSoilReport|getClimateData|getClimateHistory/);
 });
+
+test('Agro and Fire modules persist their results for the unified report', async () => {
+  const agro = await readFile(new URL('../script.js', import.meta.url), 'utf8');
+  const fire = await readFile(new URL('../incendios.html', import.meta.url), 'utf8');
+  assert.match(agro, /persistAgroReportSection\('agro-territory'/);
+  assert.match(agro, /persistAgroReportSection\('agro-environment'/);
+  assert.match(agro, /persistAgroReportSection\('agro-recommendations'/);
+  assert.match(fire, /persistFireReportSection\('fire-lot'/);
+  assert.match(fire, /persistFireReportSection\('fire-forecast'/);
+});
