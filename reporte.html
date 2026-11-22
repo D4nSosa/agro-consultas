@@ -124,15 +124,9 @@
 
   <!-- Script del Reporte -->
   <script type="module">
-    import { findProvinceByCoords, findSubregion, getAdministrativeLocationByCoords } from './services/territoryService.js';
     import { getLotContext } from './services/lotContext.js';
-    import { getSoilReport } from './services/soilService.js';
-    import { getClimateData } from './services/climateService.js';
-    import { getClimateHistory } from './services/sources/nasaPowerService.js';
-    import { generateRecommendations, getCropsToEvaluate, getForestToEvaluate } from './services/recommendationEngine.js';
     import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
     import { getReportSnapshot } from './services/reportAnalysisStore.js';
-     import { filterFireDetectionsToGeometry } from './services/fireMonitoringService.mjs';
 
     document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('report-date').innerText = `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`;
@@ -254,71 +248,47 @@
       }
 
       try {
-        const administrativeLocation = await getAdministrativeLocationByCoords(lat, lng);
-        const provKey = administrativeLocation?.provinceKey || null;
-        const locationLabel = administrativeLocation
-          ? [administrativeLocation.municipio, administrativeLocation.departamento, administrativeLocation.provincia]
-              .filter((value, index, values) => value && values.indexOf(value) === index)
-              .join(' · ')
-          : 'Ubicación administrativa no verificada';
+        // Informes es una vista de lectura: recupera los resultados registrados por cada módulo.
+        const reportSnapshot = parsedGeom?.geometry ? getReportSnapshot(parsedGeom.geometry) : null;
+        const reportSections = reportSnapshot?.sections || {};
+        const agroTerritory = reportSections['agro-territory']?.payload || null;
+        const agroEnvironment = reportSections['agro-environment']?.payload || null;
+        const agroRecommendations = reportSections['agro-recommendations']?.payload || null;
+        const provKey = agroEnvironment?.provinceKey || agroTerritory?.provinceKey || null;
+        const locationLabel = agroEnvironment?.province || agroTerritory?.province || 'No hay ubicación administrativa guardada desde Agro';
+        const subregion = agroEnvironment?.subregion || agroTerritory?.subregion || null;
+        const soilReport = agroEnvironment?.soilReport || agroTerritory?.soilReport || {
+          tipo: 'NO DISPONIBLE', textura: 'NO DISPONIBLE', drenaje: 'NO DISPONIBLE',
+          limitantes: 'NO INFORMADO', status: 'UNAVAILABLE', fuente: 'Sin análisis guardado desde Agro'
+        };
+        const climateReport = agroEnvironment?.climateReport || agroTerritory?.climateReport || {
+          temperaturaActual: 'NO DISPONIBLE', vientoActual: 'NO DISPONIBLE',
+          condicionActualTexto: 'NO DISPONIBLE', peligroIncendio: null
+        };
+        const climateHistory = agroEnvironment?.climateHistory || null;
+        const recomendaciones = Array.isArray(agroRecommendations?.recommendations) ? agroRecommendations.recommendations : [];
+        const recomendacionesForestales = Array.isArray(agroRecommendations?.forestRecommendations) ? agroRecommendations.forestRecommendations : [];
         document.getElementById('report-prov').innerText = locationLabel;
 
-        const subregion = provKey ? await findSubregion(provKey, lat, lng) : null;
-        const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
-        const climateReport = await getClimateData(lat, lng, administrativeLocation?.provincia || "", subregion?.clima);
-        const climateHistory = await getClimateHistory(lat, lng, 12);
-
-        const cultivosNombres = provKey ? await getCropsToEvaluate(provKey, subregion) : [];
-        const historical = climateHistory?.data?.historicalAverages || {};
-        const historicalTemperature = Number(historical.temperaturaMediaHistoricaC);
-        const historicalPrecipitation = Number(historical.precipitacionMediaAnualMm);
-        const hasHistoricalClimate = climateHistory?.status === 'ESTIMATED' &&
-          Number.isFinite(historicalTemperature) && Number.isFinite(historicalPrecipitation);
-        const climateEvidenceForScoring = hasHistoricalClimate
-          ? {
-              ...climateReport,
-              temperaturaMediaVal: historicalTemperature,
-              precipitacionesAnualesVal: historicalPrecipitation,
-              climatologyStatus: 'ESTIMATED',
-              climatologySource: 'NASA POWER · reanálisis/modelado',
-              climatologyBaseline: '2001–2020'
-            }
-          : {
-              ...climateReport,
-              temperaturaMediaVal: null,
-              precipitacionesAnualesVal: null,
-              climatologyStatus: 'UNAVAILABLE',
-              climatologySource: null
-            };
-        const recomendaciones = provKey
-          ? await generateRecommendations(cultivosNombres, soilReport, climateEvidenceForScoring)
-          : [];
-        const especiesForestales = provKey ? await getForestToEvaluate(provKey) : [];
-        const recomendacionesForestales = especiesForestales.length
-          ? await generateRecommendations(especiesForestales, soilReport, climateEvidenceForScoring)
-          : [];
-
-        const forestCandidatesHTML = provKey ? `
+        const forestCandidatesHTML = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type) ? `
           <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
-            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌲 Especies forestales del catálogo provincial</h2>
-            <p style="font-size:.82rem;color:var(--texto-secundario)">Estas especies están registradas para la provincia consultada. Su inclusión no implica aptitud del lote, recomendación de plantación ni validación de sitio. La clasificación solo se muestra cuando existen variables comparables suficientes.</p>
+            <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌲 Especies forestales del análisis Agro</h2>
+            <p style="font-size:.82rem;color:var(--texto-secundario)">Resultados recuperados del análisis guardado en Agro. Su inclusión no implica aptitud del lote ni recomendación de plantación.</p>
             ${recomendacionesForestales.length ? `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
                 ${recomendacionesForestales.map(item => `
-                  <div style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;font-size:.82rem">
+                  <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;font-size:.82rem">
                     <strong style="color:var(--verde-principal)">${item.nombre}</strong>
                     <div style="margin:5px 0"><span class="compatibility-badge badge-origin">Candidato provincial · ${item.compatibilidad}</span></div>
                     <p style="margin:0;color:var(--texto-secundario)">${item.descripcion || 'Ficha técnica de referencia.'}</p>
-                    <small style="display:block;margin-top:6px;color:var(--texto-secundario)">${item.datosFaltantes?.length ? item.datosFaltantes.join(' ') : 'La evidencia disponible debe validarse en campo antes de decidir una implantación.'}</small>
-                  </div>
+                    <small style="display:block;margin-top:6px;color:var(--texto-secundario)">${item.datosFaltantes?.length ? item.datosFaltantes.join(' ') : 'Validar la evidencia disponible antes de decidir una implantación.'}</small>
+                  </article>
                 `).join('')}
-              </div>` : '<p style="font-size:.82rem;color:var(--texto-secundario)">El catálogo provincial no registra especies forestales para esta provincia.</p>'}
+              </div>` : '<p style="font-size:.82rem;color:var(--texto-secundario)">No hay una evaluación forestal guardada desde Agro para este lote.</p>'}
           </section>` : '';
-
         // El informe consume resultados previamente guardados por los módulos especialistas.
         // No busca escenas ni ejecuta análisis forestales desde esta pantalla.
-        const reportSnapshot = parsedGeom?.geometry ? getReportSnapshot(parsedGeom.geometry) : null;
-        const forestSections = reportSnapshot?.sections || {};
+        const forestSections = reportSections;
         const forestAnalysis = forestSections['forest-sentinel2']?.payload || null;
         const prodA = forestAnalysis?.products?.productA || null;
         const prodB = forestAnalysis?.products?.productB || null;
@@ -381,64 +351,29 @@
             </div>
             <p style="font-size:.76rem;color:var(--texto-secundario);margin-top:10px">Los productos globales no identifican por sí solos bosque nativo frente a plantaciones; pérdida de cobertura no equivale automáticamente a deforestación ni a incumplimiento legal.</p>
           </section>` : '';
-        const parseApiResponse = async response => {
-          const raw = await response.text();
-          let payload;
-          try { payload = raw ? JSON.parse(raw) : {}; }
-          catch (_error) {
-            const excerpt = raw.replace(/\\s+/g, ' ').slice(0, 180);
-            throw new Error('El servicio devolvió una respuesta no JSON (HTTP ' + response.status + '). ' + excerpt);
-          }
-          if (!response.ok) {
-            const detail = payload?.detail?.message || payload?.detail || payload?.message;
-            throw new Error(typeof detail === 'string' ? detail : 'Error HTTP ' + response.status);
-          }
-          return payload;
-        };
-
-        const fireResults = await Promise.allSettled([
-          fetch('/api/fires/national', { cache: 'no-store' }).then(parseApiResponse),
-          fetch('/api/fires/goes', { cache: 'no-store' }).then(parseApiResponse),
-          fetch('/api/fires/forecast?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng), { cache: 'no-store' }).then(parseApiResponse)
-        ]);
-        const firePayload = fireResults[0].status === 'fulfilled' ? fireResults[0].value : null;
-        const goesPayload = fireResults[1].status === 'fulfilled' ? fireResults[1].value : null;
-        const fireForecast = fireResults[2].status === 'fulfilled' ? fireResults[2].value : null;
-        const fireFeatures = firePayload?.features || [];
-        const goesFeatures = goesPayload?.features || [];
-        const isPolygonArea = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type);
-        const isPointArea = parsedGeom?.geometry?.type === 'Point';
-        const reportPoint = isPointArea ? parsedGeom.geometry.coordinates : [lng, lat];
-        const nearPoint = features => features.filter(feature => {
-          const coords = feature.geometry?.coordinates;
-          if (!Array.isArray(coords) || coords.length < 2) return false;
-          const rad = Math.PI / 180, dLat = (coords[1] - reportPoint[1]) * rad;
-          const dLon = (coords[0] - reportPoint[0]) * rad;
-          const a = Math.sin(dLat / 2) ** 2 + Math.cos(reportPoint[1] * rad) * Math.cos(coords[1] * rad) * Math.sin(dLon / 2) ** 2;
-          return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= 25;
-        });
-        const insideFire = isPolygonArea ? filterFireDetectionsToGeometry(fireFeatures, parsedGeom.geometry)
-          : isPointArea || Number.isFinite(lat) ? nearPoint(fireFeatures) : [];
-        const insideGoes = isPolygonArea ? filterFireDetectionsToGeometry(goesFeatures, parsedGeom.geometry)
-          : isPointArea || Number.isFinite(lat) ? nearPoint(goesFeatures) : [];
-        const fireScope = isPolygonArea ? 'dentro de la geometría del lote'
-          : 'a 25 km del punto de referencia';
+        const fireLotEntry = reportSections['fire-lot'] || null;
+        const fireLotData = fireLotEntry?.payload || null;
+        const forecastEntry = reportSections['fire-forecast'] || null;
+        const fireForecast = forecastEntry?.payload || null;
+        const insideFire = Array.isArray(fireLotData?.detections) ? fireLotData.detections : [];
+        const insideGoes = Array.isArray(fireLotData?.goes) ? fireLotData.goes : [];
         const fireHTML = `
           <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
             <h2 style="margin:0 0 10px;color:var(--verde-principal)">🔥 Observaciones satelitales de incendios</h2>
-            <p style="font-size:.85rem;color:var(--texto-secundario)">Consulta de NASA FIRMS y GOES-19 al generar el informe; ${fireScope}. Son anomalías térmicas, no incendios confirmados ni perímetros quemados.</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-              <div><strong>${insideFire.filter(f=>f.properties?.sensor==='MODIS').length}</strong><br><small>Observaciones MODIS</small></div>
-              <div><strong>${insideFire.filter(f=>f.properties?.sensor==='VIIRS').length}</strong><br><small>Observaciones VIIRS</small></div>
-              <div><strong>${insideGoes.length}</strong><br><small>Alertas GOES-19</small></div>
-            </div>
-            <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireResults.slice(0,2).some(result=>result.status==='rejected')?'Una o más fuentes satelitales no respondieron durante la generación del informe.':'Fuentes consultadas: NASA FIRMS y GOES-19.'} Los conteos de sensores pueden corresponder a observaciones coincidentes.</p>
-            <p style="font-size:.75rem;color:var(--texto-secundario)">Actualización FIRMS: ${firePayload?.meta?.updatedAt || 'No informada'} · Escena GOES: ${goesPayload?.meta?.updatedAt || 'No informada'}.</p>
-            <h3 style="font-size:.92rem;margin:12px 0 6px;color:var(--verde-principal)">Detecciones recientes en el alcance consultado</h3>
-            ${insideFire.slice(0,8).map(feature=>{const p=feature.properties||{},coords=feature.geometry?.coordinates||[];return '<div class="report-fire-row"><strong>'+String(p.sensor||'Sensor').replace(/[&<>"']/g,'')+'</strong><span>'+String(p.date||'Fecha N/D').replace(/[&<>"']/g,'')+'</span><span>'+Number(coords[1]).toFixed(4)+', '+Number(coords[0]).toFixed(4)+'</span><span>'+String(p.satellite||'Satélite N/D').replace(/[&<>"']/g,'')+'</span></div>';}).join('') || '<p style="font-size:.78rem;color:var(--texto-secundario)">No hay detecciones FIRMS dentro del alcance consultado en la respuesta actual. Esto no confirma ausencia de incendios.</p>'}
+            <p style="font-size:.85rem;color:var(--texto-secundario)">Resultados guardados desde el módulo Incendios para la geometría del lote. Son anomalías térmicas, no incendios confirmados ni perímetros quemados.</p>
+            ${fireLotData ? `
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+                <div><strong>${insideFire.filter(f=>f.properties?.sensor==='MODIS').length}</strong><br><small>Observaciones MODIS</small></div>
+                <div><strong>${insideFire.filter(f=>f.properties?.sensor==='VIIRS').length}</strong><br><small>Observaciones VIIRS</small></div>
+                <div><strong>${insideGoes.length}</strong><br><small>Alertas GOES-19</small></div>
+              </div>
+              <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireLotData.fallback ? 'NASA FIRMS fue utilizado como respaldo; no se atribuyen estos resultados a CONAE.' : 'NASA FIRMS y GOES-19 consultados desde Incendios.'} Actualizado: ${fireLotData.updatedAt || fireLotEntry.updatedAt || 'Fecha no informada'}.</p>
+              <h3 style="font-size:.92rem;margin:12px 0 6px;color:var(--verde-principal)">Detecciones recientes dentro del lote</h3>
+              ${insideFire.slice(0,8).map(feature=>{const p=feature.properties||{},coords=feature.geometry?.coordinates||[];return '<div class="report-fire-row"><strong>'+String(p.sensor||'Sensor').replace(/[&<>"']/g,'')+'</strong><span>'+String(p.date||'Fecha N/D').replace(/[&<>"']/g,'')+'</span><span>'+Number(coords[1]).toFixed(4)+', '+Number(coords[0]).toFixed(4)+'</span><span>'+String(p.satellite||'Satélite N/D').replace(/[&<>"']/g,'')+'</span></div>';}).join('') || '<p style="font-size:.78rem;color:var(--texto-secundario)">El análisis del lote no encontró detecciones en la respuesta consultada. Esto no confirma ausencia de incendios.</p>'}
+            ` : '<p style="font-size:.82rem;color:var(--texto-secundario)">Todavía no hay un análisis de detecciones guardado desde Incendios para este lote. Ejecutá “Analizar detecciones del lote” en ese módulo.</p>'}
             <h3 style="font-size:.92rem;margin:14px 0 6px;color:var(--verde-principal)">Pronóstico meteorológico local · Open-Meteo</h3>
-            ${fireForecast?.days?.length ? fireForecast.days.map(day=>'<div class="report-forecast-row"><strong>'+day.label+'</strong><span>Máx. '+(day.temperatureMax??'N/D')+' °C</span><span>Humedad mín. '+(day.humidityMin??'N/D')+'%</span><span>Viento '+(day.windMax??'N/D')+' km/h</span><span>Lluvia '+(day.precipitation??'N/D')+' mm</span></div>').join('') : '<p style="font-size:.78rem;color:var(--texto-secundario)">Pronóstico local no disponible durante esta consulta.</p>'}
-            <p style="font-size:.75rem;color:var(--texto-secundario)">El indicador meteorológico es orientativo y no equivale al FWI oficial ni predice igniciones. Contexto global GWIS/JRC: no se atribuyen sus indicadores al lote sin intersección espacial verificada.</p>
+            ${fireForecast?.days?.length ? fireForecast.days.map(day=>'<div class="report-forecast-row"><strong>'+day.label+'</strong><span>Máx. '+(day.temperatureMax??'N/D')+' °C</span><span>Humedad mín. '+(day.humidityMin??'N/D')+'%</span><span>Viento '+(day.windMax??'N/D')+' km/h</span><span>Lluvia '+(day.precipitation??'N/D')+' mm</span></div>').join('') : '<p style="font-size:.78rem;color:var(--texto-secundario)">No hay un pronóstico guardado desde Incendios para el centro del lote.</p>'}
+            <p style="font-size:.75rem;color:var(--texto-secundario)">El pronóstico es orientativo y no equivale al FWI oficial ni predice igniciones.</p>
           </section>`;
 
         const fieldGeometry = parsedGeom?.geometry;
