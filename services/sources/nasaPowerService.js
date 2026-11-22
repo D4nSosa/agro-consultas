@@ -11,6 +11,19 @@
 
 const NASA_POWER_MONTHLY_URL = "https://power.larc.nasa.gov/api/temporal/monthly/point";
 const NASA_POWER_CLIMATOLOGY_URL = "https://power.larc.nasa.gov/api/temporal/climatology/point";
+const NASA_POWER_REQUEST_TIMEOUT_MS = 10000;
+
+async function fetchJsonWithTimeout(url) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), NASA_POWER_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return { response, json: null };
+    return { response, json: await response.json() };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 /**
  * Consulta la Climatología de Referencia de NASA POWER (período base normado 2001-2020)
@@ -18,9 +31,8 @@ const NASA_POWER_CLIMATOLOGY_URL = "https://power.larc.nasa.gov/api/temporal/cli
 async function fetchClimatologyReference(lat, lng) {
   try {
     const url = `${NASA_POWER_CLIMATOLOGY_URL}?parameters=PRECTOTCORR,T2M&community=AG&longitude=${lng.toFixed(4)}&latitude=${lat.toFixed(4)}&format=JSON`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const json = await res.json();
+    const { response: res, json } = await fetchJsonWithTimeout(url);
+    if (!res.ok || !json) return null;
     const params = json?.properties?.parameter;
     if (!params || !params.PRECTOTCORR || !params.T2M) return null;
     return {
@@ -67,8 +79,8 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
   const url = `${NASA_POWER_MONTHLY_URL}?parameters=${parameters}&community=AG&longitude=${lng.toFixed(4)}&latitude=${lat.toFixed(4)}&start=${startYear}&end=${endYear}&format=JSON`;
 
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
+    const { response, json } = await fetchJsonWithTimeout(url);
+    if (!response.ok || !json) {
       return {
         status: "UNAVAILABLE",
         message: `NO DISPONIBLE — Error HTTP ${response.status} en API NASA POWER.`,
@@ -76,7 +88,6 @@ export async function getClimateHistory(lat, lng, monthsCount = 12) {
       };
     }
 
-    const json = await response.json();
     const props = json?.properties;
     const paramsData = props?.parameter;
 
