@@ -1,0 +1,327 @@
+"""On-demand geospatial acquisition engine.
+
+This first engine layer centralizes AOI validation, allow-listed STAC discovery,
+scene metadata normalization and bounded caching. It discovers products only;
+the existing Forestal processors remain responsible for NDVI and Sentinel-1
+radiometric processing. No asset is treated as processed merely because it exists.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import hashlib
+import json
+import threading
+import time
+import urllib.error
+import urllib.request
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+from shapely.geometry import shape, mapping
+from shapely.validation import explain_validity
+
+router = APIRouter(prefix="/api/engine", tags=["Geospatial processing engine"])
+
+PROVIDERS = {
+    "sentinel-1-grd": {
+        "provider": "AWS Earth Search",
+        "endpoint": "https://earth-search.aws.element84.com/v1/search",
+        "collection": "sentinel-1-grd",
+        "product": "Sentinel-1 GRD",
+        "kind": "radar",
+        "catalog": "https://earth-search.aws.element84.com/v1/collections/sentinel-1-grd",
+    },
+    "sentinel-2-l2a": {
+        "provider": "AWS Earth Search",
+        "endpoint": "https://earth-search.aws.element84.com/v1/search",
+        "collection": "sentinel-2-l2a",
+        "product": "Sentinel-2 Level-2A",
+        "kind": "optical",
+        "catalog": "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a",
+    },
+    "landsat-c2-l2": {
+        "provider": "Microsoft Planetary Computer",
+        "endpoint": "https://planetarycomputer.microsoft.com/api/stac/v1/search",
+        "collection": "landsat-c2-l2",
+        "product": "Landsat Collection 2 Level-2",
+        "kind": "optical",
+        "catalog": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/landsat-c2-l2",
+    },
+}
+CACHE_TTL_SECONDS = 600
+CACHE_MAX_ENTRIES = 128
+_CACHE: dict[str, dict[str, Any]] = {}
+_CACHE_LOCK = threading.Lock()
+
+
+class SceneSearchRequest(BaseModel):
+    geometry: dict[str, Any] = Field(description="GeoJSON Point, Polygon, MultiPolygon o Feature en WGS84/EPSG:4326")
+    startDate: dt.date
+    endDate: dt.date
+    collections: list[str] = Field(default_factory=lambda: list(PROVIDERS))
+    limit: int = Field(default=50, ge=1, le=100)
+
+
+def _validated_geometry(value: dict[str, Any]):
+    if not isinstance(value, dict):
+        raise HTTPException(status_code=422, detail="El AOI debe ser una geometría GeoJSON.")
+    if value.get("type") == "Feature":
+        value = value.get("geometry")
+    if not isinstance(value, dict) or value.get("type") not in ("Point", "Polygon", "MultiPolygon"):
+        raise HTTPException(status_code=422, detail="El AOI debe ser Point, Polygon o MultiPolygon GeoJSON.")
+    try:
+        geom = shape(value)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"GeoJSON inválido: {str(exc)[:120]}")
+    if geom.is_empty or not geom.is_valid:
+        reason = explain_validity(geom) if not geom.is_empty else "geometría vacía"
+        raise HTTPException(status_code=422, detail=f"Geometría inválida: {reason}")
+    west, south, east, north = geom.bounds
+    if not all(-180 <= x <= 180 for x in (west, east)) or not all(-90 <= y <= 90 for y in (south, north)):
+        raise HTTPException(status_code=422, detail="Las coordenadas deben estar en WGS84 (longitud/latitud).")
+    return geom
+
+
+def _cache_key(geometry: dict, start: dt.date, end: dt.date, collections: list[str], limit: int) -> str:
+    canonical = json.dumps(geometry, sort_keys=True, separators=(",", ":"))
+    payload = "|".join((canonical, start.isoformat(), end.isoformat(), ",".join(collections), str(limit)))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _cache_get(key: str):
+    now = time.monotonic()
+    with _CACHE_LOCK:
+        item = _CACHE.get(key)
+        if item and now < item["expires"]:
+            return item["payload"]
+        if item:
+            _CACHE.pop(key, None)
+    return None
+
+
+def _cache_put(key: str, payload: dict):
+    now = time.monotonic()
+    with _CACHE_LOCK:
+        expired = [key for key, value in _CACHE.items() if now >= value["expires"]]
+        for old_key in expired:
+            _CACHE.pop(old_key, None)
+        while len(_CACHE) >= CACHE_MAX_ENTRIES:
+            oldest = min(_CACHE, key=lambda item: _CACHE[item]["created"])
+            _CACHE.pop(oldest, None)
+        _CACHE[key] = {"payload": payload, "created": now, "expires": now + CACHE_TTL_SECONDS}
+
+
+def _read_stac_page(provider: dict, body: dict) -> dict:
+    request = urllib.request.Request(
+        provider["endpoint"],
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/geo+json, application/json",
+            "User-Agent": "Agro-Consultas/1.0 (+https://agro-consultas.vercel.app)",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=25) as response:
+        raw = response.read(8_000_001)
+    if len(raw) > 8_000_000:
+        raise ValueError("El catálogo devolvió más de 8 MB en una página.")
+    payload = json.loads(raw.decode("utf-8"))
+    if not isinstance(payload, dict) or payload.get("type") != "FeatureCollection":
+        raise ValueError("El catálogo no devolvió un STAC FeatureCollection válido.")
+    return payload
+
+
+def _asset_summary(assets: dict[str, Any]) -> dict[str, Any]:
+    result = {}
+    for key, asset in assets.items():
+        if not isinstance(asset, dict):
+            continue
+        href = asset.get("href")
+        if not isinstance(href, str) or not href.startswith("https://"):
+            href = None
+        result[str(key)] = {
+            "href": href,
+            "title": asset.get("title"),
+            "type": asset.get("type"),
+            "roles": asset.get("roles") if isinstance(asset.get("roles"), list) else [],
+            "eoBands": asset.get("eo:bands") if isinstance(asset.get("eo:bands"), list) else [],
+            "rasterBands": asset.get("raster:bands") if isinstance(asset.get("raster:bands"), list) else [],
+            "fileSize": asset.get("file:size"),
+        }
+    return result
+
+
+def _normalize_scene(item: dict, provider: dict) -> dict:
+    props = item.get("properties") if isinstance(item.get("properties"), dict) else {}
+    assets = _asset_summary(item.get("assets") if isinstance(item.get("assets"), dict) else {})
+    polarizations = props.get("sar:polarizations") or props.get("sar:polarisation")
+    if not isinstance(polarizations, list):
+        polarizations = []
+    eo_bands = []
+    for asset in assets.values():
+        for band in asset["eoBands"]:
+            if isinstance(band, dict):
+                name = band.get("name") or band.get("common_name")
+                if name and name not in eo_bands:
+                    eo_bands.append(name)
+    return {
+        "id": item.get("id"),
+        "collection": item.get("collection") or provider["collection"],
+        "product": provider["product"],
+        "provider": provider["provider"],
+        "kind": provider["kind"],
+        "datetime": props.get("datetime") or props.get("start_datetime"),
+        "platform": props.get("platform"),
+        "instruments": props.get("instruments"),
+        "mode": props.get("sar:instrument_mode"),
+        "polarizations": polarizations,
+        "orbitState": props.get("sat:orbit_state"),
+        "relativeOrbit": props.get("sat:relative_orbit"),
+        "absoluteOrbit": props.get("sat:absolute_orbit"),
+        "cloudCoverPercent": props.get("eo:cloud_cover"),
+        "geometry": item.get("geometry"),
+        "bbox": item.get("bbox"),
+        "assets": assets,
+        "assetKeys": list(assets),
+        "catalogItemUrl": next(
+            (link.get("href") for link in item.get("links", [])
+             if isinstance(link, dict) and link.get("rel") == "self" and isinstance(link.get("href"), str)
+             and link["href"].startswith("https://")),
+            None,
+        ),
+        "collectionUrl": provider["catalog"],
+        "coverageStatus": "INTERSECTS_AOI",
+        "limitations": [
+            "La intersección de la huella con el AOI no implica cobertura completa del lote.",
+            "La presencia de un asset en STAC no confirma que el archivo sea descargable o procesable.",
+            "Las bandas y polarizaciones se informan únicamente cuando están publicadas en los metadatos.",
+        ],
+    }
+
+
+@router.get("/capabilities")
+def engine_capabilities():
+    """Describe supported discovery providers without asserting live availability."""
+    return {
+        "engine": "Agro-Consultas geospatial acquisition engine",
+        "version": "1.0.0",
+        "status": "DISCOVERY_READY",
+        "spatialReference": "OGC:CRS84 / WGS84 longitude-latitude GeoJSON",
+        "providers": [
+            {
+                "collection": key,
+                "product": value["product"],
+                "provider": value["provider"],
+                "kind": value["kind"],
+                "catalog": value["catalog"],
+                "coverage": "Global catalog; effective scene availability is evaluated per AOI and date at request time.",
+            }
+            for key, value in PROVIDERS.items()
+        ],
+        "processing": {
+            "sentinel1": "Existing Forestal SAR processor; calibration status and limitations are returned by that processor.",
+            "sentinel2": "Existing Forestal NDVI processor with SCL quality mask.",
+            "landsat": "Existing Forestal NDVI processor with QA_PIXEL quality mask.",
+        },
+        "limitations": [
+            "This endpoint discovers and normalizes scenes; it does not download or process raster pixels.",
+            "Scene coverage and asset accessibility must be verified per request.",
+            "A catalog timeout or error is reported as an upstream error, never as zero scenes.",
+            "The current cache is process-local and expires after 10 minutes.",
+        ],
+    }
+
+
+@router.post("/scenes")
+def discover_scenes(request: SceneSearchRequest):
+    """Discover real satellite scenes intersecting any valid WGS84 AOI."""
+    if request.endDate < request.startDate:
+        raise HTTPException(status_code=422, detail="endDate debe ser igual o posterior a startDate.")
+    if (request.endDate - request.startDate).days > 3650:
+        raise HTTPException(status_code=422, detail="El período máximo por consulta es de 10 años.")
+    if not request.collections:
+        raise HTTPException(status_code=422, detail="Seleccioná al menos una colección satelital.")
+    unknown = sorted(set(request.collections) - set(PROVIDERS))
+    if unknown:
+        raise HTTPException(status_code=422, detail="Colecciones no admitidas: " + ", ".join(unknown))
+    collections = list(dict.fromkeys(request.collections))
+    geom = _validated_geometry(request.geometry)
+    geometry = mapping(geom)
+    key = _cache_key(geometry, request.startDate, request.endDate, collections, request.limit)
+    cached = _cache_get(key)
+    if cached is not None:
+        return {**cached, "meta": {**cached["meta"], "cacheHit": True}}
+
+    interval = (
+        request.startDate.isoformat() + "T00:00:00Z/"
+        + request.endDate.isoformat() + "T23:59:59Z"
+    )
+    scenes = []
+    providers = []
+    errors = []
+    has_more = False
+    for collection in collections:
+        provider = PROVIDERS[collection]
+        body = {
+            "collections": [collection],
+            "intersects": geometry,
+            "datetime": interval,
+            "limit": request.limit,
+        }
+        try:
+            payload = _read_stac_page(provider, body)
+            features = payload.get("features") or []
+            if not isinstance(features, list):
+                raise ValueError("El campo features del catálogo no es una lista.")
+            scenes.extend(
+                _normalize_scene(item, provider)
+                for item in features if isinstance(item, dict)
+            )
+            has_more = has_more or any(
+                isinstance(link, dict) and link.get("rel") == "next"
+                for link in (payload.get("links") or [])
+            )
+            providers.append({"collection": collection, "provider": provider["provider"], "status": "OK", "returned": len(features)})
+        except Exception as exc:
+            errors.append({
+                "collection": collection,
+                "provider": provider["provider"],
+                "status": "UPSTREAM_ERROR",
+                "message": f"{type(exc).__name__}: {str(exc)[:180]}",
+            })
+            providers.append({"collection": collection, "provider": provider["provider"], "status": "ERROR", "returned": 0})
+
+    scenes.sort(key=lambda item: item.get("datetime") or "", reverse=True)
+    status = "OK" if not errors else ("PARTIAL" if scenes else "UPSTREAM_ERROR")
+    result = {
+        "status": status,
+        "scenes": scenes,
+        "meta": {
+            "requestedCollections": collections,
+            "startDate": request.startDate.isoformat(),
+            "endDate": request.endDate.isoformat(),
+            "sceneCount": len(scenes),
+            "providers": providers,
+            "errors": errors,
+            "hasMore": has_more,
+            "limitPerCollection": request.limit,
+            "aoiType": geom.geom_type,
+            "aoiBounds": list(geom.bounds),
+            "spatialReference": "OGC:CRS84 / WGS84",
+            "retrievedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "cacheHit": False,
+            "cacheTtlSeconds": CACHE_TTL_SECONDS,
+        },
+        "limitations": [
+            "INTERSECTS_AOI indica intersección de la huella STAC; no garantiza cobertura completa.",
+            "Los resultados son escenas identificadas, no análisis raster ni observaciones de campo.",
+            "Las URLs de assets se exponen para inspección; su lectura/descarga debe comprobarse en el procesador correspondiente.",
+            "La disponibilidad de colecciones depende del catálogo y del período consultado.",
+        ],
+    }
+    # Do not cache incomplete or failed discovery responses; a later request retries failed providers.
+    if status == "OK":
+        _cache_put(key, result)
+    return result
