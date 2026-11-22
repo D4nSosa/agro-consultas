@@ -150,6 +150,8 @@ def _read_stac_page(provider: dict, body: dict) -> dict:
     payload = json.loads(raw.decode("utf-8"))
     if not isinstance(payload, dict) or payload.get("type") != "FeatureCollection":
         raise ValueError("El catálogo no devolvió un STAC FeatureCollection válido.")
+    if not isinstance(payload.get("features"), list) or not isinstance(payload.get("links", []), list):
+        raise ValueError("El STAC FeatureCollection contiene features o links inválidos.")
     return payload
 
 
@@ -181,12 +183,14 @@ def _read_stac_next_page(provider: dict, link: dict) -> dict:
     payload = json.loads(raw.decode("utf-8"))
     if not isinstance(payload, dict) or payload.get("type") != "FeatureCollection":
         raise ValueError("La página siguiente no devolvió un STAC FeatureCollection válido.")
+    if not isinstance(payload.get("features"), list) or not isinstance(payload.get("links", []), list):
+        raise ValueError("La página siguiente contiene features o links inválidos.")
     return payload
 
 
 def _read_stac_pages(provider: dict, body: dict, max_pages: int = 5) -> tuple[list[dict], bool, int]:
     payload = _read_stac_page(provider, body)
-    features = list(payload.get("features") or [])
+    features = [item for item in payload["features"] if isinstance(item, dict)]
     pages = 1
     next_link = next(
         (link for link in (payload.get("links") or []) if isinstance(link, dict) and link.get("rel") == "next"),
@@ -194,9 +198,7 @@ def _read_stac_pages(provider: dict, body: dict, max_pages: int = 5) -> tuple[li
     )
     while next_link and pages < max_pages:
         payload = _read_stac_next_page(provider, next_link)
-        page_features = payload.get("features") or []
-        if not isinstance(page_features, list):
-            raise ValueError("El catálogo devolvió una lista features inválida.")
+        page_features = payload["features"]
         features.extend(item for item in page_features if isinstance(item, dict))
         pages += 1
         next_link = next(
@@ -497,6 +499,7 @@ def discover_scenes(request: SceneSearchRequest):
     providers = []
     errors = []
     has_more = False
+    successful_providers = 0
 
     def query_collection(collection):
         provider = PROVIDERS[collection]
@@ -518,6 +521,7 @@ def discover_scenes(request: SceneSearchRequest):
                 _collection, provider, features, remaining, pages = future.result()
                 scenes.extend(_normalize_scene(item, provider) for item in features)
                 has_more = has_more or remaining
+                successful_providers += 1
                 providers.append({
                     "collection": collection,
                     "provider": provider["provider"],
@@ -542,8 +546,10 @@ def discover_scenes(request: SceneSearchRequest):
                     "hasMore": False,
                 })
 
-    scenes.sort(key=lambda item: item.get("datetime") or "", reverse=True)
-    status = "OK" if not errors else ("PARTIAL" if scenes else "UPSTREAM_ERROR")
+    scenes.sort(key=lambda item: (item.get("datetime") or "", item.get("id") or ""), reverse=True)
+    providers.sort(key=lambda item: item["collection"])
+    errors.sort(key=lambda item: item["collection"])
+    status = "OK" if not errors else ("PARTIAL" if successful_providers else "UPSTREAM_ERROR")
     result = {
         "status": status,
         "scenes": scenes,
