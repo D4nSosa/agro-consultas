@@ -323,3 +323,21 @@ def test_conae_wms_metadata_rejects_unknown_product_kind():
         assert exc.status_code == 400
     else:
         raise AssertionError("Se esperaba HTTP 400 para un producto CONAE desconocido")
+
+
+def test_conae_wms_metadata_fails_fast_when_provider_times_out(monkeypatch):
+    from fastapi import HTTPException
+
+    fire.CONAE_METADATA_CACHE.clear()
+
+    def timeout(*_args, **_kwargs):
+        raise TimeoutError("upstream timed out")
+
+    monkeypatch.setattr(fire.urllib.request, "urlopen", timeout)
+    try:
+        fire.conae_wms_metadata("fuel")
+    except HTTPException as exc:
+        assert exc.status_code == 502
+        assert "timed out" in exc.detail
+    else:
+        raise AssertionError("Se esperaba un error controlado cuando CONAE agota el tiempo de espera")
