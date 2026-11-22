@@ -48,3 +48,23 @@ test('forest module exposes Sentinel preview assets in report and timeline', () 
   assert.match(forestTimeline, /item\.thumbnail/);
   assert.match(orchestrator, /thumbnail: prod\.assets/);
 });
+
+
+test('unified report is read-only for forestry satellite and global forest analyses', () => {
+  assert.match(report, /getReportSnapshot/);
+  assert.doesNotMatch(report, /runFullForestAnalysis/);
+  assert.doesNotMatch(report, /id="gfw-run"|id="hansen-run"|id="jrc-run"/);
+  assert.doesNotMatch(report, /\/api\/territorial\/forest\/(gfw-drivers|hansen|jrc)\/analyze/);
+  assert.match(report, /este informe no inicia consultas satelitales/i);
+  assert.match(report, /No hay un análisis Sentinel-2 guardado para esta geometría/i);
+});
+
+test('Forestal lets users select comparison target dates and stores real scene results', async () => {
+  const forestPage = await readFile(new URL('../forestal.html', import.meta.url), 'utf8');
+  assert.match(forestPage, /id="forest-date-a"/);
+  assert.match(forestPage, /id="forest-date-b"/);
+  assert.match(forestPage, /saveReportSection\(feature\.geometry, 'forest-sentinel2'/);
+  assert.match(forestPage, /forest-gfw-run/);
+  assert.match(forestPage, /forest-hansen-run/);
+  assert.match(forestPage, /forest-jrc-run/);
+});
