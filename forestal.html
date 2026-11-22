@@ -228,12 +228,34 @@
       </div>
     </div>
 
+    <!-- Fechas objetivo de comparación satelital -->
+    <section class="card" style="padding:16px;margin-bottom:16px;">
+      <h3 style="margin:0 0 10px;color:var(--verde-principal);">📅 Período de comparación satelital</h3>
+      <p style="font-size:.84rem;color:var(--texto-secundario);margin:0 0 12px;">Elegí dos fechas objetivo. El catálogo busca escenas Sentinel-2 anteriores a cada fecha, ampliando la ventana histórica hasta 120 días si no encuentra cobertura. La fecha elegida no garantiza una adquisición ese mismo día.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        <label style="font-size:.85rem;font-weight:600;">Fecha A (comparación)<input id="forest-date-a" type="date" style="display:block;width:100%;margin-top:5px;padding:9px;border:1px solid var(--borde-suave);border-radius:7px;background:var(--bg-principal);color:var(--texto-principal);"></label>
+        <label style="font-size:.85rem;font-weight:600;">Fecha B (comparación)<input id="forest-date-b" type="date" style="display:block;width:100%;margin-top:5px;padding:9px;border:1px solid var(--borde-suave);border-radius:7px;background:var(--bg-principal);color:var(--texto-principal);"></label>
+      </div>
+    </section>
+
     <!-- Botón Ejecutar Análisis Completo -->
     <div style="text-align: center; margin-bottom: 30px;">
       <button id="btn-run-analysis" class="btn primary" style="font-size: 1.1rem; padding: 12px 30px; box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);">
         🚀 Ejecutar Análisis Forestal y Detección de Cambios (Sentinel-2)
       </button>
     </div>
+
+    <!-- Análisis territoriales forestales: se ejecutan aquí y sus resultados se comparten con Informes -->
+    <section class="card" style="padding:16px;margin-bottom:24px;">
+      <h2 style="margin:0 0 8px;color:var(--verde-principal);">🌳 Análisis de cobertura y pérdida forestal</h2>
+      <p style="font-size:.84rem;color:var(--texto-secundario);">Estos análisis se ejecutan desde Forestal. Los resultados se guardan asociados a la geometría del lote y luego se incorporan al informe unificado. Las capas globales no distinguen por sí solas bosque nativo de plantaciones.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
+        <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;"><strong>GFW / WRI · Drivers de pérdida</strong><p style="font-size:.78rem;color:var(--texto-secundario);">Driver dominante por celda (~1 km), período 2001–2025.</p><button id="forest-gfw-run" class="btn primary" type="button">Analizar drivers</button><div id="forest-gfw-status" role="status" style="font-size:.8rem;margin-top:8px;white-space:pre-wrap;"></div></article>
+        <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;"><strong>Hansen / UMD · Global Forest Change</strong><p style="font-size:.78rem;color:var(--texto-secundario);">Cobertura de copa 2000 y pérdida bruta anual 2001–2025 (~30 m).</p><button id="forest-hansen-run" class="btn primary" type="button">Analizar cobertura y pérdida</button><div id="forest-hansen-status" role="status" style="font-size:.8rem;margin-top:8px;white-space:pre-wrap;"></div></article>
+        <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;"><strong>JRC · Cobertura forestal 2020 v4</strong><p style="font-size:.78rem;color:var(--texto-secundario);">Clasificación bosque/no bosque a 10 m.</p><button id="forest-jrc-run" class="btn primary" type="button">Analizar cobertura JRC</button><div id="forest-jrc-status" role="status" style="font-size:.8rem;margin-top:8px;white-space:pre-wrap;"></div></article>
+      </div>
+      <small style="display:block;margin-top:10px;color:var(--texto-secundario);">Los resultados y sus limitaciones se guardan para el lote activo. Si modificás la geometría, se requiere volver a ejecutar los análisis.</small>
+    </section>
 
     <!-- Contenedor del Reporte Técnico Exportable -->
     <div id="report-container">
@@ -258,6 +280,7 @@
     import { ForestTimeline } from './forestal/components/ForestTimeline.js';
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
+    import { saveReportSection } from './services/reportAnalysisStore.js';
     import { exportToKML, exportToGPX, exportToPyQGISScript } from './forestal/utils/geo.js';
     import { analyzeUploadedImage } from './services/imageAnalysisService.js';
     import { getForestCatalog } from './services/recommendationEngine.js';
@@ -698,6 +721,42 @@
       // 3. Inicializar Componente de Reporte
       reportComp = new ChangeReport('report-container');
 
+      const today = new Date().toISOString().slice(0, 10);
+      const previousYear = new Date();
+      previousYear.setFullYear(previousYear.getFullYear() - 1);
+      const dateAInput = document.getElementById('forest-date-a');
+      const dateBInput = document.getElementById('forest-date-b');
+      if (dateAInput && !dateAInput.value) dateAInput.value = previousYear.toISOString().slice(0, 10);
+      if (dateBInput && !dateBInput.value) dateBInput.value = today;
+
+      const runTerritorial = async (kind, endpoint, statusId) => {
+        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const status = document.getElementById(statusId);
+        const button = document.getElementById(kind === 'gfw-drivers' ? 'forest-gfw-run' : kind === 'hansen' ? 'forest-hansen-run' : 'forest-jrc-run');
+        if (!feature?.geometry || !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) {
+          if (status) status.textContent = 'Definí un polígono de lote antes de ejecutar este análisis.';
+          return;
+        }
+        if (button) button.disabled = true;
+        if (status) status.textContent = 'Consultando fuente pública…';
+        try {
+          const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ geometry: feature.geometry }) });
+          const raw = await response.text();
+          let payload;
+          try { payload = raw ? JSON.parse(raw) : {}; } catch (_) { throw new Error('La fuente devolvió una respuesta no válida.'); }
+          if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || payload?.message || ('HTTP ' + response.status));
+          saveReportSection(feature.geometry, kind, payload, { module: 'forestal', source: endpoint });
+          if (status) status.textContent = 'Resultado guardado para este lote. Consultá el módulo Informes para verlo en el reporte unificado.';
+        } catch (error) {
+          if (status) status.textContent = 'No se pudo completar el análisis: ' + error.message;
+        } finally {
+          if (button) button.disabled = false;
+        }
+      };
+      document.getElementById('forest-gfw-run')?.addEventListener('click', () => runTerritorial('gfw-drivers', '/api/territorial/forest/gfw-drivers/analyze', 'forest-gfw-status'));
+      document.getElementById('forest-hansen-run')?.addEventListener('click', () => runTerritorial('hansen', '/api/territorial/forest/hansen/analyze', 'forest-hansen-status'));
+      document.getElementById('forest-jrc-run')?.addEventListener('click', () => runTerritorial('jrc', '/api/territorial/forest/jrc/analyze', 'forest-jrc-status'));
+
       // Botones de interacción GPS y Mapa
       document.getElementById('btn-gps-loc').addEventListener('click', () => {
         forestMap.useUserGPSLocation();
@@ -815,15 +874,34 @@
       });
 
       document.getElementById('btn-run-analysis').addEventListener('click', () => {
-        const now = new Date();
-        const yearNow = now.getFullYear();
-        const dateBStr = now.toISOString().split('T')[0];
-        const dateAStr = `${yearNow - 1}-01-01`;
+        const dateAStr = document.getElementById('forest-date-a')?.value;
+        const dateBStr = document.getElementById('forest-date-b')?.value;
+        if (!dateAStr || !dateBStr || dateAStr >= dateBStr) {
+          alert('Seleccioná dos fechas válidas y asegurate de que Fecha A sea anterior a Fecha B.');
+          return;
+        }
         ejecutarAnalisis(dateAStr, dateBStr);
       });
 
       // Inicialización limpia sin lote pre-cargado
     });
+
+
+    function compactNdvi(item) {
+      if (!item) return null;
+      const stats = item.stats || {};
+      return {
+        available: item.available === true,
+        productId: item.productId || null,
+        acquisitionDate: item.acquisitionDate || item.date || null,
+        stats: {
+          mean: Number.isFinite(stats.mean) ? stats.mean : null,
+          min: Number.isFinite(stats.min) ? stats.min : null,
+          max: Number.isFinite(stats.max) ? stats.max : null,
+          validPixels: Number.isFinite(stats.validPixels) ? stats.validPixels : null
+        }
+      };
+    }
 
     async function ejecutarAnalisis(dateA, dateB) {
       let feature = forestMap.getCurrentFeature() || getLotContext();
@@ -846,17 +924,33 @@
         feature.properties.name = lotNameClean;
       }
 
-      currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
-
-      currentAnalysisData.inventory = calcularInventarioCampo();
-
-      timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);
-
-      reportComp.renderReport(currentAnalysisData);
-
-      if (btn) {
-        btn.disabled = false;
-        btn.innerText = '🚀 Ejecutar Análisis Forestal y Detección de Cambios (Sentinel-2)';
+      try {
+        currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
+        currentAnalysisData.inventory = calcularInventarioCampo();
+        const compactAnalysis = {
+          timestamp: currentAnalysisData.timestamp,
+          dates: currentAnalysisData.dates,
+          search: currentAnalysisData.search,
+          products: currentAnalysisData.products,
+          timeline: currentAnalysisData.timeline,
+          changes: currentAnalysisData.changes,
+          ndvi: {
+            analysisA: compactNdvi(currentAnalysisData.ndvi?.analysisA),
+            analysisB: compactNdvi(currentAnalysisData.ndvi?.analysisB)
+          },
+          inventory: currentAnalysisData.inventory
+        };
+        saveReportSection(feature.geometry, 'forest-sentinel2', compactAnalysis, { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
+        timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);
+        reportComp.renderReport(currentAnalysisData);
+      } catch (error) {
+        const output = document.getElementById('report-container');
+        if (output) output.textContent = 'No se pudo completar el análisis forestal: ' + error.message;
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = '🚀 Ejecutar Análisis Forestal y Detección de Cambios (Sentinel-2)';
+        }
       }
     }
 
