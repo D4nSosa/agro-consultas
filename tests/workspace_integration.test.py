@@ -176,12 +176,16 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("tiles.globalforestwatch.org/arg_otbn_forest_loss/v2022/dynamic/", source)
         self.assertIn("Pérdida histórica de bosque nativo · GFW 2007–2022", source)
 
-    def test_report_includes_fire_and_field_sections_and_runs_forest_analysis_for_polygons(self):
+    def test_report_includes_fire_and_field_sections_and_reads_saved_forest_results(self):
         source = (ROOT / "reporte.html").read_text(encoding="utf-8")
         self.assertIn("Observaciones satelitales de incendios", source)
         self.assertIn("Campo y geometría relevada", source)
         self.assertIn("filterFireDetectionsToGeometry", source)
-        self.assertIn("runFullForestAnalysis(featureToAnalyze", source)
+        self.assertIn("getReportSnapshot", source)
+        self.assertNotIn("runFullForestAnalysis", source)
+        self.assertNotIn("/api/territorial/forest/gfw-drivers/analyze", source)
+        self.assertNotIn("/api/territorial/forest/hansen/analyze", source)
+        self.assertNotIn("/api/territorial/forest/jrc/analyze", source)
 
 if __name__ == "__main__":
     unittest.main()
