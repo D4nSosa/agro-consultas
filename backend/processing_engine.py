@@ -72,6 +72,17 @@ class ProcessSceneRequest(BaseModel):
     date: dt.date
 
 
+class DatasetAnalysisRequest(BaseModel):
+    geometry: dict[str, Any] = Field(description="GeoJSON Polygon o MultiPolygon en WGS84/EPSG:4326")
+    processor: str
+    mapset_code: str | None = None
+    crop: str | None = None
+    period: str | None = None
+    climate_data_source: str | None = None
+    ssp: str | None = None
+    input_level: str | None = None
+
+
 def _validated_geometry(value: dict[str, Any]):
     if not isinstance(value, dict):
         raise HTTPException(status_code=422, detail="El AOI debe ser una geometría GeoJSON.")
@@ -332,6 +343,57 @@ def process_discovered_scene(request: ProcessSceneRequest):
 
 
 
+@router.post("/analyze")
+def analyze_existing_dataset(request: DatasetAnalysisRequest):
+    """Dispatch an allow-listed territorial dataset analysis to its existing specialist."""
+    allowed = {"gaez", "gfw", "hansen", "gfw-drivers", "jrc"}
+    if request.processor not in allowed:
+        raise HTTPException(status_code=422, detail="Procesador territorial no admitido.")
+    geom = _validated_geometry(request.geometry)
+    if geom.geom_type not in ("Polygon", "MultiPolygon"):
+        raise HTTPException(status_code=422, detail="El análisis territorial requiere Polygon o MultiPolygon.")
+    geometry = mapping(geom)
+
+    try:
+        from backend import territorial_analysis, open_forest_data
+
+        if request.processor in ("gaez", "gfw"):
+            specialist_request = territorial_analysis.LotDatasetRequest(
+                geometry=geometry,
+                mapset_code=request.mapset_code,
+                crop=request.crop,
+                period=request.period,
+                climate_data_source=request.climate_data_source,
+                ssp=request.ssp,
+                input_level=request.input_level,
+            )
+            handler = territorial_analysis.gaez_analyze if request.processor == "gaez" else territorial_analysis.gfw_analyze
+        else:
+            specialist_request = open_forest_data.ForestLotRequest(geometry=geometry)
+            handler = {
+                "hansen": open_forest_data.hansen_analyze,
+                "gfw-drivers": open_forest_data.gfw_drivers_analyze,
+                "jrc": open_forest_data.jrc_analyze,
+            }[request.processor]
+
+        result = handler(specialist_request)
+        successful = result.get("success") is True
+        return {
+            "status": "PROCESSED" if successful else "PROCESSING_UNAVAILABLE",
+            "processor": request.processor,
+            "result": result,
+            "provenancePreserved": True,
+            "limitations": [
+                "El motor delega el cálculo al procesador especializado existente y conserva su procedencia y limitaciones.",
+                "Las resoluciones y períodos son propios de cada producto; no se consideran equivalentes entre fuentes.",
+            ],
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Falló el procesador territorial {request.processor}: {type(exc).__name__}: {str(exc)[:240]}")
+
+
 @router.get("/capabilities")
 def engine_capabilities():
     """Describe supported discovery providers without asserting live availability."""
@@ -352,9 +414,15 @@ def engine_capabilities():
             for key, value in PROVIDERS.items()
         ],
         "processing": {
-            "sentinel1": "Existing Forestal SAR processor; calibration status and limitations are returned by that processor.",
+            "sentinel1": "Existing Forestal SAR processor; exact-scene Sigma0 calibration status and limitations are returned by that processor.",
             "sentinel2": "Existing Forestal NDVI processor with SCL quality mask.",
             "landsat": "Existing Forestal NDVI processor with QA_PIXEL quality mask.",
+            "territorial": ["gaez", "gfw", "hansen", "gfw-drivers", "jrc"],
+        },
+        "dispatchEndpoints": {
+            "sceneDiscovery": "POST /api/engine/scenes",
+            "sceneProcessing": "POST /api/engine/process",
+            "territorialAnalysis": "POST /api/engine/analyze",
         },
         "limitations": [
             "POST /scenes discovers and normalizes scenes; POST /process delegates one exact scene to the existing specialized raster processor.",
