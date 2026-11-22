@@ -186,6 +186,11 @@
       if (geomStr) {
         try {
           parsedGeom = JSON.parse(geomStr);
+          // Los enlaces históricos pueden transportar una geometría GeoJSON directa
+          // o una Feature; normalizar ambas formas evita perder la huella del lote.
+          if (parsedGeom && !parsedGeom.geometry && ['Polygon', 'MultiPolygon'].includes(parsedGeom.type)) {
+            parsedGeom = { type: 'Feature', properties: {}, geometry: parsedGeom };
+          }
         } catch (e) {}
       }
 
