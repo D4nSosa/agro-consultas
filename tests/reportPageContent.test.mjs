@@ -73,3 +73,8 @@ test('Forestal presents analysis output but leaves PDF and sharing to unified Re
   assert.match(forestReport, /Resultados del análisis forestal y teledetección/);
   assert.doesNotMatch(forestReport, /btn-print-report|btn-share-forest-report/);
 });
+
+test('report normalizes shared raw GeoJSON geometry before loading saved results', () => {
+  assert.match(report, /Los enlaces históricos pueden transportar una geometría GeoJSON directa/);
+  assert.match(report, /parsedGeom = \{ type: 'Feature', properties: \{\}, geometry: parsedGeom \}/);
+});
