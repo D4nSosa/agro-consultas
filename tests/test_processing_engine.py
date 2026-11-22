@@ -216,6 +216,33 @@ def test_engine_rejects_point_for_zonal_territorial_analysis():
     assert response.status_code == 422
 
 
+
+def test_engine_source_catalog_delegates_to_existing_registry(monkeypatch):
+    from backend import source_catalog
+
+    monkeypatch.setattr(source_catalog, "get_source_catalog", lambda: {
+        "sources": {"conae": {"status": "OGC_DISCOVERY"}},
+        "disclaimer": "Catalog entries do not prove coverage.",
+    })
+    response = client.get("/api/engine/sources")
+    assert response.status_code == 200
+    assert response.json()["sources"]["conae"]["status"] == "OGC_DISCOVERY"
+
+
+def test_engine_ogc_adapter_delegates_to_allowlisted_provider(monkeypatch):
+    from backend import source_catalog
+
+    calls = {}
+    def fake_capabilities(provider, service, layer_filter=None):
+        calls.update({"provider": provider, "service": service, "layer_filter": layer_filter})
+        return {"provider": provider, "service": service, "layers": []}
+
+    monkeypatch.setattr(source_catalog, "get_ogc_capabilities", fake_capabilities)
+    response = client.get("/api/engine/ogc/conae/wms?layer_filter=soil")
+    assert response.status_code == 200
+    assert calls == {"provider": "conae", "service": "wms", "layer_filter": "soil"}
+
+
 def test_unknown_collection_and_reversed_dates_are_rejected():
     unknown=client.post("/api/engine/scenes",json={"geometry":AOI,"startDate":"2026-11-01",
       "endDate":"2026-11-22","collections":["arbitrary-url"]})
