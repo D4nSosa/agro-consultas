@@ -198,7 +198,9 @@ def _read_stac_pages(
     if max_pages < 1 or max_items < 1:
         raise ValueError("Los límites de paginación deben ser positivos.")
     payload = _read_stac_page(provider, body)
-    features = [item for item in payload["features"] if isinstance(item, dict)][:max_items]
+    first_page_features = [item for item in payload["features"] if isinstance(item, dict)]
+    features = first_page_features[:max_items]
+    truncated = len(first_page_features) > max_items
     pages = 1
     next_link = next(
         (link for link in (payload.get("links") or []) if isinstance(link, dict) and link.get("rel") == "next"),
@@ -208,6 +210,7 @@ def _read_stac_pages(
         payload = _read_stac_next_page(provider, next_link)
         page_features = [item for item in payload["features"] if isinstance(item, dict)]
         remaining_budget = max_items - len(features)
+        truncated = truncated or len(page_features) > remaining_budget
         features.extend(page_features[:remaining_budget])
         pages += 1
         next_link = next(
@@ -215,7 +218,7 @@ def _read_stac_pages(
             None,
         )
     # hasMore means more items exist beyond the returned budget/page budget.
-    return features, bool(next_link), pages
+    return features, bool(next_link) or truncated, pages
 
 
 def _asset_summary(assets: dict[str, Any]) -> dict[str, Any]:
