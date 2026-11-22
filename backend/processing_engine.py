@@ -11,6 +11,8 @@ import datetime as dt
 import hashlib
 import json
 import threading
+import concurrent.futures
+import urllib.parse
 import time
 import urllib.error
 import urllib.request
@@ -138,6 +140,59 @@ def _read_stac_page(provider: dict, body: dict) -> dict:
     if not isinstance(payload, dict) or payload.get("type") != "FeatureCollection":
         raise ValueError("El catálogo no devolvió un STAC FeatureCollection válido.")
     return payload
+
+
+def _read_stac_next_page(provider: dict, link: dict) -> dict:
+    href = link.get("href")
+    if not isinstance(href, str):
+        raise ValueError("El enlace de paginación STAC no contiene href.")
+    target = urllib.parse.urljoin(provider["endpoint"], href)
+    parsed_target = urllib.parse.urlparse(target)
+    parsed_origin = urllib.parse.urlparse(provider["endpoint"])
+    if parsed_target.scheme != "https" or parsed_target.netloc != parsed_origin.netloc:
+        raise ValueError("Se rechazó un enlace de paginación fuera del origen STAC autorizado.")
+    method = str(link.get("method") or "GET").upper()
+    if method not in ("GET", "POST"):
+        raise ValueError(f"Método de paginación STAC no admitido: {method}")
+    body = link.get("body") if method == "POST" else None
+    data = json.dumps(body).encode("utf-8") if isinstance(body, dict) else None
+    headers = {
+        "Accept": "application/geo+json, application/json",
+        "User-Agent": "Agro-Consultas/1.0 (+https://agro-consultas.vercel.app)",
+    }
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(target, data=data, headers=headers, method=method)
+    with urllib.request.urlopen(request, timeout=25) as response:
+        raw = response.read(8_000_001)
+    if len(raw) > 8_000_000:
+        raise ValueError("El catálogo devolvió más de 8 MB en una página.")
+    payload = json.loads(raw.decode("utf-8"))
+    if not isinstance(payload, dict) or payload.get("type") != "FeatureCollection":
+        raise ValueError("La página siguiente no devolvió un STAC FeatureCollection válido.")
+    return payload
+
+
+def _read_stac_pages(provider: dict, body: dict, max_pages: int = 5) -> tuple[list[dict], bool, int]:
+    payload = _read_stac_page(provider, body)
+    features = list(payload.get("features") or [])
+    pages = 1
+    next_link = next(
+        (link for link in (payload.get("links") or []) if isinstance(link, dict) and link.get("rel") == "next"),
+        None,
+    )
+    while next_link and pages < max_pages:
+        payload = _read_stac_next_page(provider, next_link)
+        page_features = payload.get("features") or []
+        if not isinstance(page_features, list):
+            raise ValueError("El catálogo devolvió una lista features inválida.")
+        features.extend(item for item in page_features if isinstance(item, dict))
+        pages += 1
+        next_link = next(
+            (link for link in (payload.get("links") or []) if isinstance(link, dict) and link.get("rel") == "next"),
+            None,
+        )
+    return features, bool(next_link), pages
 
 
 def _asset_summary(assets: dict[str, Any]) -> dict[str, Any]:
@@ -338,7 +393,8 @@ def discover_scenes(request: SceneSearchRequest):
     providers = []
     errors = []
     has_more = False
-    for collection in collections:
+
+    def query_collection(collection):
         provider = PROVIDERS[collection]
         body = {
             "collections": [collection],
@@ -346,28 +402,41 @@ def discover_scenes(request: SceneSearchRequest):
             "datetime": interval,
             "limit": request.limit,
         }
-        try:
-            payload = _read_stac_page(provider, body)
-            features = payload.get("features") or []
-            if not isinstance(features, list):
-                raise ValueError("El campo features del catálogo no es una lista.")
-            scenes.extend(
-                _normalize_scene(item, provider)
-                for item in features if isinstance(item, dict)
-            )
-            has_more = has_more or any(
-                isinstance(link, dict) and link.get("rel") == "next"
-                for link in (payload.get("links") or [])
-            )
-            providers.append({"collection": collection, "provider": provider["provider"], "status": "OK", "returned": len(features)})
-        except Exception as exc:
-            errors.append({
-                "collection": collection,
-                "provider": provider["provider"],
-                "status": "UPSTREAM_ERROR",
-                "message": f"{type(exc).__name__}: {str(exc)[:180]}",
-            })
-            providers.append({"collection": collection, "provider": provider["provider"], "status": "ERROR", "returned": 0})
+        features, remaining, pages = _read_stac_pages(provider, body)
+        return collection, provider, features, remaining, pages
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(3, len(collections))) as executor:
+        futures = {executor.submit(query_collection, collection): collection for collection in collections}
+        for future in concurrent.futures.as_completed(futures):
+            collection = futures[future]
+            provider = PROVIDERS[collection]
+            try:
+                _collection, provider, features, remaining, pages = future.result()
+                scenes.extend(_normalize_scene(item, provider) for item in features)
+                has_more = has_more or remaining
+                providers.append({
+                    "collection": collection,
+                    "provider": provider["provider"],
+                    "status": "OK",
+                    "returned": len(features),
+                    "pagesRead": pages,
+                    "hasMore": remaining,
+                })
+            except Exception as exc:
+                errors.append({
+                    "collection": collection,
+                    "provider": provider["provider"],
+                    "status": "UPSTREAM_ERROR",
+                    "message": f"{type(exc).__name__}: {str(exc)[:180]}",
+                })
+                providers.append({
+                    "collection": collection,
+                    "provider": provider["provider"],
+                    "status": "ERROR",
+                    "returned": 0,
+                    "pagesRead": 0,
+                    "hasMore": False,
+                })
 
     scenes.sort(key=lambda item: item.get("datetime") or "", reverse=True)
     status = "OK" if not errors else ("PARTIAL" if scenes else "UPSTREAM_ERROR")
