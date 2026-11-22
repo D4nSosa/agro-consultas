@@ -157,6 +157,26 @@ def test_process_rejects_unknown_collection_before_dispatch():
 
 
 
+
+def test_engine_reports_truncation_when_provider_ignores_limit(monkeypatch):
+    from backend import processing_engine
+
+    page = {
+        "type": "FeatureCollection",
+        "features": [feature(item_id=f"SCENE_{i}") for i in range(6)],
+        "links": [],
+    }
+    monkeypatch.setattr(processing_engine, "_read_stac_page", lambda _provider, _body: page)
+    found, has_more, page_count = processing_engine._read_stac_pages(
+        processing_engine.PROVIDERS["sentinel-1-grd"],
+        {"collections": ["sentinel-1-grd"], "limit": 2},
+        max_items=2,
+    )
+    assert len(found) == 2
+    assert has_more is True
+    assert page_count == 1
+
+
 def test_engine_pagination_never_exceeds_requested_total_limit(monkeypatch):
     from backend import processing_engine
 
