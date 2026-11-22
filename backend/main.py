@@ -361,6 +361,7 @@ class SARAnalysisRequest(BaseModel):
     geometry: GeoJSONGeometry
     startDate: Optional[str] = None
     endDate: Optional[str] = None
+    productId: Optional[str] = None
 
 @app.get("/")
 def read_root():
@@ -1421,6 +1422,8 @@ def get_sar_analysis(req: SARAnalysisRequest):
             props = feat.get("properties", {})
             assets = feat.get("assets", {})
             prod_id = feat.get("id")
+            if req.productId and prod_id != req.productId:
+                continue
             actual_date = props.get("datetime", "").split("T")[0] if props.get("datetime") else None
             orbit_state = props.get("sat:orbit_state", "NO DISPONIBLE")
             vv_url = assets.get("vv", {}).get("href")
