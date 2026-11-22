@@ -780,29 +780,34 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
   }
 
   const s = sarRes.stats;
-  const vvText = Number.isFinite(Number(s.vv_mean_dn)) ? Number(s.vv_mean_dn).toFixed(2) : 'NO DISPONIBLE';
-  const vhText = Number.isFinite(Number(s.vh_mean_dn)) ? Number(s.vh_mean_dn).toFixed(2) : 'NO DISPONIBLE';
+  const vvText = Number.isFinite(Number(s.vv_mean_db)) ? Number(s.vv_mean_db).toFixed(2) : 'NO DISPONIBLE';
+  const vhText = Number.isFinite(Number(s.vh_mean_db)) ? Number(s.vh_mean_db).toFixed(2) : 'NO DISPONIBLE';
+  const vvLinear = Number.isFinite(Number(s.vv_mean_sigma0)) ? Number(s.vv_mean_sigma0).toExponential(3) : 'NO DISPONIBLE';
+  const vhLinear = Number.isFinite(Number(s.vh_mean_sigma0)) ? Number(s.vh_mean_sigma0).toExponential(3) : 'NO DISPONIBLE';
   const limitations = Array.isArray(sarRes.limitations) ? sarRes.limitations : [];
+  const noiseApplied = sarRes.calibration?.thermalNoiseRemovalApplied === true;
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📡 VV — DN medio sin calibrar</div>
-        <div style="font-size: 1.3rem; font-weight: 800; color: #2980b9; margin: 4px 0;">${vvText} DN</div>
-        <div style="font-size: 0.8rem; color: var(--texto-secundario);">Muestras válidas: ${s.vvSampleCount ?? s.sampleCount ?? 0}</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📡 VV — σ⁰ medio calibrado</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: #2980b9; margin: 4px 0;">${vvText} dB</div>
+        <div style="font-size: 0.8rem; color: var(--texto-secundario);">Lineal: ${vvLinear} · Muestras válidas: ${s.vvSampleCount ?? s.sampleCount ?? 0}</div>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
-        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📡 VH — DN medio sin calibrar</div>
-        <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${vhText} DN</div>
-        <div style="font-size: 0.8rem; color: var(--texto-secundario);">Muestras válidas: ${s.vhSampleCount ?? s.sampleCount ?? 0}</div>
+        <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">📡 VH — σ⁰ medio calibrado</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">${vhText} dB</div>
+        <div style="font-size: 0.8rem; color: var(--texto-secundario);">Lineal: ${vhLinear} · Muestras válidas: ${s.vhSampleCount ?? s.sampleCount ?? 0}</div>
       </div>
 
       <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px;">
         <div style="font-size: 0.78rem; color: var(--texto-secundario); font-weight: 600;">⚙️ Calibración radiométrica</div>
-        <div style="font-size: 1.05rem; font-weight: 800; color: #8e44ad; margin: 4px 0;">NO APLICADA</div>
+        <div style="font-size: 1.05rem; font-weight: 800; color: var(--verde-principal); margin: 4px 0;">σ⁰ ELIPSOIDAL</div>
         <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px;">
-          ${sarRes.calibrationStatus || 'RAW_DN_UNCALIBRATED'}<br>
+          ${sarRes.calibrationStatus || 'SIGMA0_ELLIPSOID_CALIBRATED'}<br>
+          Ruido térmico: ${noiseApplied ? 'corregido' : 'no corregido'}<br>
+          RTC / terreno: no aplicado<br>
           Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
           Fecha: ${sarRes.date || 'NO DISPONIBLE'} | Sensor: ${sarRes.sensor || 'Sentinel-1'}<br>
           Modo: ${sarRes.instrumentMode || 'NO REGISTRADO'} | Órbita: ${sarRes.orbitState || 'NO REGISTRADA'}
@@ -810,7 +815,7 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
       </div>
     </div>
     <div style="margin-top:10px;padding:10px;border:1px solid var(--borde-suave);border-radius:8px;font-size:0.8rem;color:var(--texto-secundario);">
-      <strong>Alcance:</strong> se muestran DN crudos de VV/VH. No se aplica calibración sigma0 ni corrección de terreno; no se infieren humedad del suelo, biomasa, especie ni sanidad.
+      <strong>Alcance:</strong> retrodispersión calibrada σ⁰ elipsoidal de VV/VH. No es gamma⁰ RTC ni una medición directa de humedad, biomasa, especie o sanidad.
       ${limitations.length ? `<ul style="margin:6px 0 0 18px;padding:0;">${limitations.map(item => `<li>${item}</li>`).join('')}</ul>` : ''}
     </div>
   `;
