@@ -786,6 +786,9 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
   const vhLinear = Number.isFinite(Number(s.vh_mean_sigma0)) ? Number(s.vh_mean_sigma0).toExponential(3) : 'NO DISPONIBLE';
   const limitations = Array.isArray(sarRes.limitations) ? sarRes.limitations : [];
   const noiseApplied = sarRes.calibration?.thermalNoiseRemovalApplied === true;
+  const noiseWarnings = Array.isArray(sarRes.calibration?.thermalNoiseWarnings)
+    ? sarRes.calibration.thermalNoiseWarnings
+    : [];
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
@@ -807,6 +810,7 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
         <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 4px;">
           ${sarRes.calibrationStatus || 'SIGMA0_ELLIPSOID_CALIBRATED'}<br>
           Ruido térmico: ${noiseApplied ? 'corregido' : 'no corregido'}<br>
+          ${noiseWarnings.length ? noiseWarnings.map(item => `Aviso: ${item}`).join('<br>') + '<br>' : ''}
           RTC / terreno: no aplicado<br>
           Escena: ${sarRes.productId ? sarRes.productId.slice(0, 25) + '...' : 'Sentinel-1 GRD'}<br>
           Fecha: ${sarRes.date || 'NO DISPONIBLE'} | Sensor: ${sarRes.sensor || 'Sentinel-1'}<br>
