@@ -151,6 +151,71 @@ def test_process_rejects_unknown_collection_before_dispatch():
     assert response.status_code == 422
 
 
+
+def test_engine_reads_bounded_stac_pagination(monkeypatch):
+    from backend import processing_engine
+
+    pages = [
+        {"type": "FeatureCollection", "features": [feature(item_id="PAGE_1")],
+         "links": [{"rel": "next", "href": "https://earth-search.aws.element84.com/v1/search?token=page2", "method": "GET"}]},
+        {"type": "FeatureCollection", "features": [feature(item_id="PAGE_2")], "links": []},
+    ]
+    monkeypatch.setattr(processing_engine, "_read_stac_page", lambda _provider, _body: pages[0])
+    monkeypatch.setattr(processing_engine, "_read_stac_next_page", lambda _provider, _link: pages[1])
+    found, has_more, page_count = processing_engine._read_stac_pages(
+        processing_engine.PROVIDERS["sentinel-1-grd"], {"collections": ["sentinel-1-grd"]}, max_pages=5
+    )
+    assert [item["id"] for item in found] == ["PAGE_1", "PAGE_2"]
+    assert has_more is False
+    assert page_count == 2
+
+
+def test_engine_rejects_pagination_links_to_untrusted_hosts():
+    from backend import processing_engine
+
+    with pytest.raises(ValueError, match="fuera del origen"):
+        processing_engine._read_stac_next_page(
+            processing_engine.PROVIDERS["sentinel-1-grd"],
+            {"rel": "next", "href": "https://attacker.example/steal", "method": "GET"},
+        )
+
+
+def test_engine_dispatches_territorial_analysis_without_reimplementing_it(monkeypatch):
+    from backend import territorial_analysis
+
+    calls = {}
+    def fake_gaez(req):
+        calls["geometry"] = req.geometry
+        calls["mapset_code"] = req.mapset_code
+        return {"success": True, "source": "FAO/IIASA GAEZ v5", "statistics": {"mean": 3.4}}
+
+    monkeypatch.setattr(territorial_analysis, "gaez_analyze", fake_gaez)
+    response = client.post("/api/engine/analyze", json={
+        "geometry": AOI,
+        "processor": "gaez",
+        "mapset_code": "GAEZ_TEST",
+        "crop": "maize",
+        "period": "baseline",
+        "climate_data_source": "historical",
+        "ssp": "none",
+        "input_level": "low",
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "PROCESSED"
+    assert payload["processor"] == "gaez"
+    assert payload["provenancePreserved"] is True
+    assert calls["mapset_code"] == "GAEZ_TEST"
+
+
+def test_engine_rejects_point_for_zonal_territorial_analysis():
+    response = client.post("/api/engine/analyze", json={
+        "geometry": {"type": "Point", "coordinates": [-54.6, -27.1]},
+        "processor": "hansen",
+    })
+    assert response.status_code == 422
+
+
 def test_unknown_collection_and_reversed_dates_are_rejected():
     unknown=client.post("/api/engine/scenes",json={"geometry":AOI,"startDate":"2026-11-01",
       "endDate":"2026-11-22","collections":["arbitrary-url"]})
