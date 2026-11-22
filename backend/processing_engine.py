@@ -146,7 +146,15 @@ def _asset_summary(assets: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(asset, dict):
             continue
         href = asset.get("href")
-        if not isinstance(href, str) or not href.startswith("https://"):
+        if isinstance(href, str):
+            if href.startswith("https://"):
+                pass
+            elif href.startswith("s3://") and href.split("/", 3)[2] == "sentinel-s1-l1c":
+                # Earth Search publishes Sentinel-1 measurement/annotation assets in this public bucket.
+                pass
+            else:
+                href = None
+        else:
             href = None
         result[str(key)] = {
             "href": href,
