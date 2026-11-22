@@ -64,7 +64,7 @@ test('Forestal lets users select comparison target dates and stores real scene r
   const forestPage = await readFile(new URL('../forestal.html', import.meta.url), 'utf8');
   assert.match(forestPage, /id="forest-date-a"/);
   assert.match(forestPage, /id="forest-date-b"/);
-  assert.match(forestPage, /saveReportSection\(feature\.geometry, 'forest-sentinel2'/);
+  assert.match(forestPage, /persistForestSection\(feature\.geometry, 'forest-sentinel2'/);
   assert.match(forestPage, /forest-gfw-run/);
   assert.match(forestPage, /forest-hansen-run/);
   assert.match(forestPage, /forest-jrc-run/);
