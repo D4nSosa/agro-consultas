@@ -18,12 +18,13 @@ test('technical report is responsive on mobile and print layouts', () => {
   assert.match(report, /\.compatibility-badge\{white-space:normal/);
 });
 
-test('technical report consolidates fire detections and local forecast', () => {
-  assert.match(report, /\/api\/fires\/national/);
-  assert.match(report, /\/api\/fires\/goes/);
-  assert.match(report, /\/api\/fires\/forecast/);
-  assert.match(report, /Detecciones recientes en el alcance consultado/);
+test('technical report reads saved fire detections and local forecast without querying services', () => {
+  assert.match(report, /reportSections\['fire-lot'\]/);
+  assert.match(report, /reportSections\['fire-forecast'\]/);
+  assert.match(report, /Detecciones recientes dentro del lote/);
   assert.match(report, /Pronóstico meteorológico local/);
+  assert.doesNotMatch(report, /\/api\/fires\//);
+  assert.doesNotMatch(report, /fetch\(/);
 });
 
 test('technical report does not redirect to external platforms', () => {
@@ -77,4 +78,12 @@ test('Forestal presents analysis output but leaves PDF and sharing to unified Re
 test('report normalizes shared raw GeoJSON geometry before loading saved results', () => {
   assert.match(report, /Los enlaces históricos pueden transportar una geometría GeoJSON directa/);
   assert.match(report, /parsedGeom = \{ type: 'Feature', properties: \{\}, geometry: parsedGeom \}/);
+});
+
+test('technical report consumes Agro analysis snapshots rather than recalculating suitability', () => {
+  assert.match(report, /reportSections\['agro-territory'\]/);
+  assert.match(report, /reportSections\['agro-environment'\]/);
+  assert.match(report, /reportSections\['agro-recommendations'\]/);
+  assert.doesNotMatch(report, /generateRecommendations/);
+  assert.doesNotMatch(report, /getSoilReport|getClimateData|getClimateHistory/);
 });
