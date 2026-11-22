@@ -230,6 +230,13 @@ def _asset_summary(assets: dict[str, Any]) -> dict[str, Any]:
             "eoBands": asset.get("eo:bands") if isinstance(asset.get("eo:bands"), list) else [],
             "rasterBands": asset.get("raster:bands") if isinstance(asset.get("raster:bands"), list) else [],
             "fileSize": asset.get("file:size"),
+            "checksum": asset.get("file:checksum"),
+            "gsd": asset.get("gsd"),
+            "projection": {
+                "epsg": asset.get("proj:epsg"),
+                "shape": asset.get("proj:shape"),
+                "transform": asset.get("proj:transform"),
+            },
         }
     return result
 
@@ -255,9 +262,13 @@ def _normalize_scene(item: dict, provider: dict) -> dict:
         "kind": provider["kind"],
         "datetime": props.get("datetime") or props.get("start_datetime"),
         "platform": props.get("platform"),
+        "constellation": props.get("constellation"),
         "instruments": props.get("instruments"),
+        "processingLevel": props.get("processing:level"),
+        "storageRegion": props.get("storage:region"),
         "mode": props.get("sar:instrument_mode"),
         "polarizations": polarizations,
+        "bands": eo_bands,
         "orbitState": props.get("sat:orbit_state"),
         "relativeOrbit": props.get("sat:relative_orbit"),
         "absoluteOrbit": props.get("sat:absolute_orbit"),
@@ -266,6 +277,7 @@ def _normalize_scene(item: dict, provider: dict) -> dict:
         "bbox": item.get("bbox"),
         "assets": assets,
         "assetKeys": list(assets),
+        "assetCount": len(assets),
         "catalogItemUrl": next(
             (link.get("href") for link in item.get("links", [])
              if isinstance(link, dict) and link.get("rel") == "self" and isinstance(link.get("href"), str)
