@@ -151,7 +151,7 @@
       document.getElementById('btn-share-report')?.addEventListener('click', async () => {
         const shareData = {
           title: 'Informe Técnico Territorial — Agro Consultas',
-          text: 'Consulta el informe técnico territorial en Agro Consultas.',
+          text: 'Consulta el informe técnico territorial en Agro Consultas. Los resultados analíticos se guardan localmente en este navegador y no viajan dentro del enlace compartido.',
           url: window.location.href
         };
         if (navigator.share) {
