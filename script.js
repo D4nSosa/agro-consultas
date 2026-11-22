@@ -796,7 +796,30 @@ export async function renderSarRadarUI(lat, lng, geom = null) {
   `;
 
   const targetGeom = geom || { type: "Point", coordinates: [lng, lat] };
-  const sarRes = await getSentinel1SarAnalysis(targetGeom);
+  let sarRes = null;
+  let sarTimeoutId;
+  try {
+    sarRes = await Promise.race([
+      getSentinel1SarAnalysis(targetGeom),
+      new Promise((_, reject) => {
+        sarTimeoutId = setTimeout(
+          () => reject(new Error("La consulta Sentinel-1 superó el tiempo máximo de espera (15 s).")),
+          15000
+        );
+      })
+    ]);
+  } catch (error) {
+    console.warn("[Agro-Consultas] Radar SAR no disponible:", error);
+    container.innerHTML = `
+      <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
+        <h4 style="margin: 0 0 6px 0; color: #c0392b;">📡 OBSERVACIONES RADAR SAR PENDIENTES</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">La fuente Sentinel-1 no respondió dentro de 15 segundos. El resto del análisis continúa disponible; podés volver a intentar más tarde.</p>
+      </div>
+    `;
+    return;
+  } finally {
+    clearTimeout(sarTimeoutId);
+  }
 
   if (!sarRes || sarRes.status === "UNAVAILABLE" || !sarRes.stats) {
     container.innerHTML = `
