@@ -97,3 +97,7 @@ test('Agro and Fire modules persist their results for the unified report', async
   assert.match(fire, /persistFireReportSection\('fire-lot'/);
   assert.match(fire, /persistFireReportSection\('fire-forecast'/);
 });
+
+test('shared report link discloses that analysis snapshots remain local to the browser', () => {
+  assert.match(report, /no viajan dentro del enlace compartido/i);
+});
