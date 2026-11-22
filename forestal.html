@@ -713,9 +713,11 @@
 
       // 2. Inicializar Línea Temporal
       timelineComp = new ForestTimeline('timeline-container', (dateA, dateB) => {
-        if (currentAnalysisData) {
-          ejecutarAnalisis(dateA, dateB);
-        }
+        const dateAInput = document.getElementById('forest-date-a');
+        const dateBInput = document.getElementById('forest-date-b');
+        if (dateAInput) dateAInput.value = dateA;
+        if (dateBInput) dateBInput.value = dateB;
+        if (currentAnalysisData) ejecutarAnalisis(dateA, dateB);
       });
 
       // 3. Inicializar Componente de Reporte
@@ -870,6 +872,8 @@
         if (currentAnalysisData) {
           currentAnalysisData.inventory = inv;
           reportComp.renderReport(currentAnalysisData);
+          const activeFeature = forestMap.getCurrentFeature() || getLotContext();
+          if (activeFeature?.geometry) saveReportSection(activeFeature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
         }
       });
 
@@ -903,6 +907,19 @@
       };
     }
 
+    function buildReportForestSnapshot(data) {
+      return {
+        timestamp: data.timestamp,
+        dates: data.dates,
+        search: data.search,
+        products: data.products,
+        timeline: data.timeline,
+        changes: data.changes,
+        ndvi: { analysisA: compactNdvi(data.ndvi?.analysisA), analysisB: compactNdvi(data.ndvi?.analysisB) },
+        inventory: data.inventory
+      };
+    }
+
     async function ejecutarAnalisis(dateA, dateB) {
       let feature = forestMap.getCurrentFeature() || getLotContext();
       if (!feature) {
@@ -927,20 +944,7 @@
       try {
         currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
         currentAnalysisData.inventory = calcularInventarioCampo();
-        const compactAnalysis = {
-          timestamp: currentAnalysisData.timestamp,
-          dates: currentAnalysisData.dates,
-          search: currentAnalysisData.search,
-          products: currentAnalysisData.products,
-          timeline: currentAnalysisData.timeline,
-          changes: currentAnalysisData.changes,
-          ndvi: {
-            analysisA: compactNdvi(currentAnalysisData.ndvi?.analysisA),
-            analysisB: compactNdvi(currentAnalysisData.ndvi?.analysisB)
-          },
-          inventory: currentAnalysisData.inventory
-        };
-        saveReportSection(feature.geometry, 'forest-sentinel2', compactAnalysis, { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
+        saveReportSection(feature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
         timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);
         reportComp.renderReport(currentAnalysisData);
       } catch (error) {
