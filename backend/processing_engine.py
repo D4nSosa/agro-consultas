@@ -1,9 +1,9 @@
-"""On-demand geospatial acquisition engine.
+"""On-demand geospatial acquisition and analysis orchestrator.
 
-This first engine layer centralizes AOI validation, allow-listed STAC discovery,
-scene metadata normalization and bounded caching. It discovers products only;
-the existing Forestal processors remain responsible for NDVI and Sentinel-1
-radiometric processing. No asset is treated as processed merely because it exists.
+Centralizes AOI validation, allow-listed STAC discovery, bounded pagination,
+scene metadata normalization, exact-scene dispatch and delegation to existing
+specialized raster/territorial processors. It does not duplicate their algorithms.
+A catalog asset is never treated as processed until a specialist reads valid pixels.
 """
 from __future__ import annotations
 
