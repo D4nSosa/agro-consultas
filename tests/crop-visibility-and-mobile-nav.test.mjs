@@ -72,11 +72,14 @@ test('production HTML and module imports are cache-busted after UI fixes', async
 });
 
 test('Sentinel-1 radar requests cannot keep the Agro processing overlay open indefinitely', () => {
-  const radarFunction = script.match(/export async function renderSarRadarUI[\\s\\S]*?\\n}\\n\\n\\/\\*\\*/)?.[0] || '';
-  assert.match(radarFunction, /Promise\\.race/);
-  assert.match(radarFunction, /15000/);
-  assert.match(radarFunction, /finally\\s*\\{\\s*clearTimeout\\(sarTimeoutId\\)/);
-  assert.match(radarFunction, /La fuente Sentinel-1 no respondió dentro de 15 segundos/);
+  const start = script.indexOf('export async function renderSarRadarUI');
+  const end = script.indexOf('\\n}\\n\\n/**', start);
+  const radarFunction = script.slice(start, end);
+  assert.ok(start >= 0 && end > start, 'renderSarRadarUI must be present');
+  assert.ok(radarFunction.includes('Promise.race'));
+  assert.ok(radarFunction.includes('15000'));
+  assert.ok(radarFunction.includes('clearTimeout(sarTimeoutId)'));
+  assert.ok(radarFunction.includes('La fuente Sentinel-1 no respondió dentro de 15 segundos'));
 });
 
 test('fire-weather heuristic is not presented as official FWI in user-facing modules', async () => {
