@@ -174,6 +174,64 @@ def test_engine_reads_bounded_stac_pagination(monkeypatch):
     assert page_count == 2
 
 
+
+def test_sar_processor_fetches_exact_stac_item_and_validates_date(monkeypatch):
+    import json
+    from backend import main as forest_api
+
+    item = {
+        "type": "Feature",
+        "id": "S1A_EXACT_SCENE",
+        "collection": "sentinel-1-grd",
+        "geometry": AOI,
+        "bbox": [-68.6, -34.7, -68.5, -34.6],
+        "properties": {
+            "datetime": "2026-11-10T10:12:00Z",
+            "platform": "sentinel-1a",
+            "sar:polarizations": ["VV", "VH"],
+            "sar:instrument_mode": "IW",
+            "sat:orbit_state": "ascending",
+        },
+        "assets": {
+            "vv": {"href": "s3://sentinel-s1-l1c/GRD/vv.tif"},
+            "vh": {"href": "s3://sentinel-s1-l1c/GRD/vh.tif"},
+            "schema-calibration-vv": {"href": "s3://sentinel-s1-l1c/GRD/cal-vv.xml"},
+            "schema-calibration-vh": {"href": "s3://sentinel-s1-l1c/GRD/cal-vh.xml"},
+        },
+    }
+
+    class Response:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def read(self, *_args):
+            return json.dumps(item).encode("utf-8")
+
+    calls = []
+    def fake_urlopen(request, timeout=15):
+        calls.append(request.full_url)
+        return Response()
+
+    monkeypatch.setattr(forest_api.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(forest_api, "process_sentinel1_grd", lambda *args, **kwargs: {
+        "vv_mean_db": -11.2, "vh_mean_db": -18.4,
+        "vv_mean_sigma0": 0.075, "vh_mean_sigma0": 0.014,
+        "vvSampleCount": 12, "vhSampleCount": 12, "sampleCount": 12,
+        "noiseRemovalApplied": False, "noiseWarnings": [],
+    })
+    response = forest_api.get_sar_analysis(forest_api.SARAnalysisRequest(
+        geometry=forest_api.GeoJSONGeometry(type="Polygon", coordinates=AOI["coordinates"]),
+        startDate="2026-11-10",
+        endDate="2026-11-10",
+        productId="S1A_EXACT_SCENE",
+    ))
+    assert response["status"] == "REAL"
+    assert response["productId"] == "S1A_EXACT_SCENE"
+    assert calls and "/collections/sentinel-1-grd/items/S1A_EXACT_SCENE" in calls[0]
+
+
 def test_engine_rejects_pagination_links_to_untrusted_hosts():
     from backend import processing_engine
 
