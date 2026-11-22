@@ -1461,6 +1461,7 @@ def get_sar_analysis(req: SARAnalysisRequest):
                     "coefficient": "sigma0-ellipsoid",
                     "method": "ESA per-polarisation calibration LUT",
                     "thermalNoiseRemovalApplied": stats.get("noiseRemovalApplied", False),
+                    "thermalNoiseWarnings": stats.get("noiseWarnings", []),
                     "terrainCorrectionApplied": False,
                     "rtcApplied": False
                 },
