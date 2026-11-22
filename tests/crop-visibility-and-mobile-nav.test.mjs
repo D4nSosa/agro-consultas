@@ -71,6 +71,14 @@ test('production HTML and module imports are cache-busted after UI fixes', async
   assert.ok(config.headers.some(item => item.source === '/forestal.html'));
 });
 
+test('Sentinel-1 radar requests cannot keep the Agro processing overlay open indefinitely', () => {
+  const radarFunction = script.match(/export async function renderSarRadarUI[\\s\\S]*?\\n}\\n\\n\\/\\*\\*/)?.[0] || '';
+  assert.match(radarFunction, /Promise\\.race/);
+  assert.match(radarFunction, /15000/);
+  assert.match(radarFunction, /finally\\s*\\{\\s*clearTimeout\\(sarTimeoutId\\)/);
+  assert.match(radarFunction, /La fuente Sentinel-1 no respondió dentro de 15 segundos/);
+});
+
 test('fire-weather heuristic is not presented as official FWI in user-facing modules', async () => {
   const [report, tracking, openMeteo] = await Promise.all([
     readFile(new URL('../reporte.html', import.meta.url), 'utf8'),
