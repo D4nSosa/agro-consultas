@@ -180,7 +180,7 @@ def _process_polarisation(measurement_href, calibration_href, noise_href, geomet
         except Exception as error:
             noise_warning = f"No se pudo aplicar la corrección de ruido térmico: {str(error)[:160]}"
 
-    env_options = {"AWS_NO_SIGN_REQUEST": "YES", "AWS_REQUEST_PAYER": "requester"}
+    env_options = {"AWS_NO_SIGN_REQUEST": "YES", "AWS_REQUEST_PAYER": "requester", "AWS_REGION": region}
     with rasterio.Env(**env_options):
         with rasterio.open(_raster_path(measurement_href)) as source:
             gcps, _gcp_crs = source.gcps
