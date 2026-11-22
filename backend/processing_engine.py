@@ -63,6 +63,13 @@ class SceneSearchRequest(BaseModel):
     limit: int = Field(default=50, ge=1, le=100)
 
 
+class ProcessSceneRequest(BaseModel):
+    geometry: dict[str, Any] = Field(description="GeoJSON Point, Polygon, MultiPolygon o Feature en WGS84/EPSG:4326")
+    collection: str
+    productId: str = Field(min_length=1, max_length=256)
+    date: dt.date
+
+
 def _validated_geometry(value: dict[str, Any]):
     if not isinstance(value, dict):
         raise HTTPException(status_code=422, detail="El AOI debe ser una geometría GeoJSON.")
@@ -201,6 +208,67 @@ def _normalize_scene(item: dict, provider: dict) -> dict:
     }
 
 
+
+@router.post("/process")
+def process_discovered_scene(request: ProcessSceneRequest):
+    """Process one exact catalog scene using the existing specialized Forestal processors."""
+    if request.collection not in PROVIDERS:
+        raise HTTPException(status_code=422, detail="Colección no admitida por el motor.")
+    geom = _validated_geometry(request.geometry)
+    geometry = mapping(geom)
+    geojson_geometry = {
+        "type": geometry["type"],
+        "coordinates": geometry["coordinates"],
+    }
+
+    try:
+        # Lazy import avoids a circular import: main.py registers this router.
+        from backend import main as forest_api
+
+        if request.collection == "sentinel-1-grd":
+            typed_geometry = forest_api.GeoJSONGeometry(**geojson_geometry)
+            result = forest_api.get_sar_analysis(forest_api.SARAnalysisRequest(
+                geometry=typed_geometry,
+                startDate=request.date.isoformat(),
+                endDate=request.date.isoformat(),
+                productId=request.productId,
+            ))
+            processor = "forest.sar"
+        elif request.collection in ("sentinel-2-l2a", "landsat-c2-l2"):
+            typed_geometry = forest_api.GeoJSONGeometry(**geojson_geometry)
+            result = forest_api.calculate_ndvi(forest_api.NDVIAnalysisRequest(
+                geometry=typed_geometry,
+                date=request.date.isoformat(),
+                productId=request.productId,
+                collection=request.collection,
+            ))
+            processor = "forest.ndvi"
+        else:
+            raise HTTPException(status_code=422, detail="No existe un procesador para esta colección.")
+
+        raw_status = result.get("status")
+        processed = raw_status == "REAL"
+        return {
+            "status": "PROCESSED" if processed else "PROCESSING_UNAVAILABLE",
+            "sceneId": request.productId,
+            "collection": request.collection,
+            "requestedDate": request.date.isoformat(),
+            "processor": processor,
+            "assetAccessVerified": processed,
+            "result": result,
+            "limitations": [
+                "El procesamiento se delega al procesador especializado existente; el motor no duplica sus fórmulas ni máscaras.",
+                "assetAccessVerified=true significa que el procesador pudo leer los activos necesarios y producir píxeles válidos, no que todos los assets opcionales de la escena hayan sido descargados.",
+                "La escena debe haber sido descubierta para el mismo AOI y fecha; el ID se vuelve a comprobar en el catálogo antes del procesamiento.",
+            ],
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Falló el procesador especializado: {type(exc).__name__}: {str(exc)[:240]}")
+
+
+
 @router.get("/capabilities")
 def engine_capabilities():
     """Describe supported discovery providers without asserting live availability."""
@@ -226,7 +294,7 @@ def engine_capabilities():
             "landsat": "Existing Forestal NDVI processor with QA_PIXEL quality mask.",
         },
         "limitations": [
-            "This endpoint discovers and normalizes scenes; it does not download or process raster pixels.",
+            "POST /scenes discovers and normalizes scenes; POST /process delegates one exact scene to the existing specialized raster processor.",
             "Scene coverage and asset accessibility must be verified per request.",
             "A catalog timeout or error is reported as an upstream error, never as zero scenes.",
             "The current cache is process-local and expires after 10 minutes.",
