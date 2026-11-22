@@ -3,7 +3,7 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ["workspace.js", "script.js", "services/lotContext.js", "services/fireMonitoringService.mjs", "forestal/utils/geo.js", "utils/scoring.js", "services/soilService.js", "forestal/services/vegetationService.js", "services/sources/intaService.js", "forestal/services/satelliteService.js", "forestal/components/ChangeReport.js", "forestal/components/ForestMap.js"]
+FILES = ["workspace.js", "script.js", "services/lotContext.js", "services/reportAnalysisStore.js", "services/fireMonitoringService.mjs", "forestal/utils/geo.js", "utils/scoring.js", "services/soilService.js", "forestal/services/vegetationService.js", "services/sources/intaService.js", "forestal/services/satelliteService.js", "forestal/components/ChangeReport.js", "forestal/components/ForestMap.js"]
 INLINE_HTML = ["mapa.html", "tracking.html", "forestal.html", "resultados.html", "incendios.html", "reporte.html"]
 
 def check_module(source: str, label: str) -> None:
