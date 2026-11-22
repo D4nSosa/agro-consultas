@@ -255,76 +255,77 @@ export class MapViewer {
     if (!container) return;
 
     const baseModes = [
-      { key: 'normal', name: '🗺️ Mapa Normal' },
+      { key: 'normal', name: '🗺️ Mapa normal' },
       { key: 'satellite', name: '🛰️ Satelital' },
       { key: 'relief', name: '⛰️ Relieve' }
     ];
+    const overlays = Object.values(this.overlayLayers).filter(layer => layer);
+    const availableOverlays = overlays.filter(layer => layer.available);
+    const activeCount = availableOverlays.filter(item => this.map?.hasLayer(item.layer)).length;
 
-    const activeOrAvailableOverlays = Object.values(this.overlayLayers).filter(l => l && l.available);
+    const baseHtml = baseModes.map(mode => {
+      const active = mode.key === this.currentBaseMode;
+      return `<button type="button" class="btn-base-map ${active ? 'active' : ''}"
+        data-mode="${mode.key}" aria-pressed="${active}">
+        ${mode.name}
+      </button>`;
+    }).join('');
 
-    let overlaysHtml = '';
-    if (activeOrAvailableOverlays.length === 0) {
-      overlaysHtml = `
-        <div style="font-size: 0.8rem; color: var(--texto-secundario, #666); padding: 4px 0;">
-          Las capas temáticas (ej. Aptitud del cultivo) se activan automáticamente al seleccionar una ubicación y ejecutar una consulta.
-        </div>
-      `;
-    } else {
-      overlaysHtml = activeOrAvailableOverlays.map(o => {
-        const isChecked = this.map && o.layer && this.map.hasLayer(o.layer);
-        return `
-          <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; padding: 4px 0; border-bottom: 1px dashed #eee; cursor: pointer;">
-            <span style="display: flex; align-items: center; gap: 6px;">
-              <input type="checkbox" class="chk-overlay-layer" data-layer="${o.key}" ${isChecked ? 'checked' : ''} />
-              <span>${escapeHTML(o.name)}</span>
+    const overlayHtml = availableOverlays.length
+      ? availableOverlays.map(item => {
+          const checked = Boolean(this.map && item.layer && this.map.hasLayer(item.layer));
+          return `<label class="map-overlay-row">
+            <input type="checkbox" class="chk-overlay-layer" data-layer="${escapeHTML(item.key)}"
+              ${checked ? 'checked' : ''} aria-label="${escapeHTML(item.name)}">
+            <span class="map-overlay-name">
+              <strong>${escapeHTML(item.name)}</strong>
+              <small>${escapeHTML(item.category || 'Capa temática')}</small>
             </span>
-            <span style="font-size: 0.72rem; color: #27ae60; font-weight: 600;">ACTIVA</span>
-          </label>
-        `;
-      }).join('');
-    }
+            <span class="map-overlay-state ${checked ? 'is-active' : ''}" aria-live="polite">
+              ${checked ? 'Activada' : 'Disponible'}
+            </span>
+          </label>`;
+        }).join('')
+      : '<p class="map-overlay-empty">No hay capas temáticas disponibles para esta consulta.</p>';
 
-    let html = `
-      <div class="map-layer-control-panel" style="background: var(--color-tarjeta, #ffffff); border: 1px solid var(--borde-suave, #e0e0e0); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
-        <div style="font-weight: bold; margin-bottom: 8px; color: var(--verde-principal, #2c3e50); border-bottom: 1px solid var(--borde-suave); padding-bottom: 4px;">
-          🗺️ Modos de Mapa Base
+    container.innerHTML = `
+      <section class="map-layer-control-panel" aria-label="Controles del mapa">
+        <div class="map-base-section">
+          <h3>🗺️ Modos de mapa base</h3>
+          <div class="base-map-buttons" role="group" aria-label="Seleccionar mapa base">${baseHtml}</div>
         </div>
-        <div class="base-map-buttons" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
-          ${baseModes.map(m => `
-            <button type="button" class="btn-base-map ${m.key === this.currentBaseMode ? 'active' : ''}" data-mode="${m.key}"
-              style="padding: 4px 10px; font-size: 0.78rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: ${m.key === this.currentBaseMode ? 'var(--verde-principal, #27ae60)' : '#f8f9fa'}; color: ${m.key === this.currentBaseMode ? '#fff' : '#333'};">
-              ${m.name}
-            </button>
-          `).join('')}
-        </div>
-
-        <div style="font-weight: bold; margin-bottom: 6px; color: var(--verde-principal, #2c3e50); border-bottom: 1px solid var(--borde-suave); padding-bottom: 4px;">
-          🥞 Capas Temáticas de la Consulta Actual
-        </div>
-        <div class="overlay-layers-list" style="display: flex; flex-direction: column; gap: 4px;">
-          ${overlaysHtml}
-        </div>
-      </div>
+        <details class="map-overlay-details">
+          <summary>
+            <span>🗂️ Capas temáticas</span>
+            <span class="map-overlay-summary-meta">${activeCount} activada${activeCount === 1 ? '' : 's'} · ${availableOverlays.length} disponible${availableOverlays.length === 1 ? '' : 's'}</span>
+          </summary>
+          <p class="map-overlay-help">Activá una capa para verla sobre el mapa. Volvé a tocarla para ocultarla.</p>
+          <div class="overlay-layers-list">${overlayHtml}</div>
+        </details>
+      </section>
     `;
 
-    container.innerHTML = html;
-
-    // Listeners Capa Base
-    container.querySelectorAll('.btn-base-map').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const mode = e.currentTarget.getAttribute('data-mode');
-        this.setBaseMode(mode);
+    container.querySelectorAll('.btn-base-map').forEach(button => {
+      button.addEventListener('click', event => {
+        this.setBaseMode(event.currentTarget.dataset.mode);
         this.renderControlPanel(containerElementId);
       });
     });
 
-    // Listeners Capas Superpuestas
-    container.querySelectorAll('.chk-overlay-layer').forEach(chk => {
-      chk.addEventListener('change', (e) => {
-        const layerKey = e.target.getAttribute('data-layer');
-        const checked = e.target.checked;
-        this.toggleOverlayLayer(layerKey, checked);
+    container.querySelectorAll('.chk-overlay-layer').forEach(input => {
+      input.addEventListener('change', event => {
+        const layerKey = event.currentTarget.dataset.layer;
+        const enabled = event.currentTarget.checked;
+        const changed = this.toggleOverlayLayer(layerKey, enabled);
+        if (changed === false) {
+          event.currentTarget.checked = false;
+        }
         this.renderControlPanel(containerElementId);
+        const mapElement = this.map?.getContainer?.();
+        if (mapElement) {
+          mapElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          requestAnimationFrame(() => this.map?.invalidateSize?.({ pan: false }));
+        }
       });
     });
   }

@@ -530,10 +530,14 @@ def _history_source_for_day(family, day, availability):
     return None
 
 
-def _history_query_plan(start_date, end_date, availability):
-    """Build per-sensor requests, respecting each product's published date coverage."""
+def _history_query_plan(start_date, end_date, availability, sensor_families=None):
+    """Build selected per-sensor requests, respecting NASA's published date coverage."""
+    selected = tuple(sensor_families or HISTORY_SENSOR_FAMILIES.keys())
+    unknown = set(selected) - set(HISTORY_SENSOR_FAMILIES)
+    if unknown:
+        raise ValueError("Sensores FIRMS no admitidos: " + ", ".join(sorted(unknown)))
     tasks, unavailable = [], {}
-    for family in HISTORY_SENSOR_FAMILIES:
+    for family in selected:
         day = start_date
         active_source, active_start, active_days = None, None, 0
         while day <= end_date:
@@ -772,9 +776,23 @@ def historical_fires(payload: dict):
     if (end_date - start_date).days + 1 > HISTORY_MAX_DAYS:
         raise HTTPException(status_code=400, detail=f"Consultá períodos de hasta {HISTORY_MAX_DAYS} días por solicitud.")
 
+    requested_sensors = payload.get("sensors") if isinstance(payload, dict) else None
+    if requested_sensors is None:
+        selected_sensors = tuple(HISTORY_SENSOR_FAMILIES.keys())
+    elif not isinstance(requested_sensors, list) or not requested_sensors:
+        raise HTTPException(status_code=400, detail="Seleccioná al menos un sensor NASA FIRMS.")
+    else:
+        selected_sensors = tuple(dict.fromkeys(str(item).strip().upper() for item in requested_sensors))
+        unknown_sensors = set(selected_sensors) - set(HISTORY_SENSOR_FAMILIES)
+        if unknown_sensors:
+            raise HTTPException(
+                status_code=400,
+                detail="Sensores FIRMS no admitidos: " + ", ".join(sorted(unknown_sensors))
+            )
+
     west, south, east, north = geometry.bounds
     geometry_hash = __import__("hashlib").sha256(geometry.wkb).hexdigest()
-    cache_key = (geometry_hash, start_date.isoformat(), end_date.isoformat())
+    cache_key = (geometry_hash, start_date.isoformat(), end_date.isoformat(), selected_sensors)
     now = time.monotonic()
     with HISTORY_CACHE_LOCK:
         cached = HISTORY_CACHE.get(cache_key)
@@ -799,13 +817,14 @@ def historical_fires(payload: dict):
             )
         raise HTTPException(status_code=502, detail="No se pudo consultar la disponibilidad del archivo NASA FIRMS. " + message)
 
-    tasks, unavailable = _history_query_plan(start_date, end_date, availability)
+    tasks, unavailable = _history_query_plan(start_date, end_date, availability, selected_sensors)
     if not tasks:
         return {
             "type": "FeatureCollection", "features": [],
             "meta": {
                 "source": "NASA FIRMS", "from": start_date.isoformat(), "to": end_date.isoformat(),
                 "count": 0, "products": [], "errors": [],
+                "sensorsRequested": list(selected_sensors),
                 "unavailable": unavailable, "complete": True, "coverageComplete": False,
                 "message": "NASA FIRMS no publica datos para el período solicitado en los productos consultados.",
                 "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -856,6 +875,7 @@ def historical_fires(payload: dict):
             "from": start_date.isoformat(), "to": end_date.isoformat(),
             "count": len(features), "scope": "detections intersecting selected lot geometry",
             "products": sorted(successful_products), "errors": errors,
+            "sensorsRequested": list(selected_sensors),
             "unavailable": unavailable, "complete": complete, "coverageComplete": not unavailable,
             "retryAfterSeconds": _firms_retry_after() or None,
             "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
