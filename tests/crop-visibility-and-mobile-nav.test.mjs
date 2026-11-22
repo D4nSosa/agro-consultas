@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [script, styles, nasaService] = await Promise.all([
+const [script, styles, nasaService, openMeteoService, smnService] = await Promise.all([
   readFile(new URL('../script.js', import.meta.url), 'utf8'),
   readFile(new URL('../styles.css', import.meta.url), 'utf8'),
-  readFile(new URL('../services/sources/nasaPowerService.js', import.meta.url), 'utf8')
+  readFile(new URL('../services/sources/nasaPowerService.js', import.meta.url), 'utf8'),
+  readFile(new URL('../services/sources/openMeteoService.js', import.meta.url), 'utf8'),
+  readFile(new URL('../services/sources/smnService.js', import.meta.url), 'utf8')
 ]);
 
 test('crop candidates remain visible without being mislabeled as recommendations', () => {
@@ -80,6 +82,37 @@ test('Sentinel-1 radar requests cannot keep the Agro processing overlay open ind
   assert.ok(radarFunction.includes('15000'));
   assert.ok(radarFunction.includes('clearTimeout(sarTimeoutId)'));
   assert.ok(radarFunction.includes('La fuente Sentinel-1 no respondió dentro de 15 segundos'));
+});
+
+
+test('map and GPS selection always release the global overlay when Sentinel-1 stalls', () => {
+  const start = script.indexOf('export async function procesarSeleccionCoordenadas');
+  const end = script.indexOf('\n}\n', start);
+  const flow = script.slice(start, end);
+  assert.ok(flow.includes("ejecutarEtapaConTimeout(\n      'Radar satelital'"));
+  assert.ok(flow.includes('18000'));
+  assert.ok(flow.includes('ocultarIndicadorCarga();'));
+  assert.match(script, /getSentinel1SarAnalysis\(targetGeom\)/);
+  assert.match(script, /15000/);
+});
+
+test('Open-Meteo and SMN keep AbortController active until JSON body parsing finishes', () => {
+  assert.match(openMeteoService, /await response\.json\(\)[\s\S]*?finally\s*\{\s*clearTimeout\(timeoutId\)/);
+  assert.match(smnService, /await response\.json\(\)[\s\S]*?finally\s*\{\s*clearTimeout\(timeoutId\)/);
+  assert.match(openMeteoService, /controller\.abort\(\), 12000/);
+  assert.match(smnService, /controller\.abort\(\), 2500/);
+});
+
+test('NASA POWER monthly and climatology requests have independent bounded fetch and JSON parsing', () => {
+  assert.match(nasaService, /NASA_POWER_REQUEST_TIMEOUT_MS = 10000/);
+  assert.match(nasaService, /fetch\(url, \{ signal: controller\.signal \}\)/);
+  assert.match(nasaService, /await response\.json\(\)/);
+  assert.match(nasaService, /fetchJsonWithTimeout\(url\)/);
+});
+
+test('Agro stores forest candidates from the already generated recommendation set without recalculating them', () => {
+  assert.match(script, /const recomendacionesForestales = selectedCropKey === 'todos'[\s\S]*?recomendaciones\.filter/);
+  assert.doesNotMatch(script, /generateRecommendations\(forestNames/);
 });
 
 test('fire-weather heuristic is not presented as official FWI in user-facing modules', async () => {
