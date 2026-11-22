@@ -322,3 +322,18 @@ def test_history_query_plan_only_uses_selected_sensor_families():
     assert {task[0] for task in tasks} == {"MODIS", "VIIRS_SNPP"}
     assert "VIIRS_NOAA20" not in unavailable
     assert "VIIRS_NOAA21" not in unavailable
+
+
+def test_historical_endpoint_rejects_unknown_sensor_family(monkeypatch):
+    monkeypatch.setenv("FIRMS_MAP_KEY", "test-key")
+    response = client.post(
+        "/api/fires/history",
+        json={
+            "geometry": POLYGON,
+            "from": "2020-10-23",
+            "to": "2020-10-24",
+            "sensors": ["VIIRS_NOAA22"],
+        },
+    )
+    assert response.status_code == 400
+    assert "Sensores FIRMS no admitidos" in response.json()["detail"]
