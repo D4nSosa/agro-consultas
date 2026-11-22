@@ -6,6 +6,7 @@ El motor central se integra como infraestructura de backend, no como un módulo 
 
 - `GET /api/engine/capabilities`: proveedores y capacidades declaradas.
 - `POST /api/engine/scenes`: descubrimiento de escenas.
+- `POST /api/engine/process`: procesa un ID de escena concreto mediante el procesador especializado existente.
 
 Colecciones permitidas:
 - `sentinel-1-grd` — AWS Earth Search.
@@ -22,10 +23,10 @@ Cada escena normaliza identificador, colección, proveedor, fecha, plataforma, m
 
 ## Procesamiento y límites
 
-Este endpoint descubre y normaliza escenas; no descarga píxeles ni reemplaza procesadores existentes:
+El descubrimiento y el procesamiento son operaciones separadas. `/scenes` no descarga píxeles. `/process` vuelve a localizar el ID exacto en el catálogo y delega la lectura de los assets al procesador existente:
 - Sentinel-1 continúa por el procesador SAR del módulo Forestal.
 - Sentinel-2 y Landsat continúan por el flujo NDVI existente y sus máscaras de calidad.
 
-No declara calibración, RTC, corrección topográfica ni estadísticas raster. La verificación de archivos y el procesamiento se ejecutan en servicios especializados.
+Para Sentinel-1, `/process` utiliza el procesador SAR existente y devuelve Sigma0 elipsoidal, sin declarar RTC ni corrección topográfica. Para Sentinel-2 y Landsat, utiliza el procesador NDVI existente y sus máscaras SCL/QA_PIXEL. `assetAccessVerified=true` solo se devuelve cuando el procesador leyó los assets necesarios y produjo píxeles válidos; no implica que todos los assets opcionales de la escena hayan sido descargados.
 
-Los catálogos son globales y la disponibilidad real se determina por AOI y fecha en cada consulta. Se aceptan geometrías WGS84 válidas; no se infiere pertenencia administrativa a Argentina a partir de un rectángulo envolvente. Cada proveedor tiene timeout de 25 segundos y hasta 100 resultados por colección. La caché es efímera y local al proceso, no compartida entre instancias. Los errores upstream se informan explícitamente, nunca como cero escenas.
+Los catálogos son globales y la disponibilidad real se determina por AOI y fecha en cada consulta. Se aceptan geometrías WGS84 válidas; no se infiere pertenencia administrativa a Argentina a partir de un rectángulo envolvente. Cada proveedor tiene timeout de 25 segundos y hasta 100 resultados por colección. El procesamiento se limita a una escena por solicitud y queda sujeto a los límites de tiempo y memoria del despliegue. La caché es efímera y local al proceso, no compartida entre instancias. Los errores upstream se informan explícitamente, nunca como cero escenas.
