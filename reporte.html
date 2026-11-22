@@ -240,10 +240,10 @@
         L.marker([lat, lng]).addTo(reportMap);
       }
 
-      // Ejecutar análisis territorial
+      // Construir informe unificado desde resultados guardados
       const analysisContainer = document.getElementById('report-analysis-container');
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        analysisContainer.innerHTML = `<p style="color:#c0392b;">No se especificaron coordenadas válidas para generar el análisis.</p>`;
+        analysisContainer.innerHTML = `<p style="color:#c0392b;">No se especificaron coordenadas válidas para generar el informe.</p>`;
         return;
       }
 
@@ -467,7 +467,7 @@
         `;
 
       } catch (err) {
-        analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al generar el análisis del reporte: ${err.message}</p>`;
+        analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al preparar el informe: ${err.message}</p>`;
       }
     });
   </script>
