@@ -21,9 +21,9 @@ La API usa endpoints allow-listed; el cliente no puede elegir una URL arbitraria
 
 ## Contrato de salida
 
-Cada escena normaliza identificador, colección, proveedor, fecha, plataforma, modo, polarizaciones, órbita, geometría, bbox, assets y enlaces. Los metadatos de bandas, roles y tamaño se conservan solo cuando el catálogo los publica.
+Cada escena normaliza identificador, colección, proveedor, fecha, plataforma, modo, polarizaciones, órbita, geometría, bbox, assets y enlaces. Conserva bandas, roles, tamaño, checksum, GSD y referencias de proyección cuando el catálogo los publica. Los assets S3 de Sentinel-1 se preservan solo para el bucket público esperado; no se aceptan esquemas o referencias arbitrarias.
 
-`coverageStatus=INTERSECTS_AOI` significa que la huella reportada por STAC intersecta el AOI. No significa cobertura completa de la parcela ni confirma que un asset sea descargable. La respuesta incluye `hasMore` cuando el catálogo publica paginación siguiente; esta versión informa ese estado, pero no recorre páginas adicionales.
+`coverageStatus=INTERSECTS_AOI` significa que la huella reportada por STAC intersecta el AOI. No significa cobertura completa de la parcela ni confirma que un asset sea descargable. La respuesta incluye `hasMore` si el catálogo aún tiene páginas luego del máximo de cinco páginas leídas por colección. Las colecciones se consultan en paralelo y los enlaces de paginación se limitan al mismo origen HTTPS del catálogo.
 
 ## Procesamiento y límites
 
