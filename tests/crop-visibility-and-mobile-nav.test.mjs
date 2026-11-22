@@ -73,7 +73,7 @@ test('production HTML and module imports are cache-busted after UI fixes', async
 
 test('Sentinel-1 radar requests cannot keep the Agro processing overlay open indefinitely', () => {
   const start = script.indexOf('export async function renderSarRadarUI');
-  const end = script.indexOf('\n}\n/**', start);
+  const end = script.indexOf('/**\n * Renderiza la capa visual de aptitud', start);
   const radarFunction = script.slice(start, end);
   assert.ok(start >= 0 && end > start, 'renderSarRadarUI must be present');
   assert.ok(radarFunction.includes('Promise.race'));
