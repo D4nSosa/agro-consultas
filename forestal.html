@@ -747,7 +747,7 @@
           let payload;
           try { payload = raw ? JSON.parse(raw) : {}; } catch (_) { throw new Error('La fuente devolvió una respuesta no válida.'); }
           if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || payload?.message || ('HTTP ' + response.status));
-          saveReportSection(feature.geometry, kind, payload, { module: 'forestal', source: endpoint });
+          persistForestSection(feature.geometry, kind, payload, { module: 'forestal', source: endpoint });
           if (status) status.textContent = 'Resultado guardado para este lote. Consultá el módulo Informes para verlo en el reporte unificado.';
         } catch (error) {
           if (status) status.textContent = 'No se pudo completar el análisis: ' + error.message;
@@ -873,7 +873,7 @@
           currentAnalysisData.inventory = inv;
           reportComp.renderReport(currentAnalysisData);
           const activeFeature = forestMap.getCurrentFeature() || getLotContext();
-          if (activeFeature?.geometry) saveReportSection(activeFeature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
+          if (activeFeature?.geometry) persistForestSection(activeFeature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
         }
       });
 
@@ -890,6 +890,16 @@
       // Inicialización limpia sin lote pre-cargado
     });
 
+
+    function persistForestSection(geometry, section, payload, metadata = {}) {
+      try {
+        saveReportSection(geometry, section, payload, metadata);
+        return true;
+      } catch (error) {
+        console.warn('[Agro-Consultas] No se pudo guardar el resultado para Informes:', error.message);
+        return false;
+      }
+    }
 
     function compactNdvi(item) {
       if (!item) return null;
@@ -944,7 +954,7 @@
       try {
         currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
         currentAnalysisData.inventory = calcularInventarioCampo();
-        saveReportSection(feature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
+        persistForestSection(feature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
         timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);
         reportComp.renderReport(currentAnalysisData);
       } catch (error) {
