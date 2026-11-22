@@ -36,12 +36,15 @@ export async function fetchSMNAlerts(provincia) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-
-    const alertsList = await response.json();
+    let alertsList;
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+      // Mantener el timeout activo también durante la descarga y el parseo del JSON.
+      alertsList = await response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
     const provinciaNormalizada = provStr.toLowerCase().trim();
 
     const alertasProvinciales = alertsList.filter(alerta => {
