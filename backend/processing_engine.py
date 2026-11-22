@@ -394,13 +394,34 @@ def analyze_existing_dataset(request: DatasetAnalysisRequest):
         raise HTTPException(status_code=502, detail=f"Falló el procesador territorial {request.processor}: {type(exc).__name__}: {str(exc)[:240]}")
 
 
+@router.get("/sources")
+def engine_source_catalog():
+    """Expose the existing official-source registry through the central engine."""
+    from backend import source_catalog
+    return source_catalog.get_source_catalog()
+
+
+@router.get("/ogc/{provider}/{service}")
+def engine_ogc_capabilities(provider: str, service: str, layer_filter: str | None = None):
+    """Delegate OGC GetCapabilities to the existing provider allow-list."""
+    from backend import source_catalog
+    return source_catalog.get_ogc_capabilities(provider, service, layer_filter)
+
+
+@router.get("/mapbiomas/tiles/{year}")
+def engine_mapbiomas_tiles(year: int):
+    """Delegate MapBiomas Argentina tile discovery to its existing adapter."""
+    from backend import source_catalog
+    return source_catalog.get_mapbiomas_tiles(year)
+
+
 @router.get("/capabilities")
 def engine_capabilities():
     """Describe supported discovery providers without asserting live availability."""
     return {
         "engine": "Agro-Consultas geospatial acquisition engine",
         "version": "1.0.0",
-        "status": "DISCOVERY_READY",
+        "status": "DISCOVERY_AND_PROCESSING_READY",
         "spatialReference": "OGC:CRS84 / WGS84 longitude-latitude GeoJSON",
         "providers": [
             {
@@ -423,6 +444,9 @@ def engine_capabilities():
             "sceneDiscovery": "POST /api/engine/scenes",
             "sceneProcessing": "POST /api/engine/process",
             "territorialAnalysis": "POST /api/engine/analyze",
+            "officialSources": "GET /api/engine/sources",
+            "ogcCapabilities": "GET /api/engine/ogc/{provider}/{service}",
+            "mapbiomasTiles": "GET /api/engine/mapbiomas/tiles/{year}",
         },
         "limitations": [
             "POST /scenes discovers and normalizes scenes; POST /process delegates one exact scene to the existing specialized raster processor.",
