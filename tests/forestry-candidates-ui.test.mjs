@@ -20,8 +20,9 @@ test('forest candidate list is merged only for the all-profiles view', async () 
 
 test('technical report includes provincial forestry candidates without equating catalog membership with lot suitability', async () => {
   const report = await readFile(new URL('../reporte.html', import.meta.url), 'utf8');
-  assert.match(report, /getForestToEvaluate/);
-  assert.match(report, /Especies forestales del catálogo provincial/);
+  assert.match(report, /reportSections\['agro-recommendations'\]/);
+  assert.match(report, /Especies forestales del análisis Agro/);
+  assert.doesNotMatch(report, /getForestToEvaluate/);
   assert.match(report, /Su inclusión no implica aptitud del lote/);
   assert.match(report, /recomendacionesForestales/);
 });

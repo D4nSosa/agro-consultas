@@ -18,12 +18,13 @@ test('technical report is responsive on mobile and print layouts', () => {
   assert.match(report, /\.compatibility-badge\{white-space:normal/);
 });
 
-test('technical report consolidates fire detections and local forecast', () => {
-  assert.match(report, /\/api\/fires\/national/);
-  assert.match(report, /\/api\/fires\/goes/);
-  assert.match(report, /\/api\/fires\/forecast/);
-  assert.match(report, /Detecciones recientes en el alcance consultado/);
+test('technical report reads saved fire detections and local forecast without querying services', () => {
+  assert.match(report, /reportSections\['fire-lot'\]/);
+  assert.match(report, /reportSections\['fire-forecast'\]/);
+  assert.match(report, /Detecciones recientes dentro del lote/);
   assert.match(report, /Pronóstico meteorológico local/);
+  assert.doesNotMatch(report, /\/api\/fires\//);
+  assert.doesNotMatch(report, /fetch\(/);
 });
 
 test('technical report does not redirect to external platforms', () => {
@@ -47,4 +48,57 @@ test('forest module exposes Sentinel preview assets in report and timeline', () 
   assert.match(forestReport, /Vista previa Sentinel-2 Fecha A/);
   assert.match(forestTimeline, /item\.thumbnail/);
   assert.match(orchestrator, /thumbnail: prod\.assets/);
+});
+
+
+test('unified report is read-only for forestry satellite and global forest analyses', () => {
+  assert.match(report, /getReportSnapshot/);
+  assert.doesNotMatch(report, /runFullForestAnalysis/);
+  assert.doesNotMatch(report, /id="gfw-run"|id="hansen-run"|id="jrc-run"/);
+  assert.doesNotMatch(report, /\/api\/territorial\/forest\/(gfw-drivers|hansen|jrc)\/analyze/);
+  assert.match(report, /este informe no inicia consultas satelitales/i);
+  assert.match(report, /No hay un análisis Sentinel-2 guardado para esta geometría/i);
+});
+
+test('Forestal lets users select comparison target dates and stores real scene results', async () => {
+  const forestPage = await readFile(new URL('../forestal.html', import.meta.url), 'utf8');
+  assert.match(forestPage, /id="forest-date-a"/);
+  assert.match(forestPage, /id="forest-date-b"/);
+  assert.match(forestPage, /persistForestSection\(feature\.geometry, 'forest-sentinel2'/);
+  assert.match(forestPage, /saveReportSection\(geometry, section, payload, metadata\)/);
+  assert.match(forestPage, /forest-gfw-run/);
+  assert.match(forestPage, /forest-hansen-run/);
+  assert.match(forestPage, /forest-jrc-run/);
+});
+
+test('Forestal presents analysis output but leaves PDF and sharing to unified Reports', () => {
+  assert.match(forestReport, /Resultados del análisis forestal y teledetección/);
+  assert.doesNotMatch(forestReport, /btn-print-report|btn-share-forest-report/);
+});
+
+test('report normalizes shared raw GeoJSON geometry before loading saved results', () => {
+  assert.match(report, /Los enlaces históricos pueden transportar una geometría GeoJSON directa/);
+  assert.match(report, /parsedGeom = \{ type: 'Feature', properties: \{\}, geometry: parsedGeom \}/);
+});
+
+test('technical report consumes Agro analysis snapshots rather than recalculating suitability', () => {
+  assert.match(report, /reportSections\['agro-territory'\]/);
+  assert.match(report, /reportSections\['agro-environment'\]/);
+  assert.match(report, /reportSections\['agro-recommendations'\]/);
+  assert.doesNotMatch(report, /generateRecommendations/);
+  assert.doesNotMatch(report, /getSoilReport|getClimateData|getClimateHistory/);
+});
+
+test('Agro and Fire modules persist their results for the unified report', async () => {
+  const agro = await readFile(new URL('../script.js', import.meta.url), 'utf8');
+  const fire = await readFile(new URL('../incendios.html', import.meta.url), 'utf8');
+  assert.match(agro, /persistAgroReportSection\('agro-territory'/);
+  assert.match(agro, /persistAgroReportSection\('agro-environment'/);
+  assert.match(agro, /persistAgroReportSection\('agro-recommendations'/);
+  assert.match(fire, /persistFireReportSection\('fire-lot'/);
+  assert.match(fire, /persistFireReportSection\('fire-forecast'/);
+});
+
+test('shared report link discloses that analysis snapshots remain local to the browser', () => {
+  assert.match(report, /no viajan dentro del enlace compartido/i);
 });

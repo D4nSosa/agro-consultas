@@ -123,12 +123,15 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         html = (ROOT / "mapa.html").read_text(encoding="utf-8")
         self.assertIn("$('tracking').onclick=()=>{if(current)$('save').click();location.href='tracking.html';};", html)
 
-    def test_report_reuses_subregional_and_historical_climate_evidence(self):
+    def test_report_reuses_saved_subregional_and_historical_climate_evidence(self):
         html = (ROOT / "reporte.html").read_text(encoding="utf-8")
-        self.assertIn("getCropsToEvaluate(provKey, subregion)", html)
+        self.assertIn("reportSections['agro-territory']", html)
+        self.assertIn("reportSections['agro-environment']", html)
+        self.assertIn("reportSections['agro-recommendations']", html)
         self.assertIn("climateHistory?.data?.historicalAverages", html)
-        self.assertIn("climatologyBaseline: '2001–2020'", html)
         self.assertIn("'Ficha de referencia'", html)
+        self.assertNotIn("getCropsToEvaluate", html)
+        self.assertNotIn("generateRecommendations", html)
         self.assertNotIn('todasRecomendaciones.filter(c => c.compatibilidad', html)
 
     def test_report_uses_a_geometry_centroid_and_explains_its_source(self):
@@ -176,12 +179,17 @@ class WorkspaceIntegrationTests(unittest.TestCase):
         self.assertIn("tiles.globalforestwatch.org/arg_otbn_forest_loss/v2022/dynamic/", source)
         self.assertIn("Pérdida histórica de bosque nativo · GFW 2007–2022", source)
 
-    def test_report_includes_fire_and_field_sections_and_runs_forest_analysis_for_polygons(self):
+    def test_report_includes_fire_and_field_sections_and_reads_saved_forest_results(self):
         source = (ROOT / "reporte.html").read_text(encoding="utf-8")
         self.assertIn("Observaciones satelitales de incendios", source)
         self.assertIn("Campo y geometría relevada", source)
-        self.assertIn("filterFireDetectionsToGeometry", source)
-        self.assertIn("runFullForestAnalysis(featureToAnalyze", source)
+        self.assertIn("reportSections['fire-lot']", source)
+        self.assertNotIn("filterFireDetectionsToGeometry", source)
+        self.assertIn("getReportSnapshot", source)
+        self.assertNotIn("runFullForestAnalysis", source)
+        self.assertNotIn("/api/territorial/forest/gfw-drivers/analyze", source)
+        self.assertNotIn("/api/territorial/forest/hansen/analyze", source)
+        self.assertNotIn("/api/territorial/forest/jrc/analyze", source)
 
 if __name__ == "__main__":
     unittest.main()

@@ -43,8 +43,9 @@ test('the inactive GAEZ workflow is removed while historical climate periods rem
   assert.match(report, /Período mensual reciente \(reanálisis\)/);
   assert.match(script, /climateHistory\?\.status === 'ESTIMATED'/);
   assert.match(script, /climatologyStatus: 'ESTIMATED'/);
-  assert.match(report, /climateHistory\?\.status === 'ESTIMATED'/);
-  assert.match(report, /climatologyStatus: 'ESTIMATED'/);
+  assert.match(report, /reportSections\['agro-environment'\]/);
+  assert.match(report, /climateHistory\?\.data\?\.historicalAverages/);
+  assert.doesNotMatch(report, /climatologyStatus/);
   assert.match(results, /class="map-legend" style="display:none;"/);
 });
 

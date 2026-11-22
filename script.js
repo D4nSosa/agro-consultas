@@ -25,6 +25,7 @@ import { getClimateHistory } from './services/sources/nasaPowerService.js';
 import { getSentinel1SarAnalysis } from './forestal/services/satelliteService.js';
 import { MapViewer } from './services/mapViewer.js';
 import { setLotContext, getLotContext, clearLotContext, onLotContextChange } from './services/lotContext.js';
+import { saveReportSection } from './services/reportAnalysisStore.js';
 
 let mapViewerInstance = null;
 let currentMarker = null;
@@ -50,6 +51,16 @@ let lastSoilReportCache = null;
 let lastClimateReportCache = null;
 
 let climateHistoryCache = { key: null, promise: null, result: null };
+
+function persistAgroReportSection(section, payload, source = 'Agro module') {
+  if (!currentAOIPolygon) return;
+  try {
+    saveReportSection(currentAOIPolygon, section, payload, { module: 'agro', source });
+  } catch (error) {
+    console.warn('[Agro-Consultas] No se pudo guardar el resultado para Informes:', error.message);
+  }
+}
+
 
 async function getClimateHistoryCached(lat, lng, months = 12) {
   const key = `${Number(lat).toFixed(4)}:${Number(lng).toFixed(4)}:${months}`;
@@ -505,6 +516,7 @@ export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoV
 
     lastSoilReportCache = soilReport;
     lastClimateReportCache = climateReport;
+    persistAgroReportSection('agro-territory', { province: provincia, provinceKey: key, subregion, coordinates: { lat, lng }, soilReport, climateReport }, 'INTA-CIRN · Open-Meteo');
 
     const soilBadgeText = soilReport.status === 'CARTOGRAPHIC' || soilReport.status === 'PARTIAL' ? 'Cartografía INTA-CIRN' : 'Sin dato edáfico verificado';
     const soilPh030Text = soilReport.ph_0_30 !== null && soilReport.ph_0_30 !== undefined && Number.isFinite(Number(soilReport.ph_0_30))
@@ -917,6 +929,15 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
       getClimateHistoryCached(lat, lng, 12)
     ]);
     const climateEvidenceForScoring = buildClimateEvidenceForScoring(climateReport, climateHistory);
+    persistAgroReportSection('agro-environment', {
+      province: provDetails?.nombre || provinciaRaw,
+      provinceKey: key,
+      subregion,
+      coordinates: { lat, lng },
+      soilReport,
+      climateReport,
+      climateHistory
+    }, 'INTA-CIRN · Open-Meteo · NASA POWER');
 
     const catalogo = await loadCultivosData();
     let cultivosAEvaluar = [];
@@ -950,6 +971,19 @@ export async function renderRecomendaciones(provinciaRaw, lat, lng, geoVal = nul
 
     const recomendaciones = await generateRecommendations(cultivosAEvaluar, soilReport, climateEvidenceForScoring);
     lastRecommendationsCache = recomendaciones;
+    let recomendacionesForestales = [];
+    if (selectedCropKey === 'todos') {
+      const forestNames = await getForestToEvaluate(key);
+      if (forestNames.length) recomendacionesForestales = await generateRecommendations(forestNames, soilReport, climateEvidenceForScoring);
+    }
+    persistAgroReportSection('agro-recommendations', {
+      province: provDetails?.nombre || provinciaRaw,
+      provinceKey: key,
+      subregion,
+      recommendations: recomendaciones,
+      forestRecommendations: recomendacionesForestales,
+      selectedCrop: selectedCropKey
+    }, 'Catálogos provinciales · motor de recomendaciones');
 
     const filtradas = filtrarRecomendacionesPorCultivo(recomendaciones, selectedCropKey);
     renderRecommendationsCards(filtradas, soilReport, climateReport, geoVal);

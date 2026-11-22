@@ -1,5 +1,5 @@
 /**
- * ChangeReport.js - Generador de reporte borrador trazable y exportable de análisis forestal
+ * ChangeReport.js - Panel de resultados de análisis forestal
  */
 
 export class ChangeReport {
@@ -29,18 +29,17 @@ export class ChangeReport {
         <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--borde-suave); padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
           <div>
             <h2 style="margin: 0; color: var(--verde-principal); display: flex; align-items: center; gap: 10px;">
-              <span>🌲</span> Informe Técnico de Análisis Forestal y Teledetección
+              <span>🌲</span> Resultados del análisis forestal y teledetección
             </h2>
             <div style="font-size: 0.9rem; color: var(--texto-secundario); margin-top: 5px;">
-              Agro Consultas — Módulo de Seguimiento Territorial e Información Satelital
+              Agro Consultas — Módulo Forestal
             </div>
           </div>
           <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <div style="font-size: 0.85rem; font-weight: bold;">Fecha de Emisión:</div>
             <div style="font-size: 0.85rem; color: var(--texto-secundario);">${new Date().toLocaleDateString('es-AR')}</div>
             <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: flex-end;">
-              <button id="btn-print-report" class="btn primary" style="font-size: 0.85rem; padding: 6px 14px;">🖨️ Reporte / PDF</button>
-              <button id="btn-share-forest-report" class="btn primary" style="font-size: 0.85rem; padding: 6px 14px; background: #2980b9; border-color: #2980b9;">📲 Compartir</button>
+
             </div>
           </div>
         </div>
@@ -173,48 +172,11 @@ export class ChangeReport {
         <div style="margin-top: 30px; padding: 12px; background: rgba(0,0,0,0.03); border: 1px solid var(--borde-suave); border-radius: 6px; font-size: 0.78rem; color: var(--texto-secundario); line-height: 1.5;">
           <strong>Aviso Metodológico y Limitaciones Trazables:</strong>
           <br>
-          Este reporte es un <em>Análisis preliminar de información territorial y teledetección</em> generado de forma automatizada mediante la consulta del catálogo público AWS Earth Search STAC (Sentinel-2 L2A COGs). No se inventan datos cuando falta información de reflectancia.
+          Este panel presenta los resultados del análisis ejecutado desde el módulo Forestal. Para consultar, descargar o compartir el documento consolidado de todos los módulos, utilizá Informes.
         </div>
       </div>
     `;
 
-    const btnPrint = document.getElementById('btn-print-report');
-    if (btnPrint) {
-      btnPrint.addEventListener('click', () => {
-        window.print();
-      });
-    }
 
-    const btnShare = document.getElementById('btn-share-forest-report');
-    if (btnShare) {
-      btnShare.addEventListener('click', async () => {
-        const lotName = lot?.geometry?.properties?.name || 'Lote Forestal';
-        const lat = lot?.centroid?.lat || -38.4161;
-        const lng = lot?.centroid?.lng || -63.6167;
-        const ha = lot?.area?.hectares || '0.00';
-        const geom = lot?.geometry ? JSON.stringify(lot.geometry) : '';
-
-        const baseUrl = window.location.origin + window.location.pathname.replace(/forestal(\.html)?/, 'reporte.html');
-        const shareUrl = `${baseUrl}?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}&nombre=${encodeURIComponent(lotName)}&ha=${ha}&type=forestal${geom ? '&geom=' + encodeURIComponent(geom) : ''}`;
-
-        const shareData = {
-          title: `Informe Técnico Forestal — ${lotName}`,
-          text: `Informe de Análisis Forestal y Teledetección para ${lotName} en Agro Consultas:`,
-          url: shareUrl
-        };
-
-        if (navigator.share) {
-          try {
-            await navigator.share(shareData);
-          } catch (e) {}
-        } else {
-          navigator.clipboard.writeText(shareUrl).then(() => {
-            alert("Enlace único del reporte forestal copiado al portapapeles:\n" + shareUrl);
-          }).catch(() => {
-            alert("Enlace único del reporte forestal:\n" + shareUrl);
-          });
-        }
-      });
-    }
   }
 }
