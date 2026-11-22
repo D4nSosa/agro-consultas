@@ -68,3 +68,8 @@ test('Forestal lets users select comparison target dates and stores real scene r
   assert.match(forestPage, /forest-hansen-run/);
   assert.match(forestPage, /forest-jrc-run/);
 });
+
+test('Forestal presents analysis output but leaves PDF and sharing to unified Reports', () => {
+  assert.match(forestReport, /Resultados del análisis forestal y teledetección/);
+  assert.doesNotMatch(forestReport, /btn-print-report|btn-share-forest-report/);
+});
