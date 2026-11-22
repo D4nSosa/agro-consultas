@@ -101,10 +101,10 @@ def test_api_sar_radar_calculation():
     assert data["status"] in ["REAL", "UNAVAILABLE"]
     if data["status"] == "REAL":
         assert "stats" in data
-        assert "vv_mean_dn" in data["stats"]
-        assert "vh_mean_dn" in data["stats"]
-        assert data["stats"]["unit"] == "DN"
-        assert data["calibrationStatus"] == "RAW_DN_UNCALIBRATED"
+        assert "vv_mean_db" in data["stats"]
+        assert "vh_mean_db" in data["stats"]
+        assert data["stats"]["unit"] == "sigma0 linear / dB"
+        assert data["calibrationStatus"] == "SIGMA0_ELLIPSOID_CALIBRATED"
         assert data["interpretation"]["status"] == "NOT_INFERRED"
 
 
@@ -116,12 +116,22 @@ def test_api_sar_tries_next_scene_when_first_raster_fails(monkeypatch):
         {
             "id": "scene-first-fails",
             "properties": {"datetime": "2024-05-20T10:00:00Z", "sat:orbit_state": "ascending"},
-            "assets": {"vv": {"href": "https://example.test/first-vv.tif"}, "vh": {"href": "https://example.test/first-vh.tif"}}
+            "assets": {
+                "vv": {"href": "https://example.test/first-vv.tif"},
+                "vh": {"href": "https://example.test/first-vh.tif"},
+                "schema-calibration-vv": {"href": "https://example.test/first-cal-vv.xml"},
+                "schema-calibration-vh": {"href": "https://example.test/first-cal-vh.xml"}
+            }
         },
         {
             "id": "scene-second-works",
             "properties": {"datetime": "2024-05-18T10:00:00Z", "sat:orbit_state": "descending"},
-            "assets": {"vv": {"href": "https://example.test/second-vv.tif"}, "vh": {"href": "https://example.test/second-vh.tif"}}
+            "assets": {
+                "vv": {"href": "https://example.test/second-vv.tif"},
+                "vh": {"href": "https://example.test/second-vh.tif"},
+                "schema-calibration-vv": {"href": "https://example.test/second-cal-vv.xml"},
+                "schema-calibration-vh": {"href": "https://example.test/second-cal-vh.xml"}
+            }
         }
     ]
 
@@ -136,21 +146,24 @@ def test_api_sar_tries_next_scene_when_first_raster_fails(monkeypatch):
 
     monkeypatch.setattr(forest_backend.urllib.request, "urlopen", lambda *args, **kwargs: FakeResponse())
     calls = []
-    def fake_process(vv_url, vh_url, geom):
+    def fake_process(vv_url, vh_url, vv_cal, vh_cal, vv_noise, vh_noise, geom, region="eu-central-1"):
         calls.append(vv_url)
         if "first" in vv_url:
-            return None, "No hay píxeles válidos"
+            raise ValueError("No hay píxeles válidos")
         return {
-            "vv_mean_dn": 1250.0,
-            "vh_mean_dn": 320.0,
+            "vv_mean_sigma0": 0.001,
+            "vh_mean_sigma0": 0.0003,
+            "vv_mean_db": -30.0,
+            "vh_mean_db": -35.0,
             "vvSampleCount": 10,
             "vhSampleCount": 10,
             "sampleCount": 10,
-            "unit": "DN",
-            "calibrationStatus": "RAW_DN_UNCALIBRATED",
-            "isPoint": False
-        }, None
-    monkeypatch.setattr(forest_backend, "process_cog_raster_sar_cropped", fake_process)
+            "unit": "sigma0 linear / dB",
+            "calibrationStatus": "SIGMA0_ELLIPSOID_CALIBRATED",
+            "noiseRemovalApplied": False,
+            "noiseWarnings": []
+        }
+    monkeypatch.setattr(forest_backend, "process_sentinel1_grd", fake_process)
 
     response = client.post("/api/forest/sar", json={
         "geometry": SAMPLE_POLYGON_GEOMETRY,
@@ -204,14 +217,20 @@ def test_sar_processor_reports_rasterio_import_error(monkeypatch):
             raise ImportError("simulated missing libexpat.so.1")
         return real_import(name, *args, **kwargs)
 
+    import backend.sentinel1_calibration as sar_calibration
+
+    monkeypatch.setattr(sar_calibration, "_fetch_annotation", lambda href, region: b"<calibration><calibrationVectorList><calibrationVector><line>0</line><pixel>0 10</pixel><sigmaNought>2 2</sigmaNought></calibrationVector><calibrationVector><line>10</line><pixel>0 10</pixel><sigmaNought>2 2</sigmaNought></calibrationVector></calibrationVectorList></calibration>")
     monkeypatch.setattr(builtins, "__import__", reject_rasterio)
-    stats, error = forest_backend.process_cog_raster_sar_cropped(
-        "https://example.test/vv.tif",
-        "https://example.test/vh.tif",
-        shape(SAMPLE_POLYGON_GEOMETRY),
-    )
-    assert stats is None
-    assert "simulated missing libexpat.so.1" in error
+    with pytest.raises(ImportError, match="simulated missing libexpat.so.1"):
+        sar_calibration.process_sentinel1_grd(
+            "https://example.test/vv.tif",
+            "https://example.test/vh.tif",
+            "https://example.test/cal-vv.xml",
+            "https://example.test/cal-vh.xml",
+            None,
+            None,
+            shape(SAMPLE_POLYGON_GEOMETRY),
+        )
 
 
 def test_api_sar_stac_search_sends_intersects_without_bbox(monkeypatch):
