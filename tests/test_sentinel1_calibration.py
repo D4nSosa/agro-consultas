@@ -44,3 +44,26 @@ def test_sigma0_formula_subtracts_noise_power_before_lut_calibration():
     # (DN^2 - noise) / A_sigma^2 = (9 - 1) / 4 = 2
     assert valid.tolist() == [True]
     assert np.allclose(sigma0, [2.0])
+
+
+def test_parse_modern_noise_lut_with_azimuth_scaling():
+    xml = b"""<noise>
+    <noiseRangeVectorList>
+      <noiseRangeVector><line>0</line><pixel>0 10</pixel><noiseRangeLut>2 2</noiseRangeLut></noiseRangeVector>
+      <noiseRangeVector><line>10</line><pixel>0 10</pixel><noiseRangeLut>2 2</noiseRangeLut></noiseRangeVector>
+    </noiseRangeVectorList>
+    <noiseAzimuthVectorList>
+      <noiseAzimuthVector>
+        <firstAzimuthLine>0</firstAzimuthLine><lastAzimuthLine>10</lastAzimuthLine>
+        <firstRangeSample>0</firstRangeSample><lastRangeSample>10</lastRangeSample>
+        <line>0 10</line><noiseAzimuthLut>3 3</noiseAzimuthLut>
+      </noiseAzimuthVector>
+    </noiseAzimuthVectorList>
+    </noise>"""
+    noise = parse_noise_lut(xml)
+    result = _calibrate_array(
+        np.asarray([4.0]), np.asarray([5.0]), np.asarray([5.0]),
+        parse_calibration_lut(CALIBRATION_XML), noise
+    )[0]
+    # (16 - (2 * 3)) / 2^2 = 2.5
+    assert np.allclose(result, [2.5])
