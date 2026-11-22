@@ -18,6 +18,7 @@ import json
 import io
 import numpy as np
 import tifffile
+from backend.sentinel1_calibration import process_sentinel1_grd
 from shapely.geometry import shape, Point, Polygon
 from shapely.ops import transform as transform_geometry
 
@@ -1345,77 +1346,6 @@ def calculate_change_detection(req: ChangeDetectionRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error en detección de cambios: {str(e)}")
 
-def process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape):
-    """
-    Extrae DN crudos de los COG Sentinel-1 GRD.
-    No aplica una calibración sigma0: los assets STAC consultados publican uint16 sin escala/offset.
-    """
-    try:
-        import rasterio
-        from rasterio.mask import mask as rasterio_mask
-        from rasterio.vrt import WarpedVRT
-
-        with rasterio.Env(AWS_NO_SIGN_REQUEST="YES"):
-            with rasterio.open(vv_url) as src_vv, rasterio.open(vh_url) as src_vh:
-                with WarpedVRT(src_vv, crs="EPSG:4326") as vrt_vv, WarpedVRT(src_vh, crs="EPSG:4326") as vrt_vh:
-                    if geom_shape.geom_type == "Point":
-                        row_v, col_v = vrt_vv.index(geom_shape.x, geom_shape.y)
-                        row_h, col_h = vrt_vh.index(geom_shape.x, geom_shape.y)
-                        if (row_v < 0 or col_v < 0 or row_v >= vrt_vv.height or col_v >= vrt_vv.width or
-                            row_h < 0 or col_h < 0 or row_h >= vrt_vh.height or col_h >= vrt_vh.width):
-                            return None, "El punto está fuera de la cobertura VV/VH de la escena."
-                        val_vv = float(vrt_vv.read(1, window=rasterio.windows.Window(col_v, row_v, 1, 1))[0, 0])
-                        val_vh = float(vrt_vh.read(1, window=rasterio.windows.Window(col_h, row_h, 1, 1))[0, 0])
-                        if val_vv <= 0 or val_vh <= 0:
-                            return None, "El píxel VV o VH es NoData (DN <= 0)."
-                        return {
-                            "vv_mean_dn": round(val_vv, 2),
-                            "vh_mean_dn": round(val_vh, 2),
-                            "vv_median_dn": round(val_vv, 2),
-                            "vh_median_dn": round(val_vh, 2),
-                            "vv_min_dn": round(val_vv, 2),
-                            "vv_max_dn": round(val_vv, 2),
-                            "vh_min_dn": round(val_vh, 2),
-                            "vh_max_dn": round(val_vh, 2),
-                            "vv_std_dn": 0.0,
-                            "vh_std_dn": 0.0,
-                            "vvSampleCount": 1,
-                            "vhSampleCount": 1,
-                            "sampleCount": 1,
-                            "unit": "DN",
-                            "calibrationStatus": "RAW_DN_UNCALIBRATED",
-                            "isPoint": True
-                        }, None
-
-                    out_vv, _ = rasterio_mask(vrt_vv, [geom_shape], crop=True)
-                    out_vh, _ = rasterio_mask(vrt_vh, [geom_shape], crop=True)
-                    vv_vals = out_vv[0][out_vv[0] > 0].astype(np.float64)
-                    vh_vals = out_vh[0][out_vh[0] > 0].astype(np.float64)
-                    if len(vv_vals) == 0 or len(vh_vals) == 0:
-                        return None, "No se obtuvieron píxeles VV/VH válidos dentro del polígono."
-
-                    return {
-                        "vv_mean_dn": round(float(np.mean(vv_vals)), 2),
-                        "vh_mean_dn": round(float(np.mean(vh_vals)), 2),
-                        "vv_median_dn": round(float(np.median(vv_vals)), 2),
-                        "vh_median_dn": round(float(np.median(vh_vals)), 2),
-                        "vv_min_dn": round(float(np.min(vv_vals)), 2),
-                        "vv_max_dn": round(float(np.max(vv_vals)), 2),
-                        "vh_min_dn": round(float(np.min(vh_vals)), 2),
-                        "vh_max_dn": round(float(np.max(vh_vals)), 2),
-                        "vv_std_dn": round(float(np.std(vv_vals)), 2),
-                        "vh_std_dn": round(float(np.std(vh_vals)), 2),
-                        "vvSampleCount": int(len(vv_vals)),
-                        "vhSampleCount": int(len(vh_vals)),
-                        "sampleCount": int(min(len(vv_vals), len(vh_vals))),
-                        "unit": "DN",
-                        "calibrationStatus": "RAW_DN_UNCALIBRATED",
-                        "isPoint": False
-                    }, None
-    except Exception as e:
-        return None, str(e)
-
-
 @app.post("/api/forest/sar")
 def get_sar_analysis(req: SARAnalysisRequest):
     """Consulta escenas Sentinel-1 reales y prueba las escenas disponibles hasta obtener píxeles válidos."""
@@ -1494,26 +1424,46 @@ def get_sar_analysis(req: SARAnalysisRequest):
             orbit_state = props.get("sat:orbit_state", "NO DISPONIBLE")
             vv_url = assets.get("vv", {}).get("href")
             vh_url = assets.get("vh", {}).get("href")
+            vv_calibration = assets.get("schema-calibration-vv", {}).get("href")
+            vh_calibration = assets.get("schema-calibration-vh", {}).get("href")
+            vv_noise = assets.get("schema-noise-vv", {}).get("href")
+            vh_noise = assets.get("schema-noise-vh", {}).get("href")
 
-            if not vv_url or not vh_url:
-                scene_errors.append(f"{prod_id or 'escena sin ID'}: faltan activos VV/VH")
+            if not all((vv_url, vh_url, vv_calibration, vh_calibration)):
+                scene_errors.append(
+                    f"{prod_id or 'escena sin ID'}: faltan mediciones VV/VH o LUT de calibración ESA por polarización"
+                )
                 continue
 
-            stats, err_msg = process_cog_raster_sar_cropped(vv_url, vh_url, geom_shape)
-            if not stats:
-                scene_errors.append(f"{prod_id or 'escena sin ID'}: {err_msg or 'sin píxeles válidos'}")
+            try:
+                stats = process_sentinel1_grd(
+                    vv_url, vh_url, vv_calibration, vh_calibration,
+                    vv_noise, vh_noise, geom_shape,
+                    region=props.get("storage:region") or "eu-central-1"
+                )
+            except Exception as calibration_error:
+                scene_errors.append(
+                    f"{prod_id or 'escena sin ID'}: calibración sigma0 no disponible: {str(calibration_error)[:180]}"
+                )
                 continue
 
             polarizations = props.get("sar:polarizations") or ["VV", "VH"]
             instrument_mode = props.get("sar:instrument_mode")
             sensor = props.get("platform") or "Sentinel-1"
             return {
-                "indicator": "Radar SAR Sentinel-1 GRD — valores digitales sin calibrar",
+                "indicator": "Radar SAR Sentinel-1 GRD — retrodispersión calibrada sigma0",
                 "product": "Sentinel-1 GRD Level-1C",
                 "sensor": sensor,
                 "polarizations": polarizations,
-                "unit": "DN (Digital Number)",
-                "calibrationStatus": "RAW_DN_UNCALIBRATED",
+                "unit": "σ⁰ lineal / dB",
+                "calibrationStatus": "SIGMA0_ELLIPSOID_CALIBRATED",
+                "calibration": {
+                    "coefficient": "sigma0-ellipsoid",
+                    "method": "ESA per-polarisation calibration LUT",
+                    "thermalNoiseRemovalApplied": stats.get("noiseRemovalApplied", False),
+                    "terrainCorrectionApplied": False,
+                    "rtcApplied": False
+                },
                 "date": actual_date,
                 "acquiredAt": props.get("datetime"),
                 "publishedAt": props.get("created"),
@@ -1543,13 +1493,14 @@ def get_sar_analysis(req: SARAnalysisRequest):
                     "message": "No se infieren humedad del suelo, biomasa, especie, sanidad ni estructura forestal a partir de DN sin calibración radiométrica validada."
                 },
                 "limitations": [
-                    "Los COG consultados publican muestras uint16 sin escala/offset radiométrico; se conservan DN crudos.",
-                    "No se aplica calibración sigma0 ni corrección radiométrica/terreno adicional.",
-                    "Los DN dependen del producto, órbita, geometría de adquisición y procesamiento; no deben compararse como magnitudes físicas entre escenas.",
-                    "Las estadísticas VV y VH se calculan por separado sobre píxeles DN > 0."
+                    "Se aplica calibración radiométrica sigma0 elipsoidal con las LUT ESA específicas de VV y VH; los valores lineales se convierten a dB mediante 10·log10.",
+                    "La corrección geométrica y radiométrica del terreno (RTC gamma0-terrain) no está aplicada; sigma0 elipsoidal no equivale a un producto RTC.",
+                    "La corrección de ruido térmico se aplica cuando la anotación de ruido de la escena está disponible y puede interpretarse; el estado se informa por separado.",
+                    "La retrodispersión depende de polarización, órbita, ángulo de incidencia, humedad, rugosidad y estructura superficial; no permite inferir por sí sola humedad del suelo, biomasa, especie ni sanidad.",
+                    "Las estadísticas VV y VH se calculan por separado sobre píxeles válidos calibrados."
                 ],
                 "status": "REAL",
-                "message": f"Se procesó la escena real {prod_id} ({actual_date or 'fecha no registrada'}); se muestran DN sin calibración sigma0."
+                "message": f"Se procesó la escena real {prod_id} ({actual_date or 'fecha no registrada'}) con calibración sigma0 elipsoidal basada en LUT ESA."
             }
 
         detail = " | ".join(scene_errors[:5])
