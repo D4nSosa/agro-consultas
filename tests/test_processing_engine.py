@@ -156,6 +156,30 @@ def test_process_rejects_unknown_collection_before_dispatch():
 
 
 
+
+def test_engine_pagination_never_exceeds_requested_total_limit(monkeypatch):
+    from backend import processing_engine
+
+    first = {"type": "FeatureCollection",
+             "features": [feature(item_id=f"PAGE1_{i}") for i in range(4)],
+             "links": [{"rel": "next", "href": "https://earth-search.aws.element84.com/v1/search?page=2", "method": "GET"}]}
+    second = {"type": "FeatureCollection",
+              "features": [feature(item_id=f"PAGE2_{i}") for i in range(4)],
+              "links": [{"rel": "next", "href": "https://earth-search.aws.element84.com/v1/search?page=3", "method": "GET"}]}
+    monkeypatch.setattr(processing_engine, "_read_stac_page", lambda _provider, _body: first)
+    monkeypatch.setattr(processing_engine, "_read_stac_next_page", lambda _provider, _link: second)
+
+    found, has_more, page_count = processing_engine._read_stac_pages(
+        processing_engine.PROVIDERS["sentinel-1-grd"],
+        {"collections": ["sentinel-1-grd"], "limit": 4},
+        max_pages=5,
+        max_items=5,
+    )
+    assert len(found) == 5
+    assert has_more is True
+    assert page_count == 2
+
+
 def test_engine_reads_bounded_stac_pagination(monkeypatch):
     from backend import processing_engine
 
