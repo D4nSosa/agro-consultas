@@ -337,6 +337,23 @@ function filtrarRecomendacionesPorCultivo(recs, key) {
 /**
  * Geocodifica y procesa una ubicación ingresada por texto
  */
+async function ejecutarEtapaConTimeout(nombre, operacion, timeoutMs = 12000) {
+  let timeoutId;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(operacion),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${nombre} superó el tiempo máximo de espera (${timeoutMs} ms).`)), timeoutMs);
+      })
+    ]);
+  } catch (error) {
+    console.warn(`[Agro-Consultas] Etapa omitida: ${nombre}`, error);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export function mostrarIndicadorCarga(mensaje = "Procesando y cruzando datos de INTA, Open-Meteo, NASA POWER e IGN...") {
   const overlay = document.getElementById("api-processing-overlay");
   if (!overlay) return;
@@ -357,9 +374,9 @@ export async function buscarYProcesarUbicacion(queryTexto) {
   mostrarIndicadorCarga(`Procesando y cruzando datos de INTA, Open-Meteo, NASA POWER e IGN para "${queryTexto}"...`);
 
   try {
-    const geoResult = await geocodeLocation(queryTexto);
+    const geoResult = await ejecutarEtapaConTimeout('Geocodificación', () => geocodeLocation(queryTexto));
 
-    if (!geoResult.available || !geoResult.value) {
+    if (!geoResult?.available || !geoResult?.value) {
       mostrarErrorUbicacionNoEncontrada(queryTexto);
       return;
     }
@@ -379,12 +396,12 @@ export async function buscarYProcesarUbicacion(queryTexto) {
 
     limpiarEstadoConsultasAnteriores();
 
-    await renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val);
-    await actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val);
-    await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+    await ejecutarEtapaConTimeout('Recomendaciones', () => renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val));
+    await ejecutarEtapaConTimeout('Datos territoriales', () => actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val));
+    await ejecutarEtapaConTimeout('Histórico climático', () => renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre));
     // No usar polygonGeoJSON: no existe en este flujo. Solo enviar el polígono activo si la selección es un lote.
     const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;
-    await renderSarRadarUI(currentLat, currentLng, sarGeometry);
+    await ejecutarEtapaConTimeout('Radar satelital', () => renderSarRadarUI(currentLat, currentLng, sarGeometry));
   } catch (err) {
     console.error("Error en buscarYProcesarUbicacion:", err);
   } finally {
@@ -436,8 +453,8 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
       mapViewerInstance.map.setView([lat, lng], targetZoom);
     }
 
-    const provinciaKey = await findProvinceByCoords(lat, lng);
-    const provDetails = provinciaKey ? await getProvinceDetails(provinciaKey) : null;
+    const provinciaKey = await ejecutarEtapaConTimeout('Identificación de provincia', () => findProvinceByCoords(lat, lng));
+    const provDetails = provinciaKey ? await ejecutarEtapaConTimeout('Datos de provincia', () => getProvinceDetails(provinciaKey)) : null;
     const nombreProvincia = provDetails ? (typeof provDetails.nombre === 'string' ? provDetails.nombre : provinciaKey) : "Argentina";
 
     currentUbicacionNombre = nombreCustom || `${nombreProvincia} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
@@ -458,9 +475,9 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
 
     limpiarEstadoConsultasAnteriores();
 
-    await renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData);
-    await actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData);
-    await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre);
+    await ejecutarEtapaConTimeout('Recomendaciones', () => renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData));
+    await ejecutarEtapaConTimeout('Datos territoriales', () => actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData));
+    await ejecutarEtapaConTimeout('Histórico climático', () => renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre));
     // Ejecutar SAR también cuando la selección llega desde el mapa/GPS (no solo desde el buscador).
     // Enviar el polígono únicamente cuando la selección actual corresponde al lote dibujado.
     const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;

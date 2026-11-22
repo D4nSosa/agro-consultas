@@ -916,7 +916,7 @@ def conae_wms_metadata(kind: str):
         url, headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/xml,text/xml"}
     )
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:
+        with urllib.request.urlopen(request, timeout=6) as response:
             document = ET.fromstring(response.read(8_000_000))
         layers = []
         for layer in document.findall(".//{*}Layer"):

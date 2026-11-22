@@ -46,3 +46,11 @@ test('restores and saves the minimum confidence preference', () => {
   assert.match(page, /firePreferences\.minConfidence/);
   assert.match(page, /saveFireMapPreferences\(\{minConfidence:Number\(\$\('confidence'\)\.value\)\}\)/);
 });
+
+test('recent fire detections respect the same active sensor filters as the map', () => {
+  assert.match(page, /const sensor=f\.properties\?\.sensor/);
+  assert.match(page, /if\(sensor==='MODIS'\)return \$\('show-modis'\)\.checked/);
+  assert.match(page, /if\(sensor==='VIIRS'\)return \$\('show-viirs'\)\.checked/);
+  assert.match(page, /if\(sensor==='GOES'\)return \$\('show-goes'\)\.checked/);
+  assert.match(page, /drawDetections\(\);\s*renderRecentDetections\(\);/);
+});
