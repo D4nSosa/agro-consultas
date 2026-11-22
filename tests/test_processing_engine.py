@@ -12,8 +12,8 @@ def feature(collection="sentinel-1-grd", item_id="S1A_TEST"):
       "properties":{"datetime":"2026-11-10T10:12:00Z","platform":"sentinel-1a",
         "sar:instrument_mode":"IW","sar:polarizations":["VV","VH"],
         "sat:orbit_state":"ascending","sat:relative_orbit":18},
-      "assets":{"vv":{"href":"https://data.example.test/vv.tif"},
-        "vh":{"href":"https://data.example.test/vh.tif"},
+      "assets":{"vv":{"href":"s3://sentinel-s1-l1c/GRD/vv.tif","eo:bands":[{"name":"VV"}],"file:size":2048},
+        "vh":{"href":"https://data.example.test/vh.tif","eo:bands":[{"name":"VH"}]},
         "schema-calibration-vv":{"href":"https://data.example.test/cal-vv.xml"},
         "schema-noise-vv":{"href":"https://data.example.test/noise-vv.xml"}},
       "links":[{"rel":"self","href":"https://catalog.example.test/items/S1A_TEST"}]}
@@ -42,6 +42,10 @@ def test_scene_discovery_normalizes_all_three_collections(monkeypatch):
     assert sar["polarizations"]==["VV","VH"] and sar["mode"]=="IW"
     assert "schema-calibration-vv" in sar["assetKeys"]
     assert sar["coverageStatus"]=="INTERSECTS_AOI"
+    assert sar["assets"]["vv"]["href"].startswith("s3://sentinel-s1-l1c/")
+    assert sar["assets"]["vv"]["fileSize"] == 2048
+    assert sar["bands"] == ["VV", "VH"]
+    assert sar["assetCount"] == 4
 
 def test_point_feature_aoi_and_cache(monkeypatch):
     from backend import processing_engine
