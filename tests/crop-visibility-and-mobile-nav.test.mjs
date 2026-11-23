@@ -73,17 +73,16 @@ test('production HTML and module imports are cache-busted after UI fixes', async
   assert.ok(config.headers.some(item => item.source === '/forestal.html'));
 });
 
-test('Sentinel-1 radar requests cannot keep the Agro processing overlay open indefinitely', () => {
+test('Agro never runs the heavy Sentinel-1 raster processing during the main location workflow', () => {
   const start = script.indexOf('export async function renderSarRadarUI');
-  const end = script.indexOf('/**\n * Renderiza la capa visual de aptitud', start);
+  const end = script.indexOf('/**\\n * Renderiza la capa visual de aptitud', start);
   const radarFunction = script.slice(start, end);
-  assert.ok(start >= 0 && end > start, 'renderSarRadarUI must be present');
-  assert.ok(radarFunction.includes('Promise.race'));
-  assert.ok(radarFunction.includes('15000'));
-  assert.ok(radarFunction.includes('clearTimeout(sarTimeoutId)'));
-  assert.ok(radarFunction.includes('La fuente Sentinel-1 no respondió dentro de 15 segundos'));
+  assert.ok(radarFunction.includes('if (!manual)'));
+  assert.ok(radarFunction.includes('btn-run-agro-sar'));
+  assert.ok(radarFunction.includes('renderSarRadarUI(lat, lng, geom, true)'));
+  assert.match(script, /await ejecutarEtapaConTimeout\\(\\s*'Radar satelital'/);
+  assert.match(script, /ocultarIndicadorCarga\\(\\);/);
 });
-
 
 test('map and GPS selection always release the global overlay when Sentinel-1 stalls', () => {
   const start = script.indexOf('export async function procesarSeleccionCoordenadas');
