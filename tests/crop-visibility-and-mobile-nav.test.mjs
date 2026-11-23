@@ -84,14 +84,15 @@ test('Agro never runs the heavy Sentinel-1 raster processing during the main loc
   assert.ok(script.includes('ocultarIndicadorCarga();'));
 });
 
-test('map and GPS selection render SAR action without awaiting satellite processing', () => {
-  const start = script.indexOf('export async function procesarSeleccionCoordenadas');
-  const end = script.indexOf('actualizarPanelTerritorialBasico', start);
-  const flow = script.slice(start, end);
-  assert.ok(flow.includes("await ejecutarEtapaConTimeout(\\n      'Radar satelital'"));
-  assert.ok(flow.includes('ocultarIndicadorCarga();'));
-  assert.ok(flow.includes('renderSarRadarUI(currentLat, currentLng, sarGeometry)'));
-  assert.ok(script.includes('if (!manual)'));
+test('map and GPS selection call the SAR renderer in lazy mode and close the global overlay', () => {
+  assert.ok(script.includes("await ejecutarEtapaConTimeout(\\n      'Radar satelital'"));
+  assert.ok(script.includes('renderSarRadarUI(currentLat, currentLng, sarGeometry)'));
+  assert.ok(script.includes('ocultarIndicadorCarga();'));
+  const start = script.indexOf('export async function renderSarRadarUI');
+  const end = script.indexOf('Renderiza la capa visual de aptitud', start);
+  const radarFunction = script.slice(start, end);
+  assert.ok(radarFunction.includes('if (!manual)'));
+  assert.ok(radarFunction.includes('btn-run-agro-sar'));
 });
 
 test('Open-Meteo and SMN keep AbortController active until JSON body parsing finishes', () => {
