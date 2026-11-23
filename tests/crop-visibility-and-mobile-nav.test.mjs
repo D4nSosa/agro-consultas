@@ -75,23 +75,23 @@ test('production HTML and module imports are cache-busted after UI fixes', async
 
 test('Agro never runs the heavy Sentinel-1 raster processing during the main location workflow', () => {
   const start = script.indexOf('export async function renderSarRadarUI');
-  const end = script.indexOf('/**\\n * Renderiza la capa visual de aptitud', start);
+  const end = script.indexOf('Renderiza la capa visual de aptitud', start);
   const radarFunction = script.slice(start, end);
   assert.ok(radarFunction.includes('if (!manual)'));
   assert.ok(radarFunction.includes('btn-run-agro-sar'));
   assert.ok(radarFunction.includes('renderSarRadarUI(lat, lng, geom, true)'));
-  assert.match(script, /await ejecutarEtapaConTimeout\\(\\s*'Radar satelital'/);
-  assert.match(script, /ocultarIndicadorCarga\\(\\);/);
+  assert.ok(script.includes("await ejecutarEtapaConTimeout("));
+  assert.ok(script.includes('ocultarIndicadorCarga();'));
 });
 
 test('map and GPS selection render SAR action without awaiting satellite processing', () => {
   const start = script.indexOf('export async function procesarSeleccionCoordenadas');
-  const end = script.indexOf('\\n}\\n', start);
+  const end = script.indexOf('actualizarPanelTerritorialBasico', start);
   const flow = script.slice(start, end);
   assert.ok(flow.includes("await ejecutarEtapaConTimeout(\\n      'Radar satelital'"));
   assert.ok(flow.includes('ocultarIndicadorCarga();'));
   assert.ok(flow.includes('renderSarRadarUI(currentLat, currentLng, sarGeometry)'));
-  assert.match(script, /if \\(!manual\\)/);
+  assert.ok(script.includes('if (!manual)'));
 });
 
 test('Open-Meteo and SMN keep AbortController active until JSON body parsing finishes', () => {
