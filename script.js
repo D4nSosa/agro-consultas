@@ -713,25 +713,6 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
 
   const months = periodSelect ? parseInt(periodSelect.value) || 12 : 12;
 
-  if (!manual) {
-    container.innerHTML = `
-      <div style="border: 1px solid var(--borde-suave); border-radius: 8px; padding: 14px;">
-        <h4 style="margin: 0 0 6px 0;">📡 Radar satelital Sentinel-1</h4>
-        <p style="margin: 0 0 10px 0; color: var(--texto-secundario); font-size: 0.85rem;">
-          El procesamiento SAR requiere consultar el catálogo y descargar/calibrar datos VV/VH. Se ejecuta por separado para no demorar Cultivos ni bloquear el mapa.
-        </p>
-        <button id="btn-run-agro-sar" type="button" class="btn-primary" style="width:100%;">Consultar Sentinel-1 ahora</button>
-      </div>
-    `;
-    const runButton = document.getElementById("btn-run-agro-sar");
-    runButton?.addEventListener("click", () => {
-      runButton.disabled = true;
-      runButton.textContent = "Consultando Sentinel-1…";
-      renderSarRadarUI(lat, lng, geom, true);
-    }, { once: true });
-    return;
-  }
-
   container.innerHTML = `
     <div style="text-align: center; padding: 20px;">
       <span style="font-size: 1.5rem; display: block; margin-bottom: 8px;">⏳</span>
@@ -808,6 +789,25 @@ export async function renderSarRadarUI(lat, lng, geom = null, manual = false) {
         <p class="text-muted" style="font-size: 0.85rem;">Seleccioná una ubicación para iniciar el análisis radar Sentinel-1.</p>
       </div>
     `;
+    return;
+  }
+
+  if (!manual) {
+    container.innerHTML = `
+      <div style="border: 1px solid var(--borde-suave); border-radius: 8px; padding: 14px;">
+        <h4 style="margin: 0 0 6px 0;">📡 Radar satelital Sentinel-1</h4>
+        <p style="margin: 0 0 10px 0; color: var(--texto-secundario); font-size: 0.85rem;">
+          El procesamiento SAR requiere consultar el catálogo y descargar/calibrar datos VV/VH. Se ejecuta por separado para no demorar Cultivos ni bloquear el mapa.
+        </p>
+        <button id="btn-run-agro-sar" type="button" class="btn-primary" style="width:100%;">Consultar Sentinel-1 ahora</button>
+      </div>
+    `;
+    const runButton = document.getElementById("btn-run-agro-sar");
+    runButton?.addEventListener("click", () => {
+      runButton.disabled = true;
+      runButton.textContent = "Consultando Sentinel-1…";
+      renderSarRadarUI(lat, lng, geom, true);
+    }, { once: true });
     return;
   }
 
