@@ -84,15 +84,14 @@ test('Agro never runs the heavy Sentinel-1 raster processing during the main loc
   assert.match(script, /ocultarIndicadorCarga\\(\\);/);
 });
 
-test('map and GPS selection always release the global overlay when Sentinel-1 stalls', () => {
+test('map and GPS selection render SAR action without awaiting satellite processing', () => {
   const start = script.indexOf('export async function procesarSeleccionCoordenadas');
-  const end = script.indexOf('\n}\n', start);
+  const end = script.indexOf('\\n}\\n', start);
   const flow = script.slice(start, end);
-  assert.ok(flow.includes("ejecutarEtapaConTimeout(\n      'Radar satelital'"));
-  assert.ok(flow.includes('18000'));
+  assert.ok(flow.includes("await ejecutarEtapaConTimeout(\\n      'Radar satelital'"));
   assert.ok(flow.includes('ocultarIndicadorCarga();'));
-  assert.match(script, /getSentinel1SarAnalysis\(targetGeom\)/);
-  assert.match(script, /15000/);
+  assert.ok(flow.includes('renderSarRadarUI(currentLat, currentLng, sarGeometry)'));
+  assert.match(script, /if \\(!manual\\)/);
 });
 
 test('Open-Meteo and SMN keep AbortController active until JSON body parsing finishes', () => {
