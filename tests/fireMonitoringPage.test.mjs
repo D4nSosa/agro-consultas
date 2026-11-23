@@ -18,6 +18,8 @@ test('selecting a fire detection brings the map into view automatically', () => 
 
 test('clicking a detection opens its popup without triggering map forecast selection', () => {
   assert.match(page, /function bindDetectionPopup\(marker, content\)/);
+  assert.match(page, /interactive:true,bubblingMouseEvents:false/);
+  assert.match(page, /interactive:false,bubblingMouseEvents:false/);
   assert.match(page, /marker\.on\('click',event=>L\.DomEvent\.stopPropagation\(event\.originalEvent\)\)/);
   assert.match(page, /bindDetectionPopup\(L\.circleMarker/);
   assert.match(page, /map\.on\('click',e=>\{/);
