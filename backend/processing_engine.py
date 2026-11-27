@@ -422,6 +422,10 @@ def analyze_existing_dataset(request: DatasetAnalysisRequest):
         raise HTTPException(status_code=502, detail=f"Falló el procesador territorial {request.processor}: {type(exc).__name__}: {str(exc)[:240]}")
 
 
+class TerrainAnalysisRequest(BaseModel):
+    geometry: dict[str, Any]
+
+
 class ComparisonLot(BaseModel):
     id: str = Field(min_length=1, max_length=80)
     name: str = Field(min_length=1, max_length=120)
@@ -442,7 +446,7 @@ class LotComparisonRequest(BaseModel):
     spectral_indices: list[str] = Field(default_factory=lambda: ["ndvi", "evi", "ndmi", "gndvi", "ndre"])
 
 
-COMPARISON_PROCESSORS = {"gaez", "gfw", "hansen", "gfw-drivers", "jrc", "spectral"}
+COMPARISON_PROCESSORS = {"gaez", "gfw", "hansen", "gfw-drivers", "jrc", "spectral", "terrain"}
 
 
 def _numeric_metrics(value: Any, prefix: str = "") -> dict[str, float]:
@@ -501,6 +505,8 @@ def _run_comparison_processor(processor: str, geometry: dict, request: LotCompar
             indices=request.spectral_indices,
         )
         return forest_api.calculate_spectral_indices(specialist_request)
+    elif processor == "terrain":
+        return analyze_terrain(TerrainAnalysisRequest(geometry=geometry))
     else:
         specialist_request = open_forest_data.ForestLotRequest(geometry=geometry)
         handler = {
@@ -509,6 +515,215 @@ def _run_comparison_processor(processor: str, geometry: dict, request: LotCompar
             "jrc": open_forest_data.jrc_analyze,
         }[processor]
     return handler(specialist_request)
+
+
+
+DEM_PROVIDER = {
+    "provider": "AWS Earth Search",
+    "endpoint": "https://earth-search.aws.element84.com/v1/search",
+    "collection": "cop-dem-glo-30",
+    "product": "Copernicus DEM GLO-30",
+    "kind": "elevation",
+    "catalog": "https://earth-search.aws.element84.com/v1/collections/cop-dem-glo-30",
+}
+
+
+def _copernicus_dem_asset_url(href: str) -> str:
+    prefix = "s3://copernicus-dem-30m/"
+    if href.startswith(prefix):
+        key = href[len(prefix):]
+        return "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com/" + key
+    parsed = urllib.parse.urlparse(href)
+    if parsed.scheme == "https" and parsed.netloc == "copernicus-dem-30m.s3.eu-central-1.amazonaws.com":
+        return href
+    raise ValueError("El catálogo DEM devolvió un asset fuera del bucket público autorizado.")
+
+
+@router.post("/terrain")
+def analyze_terrain(request: TerrainAnalysisRequest):
+    """Zonal elevation, slope and aspect from Copernicus DEM GLO-30 (DSM)."""
+    import numpy as np
+    try:
+        import rasterio
+        from rasterio.merge import merge
+        from rasterio.warp import reproject, Resampling
+        from rasterio.features import geometry_mask
+        from affine import Affine
+
+        geom = _validated_geometry(request.geometry)
+        if geom.geom_type not in ("Polygon", "MultiPolygon"):
+            raise HTTPException(status_code=422, detail="El análisis de elevación requiere un polígono o multipolígono.")
+        west, south, east, north = geom.bounds
+        search_body = {
+            "collections": ["cop-dem-glo-30"],
+            "intersects": mapping(geom),
+            "limit": 100,
+        }
+        features, has_more, pages = _read_stac_pages(
+            DEM_PROVIDER, search_body, max_pages=5, max_items=100
+        )
+        if not features:
+            return {
+                "status": "UNAVAILABLE",
+                "source": "Copernicus DEM GLO-30",
+                "message": "El catálogo no devolvió teselas de elevación para el polígono consultado."
+            }
+
+        datasets = []
+        env = rasterio.Env(
+            AWS_NO_SIGN_REQUEST="YES",
+            GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
+            CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif",
+            GDAL_HTTP_MULTIRANGE="YES",
+            CPL_VSIL_CURL_USE_HEAD="NO",
+            GDAL_HTTP_TIMEOUT="25",
+        )
+        env.__enter__()
+        try:
+            for item in features:
+                asset = (item.get("assets") or {}).get("data") or {}
+                href = asset.get("href")
+                if not href:
+                    continue
+                url = _copernicus_dem_asset_url(href)
+                datasets.append(rasterio.open(url))
+            if not datasets:
+                return {
+                    "status": "UNAVAILABLE",
+                    "source": "Copernicus DEM GLO-30",
+                    "message": "Las teselas encontradas no publican un asset de elevación accesible."
+                }
+            source_crs = datasets[0].crs
+            mosaic, src_transform = merge(
+                datasets,
+                bounds=(west, south, east, north),
+                nodata=np.nan,
+                res=(1 / 3600, 1 / 3600),
+            )
+            if mosaic.size == 0:
+                return {
+                    "status": "UNAVAILABLE",
+                    "source": "Copernicus DEM GLO-30",
+                    "message": "Las teselas no contienen píxeles dentro del polígono."
+                }
+            lon, lat = geom.centroid.x, geom.centroid.y
+            zone = int((lon + 180) // 6) + 1
+            epsg = (32600 if lat >= 0 else 32700) + zone
+            target_crs = f"EPSG:{epsg}"
+            projected_geom = shape({
+                "type": "Polygon",
+                "coordinates": [[
+                    [x, y] for x, y in []
+                ]]
+            }) if False else geom
+            from pyproj import Transformer
+            from shapely.ops import transform as transform_shape
+            transformer = Transformer.from_crs("EPSG:4326", target_crs, always_xy=True)
+            projected_geom = transform_shape(transformer.transform, geom)
+            minx, miny, maxx, maxy = projected_geom.bounds
+            resolution_m = 30.0
+            width = max(1, int(math.ceil((maxx - minx) / resolution_m)))
+            height = max(1, int(math.ceil((maxy - miny) / resolution_m)))
+            if width * height > 2_000_000:
+                raise HTTPException(status_code=413, detail="El área supera 2 millones de píxeles a 30 m por consulta.")
+            dst_transform = Affine(resolution_m, 0, minx, 0, -resolution_m, maxy)
+            elevation = np.full((height, width), np.nan, dtype="float32")
+            source_nodata = datasets[0].nodata if datasets[0].nodata is not None else -9999
+            source = mosaic[0].astype("float32")
+            source[~np.isfinite(source)] = np.nan
+            reproject(
+                source=source,
+                destination=elevation,
+                src_transform=src_transform,
+                src_crs=source_crs,
+                src_nodata=np.nan if np.isnan(source).any() else source_nodata,
+                dst_transform=dst_transform,
+                dst_crs=target_crs,
+                dst_nodata=np.nan,
+                resampling=Resampling.bilinear,
+            )
+            inside = geometry_mask(
+                [mapping(projected_geom)],
+                out_shape=elevation.shape,
+                transform=dst_transform,
+                invert=True,
+            )
+            elevation[~inside] = np.nan
+            valid_elevation = np.isfinite(elevation)
+            elevation_values = elevation[valid_elevation]
+            if elevation_values.size < 9:
+                return {
+                    "status": "UNAVAILABLE",
+                    "source": "Copernicus DEM GLO-30",
+                    "message": "El polígono no contiene suficientes píxeles de 30 m para derivar pendiente y orientación."
+                }
+            dz_dy, dz_dx = np.gradient(elevation, resolution_m, -resolution_m)
+            slope = np.degrees(np.arctan(np.sqrt(dz_dx ** 2 + dz_dy ** 2)))
+            slope_valid = valid_elevation & np.isfinite(slope)
+            slope_values = slope[slope_valid]
+            aspect = np.mod(
+                np.degrees(np.arctan2(-dz_dx, -dz_dy)), 360.0
+            )
+            aspect_valid = slope_valid & (slope >= 0.5) & np.isfinite(aspect)
+            aspect_values = aspect[aspect_valid]
+            if aspect_values.size:
+                mean_aspect = float(np.mod(
+                    np.degrees(np.arctan2(
+                        np.mean(np.sin(np.radians(aspect_values))),
+                        np.mean(np.cos(np.radians(aspect_values)))
+                    )), 360.0
+                ))
+            else:
+                mean_aspect = None
+            return {
+                "status": "REAL",
+                "source": "Copernicus DEM GLO-30",
+                "sourceUrl": "https://earth-search.aws.element84.com/v1/collections/cop-dem-glo-30",
+                "model": "DSM",
+                "resolution": resolution_m,
+                "resolutionUnit": "m",
+                "horizontalCrs": target_crs,
+                "verticalDatum": "EGM2008",
+                "elevation": {
+                    "min_m": round(float(np.min(elevation_values)), 2),
+                    "mean_m": round(float(np.mean(elevation_values)), 2),
+                    "median_m": round(float(np.median(elevation_values)), 2),
+                    "max_m": round(float(np.max(elevation_values)), 2),
+                    "sample_count": int(elevation_values.size),
+                },
+                "slope": {
+                    "mean_deg": round(float(np.mean(slope_values)), 3),
+                    "median_deg": round(float(np.median(slope_values)), 3),
+                    "max_deg": round(float(np.max(slope_values)), 3),
+                    "sample_count": int(slope_values.size),
+                },
+                "aspect": {
+                    "circular_mean_deg": round(mean_aspect, 2) if mean_aspect is not None else None,
+                    "sample_count": int(aspect_values.size),
+                },
+                "catalog": {
+                    "tiles_read": len(datasets),
+                    "pages_read": pages,
+                    "has_more_tiles": has_more,
+                },
+                "limitations": [
+                    "Copernicus GLO-30 es un modelo digital de superficie (DSM): las alturas incluyen vegetación y construcciones; no es un modelo de terreno desnudo.",
+                    "La pendiente y orientación se derivan de una grilla de 30 m y no sirven para diseño de drenajes, caminos o movimiento de suelo de precisión.",
+                    "La cobertura GLO-30 tiene algunas teselas no publicadas; si el catálogo no cubre el lote, el resultado se informa como no disponible.",
+                ],
+            }
+        finally:
+            for dataset in datasets:
+                dataset.close()
+            env.__exit__(None, None, None)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return {
+            "status": "UNAVAILABLE",
+            "source": "Copernicus DEM GLO-30",
+            "message": f"No se pudo procesar el modelo de elevación: {type(exc).__name__}: {str(exc)[:240]}"
+        }
 
 
 @router.post("/compare")
@@ -689,6 +904,7 @@ def engine_capabilities():
             "landsat": "Existing Forestal NDVI processor with QA_PIXEL quality mask.",
             "territorial": ["gaez", "gfw", "hansen", "gfw-drivers", "jrc"],
             "multispectral": "POST /api/forest/spectral calculates calibrated NDVI, EVI, NDMI, GNDVI and NDRE from Sentinel-2/Landsat assets with aligned QA masks.",
+            "terrain": "Copernicus DEM GLO-30 DSM zonal elevation, slope and aspect in a local metric CRS.",
             "lotComparison": "Same allow-listed territorial processors applied to 2–5 lots; returns comparable metrics and chart-ready series. Spectral comparisons require matching acquisition date, collection and resolution.",
         },
         "dispatchEndpoints": {
@@ -696,6 +912,7 @@ def engine_capabilities():
             "sceneProcessing": "POST /api/engine/process",
             "territorialAnalysis": "POST /api/engine/analyze",
             "multispectralAnalysis": "POST /api/forest/spectral",
+            "terrainAnalysis": "POST /api/engine/terrain",
             "lotComparison": "POST /api/engine/compare",
             "officialSources": "GET /api/engine/sources",
             "ogcCapabilities": "GET /api/engine/ogc/{provider}/{service}",
