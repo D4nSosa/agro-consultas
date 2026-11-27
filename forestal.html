@@ -846,14 +846,36 @@
             ['Pendiente máxima', payload.slope?.max_deg, '°'],
             ['Orientación media', payload.aspect?.circular_mean_deg, '°']
           ];
+          const slopeRows = payload.distribution?.slope || [];
+          const aspectRows = payload.distribution?.aspect || [];
+          const maxSlopeShare = Math.max(1, ...slopeRows.map(item => item.share_percent || 0));
+          const maxAspectShare = Math.max(1, ...aspectRows.map(item => item.share_percent || 0));
           output.innerHTML = `
-            <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">DSM · ${Number(payload.resolution)} m · ${payload.horizontalCrs} · Datum vertical ${payload.verticalDatum}</div>
+            <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">DSM · ${Number(payload.resolution)} m · ${escapeTerrain(payload.horizontalCrs)} · Datum vertical ${escapeTerrain(payload.verticalDatum)}</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
               ${cards.map(([label, value, unit]) => `
                 <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:10px;">
                   <small>${label}</small>
                   <div style="font-size:1.2rem;font-weight:700;margin-top:5px;">${Number.isFinite(value) ? Number(value).toFixed(2) + ' ' + unit : '—'}</div>
                 </article>`).join('')}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px;">
+              <section><strong>Distribución de pendientes</strong>
+                ${slopeRows.map(item => `
+                  <div style="display:grid;grid-template-columns:52px 1fr 46px;gap:8px;align-items:center;margin-top:7px;font-size:.78rem;">
+                    <span>${escapeTerrain(item.class)}</span>
+                    <div style="height:8px;background:var(--borde-suave);border-radius:8px;overflow:hidden;"><i style="display:block;height:100%;width:${Math.min(100, item.share_percent / maxSlopeShare * 100)}%;background:var(--verde-principal);"></i></div>
+                    <strong>${Number(item.share_percent).toFixed(1)}%</strong>
+                  </div>`).join('')}
+              </section>
+              <section><strong>Orientación de laderas</strong>
+                ${aspectRows.map(item => `
+                  <div style="display:grid;grid-template-columns:28px 1fr 46px;gap:8px;align-items:center;margin-top:7px;font-size:.78rem;">
+                    <span>${escapeTerrain(item.direction)}</span>
+                    <div style="height:8px;background:var(--borde-suave);border-radius:8px;overflow:hidden;"><i style="display:block;height:100%;width:${Math.min(100, item.share_percent / maxAspectShare * 100)}%;background:#3478b8;"></i></div>
+                    <strong>${Number(item.share_percent).toFixed(1)}%</strong>
+                  </div>`).join('')}
+              </section>
             </div>
             <ul style="font-size:.78rem;color:var(--texto-secundario);">${(payload.limitations || []).map(item => `<li>${escapeTerrain(item)}</li>`).join('')}</ul>`;
           status.textContent = 'Análisis del relieve calculado y guardado para el lote activo.';
