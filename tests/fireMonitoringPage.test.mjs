@@ -78,6 +78,10 @@ test('raster layer clicks explain the active thematic layer instead of moving th
   assert.match(page, /function bindDetectionPopup\(marker, content\)/);
   assert.match(page, /className:'fire-detection-marker'/);
   assert.match(page, /target\?\.closest\?\.\('\.fire-detection-marker'\)/);
+  assert.match(page, /className:'fire-context-wms fire-context-burned'/);
+  assert.match(page, /className:'fire-context-wms fire-context-fuel'/);
+  assert.match(page, /className:'fire-context-wms fire-context-gwis'/);
+  assert.match(page, /const hitBurned=!!target\?\.closest\?\.\('\.fire-context-burned'\)/);
   assert.match(page, /Área quemada mensual · MODIS AQM/);
   assert.match(page, /Peligro de incendio FWI · GWIS/);
   assert.match(page, /La capa está representada como raster/);
