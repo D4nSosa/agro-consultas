@@ -806,6 +806,9 @@
         const output = document.getElementById('forest-spectral-output');
         const button = document.getElementById('forest-spectral-run');
         const indices = Array.from(document.querySelectorAll('input[name="spectral-index"]:checked')).map(item => item.value);
+        const escapeSpectral = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
         if (!feature?.geometry || !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) {
           status.textContent = 'Definí un polígono de lote antes de calcular índices espectrales.';
           return;
@@ -846,13 +849,13 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;">
               \${valid.map(([key, item]) => \`
                 <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;">
-                  <strong>\${item.label || key.toUpperCase()}</strong>
+                  <strong>\${escapeSpectral(item.label || key.toUpperCase())}</strong>
                   <div style="font-size:1.35rem;font-weight:700;margin:6px 0;">\${Number(item.mean).toFixed(3)}</div>
                   <div style="height:9px;background:var(--borde-suave);border-radius:8px;overflow:hidden;">
                     <i style="display:block;height:100%;width:\${Math.max(1, Math.min(100, Math.abs(item.mean) / maxAbs * 100))}%;background:var(--verde-principal);"></i>
                   </div>
                   <small>Mediana \${Number(item.median).toFixed(3)} · \${item.sampleCount} píxeles válidos</small>
-                  <div style="font-size:.72rem;color:var(--texto-secundario);margin-top:5px;">\${item.formula}</div>
+                  <div style="font-size:.72rem;color:var(--texto-secundario);margin-top:5px;">\${escapeSpectral(item.formula)}</div>
                 </article>\`).join('')}
             </div>
             \${unavailable.map(([key, item]) => \`<p style="font-size:.8rem;color:var(--texto-secundario);">\${key.toUpperCase()}: \${item.message || 'No disponible en esta escena.'}</p>\`).join('')}
