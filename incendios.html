@@ -249,18 +249,18 @@ function stabilizeNationalView(){
 const satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.png',{maxZoom:19,attribution:'Tiles © Esri'});
 const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});satellite.addTo(map);
 // Capa WMS de peligro FWI publicada por el Global Wildfire Information System (JRC).
-const gwisFwi=L.tileLayer.wms('https://ies-ows.jrc.ec.europa.eu/gwis',{layers:'ecmwf.fwi',styles:'',format:'image/png',transparent:true,version:'1.1.1',opacity:.58,attribution:'© European Commission JRC · GWIS'});
+const gwisFwi=L.tileLayer.wms('https://ies-ows.jrc.ec.europa.eu/gwis',{layers:'ecmwf.fwi',styles:'',format:'image/png',transparent:true,version:'1.1.1',opacity:.58,className:'fire-context-wms fire-context-gwis',attribution:'© European Commission JRC · GWIS'});
 gwisFwi.on('tileerror',()=>{$('source-status').textContent='La capa cartográfica FWI de GWIS no respondió. Las detecciones FIRMS/GOES siguen disponibles.';$('source-status').classList.add('error');});
 // Productos oficiales CONAE con cobertura nacional publicada en el catálogo PROSAT II.
 // Se muestran como capas de contexto independientes: área quemada no es foco activo,
 // y disponibilidad de combustible no es un índice de peligro ni una predicción.
 const conaeBurned=L.tileLayer.wms('https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms',{
  layers:'EmergenciasCONAE:MODIS_AQM_1',styles:'',format:'image/png',transparent:true,
- version:'1.1.1',opacity:.62,attribution:'© CONAE · Producto MODIS AQM'
+ version:'1.1.1',opacity:.62,className:'fire-context-wms fire-context-burned',attribution:'© CONAE · Producto MODIS AQM'
 });
 const conaeFuel=L.tileLayer.wms('https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms',{
  layers:'AlertaTemprana:INC_SIARTIVGEOL89_DC_3',styles:'',format:'image/png',transparent:true,
- version:'1.1.1',opacity:.58,attribution:'© CONAE · Disponibilidad de combustibles'
+ version:'1.1.1',opacity:.58,className:'fire-context-wms fire-context-fuel',attribution:'© CONAE · Disponibilidad de combustibles'
 });
 const firePreferences=getFireMapPreferences();
 const preferenceControls={
@@ -457,22 +457,25 @@ map.on('click',e=>{
  if(target?.closest?.('.fire-detection-marker'))return;
  if(e.originalEvent?.defaultPrevented || e.originalEvent?._stopped) return;
  const {lat,lng}=e.latlng;
+ const hitBurned=!!target?.closest?.('.fire-context-burned');
+ const hitFuel=!!target?.closest?.('.fire-context-fuel');
+ const hitGwis=!!target?.closest?.('.fire-context-gwis');
  const active=[];
- if(map.hasLayer(conaeBurned)){
+ if(hitBurned){
   const layerName=$('burned-product')?.value||'EmergenciasCONAE:MODIS_AQM_1';
   const key=layerName.replace('EmergenciasCONAE:','');
   const metadata=conaeLayerMetadata.burned?.get(key)||conaeLayerMetadata.burned?.get(layerName);
   const title=metadata?.title||'Área quemada mensual · MODIS AQM';
   const abstract=metadata?.abstract||'Producto de áreas quemadas derivado de MODIS. No representa focos activos ni peligro actual.';
-  active.push('<strong>'+esc(title)+'</strong><p>'+esc(abstract)+'</p><small>Fuente: CONAE · '+esc(layerName)+'</small><p>La capa está representada como raster. Esta ficha identifica el producto; no informa un valor de píxel porque el servicio no entrega una consulta puntual en esta interfaz.</p>');
+  active.push('<strong>'+esc(title)+'</strong><p>'+esc(abstract)+'</p><small>Fuente: CONAE · '+esc(layerName)+'</small><p>La capa es un raster temático. Esta ficha identifica el producto y su significado; no presenta un valor de píxel que no haya sido consultado al servicio.</p>');
  }
- if(map.hasLayer(conaeFuel)){
+ if(hitFuel){
   const layerName=$('fuel-product')?.value||'AlertaTemprana:INC_SIARTIVGEOL89_DC_3';
   const key=layerName.replace('AlertaTemprana:','');
   const metadata=conaeLayerMetadata.fuel?.get(key)||conaeLayerMetadata.fuel?.get(layerName);
   active.push('<strong>'+(metadata?.title||'Disponibilidad de combustibles · CONAE')+'</strong><p>'+esc(metadata?.abstract||'Composición relativa de vegetación verde, vegetación seca o senescente y suelo descubierto. No es una detección de incendio ni un índice de peligro.')+'</p><small>Fuente: CONAE · '+esc(layerName)+'</small>');
  }
- if(map.hasLayer(gwisFwi)){
+ if(hitGwis){
   active.push('<strong>Peligro de incendio FWI · GWIS</strong><p>Índice meteorológico de peligro de incendio publicado por el sistema europeo GWIS/JRC. Es una capa de contexto de peligro, no un foco detectado ni un perímetro quemado.</p><small>Fuente: European Commission JRC · capa ecmwf.fwi</small>');
  }
  if(active.length){
