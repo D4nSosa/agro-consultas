@@ -1370,7 +1370,9 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
 /* Comparación de lotes dentro de Agro-Consultas */
 .ac-lot-comparison { margin: 24px 0; padding: 20px; border-top: 4px solid var(--verde-principal); }
 .ac-lot-comparison > p { color: var(--texto-secundario); line-height: 1.5; }
-.ac-lot-comparison select { display:block; width:100%; min-height:120px; margin:8px 0; padding:10px; border:1px solid var(--borde-suave); border-radius:8px; background:var(--bg-principal); color:var(--texto-principal); }
+.ac-compare-lot-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin:8px 0; }
+.ac-compare-lot-option { display:flex; align-items:center; gap:9px; min-width:0; padding:10px; border:1px solid var(--borde-suave); border-radius:8px; background:var(--bg-principal); cursor:pointer; overflow-wrap:anywhere; }
+.ac-compare-lot-option input { width:18px; height:18px; flex:0 0 auto; accent-color:var(--verde-principal); }
 .ac-compare-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:14px 0; }
 #ac-compare-status { color:var(--texto-secundario); font-size:.86rem; }
 #ac-compare-output { margin-top:16px; }

@@ -66,21 +66,26 @@ function renderResults(container, data) {
 export function initializeLotComparison() {
   const root = document.getElementById('lot-comparison');
   if (!root) return;
-  const select = root.querySelector('#ac-compare-lots');
+  const lotOptions = root.querySelector('#ac-compare-lot-options');
   const status = root.querySelector('#ac-compare-status');
   const results = root.querySelector('#ac-compare-output');
   const runButton = root.querySelector('#ac-run-comparison');
 
   function refreshLots() {
     const { project, lots } = currentLots();
-    const previous = new Set(Array.from(select.selectedOptions, option => option.value));
-    select.replaceChildren();
+    const previous = new Set(Array.from(lotOptions.querySelectorAll('input:checked'), input => input.value));
+    lotOptions.replaceChildren();
     for (const lot of lots) {
-      const option = document.createElement('option');
-      option.value = lot.id;
-      option.textContent = lot.name;
-      option.selected = previous.has(lot.id);
-      select.appendChild(option);
+      const label = document.createElement('label');
+      label.className = 'ac-compare-lot-option';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = lot.id;
+      checkbox.checked = previous.has(lot.id);
+      const name = document.createElement('span');
+      name.textContent = lot.name;
+      label.append(checkbox, name);
+      lotOptions.appendChild(label);
     }
     root.querySelector('#ac-compare-project').textContent = project
       ? `Proyecto: ${project.name} · ${lots.length} lotes guardados`
@@ -97,7 +102,7 @@ export function initializeLotComparison() {
 
   runButton.addEventListener('click', async () => {
     const { lots } = currentLots();
-    const selectedIds = Array.from(select.selectedOptions, option => option.value);
+    const selectedIds = Array.from(lotOptions.querySelectorAll('input:checked'), input => input.value);
     if (selectedIds.length < 2 || selectedIds.length > 5) {
       status.textContent = 'Seleccioná entre 2 y 5 lotes del proyecto activo.';
       return;
