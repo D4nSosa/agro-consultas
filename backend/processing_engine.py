@@ -421,6 +421,183 @@ def analyze_existing_dataset(request: DatasetAnalysisRequest):
         raise HTTPException(status_code=502, detail=f"Falló el procesador territorial {request.processor}: {type(exc).__name__}: {str(exc)[:240]}")
 
 
+class ComparisonLot(BaseModel):
+    id: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=120)
+    geometry: dict[str, Any]
+
+
+class LotComparisonRequest(BaseModel):
+    lots: list[ComparisonLot] = Field(min_length=2, max_length=5)
+    processors: list[str] = Field(default_factory=lambda: ["hansen", "gfw-drivers", "jrc"], min_length=1, max_length=5)
+    mapset_code: str | None = None
+    crop: str | None = None
+    period: str | None = None
+    climate_data_source: str | None = None
+    ssp: str | None = None
+    input_level: str | None = None
+
+
+COMPARISON_PROCESSORS = {"gaez", "gfw", "hansen", "gfw-drivers", "jrc"}
+
+
+def _numeric_metrics(value: Any, prefix: str = "") -> dict[str, float]:
+    """Flatten numeric scalar leaves while preserving their source result paths."""
+    metrics: dict[str, float] = {}
+    if isinstance(value, dict):
+        for key, child in value.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            metrics.update(_numeric_metrics(child, path))
+    elif isinstance(value, list):
+        # Lists often encode classes or years; compare them only when the index has
+        # the same meaning in the same specialist response.
+        for index, child in enumerate(value):
+            path = f"{prefix}[{index}]"
+            metrics.update(_numeric_metrics(child, path))
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        number = float(value)
+        if math.isfinite(number):
+            metrics[prefix] = number
+    return metrics
+
+
+def _run_comparison_processor(processor: str, geometry: dict, request: LotComparisonRequest):
+    from backend import territorial_analysis, open_forest_data
+
+    if processor in ("gaez", "gfw"):
+        specialist_request = territorial_analysis.LotDatasetRequest(
+            geometry=geometry,
+            mapset_code=request.mapset_code,
+            crop=request.crop,
+            period=request.period,
+            climate_data_source=request.climate_data_source,
+            ssp=request.ssp,
+            input_level=request.input_level,
+        )
+        handler = territorial_analysis.gaez_analyze if processor == "gaez" else territorial_analysis.gfw_analyze
+    else:
+        specialist_request = open_forest_data.ForestLotRequest(geometry=geometry)
+        handler = {
+            "hansen": open_forest_data.hansen_analyze,
+            "gfw-drivers": open_forest_data.gfw_drivers_analyze,
+            "jrc": open_forest_data.jrc_analyze,
+        }[processor]
+    return handler(specialist_request)
+
+
+@router.post("/compare")
+def compare_lots(request: LotComparisonRequest):
+    """Run identical allow-listed dataset processors for 2–5 lots and return comparable metrics."""
+    if len({lot.id for lot in request.lots}) != len(request.lots):
+        raise HTTPException(status_code=422, detail="Cada lote debe tener un id único.")
+    if len({lot.name.strip().casefold() for lot in request.lots}) != len(request.lots):
+        raise HTTPException(status_code=422, detail="Cada lote debe tener un nombre distinto.")
+    unknown = sorted(set(request.processors) - COMPARISON_PROCESSORS)
+    if unknown:
+        raise HTTPException(status_code=422, detail="Procesadores no admitidos: " + ", ".join(unknown))
+    processors = list(dict.fromkeys(request.processors))
+    if "gaez" in processors:
+        missing = [name for name in ("mapset_code", "crop", "period", "climate_data_source", "ssp", "input_level")
+                   if not getattr(request, name)]
+        if missing:
+            raise HTTPException(status_code=422, detail="GAEZ requiere parámetros comunes para todos los lotes: " + ", ".join(missing))
+
+    validated_lots = []
+    for lot in request.lots:
+        geom = _validated_geometry(lot.geometry)
+        if geom.geom_type not in ("Polygon", "MultiPolygon") or geom.area <= 0:
+            raise HTTPException(status_code=422, detail=f"El lote {lot.name} debe ser un polígono con superficie.")
+        validated_lots.append((lot, mapping(geom), geom))
+
+    results = []
+    for lot, geometry, geom in validated_lots:
+        lot_result = {
+            "id": lot.id,
+            "name": lot.name,
+            "areaHa": None,
+            "datasets": {},
+        }
+        try:
+            from backend.main import calculate_shapely_area
+            lot_result["areaHa"] = round(calculate_shapely_area(geom) / 10000.0, 4)
+        except Exception:
+            pass
+        for processor in processors:
+            try:
+                result = _run_comparison_processor(processor, geometry, request)
+                success = result.get("success") is True or result.get("status") == "REAL"
+                lot_result["datasets"][processor] = {
+                    "status": "PROCESSED" if success else "PROCESSING_UNAVAILABLE",
+                    "result": result,
+                }
+            except HTTPException as exc:
+                lot_result["datasets"][processor] = {
+                    "status": "PROCESSING_UNAVAILABLE",
+                    "error": exc.detail,
+                }
+            except Exception as exc:
+                lot_result["datasets"][processor] = {
+                    "status": "PROCESSING_UNAVAILABLE",
+                    "error": f"{type(exc).__name__}: {str(exc)[:180]}",
+                }
+        results.append(lot_result)
+
+    comparisons = {}
+    chart_series = {}
+    for processor in processors:
+        per_lot = {}
+        metric_paths = None
+        for lot_result in results:
+            dataset = lot_result["datasets"][processor]
+            if dataset["status"] != "PROCESSED":
+                per_lot[lot_result["id"]] = {}
+                continue
+            metrics = _numeric_metrics(dataset.get("result", {}))
+            per_lot[lot_result["id"]] = metrics
+            paths = set(metrics)
+            metric_paths = paths if metric_paths is None else metric_paths.intersection(paths)
+        rows = []
+        for path in sorted(metric_paths or []):
+            values = [{"lotId": lot["id"], "lotName": lot["name"], "value": per_lot[lot["id"]][path]}
+                      for lot in results if path in per_lot.get(lot["id"], {})]
+            if len(values) == len(results):
+                baseline = values[0]["value"]
+                for item in values:
+                    item["differenceFromFirst"] = item["value"] - baseline
+                    item["differencePercentFromFirst"] = (
+                        ((item["value"] - baseline) / abs(baseline)) * 100.0 if baseline != 0 else None
+                    )
+                rows.append({"metric": path, "values": values})
+        comparisons[processor] = rows
+        chart_series[processor] = [
+            {"metric": row["metric"], "series": [
+                {"name": item["lotName"], "lotId": item["lotId"], "value": item["value"]}
+                for item in row["values"]
+            ]}
+            for row in rows
+        ]
+
+    statuses = [dataset["status"] for lot in results for dataset in lot["datasets"].values()]
+    overall = "PROCESSED" if statuses and all(status == "PROCESSED" for status in statuses) else (
+        "PARTIAL" if any(status == "PROCESSED" for status in statuses) else "PROCESSING_UNAVAILABLE"
+    )
+    return {
+        "status": overall,
+        "comparisonMethod": "Same allow-listed processor and identical dataset parameters applied independently to each lot.",
+        "lots": results,
+        "comparisons": comparisons,
+        "chartSeries": chart_series,
+        "processors": processors,
+        "limitations": [
+            "Los valores solo se comparan cuando el mismo procesador devuelve la misma ruta métrica para todos los lotes.",
+            "Las resoluciones, períodos, unidades y metodologías pertenecen a cada fuente; no se mezclan métricas entre procesadores.",
+            "La comparación describe las variables publicadas por las fuentes. No demuestra causalidad ni rendimiento cosechado.",
+            "Para comparar productividad real se necesitan registros de producción y superficie cosechada por lote y campaña.",
+            "Un resultado ausente o no procesado no se convierte en cero.",
+        ],
+    }
+
+
 @router.get("/sources")
 def engine_source_catalog():
     """Expose the existing official-source registry through the central engine."""
@@ -466,11 +643,13 @@ def engine_capabilities():
             "sentinel2": "Existing Forestal NDVI processor with SCL quality mask.",
             "landsat": "Existing Forestal NDVI processor with QA_PIXEL quality mask.",
             "territorial": ["gaez", "gfw", "hansen", "gfw-drivers", "jrc"],
+            "lotComparison": "Same allow-listed territorial processors applied to 2–5 lots; returns common numeric metrics and chart-ready series.",
         },
         "dispatchEndpoints": {
             "sceneDiscovery": "POST /api/engine/scenes",
             "sceneProcessing": "POST /api/engine/process",
             "territorialAnalysis": "POST /api/engine/analyze",
+            "lotComparison": "POST /api/engine/compare",
             "officialSources": "GET /api/engine/sources",
             "ogcCapabilities": "GET /api/engine/ogc/{provider}/{service}",
             "mapbiomasTiles": "GET /api/engine/mapbiomas/tiles/{year}",
