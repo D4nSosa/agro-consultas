@@ -1024,6 +1024,87 @@ def conae_wms_metadata(kind: str):
         raise HTTPException(status_code=502, detail="No se pudieron consultar los metadatos WMS de CONAE: " + str(exc)[:180])
 
 
+@app.get("/api/fires/conae/identify")
+def conae_wms_identify(
+    kind: str,
+    layer: str,
+    bbox: str,
+    width: int,
+    height: int,
+    x: int,
+    y: int,
+):
+    """Proxy GetFeatureInfo for allowlisted, queryable CONAE WMS layers."""
+    services = {
+        "burned": "https://geoservicios2.conae.gov.ar/geoserver/EmergenciasCONAE/wms",
+        "fuel": "https://geoservicios.conae.gov.ar/geoserver/AlertaTemprana/wms",
+    }
+    if kind not in services:
+        raise HTTPException(status_code=400, detail="Tipo de producto CONAE inválido.")
+    if not layer or len(layer) > 200 or width < 1 or height < 1 or width > 4096 or height > 4096:
+        raise HTTPException(status_code=400, detail="Parámetros WMS inválidos.")
+    if not (0 <= x < width and 0 <= y < height):
+        raise HTTPException(status_code=400, detail="El píxel consultado está fuera del mapa.")
+    try:
+        bounds = [float(value) for value in bbox.split(",")]
+        if len(bounds) != 4 or not all(math.isfinite(value) for value in bounds):
+            raise ValueError("BBOX inválido")
+        min_x, min_y, max_x, max_y = bounds
+        if min_x >= max_x or min_y >= max_y:
+            raise ValueError("Extensión BBOX inválida")
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="La extensión BBOX debe contener cuatro coordenadas válidas.")
+
+    metadata = conae_wms_metadata(kind)
+    layer_metadata = next((item for item in metadata.get("layers", []) if item.get("name") == layer), None)
+    if not layer_metadata:
+        raise HTTPException(status_code=400, detail="La capa solicitada no pertenece al catálogo CONAE permitido.")
+    if layer_metadata.get("queryable") is not True:
+        return {
+            "queryable": False,
+            "layer": layer,
+            "title": layer_metadata.get("title") or layer,
+            "message": "El catálogo WMS no declara esta capa como consultable por píxel.",
+            "features": [],
+        }
+
+    params = urllib.parse.urlencode({
+        "service": "WMS",
+        "version": "1.1.1",
+        "request": "GetFeatureInfo",
+        "layers": layer,
+        "query_layers": layer,
+        "styles": "",
+        "srs": "EPSG:3857",
+        "bbox": ",".join(str(value) for value in bounds),
+        "width": width,
+        "height": height,
+        "format": "image/png",
+        "info_format": "application/json",
+        "feature_count": 5,
+        "x": x,
+        "y": y,
+    })
+    request = urllib.request.Request(
+        services[kind] + "?" + params,
+        headers={"User-Agent": "Agro-Consultas/1.0", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            payload = json.loads(response.read(1_000_000).decode("utf-8"))
+        features = payload.get("features") if isinstance(payload, dict) else None
+        return {
+            "queryable": True,
+            "layer": layer,
+            "title": layer_metadata.get("title") or layer,
+            "features": features if isinstance(features, list) else [],
+            "featureCount": len(features) if isinstance(features, list) else 0,
+            "source": "CONAE WMS GetFeatureInfo",
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="No se pudo consultar el píxel WMS de CONAE: " + str(exc)[:160])
+
+
 @app.get("/api/fires/forecast")
 def fire_weather_forecast(lat: float, lon: float):
     """Pronóstico de tres días; cachea celdas locales y sirve caché obsoleta ante fallos."""
