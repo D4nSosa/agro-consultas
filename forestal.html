@@ -782,6 +782,55 @@
       if (dateAInput && !dateAInput.value) dateAInput.value = previousYear.toISOString().slice(0, 10);
       if (dateBInput && !dateBInput.value) dateBInput.value = today;
 
+      const safeForestText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      let plotlyLoader = null;
+      const ensurePlotly = () => {
+        if (window.Plotly) return Promise.resolve(window.Plotly);
+        if (!plotlyLoader) plotlyLoader = new Promise((resolve,reject) => {
+          const script=document.createElement('script'); script.src='https://cdn.plot.ly/plotly-2.35.2.min.js'; script.async=true;
+          script.onload=()=>resolve(window.Plotly); script.onerror=()=>reject(new Error('No se pudo cargar el visor 3D.'));
+          document.head.appendChild(script);
+        });
+        return plotlyLoader;
+      };
+      const renderForestSourceChart = (kind,payload) => {
+        const fmt=v=>Number(v).toLocaleString('es-AR',{maximumFractionDigits:2});
+        if(kind==='gfw-drivers'){
+          const items=payload.drivers||[]; if(!items.length)return '<p>No hay clases con superficie válida para graficar.</p>';
+          const max=Math.max(.0001,...items.map(x=>Number(x.area_ha)||0)), h=42+items.length*36;
+          const bars=items.map((x,i)=>{const y=26+i*36,w=(Number(x.area_ha)||0)/max*370;return '<text x="8" y="'+(y+14)+'" font-size="12" fill="currentColor">'+safeForestText(x.driver)+'</text><rect x="280" y="'+y+'" width="370" height="18" rx="4" fill="#aab4bd" opacity=".25"/><rect x="280" y="'+y+'" width="'+w.toFixed(1)+'" height="18" rx="4" fill="#278653"/><text x="660" y="'+(y+14)+'" font-size="12" fill="currentColor">'+fmt(x.area_ha)+' ha</text>';}).join('');
+          return '<div style="margin-top:12px;padding:12px;border:1px solid var(--borde-suave);border-radius:8px"><strong>Superficie por driver dominante · '+safeForestText(payload.period)+'</strong><div style="overflow-x:auto"><svg role="img" aria-label="Superficie por driver GFW" viewBox="0 0 760 '+h+'" style="width:100%;min-width:560px;max-width:850px;height:auto">'+bars+'</svg></div><small>Driver dominante por celda (~1 km); no identifica secuencia ni causas simultáneas.</small></div>';
+        }
+        if(kind==='hansen'){
+          const entries=Object.entries(payload.loss_by_year||{}).map(([y,v])=>[Number(y),Number(v.area_ha)||0]).sort((a,b)=>a[0]-b[0]);
+          const canopy=payload.tree_cover_2000||{}; if(!entries.length)return '<p>Hansen no devolvió pérdida anual válida para graficar.</p>';
+          const W=760,H=245,L=58,R=20,T=20,B=38,max=Math.max(.01,...entries.map(x=>x[1]));
+          const pts=entries.map((p,i)=>({x:L+(entries.length===1?0:i*(W-L-R)/(entries.length-1)),y:T+(H-T-B)*(1-p[1]/max),year:p[0],value:p[1]}));
+          const path=pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
+          const dots=pts.map(p=>'<circle cx="'+p.x+'" cy="'+p.y+'" r="3.5" fill="#278653"><title>'+p.year+': '+fmt(p.value)+' ha</title></circle>').join('');
+          const labels=pts.filter((p,i)=>i===0||i===pts.length-1||i%Math.max(1,Math.ceil(pts.length/6))===0).map(p=>'<text x="'+p.x+'" y="'+(H-10)+'" text-anchor="middle" font-size="11" fill="currentColor">'+p.year+'</text>').join('');
+          return '<div style="margin-top:12px;padding:12px;border:1px solid var(--borde-suave);border-radius:8px"><strong>Pérdida bruta anual de cobertura arbórea</strong><p style="font-size:.8rem;color:var(--texto-secundario)">Cobertura de copa 2000 · media: '+(canopy.mean_percent==null?'—':fmt(canopy.mean_percent)+'%')+' · mediana: '+(canopy.median_percent==null?'—':fmt(canopy.median_percent)+'%')+'</p><div style="overflow-x:auto"><svg role="img" aria-label="Serie anual Hansen" viewBox="0 0 '+W+' '+H+'" style="width:100%;min-width:560px;max-width:850px;height:auto"><line x1="'+L+'" y1="'+(H-B)+'" x2="'+(W-R)+'" y2="'+(H-B)+'" stroke="currentColor" opacity=".3"/><path d="'+path+'" fill="none" stroke="#278653" stroke-width="3"/>'+dots+labels+'<text x="8" y="14" font-size="11" fill="currentColor">ha</text></svg></div><small>Pérdida bruta; no equivale automáticamente a deforestación y puede incluir cosecha de plantaciones e incendios.</small></div>';
+        }
+        if(kind==='jrc'){
+          const share=Number(payload.forest_share_percent); if(!Number.isFinite(share))return '<p>JRC no devolvió una proporción válida para graficar.</p>';
+          const p=Math.max(0,Math.min(100,share));
+          return '<div style="margin-top:12px;padding:12px;border:1px solid var(--borde-suave);border-radius:8px"><strong>Cobertura forestal JRC · referencia 2020</strong><div style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin:12px 0;background:var(--borde-suave)"><div style="width:'+p+'%;background:#278653"></div><div style="flex:1;background:#aab4bd"></div></div><div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem"><span>🟩 Bosque: <b>'+fmt(payload.forest_area_ha)+' ha ('+fmt(p)+'%)</b></span><span>⬜ No bosque: <b>'+fmt(payload.nonforest_area_ha)+' ha ('+fmt(100-p)+'%)</b></span></div><small>Clasificación 2020 a 10 m; no representa cobertura actual ni distingue por sí sola bosque nativo de plantaciones.</small></div>';
+        }
+        return '';
+      };
+      const renderSpectralSurface = async (payload,key) => {
+        const target=document.getElementById('forest-spectral-3d-plot'), surface=payload.surfaces?.[key];
+        if(!target||!surface?.values?.length)return;
+        target.textContent='Preparando superficie 3D…';
+        try {
+          const Plotly=await ensurePlotly();
+          await Plotly.react(target,[{type:'surface',x:surface.columns,y:surface.rows,z:surface.values,colorscale:'Viridis',connectgaps:false,colorbar:{title:{text:key.toUpperCase()}},hovertemplate:'Columna %{x}<br>Fila %{y}<br>Índice %{z:.3f}<extra></extra>'}],{
+            autosize:true,height:430,margin:{l:8,r:8,t:12,b:8},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',
+            scene:{xaxis:{title:'Posición X'},yaxis:{title:'Posición Y'},zaxis:{title:'Valor del índice'},aspectmode:'manual',aspectratio:{x:1,y:1,z:.55},camera:{projection:{type:'perspective'}}}
+          },{responsive:true,displaylogo:false,scrollZoom:true});
+        } catch(error) { target.textContent='Visor 3D no disponible. Las estadísticas espectrales siguen disponibles.'; console.warn('[Agro-Consultas] Visor 3D:',error); }
+      };
+
       const runTerritorial = async (kind, endpoint, statusId) => {
         const feature = forestMap.getCurrentFeature() || getLotContext();
         const status = document.getElementById(statusId);
@@ -799,7 +848,7 @@
           try { payload = raw ? JSON.parse(raw) : {}; } catch (_) { throw new Error('La fuente devolvió una respuesta no válida.'); }
           if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || payload?.message || ('HTTP ' + response.status));
           persistForestSection(feature.geometry, kind, payload, { module: 'forestal', source: endpoint });
-          if (status) status.textContent = 'Resultado guardado para este lote. Consultá el módulo Informes para verlo en el reporte unificado.';
+          if (status) status.innerHTML = '<strong>Resultado guardado para este lote.</strong>' + renderForestSourceChart(kind,payload) + '<div style="font-size:.76rem;color:var(--texto-secundario);margin-top:8px">Fuente y resultado asociados a la geometría para el informe unificado.</div>';
         } catch (error) {
           if (status) status.textContent = 'No se pudo completar el análisis: ' + error.message;
         } finally {
@@ -961,7 +1010,9 @@
                 </article>`).join('')}
             </div>
             ${unavailable.map(([key, item]) => `<p style="font-size:.8rem;color:var(--texto-secundario);">${escapeSpectral(key.toUpperCase())}: ${escapeSpectral(item.message || 'No disponible en esta escena.')}</p>`).join('')}
-            <ul style="font-size:.78rem;color:var(--texto-secundario);">${(payload.limitations || []).map(item => `<li>${escapeSpectral(item)}</li>`).join('')}</ul>`;
+            <ul style="font-size:.78rem;color:var(--texto-secundario);">${(payload.limitations || []).map(item => `<li>${escapeSpectral(item)}</li>`).join('')}</ul>` + (Object.keys(payload.surfaces || {}).length ? '<section style="margin-top:16px;padding:12px;border:1px solid var(--borde-suave);border-radius:10px"><div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><strong>Superficie espectral interactiva 3D</strong><label style="font-size:.82rem">Índice <select id="forest-spectral-3d-index" style="margin-left:6px;padding:7px;border:1px solid var(--borde-suave);border-radius:6px;background:var(--bg-principal);color:var(--texto-principal)">' + Object.keys(payload.surfaces).map(key=>'<option value="'+escapeSpectral(key)+'">'+escapeSpectral(key.toUpperCase())+'</option>').join('') + '</select></label></div><div id="forest-spectral-3d-plot" style="width:100%;min-height:300px;margin-top:8px" role="img" aria-label="Superficie 3D del índice espectral del lote"></div><small style="color:var(--texto-secundario)">Arrastrá para rotar y usá rueda o pellizco para acercar. El eje vertical representa el valor del índice, no la altura física de los árboles. Es una muestra espacial del ráster que conserva la máscara de calidad.</small></section>' : '');
+          const surfaceSelect = document.getElementById('forest-spectral-3d-index');
+          if (surfaceSelect) { renderSpectralSurface(payload,surfaceSelect.value); surfaceSelect.addEventListener('change',()=>renderSpectralSurface(payload,surfaceSelect.value)); }
           status.textContent = 'Índices calculados y guardados para el lote activo.';
         } catch (error) {
           status.textContent = 'No se pudo completar el análisis multiespectral: ' + error.message;
