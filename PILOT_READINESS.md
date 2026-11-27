@@ -2,7 +2,8 @@
 
 **Revisión:** 27 de noviembre de 2026 · **Producción:** commit `e1203bb` (READY).  
 **Auditoría operativa vigente:** [docs/PRODUCTION_AUDIT_2026-11-27.md](docs/PRODUCTION_AUDIT_2026-11-27.md).  
-La publicación READY no equivale a validación agronómica, prueba de campo ni certificación institucional.\n
+La publicación READY no equivale a validación agronómica, prueba de campo ni certificación institucional.
+
 **Desarrollo independiente:** Dante Iván Sosa · Gobernador Virasoro, Corrientes, Argentina  
 **Demo:** https://agro-consultas.vercel.app  
 **Repositorio:** https://github.com/D4nSosa/agro-consultas
