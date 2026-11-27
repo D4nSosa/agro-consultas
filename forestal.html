@@ -947,8 +947,8 @@
                   <div style="font-size:.72rem;color:var(--texto-secundario);margin-top:5px;">${escapeSpectral(item.formula)}</div>
                 </article>`).join('')}
             </div>
-            ${unavailable.map(([key, item]) => `<p style="font-size:.8rem;color:var(--texto-secundario);">${key.toUpperCase()}: ${item.message || 'No disponible en esta escena.'}</p>`).join('')}
-            <ul style="font-size:.78rem;color:var(--texto-secundario);">${(payload.limitations || []).map(item => `<li>${item}</li>`).join('')}</ul>`;
+            ${unavailable.map(([key, item]) => `<p style="font-size:.8rem;color:var(--texto-secundario);">${escapeSpectral(key.toUpperCase())}: ${escapeSpectral(item.message || 'No disponible en esta escena.')}</p>`).join('')}
+            <ul style="font-size:.78rem;color:var(--texto-secundario);">${(payload.limitations || []).map(item => `<li>${escapeSpectral(item)}</li>`).join('')}</ul>`;
           status.textContent = 'Índices calculados y guardados para el lote activo.';
         } catch (error) {
           status.textContent = 'No se pudo completar el análisis multiespectral: ' + error.message;
