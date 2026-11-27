@@ -669,6 +669,46 @@ def analyze_terrain(request: TerrainAnalysisRequest):
                 ))
             else:
                 mean_aspect = None
+
+            elevation_edges = np.linspace(
+                float(np.min(elevation_values)),
+                float(np.max(elevation_values)) if np.max(elevation_values) > np.min(elevation_values)
+                else float(np.min(elevation_values)) + 1.0,
+                6
+            )
+            elevation_counts, _ = np.histogram(elevation_values, bins=elevation_edges)
+            elevation_histogram = [
+                {
+                    "range_m": f"{elevation_edges[index]:.1f}–{elevation_edges[index + 1]:.1f}",
+                    "count": int(count),
+                    "share_percent": round(float(count * 100 / elevation_values.size), 2),
+                }
+                for index, count in enumerate(elevation_counts)
+            ]
+            slope_edges = [0, 2, 5, 10, 20, 90]
+            slope_labels = ["0–2°", "2–5°", "5–10°", "10–20°", ">20°"]
+            slope_counts, _ = np.histogram(slope_values, bins=slope_edges)
+            slope_histogram = [
+                {
+                    "class": label,
+                    "count": int(count),
+                    "share_percent": round(float(count * 100 / max(1, slope_values.size)), 2),
+                }
+                for label, count in zip(slope_labels, slope_counts)
+            ]
+            direction_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+            direction_counts = np.zeros(8, dtype="int64")
+            if aspect_values.size:
+                direction_indices = np.floor((aspect_values + 22.5) / 45.0).astype("int64") % 8
+                direction_counts = np.bincount(direction_indices, minlength=8)
+            aspect_histogram = [
+                {
+                    "direction": label,
+                    "count": int(count),
+                    "share_percent": round(float(count * 100 / max(1, aspect_values.size)), 2),
+                }
+                for label, count in zip(direction_labels, direction_counts)
+            ]
             return {
                 "status": "REAL",
                 "source": "Copernicus DEM GLO-30",
@@ -694,6 +734,11 @@ def analyze_terrain(request: TerrainAnalysisRequest):
                 "aspect": {
                     "circular_mean_deg": round(mean_aspect, 2) if mean_aspect is not None else None,
                     "sample_count": int(aspect_values.size),
+                },
+                "distribution": {
+                    "elevation": elevation_histogram,
+                    "slope": slope_histogram,
+                    "aspect": aspect_histogram,
                 },
                 "catalog": {
                     "tiles_read": len(datasets),
