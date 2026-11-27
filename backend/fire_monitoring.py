@@ -1,5 +1,6 @@
 """Independent fire-monitoring API: public NASA FIRMS and NOAA GOES-19 FDCF."""
 from fastapi import FastAPI, HTTPException
+import math
 import csv
 import datetime
 from email.utils import parsedate_to_datetime
