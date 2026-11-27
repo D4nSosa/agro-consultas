@@ -437,27 +437,43 @@ class LotComparisonRequest(BaseModel):
     climate_data_source: str | None = None
     ssp: str | None = None
     input_level: str | None = None
+    spectral_date: dt.date | None = None
+    spectral_collection: str = "auto"
+    spectral_indices: list[str] = Field(default_factory=lambda: ["ndvi", "evi", "ndmi", "gndvi", "ndre"])
 
 
-COMPARISON_PROCESSORS = {"gaez", "gfw", "hansen", "gfw-drivers", "jrc"}
+COMPARISON_PROCESSORS = {"gaez", "gfw", "hansen", "gfw-drivers", "jrc", "spectral"}
 
 
 def _numeric_metrics(value: Any, prefix: str = "") -> dict[str, float]:
-    """Flatten numeric scalar leaves while preserving their source result paths."""
+    """Extract comparable analytical values, excluding pixel/record counters and metadata."""
     metrics: dict[str, float] = {}
+    excluded = {
+        "pixels", "valid_pixels", "validpixels", "tiles_read", "tilesread",
+        "samplecount", "sample_count", "pixel_count", "validpixelspercent",
+        "resolution", "resolution_native_units", "cloudcover", "cloud_cover",
+        "code", "count", "total_pixels", "roi_pixel_count"
+    }
     if isinstance(value, dict):
         for key, child in value.items():
             path = f"{prefix}.{key}" if prefix else str(key)
+            if str(key).casefold() in excluded:
+                continue
             metrics.update(_numeric_metrics(child, path))
     elif isinstance(value, list):
-        # Lists often encode classes or years; compare them only when the index has
-        # the same meaning in the same specialist response.
-        for index, child in enumerate(value):
-            path = f"{prefix}[{index}]"
+        # Driver classes have stable source codes; arbitrary positional arrays do not.
+        for child in value:
+            if not isinstance(child, dict):
+                continue
+            identity = child.get("code")
+            label = child.get("driver") or child.get("class") or child.get("label")
+            if identity is None or not label:
+                continue
+            path = f"{prefix}[{identity}:{label}]"
             metrics.update(_numeric_metrics(child, path))
     elif isinstance(value, (int, float)) and not isinstance(value, bool):
         number = float(value)
-        if math.isfinite(number):
+        if math.isfinite(number) and prefix:
             metrics[prefix] = number
     return metrics
 
@@ -476,6 +492,15 @@ def _run_comparison_processor(processor: str, geometry: dict, request: LotCompar
             input_level=request.input_level,
         )
         handler = territorial_analysis.gaez_analyze if processor == "gaez" else territorial_analysis.gfw_analyze
+    elif processor == "spectral":
+        from backend import main as forest_api
+        specialist_request = forest_api.SpectralAnalysisRequest(
+            geometry=geometry,
+            date=request.spectral_date.isoformat() if request.spectral_date else None,
+            collection=request.spectral_collection,
+            indices=request.spectral_indices,
+        )
+        return forest_api.calculate_spectral_indices(specialist_request)
     else:
         specialist_request = open_forest_data.ForestLotRequest(geometry=geometry)
         handler = {
@@ -557,6 +582,20 @@ def compare_lots(request: LotComparisonRequest):
             per_lot[lot_result["id"]] = metrics
             paths = set(metrics)
             metric_paths = paths if metric_paths is None else metric_paths.intersection(paths)
+        comparison_note = None
+        if processor == "spectral":
+            scene_signatures = {
+                (
+                    (lot_result["datasets"][processor].get("result") or {}).get("date"),
+                    (lot_result["datasets"][processor].get("result") or {}).get("collection"),
+                    (lot_result["datasets"][processor].get("result") or {}).get("resolution"),
+                )
+                for lot_result in results
+                if lot_result["datasets"][processor]["status"] == "PROCESSED"
+            }
+            if len(scene_signatures) != 1 or len(scene_signatures) == 0:
+                metric_paths = set()
+                comparison_note = "No se comparan índices espectrales porque los lotes no tienen la misma fecha de adquisición, colección y resolución."
         rows = []
         for path in sorted(metric_paths or []):
             values = [{"lotId": lot["id"], "lotName": lot["name"], "value": per_lot[lot["id"]][path]}
@@ -588,6 +627,11 @@ def compare_lots(request: LotComparisonRequest):
         "lots": results,
         "comparisons": comparisons,
         "chartSeries": chart_series,
+        "comparisonNotes": {
+            processor: "No se comparan índices espectrales porque los lotes no tienen la misma fecha de adquisición, colección y resolución."
+            for processor in processors
+            if processor == "spectral" and not comparisons.get(processor)
+        },
         "processors": processors,
         "limitations": [
             "Los valores solo se comparan cuando el mismo procesador devuelve la misma ruta métrica para todos los lotes.",
