@@ -20,7 +20,7 @@ import numpy as np
 import tifffile
 from backend.sentinel1_calibration import process_sentinel1_grd
 from backend.processing_engine import router as processing_engine_router
-from shapely.geometry import shape, Point, Polygon
+from shapely.geometry import shape, Point, Polygon, mapping
 from shapely.ops import transform as transform_geometry
 
 app = FastAPI(
@@ -395,17 +395,20 @@ def get_sample_lots():
     return []
 
 def _stac_asset_calibration(asset):
-    """Extrae escala, offset y resolución publicados en raster:bands."""
+    """Lee calibración STAC Raster; aplica sus valores por defecto normativos."""
     bands = asset.get("raster:bands") or []
     band = bands[0] if bands else {}
-    scale = band.get("scale")
-    offset = band.get("offset")
-    resolution = band.get("spatial_resolution")
+    # Según STAC Raster, scale y offset valen 1 y 0 cuando no se publican.
+    scale = band.get("scale", 1.0)
+    offset = band.get("offset", 0.0)
+    resolution = band.get("spatial_resolution") or asset.get("gsd")
     try:
-        scale = float(scale) if scale is not None else None
-        offset = float(offset) if offset is not None else None
+        scale = float(scale)
+        offset = float(offset)
         resolution = float(resolution) if resolution is not None else None
     except (TypeError, ValueError):
+        return None, None, None
+    if not math.isfinite(scale) or not math.isfinite(offset):
         return None, None, None
     return scale, offset, resolution
 
@@ -1391,6 +1394,7 @@ def calculate_spectral_indices(req: SpectralAnalysisRequest):
         geom_dict = get_geom_dict(req.geometry)
         geom_shape = validate_geometry_shape(geom_dict)
         attempts = []
+        scene_attempts = []
         for collection in collections:
             cloud_limit = 30.0 if collection == "sentinel-2-l2a" else 100.0
             stac = search_stac_catalog(STACSearchRequest(
@@ -1404,7 +1408,7 @@ def calculate_spectral_indices(req: SpectralAnalysisRequest):
                 try:
                     processed, error = _process_spectral_scene(candidate, geom_shape, req.indices)
                 except Exception as exc:
-                    processed, error = None, str(exc)
+                    processed, error = None, f"{type(exc).__name__}: {str(exc)[:240]}"
                 if processed and any(item.get("status") == "REAL" for item in processed["indices"].values()):
                     return {
                         "status": "REAL",
@@ -1422,12 +1426,19 @@ def calculate_spectral_indices(req: SpectralAnalysisRequest):
                         "qualityMask": processed["qualityMask"],
                         "gridShape": processed["gridShape"],
                         "indices": processed["indices"],
+                        "sceneAttempts": scene_attempts,
                         "limitations": [
                             "Los índices describen respuesta espectral y no equivalen a rendimiento cosechado, biomasa medida ni diagnóstico sanitario.",
                             "Las bandas de 20 m se procesan en una grilla común a la resolución más gruesa usada; no se atribuye detalle espacial adicional.",
                             "La máscara de calidad excluye píxeles no válidos, pero no elimina todos los efectos atmosféricos o de geometría de observación."
                         ]
                     }
+                scene_attempts.append({
+                    "productId": candidate.get("id"),
+                    "date": candidate.get("date"),
+                    "status": "PROCESSING_ERROR" if error else "NO_VALID_INDEX",
+                    "message": error or "La escena no produjo ningún índice solicitado con píxeles válidos."
+                })
             attempts.append({
                 "collection": collection,
                 "status": "NO_VALID_SCENE",
@@ -1439,7 +1450,8 @@ def calculate_spectral_indices(req: SpectralAnalysisRequest):
             "requestedDate": target_date,
             "indices": {key: {"status": "UNAVAILABLE"} for key in req.indices},
             "attempts": attempts,
-            "message": "No se obtuvieron estadísticas espectrales válidas para el área y período consultados."
+            "sceneAttempts": scene_attempts,
+            "message": "No se obtuvieron estadísticas espectrales válidas para el área y período consultados. Revisá attempts y sceneAttempts para identificar si falló el catálogo, la lectura de assets o la máscara de calidad."
         }
     except HTTPException:
         raise
