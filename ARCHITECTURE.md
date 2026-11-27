@@ -1,6 +1,7 @@
 # Documentación de Arquitectura Técnica — Agro Consultas
 
-> Revisión operativa: 27-11-2026. Producción verificada en `e1203bb`; para el estado actual de publicación, riesgos y cambios pendientes consultar [la auditoría de producción](docs/PRODUCTION_AUDIT_2026-11-27.md). Esta arquitectura describe responsabilidades técnicas, no certifica la disponibilidad de proveedores externos.\n
+> Revisión operativa: 27-11-2026. Producción verificada en `e1203bb`; para el estado actual de publicación, riesgos y cambios pendientes consultar [la auditoría de producción](docs/PRODUCTION_AUDIT_2026-11-27.md). Esta arquitectura describe responsabilidades técnicas, no certifica la disponibilidad de proveedores externos.
+
 ## 1. Visión General y Capas de la Arquitectura
 
 Agro Consultas implementa una arquitectura modular intermedia desacoplada organizada de la siguiente forma:
