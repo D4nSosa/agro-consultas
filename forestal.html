@@ -911,7 +911,7 @@
           const maxAbs = Math.max(0.01, ...valid.map(([, item]) => Math.abs(item.mean)));
           output.innerHTML = \`
             <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">
-              Escena \${payload.productId} · \${payload.date} · \${payload.resolution} m · Máscara \${payload.qualityMask}
+              Escena \${escapeSpectral(payload.productId)} · \${escapeSpectral(payload.date)} · \${payload.resolution} m · Máscara \${escapeSpectral(payload.qualityMask)}
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;">
               \${valid.map(([key, item]) => \`
