@@ -846,16 +846,16 @@
             ['Pendiente máxima', payload.slope?.max_deg, '°'],
             ['Orientación media', payload.aspect?.circular_mean_deg, '°']
           ];
-          output.innerHTML = \`
-            <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">DSM · \${Number(payload.resolution)} m · \${payload.horizontalCrs} · Datum vertical \${payload.verticalDatum}</div>
+          output.innerHTML = `
+            <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">DSM · ${Number(payload.resolution)} m · ${payload.horizontalCrs} · Datum vertical ${payload.verticalDatum}</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
-              \${cards.map(([label, value, unit]) => \`
+              ${cards.map(([label, value, unit]) => `
                 <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:10px;">
-                  <small>\${label}</small>
-                  <div style="font-size:1.2rem;font-weight:700;margin-top:5px;">\${Number.isFinite(value) ? Number(value).toFixed(2) + ' ' + unit : '—'}</div>
-                </article>\`).join('')}
+                  <small>${label}</small>
+                  <div style="font-size:1.2rem;font-weight:700;margin-top:5px;">${Number.isFinite(value) ? Number(value).toFixed(2) + ' ' + unit : '—'}</div>
+                </article>`).join('')}
             </div>
-            <ul style="font-size:.78rem;color:var(--texto-secundario);">\${(payload.limitations || []).map(item => \`<li>\${escapeTerrain(item)}</li>\`).join('')}</ul>\`;
+            <ul style="font-size:.78rem;color:var(--texto-secundario);">${(payload.limitations || []).map(item => `<li>${escapeTerrain(item)}</li>`).join('')}</ul>`;
           status.textContent = 'Análisis del relieve calculado y guardado para el lote activo.';
         } catch (error) {
           status.textContent = 'No se pudo completar el análisis del relieve: ' + error.message;
@@ -909,24 +909,24 @@
           const valid = rows.filter(([, item]) => item.status === 'REAL');
           const unavailable = rows.filter(([, item]) => item.status !== 'REAL');
           const maxAbs = Math.max(0.01, ...valid.map(([, item]) => Math.abs(item.mean)));
-          output.innerHTML = \`
+          output.innerHTML = `
             <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">
-              Escena \${escapeSpectral(payload.productId)} · \${escapeSpectral(payload.date)} · \${payload.resolution} m · Máscara \${escapeSpectral(payload.qualityMask)}
+              Escena ${escapeSpectral(payload.productId)} · ${escapeSpectral(payload.date)} · ${payload.resolution} m · Máscara ${escapeSpectral(payload.qualityMask)}
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;">
-              \${valid.map(([key, item]) => \`
+              ${valid.map(([key, item]) => `
                 <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;">
-                  <strong>\${escapeSpectral(item.label || key.toUpperCase())}</strong>
-                  <div style="font-size:1.35rem;font-weight:700;margin:6px 0;">\${Number(item.mean).toFixed(3)}</div>
+                  <strong>${escapeSpectral(item.label || key.toUpperCase())}</strong>
+                  <div style="font-size:1.35rem;font-weight:700;margin:6px 0;">${Number(item.mean).toFixed(3)}</div>
                   <div style="height:9px;background:var(--borde-suave);border-radius:8px;overflow:hidden;">
-                    <i style="display:block;height:100%;width:\${Math.max(1, Math.min(100, Math.abs(item.mean) / maxAbs * 100))}%;background:var(--verde-principal);"></i>
+                    <i style="display:block;height:100%;width:${Math.max(1, Math.min(100, Math.abs(item.mean) / maxAbs * 100))}%;background:var(--verde-principal);"></i>
                   </div>
-                  <small>Mediana \${Number(item.median).toFixed(3)} · \${item.sampleCount} píxeles válidos</small>
-                  <div style="font-size:.72rem;color:var(--texto-secundario);margin-top:5px;">\${escapeSpectral(item.formula)}</div>
-                </article>\`).join('')}
+                  <small>Mediana ${Number(item.median).toFixed(3)} · ${item.sampleCount} píxeles válidos</small>
+                  <div style="font-size:.72rem;color:var(--texto-secundario);margin-top:5px;">${escapeSpectral(item.formula)}</div>
+                </article>`).join('')}
             </div>
-            \${unavailable.map(([key, item]) => \`<p style="font-size:.8rem;color:var(--texto-secundario);">\${key.toUpperCase()}: \${item.message || 'No disponible en esta escena.'}</p>\`).join('')}
-            <ul style="font-size:.78rem;color:var(--texto-secundario);">\${(payload.limitations || []).map(item => \`<li>\${item}</li>\`).join('')}</ul>\`;
+            ${unavailable.map(([key, item]) => `<p style="font-size:.8rem;color:var(--texto-secundario);">${key.toUpperCase()}: ${item.message || 'No disponible en esta escena.'}</p>`).join('')}
+            <ul style="font-size:.78rem;color:var(--texto-secundario);">${(payload.limitations || []).map(item => `<li>${item}</li>`).join('')}</ul>`;
           status.textContent = 'Índices calculados y guardados para el lote activo.';
         } catch (error) {
           status.textContent = 'No se pudo completar el análisis multiespectral: ' + error.message;
@@ -988,24 +988,24 @@
             resultsBox.innerHTML = analyses.map(analysis => {
               const metrics = analysis.visualMetrics || {};
               const exif = analysis.exif || {};
-              return \`
+              return `
                 <article style="display:grid;grid-template-columns:minmax(120px,220px) 1fr;gap:14px;padding:12px 0;border-bottom:1px solid var(--borde-suave);">
                   <div>
-                    <img src="\${safe(analysis.previewUrl)}" alt="Fotografía \${safe(analysis.filename)}" style="width:100%;height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--borde-suave);" />
-                    <div style="font-size:.75rem;color:var(--texto-secundario);margin-top:4px;">\${safe(analysis.filename)} · \${safe(analysis.dimensions)}</div>
+                    <img src="${safe(analysis.previewUrl)}" alt="Fotografía ${safe(analysis.filename)}" style="width:100%;height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--borde-suave);" />
+                    <div style="font-size:.75rem;color:var(--texto-secundario);margin-top:4px;">${safe(analysis.filename)} · ${safe(analysis.dimensions)}</div>
                   </div>
                   <div style="font-size:.8rem;line-height:1.45;">
                     <strong>EXIF y métricas RGB</strong>
-                    <div>Fecha: \${safe(exif.date || 'NO DISPONIBLE')}</div>
-                    <div>Cámara: \${safe(exif.camera || 'NO DISPONIBLE')}</div>
-                    <div>GPS: \${exif.hasGps ? safe(exif.gps.lat) + ', ' + safe(exif.gps.lng) : 'NO DISPONIBLE'}</div>
-                    <div>ExG: \${Number.isFinite(metrics.exg) ? metrics.exg : '—'} · VARI: \${Number.isFinite(metrics.vari) ? metrics.vari : '—'} · GLI: \${Number.isFinite(metrics.gli) ? metrics.gli : '—'}</div>
-                    <div>Dominancia verde RGB: \${Number.isFinite(metrics.greenDominancePercent) ? metrics.greenDominancePercent + '%' : '—'} · Muestra: \${Number.isFinite(metrics.sampleCount) ? metrics.sampleCount + ' píxeles' : '—'}</div>
-                    <p><strong>Observado:</strong> \${safe(analysis.visualAnalysis?.observado)}</p>
-                    <p><strong>Lectura preliminar:</strong> \${safe(analysis.visualAnalysis?.inferido)}</p>
-                    <small style="color:var(--texto-secundario);">\${safe(analysis.visualAnalysis?.noDeterminable)}</small>
+                    <div>Fecha: ${safe(exif.date || 'NO DISPONIBLE')}</div>
+                    <div>Cámara: ${safe(exif.camera || 'NO DISPONIBLE')}</div>
+                    <div>GPS: ${exif.hasGps ? safe(exif.gps.lat) + ', ' + safe(exif.gps.lng) : 'NO DISPONIBLE'}</div>
+                    <div>ExG: ${Number.isFinite(metrics.exg) ? metrics.exg : '—'} · VARI: ${Number.isFinite(metrics.vari) ? metrics.vari : '—'} · GLI: ${Number.isFinite(metrics.gli) ? metrics.gli : '—'}</div>
+                    <div>Dominancia verde RGB: ${Number.isFinite(metrics.greenDominancePercent) ? metrics.greenDominancePercent + '%' : '—'} · Muestra: ${Number.isFinite(metrics.sampleCount) ? metrics.sampleCount + ' píxeles' : '—'}</div>
+                    <p><strong>Observado:</strong> ${safe(analysis.visualAnalysis?.observado)}</p>
+                    <p><strong>Lectura preliminar:</strong> ${safe(analysis.visualAnalysis?.inferido)}</p>
+                    <small style="color:var(--texto-secundario);">${safe(analysis.visualAnalysis?.noDeterminable)}</small>
                   </div>
-                </article>\`;
+                </article>`;
             }).join('');
           } catch (error) {
             resultsBox.textContent = 'No se pudieron procesar las fotografías: ' + error.message;
