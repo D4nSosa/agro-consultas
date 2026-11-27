@@ -1442,6 +1442,7 @@ def calculate_spectral_indices(req: SpectralAnalysisRequest):
                         "qualityMask": processed["qualityMask"],
                         "gridShape": processed["gridShape"],
                         "indices": processed["indices"],
+                        "surfaces": processed.get("surfaces", {}),
                         "sceneAttempts": scene_attempts,
                         "limitations": [
                             "Los índices describen respuesta espectral y no equivalen a rendimiento cosechado, biomasa medida ni diagnóstico sanitario.",
