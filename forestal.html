@@ -852,6 +852,7 @@
           const maxAspectShare = Math.max(1, ...aspectRows.map(item => item.share_percent || 0));
           output.innerHTML = `
             <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">DSM · ${Number(payload.resolution)} m · ${escapeTerrain(payload.horizontalCrs)} · Datum vertical ${escapeTerrain(payload.verticalDatum)}</div>
+            <div style="font-size:.72rem;color:var(--texto-secundario);margin-bottom:10px;">${escapeTerrain(payload.attribution)}</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
               ${cards.map(([label, value, unit]) => `
                 <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:10px;">
