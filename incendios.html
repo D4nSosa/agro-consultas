@@ -452,6 +452,38 @@ function startLiveLocation(){
 }
 
 async function loadForecast(lat,lon,label){if(forecastController)forecastController.abort();const requestId=++forecastRequest;forecastController=new AbortController();const signal=forecastController.signal;selectedPoint={lat,lon,label};if(forecastMarker)map.removeLayer(forecastMarker);forecastMarker=L.circleMarker([lat,lon],{radius:8,color:'#1b5e20',weight:3,fillColor:'#27ae60',fillOpacity:.9,interactive:false,bubblingMouseEvents:false}).addTo(map);$('forecast-location').textContent=label;$('forecast-status').textContent='Consultando pronóstico meteorológico…';$('forecast-days').innerHTML='<div class="fire-empty">Cargando variables meteorológicas…</div>';try{const r=await fetch('/api/fires/forecast?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon),{cache:'no-store',signal});const data=await r.json();if(!r.ok)throw Error(data.detail||'No se pudo consultar el pronóstico.');const lotCenter=lot?centroid(lot.geometry):null;if(lotCenter&&Math.abs(lat-lotCenter[1])<0.0001&&Math.abs(lon-lotCenter[0])<0.0001)persistFireReportSection('fire-forecast',data);$('forecast-status').textContent='Previsión para '+data.location.name+' · '+data.meta.source+' · '+data.meta.updatedAt+(data.meta.stale?' · datos guardados temporalmente (proveedor sin respuesta)':data.meta.cached?' · caché reciente':'');$('forecast-days').innerHTML=(data.days||[]).map(d=>'<article class="fire-day"><div><strong>'+esc(d.label)+'</strong><small>Máx. '+fmt(d.temperatureMax)+' °C · HR mín. '+fmt(d.humidityMin)+'%<br>Viento '+fmt(d.windMax)+' km/h · ráfagas '+fmt(d.gustMax)+' km/h · lluvia '+fmt(d.precipitation)+' mm<br>Variables disponibles: '+(d.availableConditions??4)+'/4</small></div><span class="fire-risk">Pronóstico</span></article>').join('')||'<div class="fire-empty">El proveedor no devolvió días de pronóstico.</div>';}catch(e){if(e.name!=='AbortError'&&requestId===forecastRequest){const detail=String(e.message||'');$('forecast-status').textContent=/429|Too Many Requests/i.test(detail)?'El servicio meteorológico está recibiendo demasiadas consultas. Esperá un momento; el mapa y las detecciones siguen disponibles.':'No se pudo consultar el pronóstico para este punto.';$('forecast-days').innerHTML='<div class="fire-empty">Podés continuar consultando las detecciones y volver a intentar más tarde.</div>';}}finally{if(requestId===forecastRequest)forecastController=null;}}
+async function queryConaePixel(kind,layerName,latlng){
+ const size=map.getSize(),bounds=map.getBounds();
+ const southWest=map.options.crs.project(bounds.getSouthWest());
+ const northEast=map.options.crs.project(bounds.getNorthEast());
+ const pixel=map.latLngToContainerPoint(latlng);
+ const params=new URLSearchParams({
+  kind,layer,bbox:[southWest.x,southWest.y,northEast.x,northEast.y].join(','),
+  width:String(size.x),height:String(size.y),x:String(Math.round(pixel.x)),y:String(Math.round(pixel.y))
+ });
+ const loading=L.popup({maxWidth:340}).setLatLng(latlng).setContent('<strong>Consultando información del producto CONAE…</strong>').openOn(map);
+ try{
+  const response=await fetch('/api/fires/conae/identify?'+params.toString(),{cache:'no-store'});
+  const payload=await response.json();
+  if(!response.ok)throw new Error(payload.detail||'El servicio WMS no devolvió información para este píxel.');
+  const features=Array.isArray(payload.features)?payload.features:[];
+  const details=features.map((feature,index)=>{
+   const properties=feature?.properties||{};
+   const rows=Object.entries(properties).slice(0,12).map(([key,value])=>{
+    const display=typeof value==='object'&&value!==null?JSON.stringify(value):String(value);
+    return '<div><b>'+esc(key)+':</b> '+esc(display)+'</div>';
+   }).join('');
+   return '<section>'+(features.length>1?'<b>Resultado '+(index+1)+'</b>':'')+rows+'</section>';
+  }).join('<hr>');
+  const heading='<strong>'+esc(payload.title||layerName)+'</strong><br><small>Fuente: CONAE · '+esc(layerName)+'</small>';
+  const content=features.length
+   ? heading+details+'<small>Valores devueltos por WMS GetFeatureInfo. La respuesta depende de la resolución y consulta del producto.</small>'
+   : heading+'<p>'+esc(payload.message||'El servicio no devolvió entidades o valores en el píxel seleccionado.')+'</p><small>Esto no significa que el área tenga valor cero o que no existan áreas quemadas.</small>';
+  L.popup({maxWidth:340}).setLatLng(latlng).setContent(content).openOn(map);
+ }catch(error){
+  L.popup({maxWidth:340}).setLatLng(latlng).setContent('<strong>'+esc(layerName)+'</strong><p>'+esc(error.message)+'</p><small>La capa sigue visible; no se inventan valores cuando el servicio no responde.</small>').openOn(map);
+ }
+}
 map.on('click',e=>{
  const target=e.originalEvent?.target;
  if(target?.closest?.('.fire-detection-marker'))return;
@@ -460,26 +492,16 @@ map.on('click',e=>{
  const hitBurned=!!target?.closest?.('.fire-context-burned');
  const hitFuel=!!target?.closest?.('.fire-context-fuel');
  const hitGwis=!!target?.closest?.('.fire-context-gwis');
- const active=[];
  if(hitBurned){
-  const layerName=$('burned-product')?.value||'EmergenciasCONAE:MODIS_AQM_1';
-  const key=layerName.replace('EmergenciasCONAE:','');
-  const metadata=conaeLayerMetadata.burned?.get(key)||conaeLayerMetadata.burned?.get(layerName);
-  const title=metadata?.title||'Área quemada mensual · MODIS AQM';
-  const abstract=metadata?.abstract||'Producto de áreas quemadas derivado de MODIS. No representa focos activos ni peligro actual.';
-  active.push('<strong>'+esc(title)+'</strong><p>'+esc(abstract)+'</p><small>Fuente: CONAE · '+esc(layerName)+'</small><p>La capa es un raster temático. Esta ficha identifica el producto y su significado; no presenta un valor de píxel que no haya sido consultado al servicio.</p>');
+  queryConaePixel('burned',$('burned-product')?.value||'EmergenciasCONAE:MODIS_AQM_1',e.latlng);
+  return;
  }
  if(hitFuel){
-  const layerName=$('fuel-product')?.value||'AlertaTemprana:INC_SIARTIVGEOL89_DC_3';
-  const key=layerName.replace('AlertaTemprana:','');
-  const metadata=conaeLayerMetadata.fuel?.get(key)||conaeLayerMetadata.fuel?.get(layerName);
-  active.push('<strong>'+(metadata?.title||'Disponibilidad de combustibles · CONAE')+'</strong><p>'+esc(metadata?.abstract||'Composición relativa de vegetación verde, vegetación seca o senescente y suelo descubierto. No es una detección de incendio ni un índice de peligro.')+'</p><small>Fuente: CONAE · '+esc(layerName)+'</small>');
+  queryConaePixel('fuel',$('fuel-product')?.value||'AlertaTemprana:INC_SIARTIVGEOL89_DC_3',e.latlng);
+  return;
  }
  if(hitGwis){
-  active.push('<strong>Peligro de incendio FWI · GWIS</strong><p>Índice meteorológico de peligro de incendio publicado por el sistema europeo GWIS/JRC. Es una capa de contexto de peligro, no un foco detectado ni un perímetro quemado.</p><small>Fuente: European Commission JRC · capa ecmwf.fwi</small>');
- }
- if(active.length){
-  L.popup().setLatLng([lat,lng]).setContent('<div>'+active.join('<hr>')+'</div>').openOn(map);
+  L.popup({maxWidth:320}).setLatLng(e.latlng).setContent('<strong>Peligro de incendio FWI · GWIS</strong><p>Índice meteorológico de peligro de incendio publicado por el sistema europeo GWIS/JRC. Es una capa de contexto de peligro, no un foco detectado ni un perímetro quemado.</p><small>Fuente: European Commission JRC · capa ecmwf.fwi</small>').openOn(map);
   return;
  }
  loadForecast(lat,lng,lat.toFixed(3)+'°, '+lng.toFixed(3)+'°');
