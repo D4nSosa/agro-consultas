@@ -101,3 +101,68 @@ def test_compare_rejects_unapproved_processor():
     request["processors"] = ["arbitrary"]
     response = client.post("/api/engine/compare", json=request)
     assert response.status_code == 422
+
+
+def test_numeric_metrics_excludes_pixel_counters_but_keeps_areas_and_percentages():
+    metrics = processing_engine._numeric_metrics({
+        "area_ha": 12.5,
+        "valid_pixels": 400,
+        "tiles_read": 2,
+        "drivers": [
+            {"code": 1, "driver": "Agricultura permanente", "area_ha": 4.5, "share_percent": 36.0, "pixels": 20},
+            {"code": 5, "driver": "Incendios", "area_ha": 8.0, "share_percent": 64.0, "pixels": 30},
+        ],
+    })
+    assert metrics["area_ha"] == 12.5
+    assert metrics["drivers[1:Agricultura permanente].area_ha"] == 4.5
+    assert metrics["drivers[5:Incendios].share_percent"] == 64.0
+    assert "valid_pixels" not in metrics
+    assert "tiles_read" not in metrics
+    assert "drivers[1:Agricultura permanente].pixels" not in metrics
+
+
+def test_spectral_lot_comparison_requires_matching_acquisition_signature(monkeypatch):
+    calls = 0
+
+    def fake_processor(processor, geometry, request):
+        nonlocal calls
+        calls += 1
+        acquisition_date = "2026-11-18" if calls == 1 else "2026-11-20"
+        return {
+            "status": "REAL",
+            "date": acquisition_date,
+            "collection": "sentinel-2-l2a",
+            "resolution": 20,
+            "indices": {"ndvi": {"status": "REAL", "mean": 0.4 + calls / 10}},
+        }
+
+    monkeypatch.setattr(processing_engine, "_run_comparison_processor", fake_processor)
+    request = payload()
+    request["processors"] = ["spectral"]
+    response = client.post("/api/engine/compare", json=request)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["comparisons"]["spectral"] == []
+    assert "misma fecha de adquisición" in result["comparisonNotes"]["spectral"]
+
+
+def test_spectral_lot_comparison_compares_matching_scene_date_and_resolution(monkeypatch):
+    def fake_processor(processor, geometry, request):
+        return {
+            "status": "REAL",
+            "date": "2026-11-20",
+            "collection": "sentinel-2-l2a",
+            "resolution": 20,
+            "indices": {"ndvi": {"status": "REAL", "mean": 0.42 if geometry["coordinates"][0][0][0] < -54.69 else 0.57}},
+        }
+
+    monkeypatch.setattr(processing_engine, "_run_comparison_processor", fake_processor)
+    request = payload()
+    request["processors"] = ["spectral"]
+    response = client.post("/api/engine/compare", json=request)
+
+    assert response.status_code == 200
+    result = response.json()
+    row = next(item for item in result["comparisons"]["spectral"] if item["metric"] == "indices.ndvi.mean")
+    assert [item["value"] for item in row["values"]] == [0.42, 0.57]
