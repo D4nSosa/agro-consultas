@@ -1,6 +1,7 @@
 # Motor geoespacial bajo demanda
 
-**Revisión:** 27 de noviembre de 2026. Este documento describe endpoints y responsabilidades del motor; que un proveedor figure en el catálogo o responda a STAC no garantiza cobertura ni resultados válidos para todas las geometrías. Ver [auditoría de producción](PRODUCTION_AUDIT_2026-11-27.md) para riesgos operativos y validaciones pendientes.\n
+**Revisión:** 27 de noviembre de 2026. Este documento describe endpoints y responsabilidades del motor; que un proveedor figure en el catálogo o responda a STAC no garantiza cobertura ni resultados válidos para todas las geometrías. Ver [auditoría de producción](PRODUCTION_AUDIT_2026-11-27.md) para riesgos operativos y validaciones pendientes.
+
 ## Alcance
 
 El motor central se integra como infraestructura de backend, no como un módulo de interfaz. La primera capacidad es descubrir escenas satelitales reales mediante STAC para AOI GeoJSON Point, Polygon o MultiPolygon en WGS84, sin limitar la consulta a una localidad.
