@@ -167,7 +167,6 @@ export async function analyzeUploadedImage(imageFile) {
     previewUrl: previewUrl,
     exif: exif,
     visualMetrics: visualStats,
-    visualMetrics: visualStats,
     visualAnalysis: {
       observado: observado,
       inferido: inferido,
