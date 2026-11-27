@@ -5,7 +5,7 @@ Agro-Consultas es un desarrollo independiente orientado a explorar información 
 **Demo pública:** https://agro-consultas.vercel.app  
 **Repositorio:** https://github.com/D4nSosa/agro-consultas
 
-> Estado de referencia: documentación revisada el 21 de noviembre de 2026. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
+> Estado de referencia: 27 de noviembre de 2026. Producción verificada en Vercel como READY sobre el commit `e1203bb`. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo. Las correcciones de persistencia e interfaz descritas en la auditoría están en una rama de mantenimiento y todavía no forman parte de producción.
 
 ## Alcance y estado de los módulos
 
@@ -23,7 +23,8 @@ La arquitectura y la validación se diseñan para las 23 provincias y CABA, sin 
 
 El muestreo automatizado de INTA-CIRN consultó centroides de las 23 provincias: obtuvo pH válido en 23/23 y NoData en CABA. Esto valida consultas puntuales distribuidas nacionalmente, no cobertura uniforme de cada provincia.
 
-Auditoría técnica y matriz de cobertura: [docs/NATIONAL_SOURCE_AUDIT.md](docs/NATIONAL_SOURCE_AUDIT.md).
+Auditoría técnica y matriz de cobertura: [docs/NATIONAL_SOURCE_AUDIT.md](docs/NATIONAL_SOURCE_AUDIT.md).  
+Auditoría de producción y estado del repositorio (27-11-2026): [docs/PRODUCTION_AUDIT_2026-11-27.md](docs/PRODUCTION_AUDIT_2026-11-27.md).
 
 ## Monitoreo de incendios
 
@@ -49,10 +50,10 @@ Documentación detallada: [FIRE_MONITORING.md](FIRE_MONITORING.md).
 | NOAA GOES-19 Open Data | Integrado: ABI L2 FDCF para alertas térmicas rápidas. |
 | CONAE | AQM de áreas quemadas: GetMap PNG y metadatos verificados. WFS de focos y disponibilidad de combustibles/SAOCOM/anomalías: servicios en validación; algunos endpoints presentan timeouts. |
 | Sentinel-2 / AWS Earth Search STAC | Integrado: catálogo backend, bandas RED/NIR, escala/offset STAC y máscara SCL. |
-| Landsat 8/9 / Microsoft Planetary Computer | Integrado en la rama PR #94: C2 L2, escala/offset, QA_PIXEL y token SAS público temporal; prueba NDVI de punto en Mendoza. |
+| Landsat 8/9 / Microsoft Planetary Computer | Integrado en `main` (PR #94): C2 L2, escala/offset, QA_PIXEL y token SAS público temporal; prueba NDVI de punto en Mendoza. |
 | Sentinel-1 / AWS Earth Search STAC | Integrado con limitaciones: estadísticas VV/VH en DN crudos; sin calibración sigma0 ni inferencias biofísicas. |
-| INTA-CIRN | Integrado en la rama PR #94: pH 0–30/30–100 cm y clases crudas de salinidad; pH modelado 1 km, salinidad pendiente de leyenda. |
-| MapBiomas Argentina | Colección 3 integrada como teselas XYZ anuales en el visor (1985–2025, 30 m), además de WMS contextuales de unidades de vegetación, ecorregiones, regiones forestales y áreas protegidas. La capa anual es visual: no equivale a estadística zonal por lote ni habilita exportación de assets. |
+| INTA-CIRN | Integrado en `main` (PR #94): pH 0–30/30–100 cm y clases crudas de salinidad; pH modelado 1 km, salinidad pendiente de leyenda. |
+| GAEZ / GFW / Hansen / JRC | Servicios de análisis territoriales existentes en el backend; la disponibilidad y los resultados dependen de la fuente, AOI y período consultados. No se deben interpretar como inventarios de campo ni como mediciones de rendimiento. |\n| MapBiomas Argentina | Colección 3 integrada como teselas XYZ anuales en el visor (1985–2025, 30 m), además de WMS contextuales de unidades de vegetación, ecorregiones, regiones forestales y áreas protegidas. La capa anual es visual: no equivale a estadística zonal por lote ni habilita exportación de assets. |
 | IDERA / IGN / INDEC | Catálogo IDERA dinámico; capas WMS de IGN e INTA descubiertas en el visor. La selección de capas WFS/INDEC y otras capas nacionales sigue pendiente de validación por producto. |
 | IDECorr | Servicio identificado; disponibilidad WMS/SSL inestable en las pruebas actuales. |
 | Open-Meteo | Geocodificación y pronóstico meteorológico. |
