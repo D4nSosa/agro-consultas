@@ -283,6 +283,13 @@
       <label for="ac-compare-lots">Lotes a comparar</label>
       <select id="ac-compare-lots" multiple size="5" aria-describedby="ac-compare-help"></select>
       <small id="ac-compare-help">En Android, mantené presionados los lotes para seleccionar más de uno. Máximo: 5.</small>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.85rem;">
+        <input id="ac-compare-spectral" type="checkbox">
+        Incluir comparación multiespectral (solo compara si coincide fecha, colección y resolución)
+      </label>
+      <label style="display:block;font-size:.85rem;margin-top:8px;">Fecha objetivo multiespectral
+        <input id="ac-compare-spectral-date" type="date" style="display:block;width:100%;max-width:260px;margin-top:5px;padding:8px;border:1px solid var(--borde-suave);border-radius:7px;background:var(--bg-principal);color:var(--texto-principal);">
+      </label>
       <div class="ac-compare-actions"><button id="ac-run-comparison" class="btn primary" type="button">Comparar lotes</button><span id="ac-compare-status" role="status" aria-live="polite">Seleccioná al menos dos lotes guardados.</span></div>
       <div id="ac-compare-output" aria-live="polite"></div>
     </section>
