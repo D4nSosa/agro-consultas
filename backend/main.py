@@ -1327,6 +1327,7 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
         for array in arrays.values():
             common_valid &= np.isfinite(array)
 
+        surfaces = {}
         results = {
             key: {
                 "status": "UNAVAILABLE",
@@ -1354,12 +1355,27 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
                 "sampleCount": int(values.size),
                 "validPixelsPercent": round(float(values.size * 100 / max(1, aoi_pixel_count)), 2)
             }
+            # Muestra espacial reducida del ráster real para visualización 3D en el cliente.
+            # Se conserva la máscara QA: los píxeles inválidos permanecen como null.
+            sample_rows = np.linspace(0, height - 1, min(height, 36), dtype=int).tolist()
+            sample_cols = np.linspace(0, width - 1, min(width, 36), dtype=int).tolist()
+            surfaces[key] = {
+                "rows": sample_rows,
+                "columns": sample_cols,
+                "values": [
+                    [round(float(index[row, col]), 4) if valid[row, col] else None for col in sample_cols]
+                    for row in sample_rows
+                ],
+                "label": definition["label"],
+                "units": "índice espectral"
+            }
         resolution = max(
             max(abs(datasets[band].res[0]), abs(datasets[band].res[1]))
             for band in required_bands
         )
         return {
             "indices": results,
+            "surfaces": surfaces,
             "qualityMask": quality_mask_type,
             "resolution": float(resolution),
             "resolutionUnit": "m",
