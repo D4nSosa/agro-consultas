@@ -410,9 +410,9 @@ export async function buscarYProcesarUbicacion(queryTexto) {
     await ejecutarEtapaConTimeout('Recomendaciones', () => renderRecomendaciones(currentUbicacionNombre, currentLat, currentLng, val));
     await ejecutarEtapaConTimeout('Datos territoriales', () => actualizarPanelTerritorialBasico(currentUbicacionNombre, currentLat, currentLng, val));
     await ejecutarEtapaConTimeout('Histórico climático', () => renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre));
-    // No usar polygonGeoJSON: no existe en este flujo. Solo enviar el polígono activo si la selección es un lote.
+    // SAR queda disponible como acción independiente; no forma parte del análisis principal.
     const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;
-    await ejecutarEtapaConTimeout('Radar satelital', () => renderSarRadarUI(currentLat, currentLng, sarGeometry));
+    renderSarRadarUI(currentLat, currentLng, sarGeometry);
   } catch (err) {
     console.error("Error en buscarYProcesarUbicacion:", err);
   } finally {
@@ -489,14 +489,9 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
     await ejecutarEtapaConTimeout('Recomendaciones', () => renderRecomendaciones(currentUbicacionNombre, lat, lng, geoPointData));
     await ejecutarEtapaConTimeout('Datos territoriales', () => actualizarPanelTerritorialBasico(currentUbicacionNombre, lat, lng, geoPointData));
     await ejecutarEtapaConTimeout('Histórico climático', () => renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre));
-    // Ejecutar SAR también cuando la selección llega desde el mapa/GPS (no solo desde el buscador).
-    // Enviar el polígono únicamente cuando la selección actual corresponde al lote dibujado.
+    // SAR queda disponible como acción independiente; no bloquea mapa, cultivos ni clima.
     const sarGeometry = currentSpatialLevel === "LOTE / POLÍGONO" ? currentAOIPolygon : null;
-    await ejecutarEtapaConTimeout(
-      'Radar satelital',
-      () => renderSarRadarUI(currentLat, currentLng, sarGeometry),
-      18000
-    );
+    renderSarRadarUI(currentLat, currentLng, sarGeometry);
   } catch (err) {
     console.error("Error en procesarSeleccionCoordenadas:", err);
   } finally {
@@ -819,38 +814,34 @@ export async function renderSarRadarUI(lat, lng, geom = null, manual = false) {
   `;
 
   const targetGeom = geom || { type: "Point", coordinates: [lng, lat] };
-  let sarRes = null;
-  let sarTimeoutId;
-  try {
-    sarRes = await Promise.race([
-      getSentinel1SarAnalysis(targetGeom),
-      new Promise((_, reject) => {
-        sarTimeoutId = setTimeout(
-          () => reject(new Error("La consulta Sentinel-1 superó el tiempo máximo de espera (15 s).")),
-          15000
-        );
-      })
-    ]);
-  } catch (error) {
-    console.warn("[Agro-Consultas] Radar SAR no disponible:", error);
+  const renderRetryState = (message) => {
     container.innerHTML = `
       <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
-        <h4 style="margin: 0 0 6px 0; color: #c0392b;">📡 OBSERVACIONES RADAR SAR PENDIENTES</h4>
-        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">La fuente Sentinel-1 no respondió dentro de 15 segundos. El resto del análisis continúa disponible; podés volver a intentar más tarde.</p>
+        <h4 style="margin: 0 0 6px 0; color: #c0392b;">📡 OBSERVACIONES RADAR SAR NO DISPONIBLES</h4>
+        <p id="sar-retry-message" style="margin: 0 0 10px; font-size: 0.85rem; color: var(--texto-secundario);"></p>
+        <button id="btn-retry-agro-sar" type="button" class="btn-primary" style="width:100%;">Reintentar consulta Sentinel-1</button>
       </div>
     `;
+    const messageElement = container.querySelector("#sar-retry-message");
+    if (messageElement) messageElement.textContent = message || "No se pudo completar la consulta al catálogo y al procesamiento radar.";
+    container.querySelector("#btn-retry-agro-sar")?.addEventListener("click", () => {
+      renderSarRadarUI(lat, lng, geom, true);
+    }, { once: true });
+  };
+
+  let sarRes = null;
+  try {
+    // La consulta se ejecuta únicamente por acción del usuario y no tiene un
+    // timeout artificial de 15 s: el análisis principal ya terminó.
+    sarRes = await getSentinel1SarAnalysis(targetGeom);
+  } catch (error) {
+    console.warn("[Agro-Consultas] Radar SAR no disponible:", error);
+    renderRetryState(error?.message || "No se pudo conectar con el servicio Sentinel-1.");
     return;
-  } finally {
-    clearTimeout(sarTimeoutId);
   }
 
   if (!sarRes || sarRes.status === "UNAVAILABLE" || !sarRes.stats) {
-    container.innerHTML = `
-      <div style="background: rgba(231, 76, 60, 0.08); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 8px; padding: 15px;">
-        <h4 style="margin: 0 0 6px 0; color: #c0392b;">📡 OBSERVACIONES RADAR SAR PENDIENTES</h4>
-        <p style="margin: 0; font-size: 0.85rem; color: var(--texto-secundario);">${sarRes?.message || 'No se pudieron recuperar escenas radar de la red AWS STAC para la ubicación seleccionada.'}</p>
-      </div>
-    `;
+    renderRetryState(sarRes?.message || "No se encontraron escenas radar válidas para la ubicación seleccionada.");
     return;
   }
 
@@ -1491,14 +1482,14 @@ function renderBatchEvidenceUI() {
       </h3>
       ${polygonBuild.success ? `
         <button type="button" id="btn-reconstruct-lot-photos" class="btn primary" style="padding: 6px 14px; font-size: 0.82rem; background: var(--verde-principal);">
-          📐 Reconstruir Polígono de Lote a partir de Fotos GPS (${polygonBuild.pointsCount} puntos)
+          📐 Generar envolvente aproximada desde GPS de fotos (${polygonBuild.pointsCount} puntos)
         </button>
       ` : ''}
     </div>
 
     ${polygonBuild.success ? `
       <div style="background: rgba(39, 174, 96, 0.08); border: 1px solid rgba(39, 174, 96, 0.3); border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 0.82rem;">
-        <strong>✅ Detección de Geometría de Lote:</strong> Se detectaron ${polygonBuild.pointsCount} fotografías con coordenadas GPS georreferenciadas. Podés presionar el botón de arriba para trazar el perímetro del lote en el mapa.
+        <strong>✅ Detección de Geometría de Lote:</strong> Se detectaron ${polygonBuild.pointsCount} fotografías con GPS. La envolvente convexa aproxima su extensión; no representa el límite real ni catastral del lote.
       </div>
     ` : ''}
 
@@ -1541,7 +1532,7 @@ function renderBatchEvidenceUI() {
         mapViewerInstance.map.fitBounds(drawnPolygonLayer.getBounds(), { padding: [30, 30] });
 
         const firstPt = polygonBuild.points[0];
-        procesarSeleccionCoordenadas(firstPt.lat, firstPt.lng, `Lote Reconstruido por Fotos GPS (${polygonBuild.pointsCount} Puntos)`);
+        procesarSeleccionCoordenadas(firstPt.lat, firstPt.lng, `Envolvente GPS aproximada (${polygonBuild.pointsCount} Puntos)`);
       }
     });
   }

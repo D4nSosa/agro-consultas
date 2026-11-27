@@ -72,3 +72,28 @@ test('recent fire detections respect the same active sensor filters as the map',
   assert.match(page, /if\(sensor==='GOES'\)return \$\('show-goes'\)\.checked/);
   assert.match(page, /drawDetections\(\);\s*renderRecentDetections\(\);/);
 });
+
+
+test('raster layer clicks explain the active thematic layer instead of moving the forecast marker', () => {
+  assert.match(page, /function bindDetectionPopup\(marker, content\)/);
+  assert.match(page, /className:'fire-detection-marker'/);
+  assert.match(page, /target\?\.closest\?\.\('\.fire-detection-marker'\)/);
+  assert.match(page, /className:'fire-context-wms fire-context-burned'/);
+  assert.match(page, /className:'fire-context-wms fire-context-fuel'/);
+  assert.match(page, /className:'fire-context-wms fire-context-gwis'/);
+  assert.match(page, /const hitBurned=!!target\?\.closest\?\.\('\.fire-context-burned'\)/);
+  assert.match(page, /Área quemada mensual · MODIS AQM/);
+  assert.match(page, /Peligro de incendio FWI · GWIS/);
+  assert.match(page, /queryConaePixel\('burned'/);
+  assert.match(page, /queryConaePixel\('fuel'/);
+  assert.match(page, /GetFeatureInfo/);
+});
+
+
+test('CONAE pixel identify is proxied through validated, queryable WMS layers', async () => {
+  const backend = await readFile(new URL('../backend/fire_monitoring.py', import.meta.url), 'utf8');
+  assert.match(backend, /def conae_wms_identify/);
+  assert.match(backend, /layer_metadata\.get\("queryable"\) is not True/);
+  assert.match(backend, /"request": "GetFeatureInfo"/);
+  assert.match(backend, /resolved_layer/);
+});

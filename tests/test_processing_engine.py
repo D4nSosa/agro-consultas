@@ -23,6 +23,8 @@ def test_capabilities_lists_allowlisted_global_catalogs():
     assert response.status_code==200
     assert {p["collection"] for p in response.json()["providers"]}=={"sentinel-1-grd","sentinel-2-l2a","landsat-c2-l2"}
     assert "POST /process delegates one exact scene" in response.json()["limitations"][0]
+    assert response.json()["terrainProvider"]["collection"] == "cop-dem-glo-30"
+    assert response.json()["terrainProvider"]["resolution"] == "30 m"
 
 def test_scene_discovery_normalizes_all_three_collections(monkeypatch):
     from backend import processing_engine
@@ -355,3 +357,17 @@ def test_unknown_collection_and_reversed_dates_are_rejected():
     reversed_dates=client.post("/api/engine/scenes",json={"geometry":AOI,"startDate":"2026-11-22",
       "endDate":"2026-11-01","collections":["sentinel-1-grd"]})
     assert unknown.status_code==422 and reversed_dates.status_code==422
+
+
+def test_engine_capabilities_report_photogrammetry_as_unconfigured_without_worker(monkeypatch):
+    from backend import processing_engine
+
+    for key in ("ODM_NODE_URL", "ODM_NODE_TOKEN", "DRONE_STORAGE_BUCKET", "DRONE_TILE_SERVICE_URL"):
+        monkeypatch.delenv(key, raising=False)
+    response = client.get("/api/engine/capabilities")
+    assert response.status_code == 200
+    capability = response.json()["processing"]["dronePhotogrammetry"]
+    assert capability["status"] == "NOT_CONFIGURED"
+    assert capability["requiresPersistentStorage"] is True
+    assert capability["runsInsideVercelFunction"] is False
+    assert capability["nodeOdmTokenConfigured"] is False

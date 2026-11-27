@@ -85,7 +85,7 @@ test('Agro never runs the heavy Sentinel-1 raster processing during the main loc
 });
 
 test('map and GPS selection call the SAR renderer in lazy mode and close the global overlay', () => {
-  assert.ok(script.includes("'Radar satelital'"));
+  assert.ok(script.includes('Radar satelital'));
   assert.ok(script.includes('renderSarRadarUI(currentLat, currentLng, sarGeometry)'));
   assert.ok(script.includes('ocultarIndicadorCarga();'));
   const start = script.indexOf('export async function renderSarRadarUI');

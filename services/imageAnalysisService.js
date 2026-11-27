@@ -61,29 +61,65 @@ export function clearBatch() {
  * Intenta reconstruir un polígono GeoJSON de Lote a partir del conjunto de fotos con GPS EXIF
  * @returns {Object|null} Objeto de Lote GeoJSON o null si hay menos de 3 puntos
  */
+export function buildPolygonFromGpsPoints(points) {
+  const unique = Array.from(new Map(
+    points
+      .filter(point => Number.isFinite(point?.lng) && Number.isFinite(point?.lat))
+      .map(point => [`${point.lng.toFixed(7)},${point.lat.toFixed(7)}`, [point.lng, point.lat]])
+  ).values()).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+  const cross = (origin, a, b) =>
+    (a[0] - origin[0]) * (b[1] - origin[1]) -
+    (a[1] - origin[1]) * (b[0] - origin[0]);
+
+  if (unique.length < 3) return [];
+  const lower = [];
+  for (const point of unique) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+    lower.push(point);
+  }
+  const upper = [];
+  for (const point of [...unique].reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+    upper.push(point);
+  }
+  const hull = [...lower.slice(0, -1), ...upper.slice(0, -1)];
+  return hull.length >= 3 ? hull : [];
+}
+
+/**
+ * Devuelve una envolvente convexa aproximada a partir de puntos GPS EXIF.
+ * No reconstruye límites catastrales ni un ortomosaico.
+ */
 export function buildPolygonFromBatchGps() {
   const pointsWithGps = uploadedImagesBatch.filter(img => img.exif && img.exif.hasGps && img.exif.gps);
 
   if (pointsWithGps.length < 3) {
     return {
       success: false,
-      message: `Se requieren al menos 3 imágenes con GPS EXIF para reconstruir el perímetro del lote (se encontraron ${pointsWithGps.length}).`,
+      message: `Se requieren al menos 3 fotografías con GPS EXIF (se encontraron ${pointsWithGps.length}).`,
       pointsCount: pointsWithGps.length,
       points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
     };
   }
 
-  // Extraer puntos [lng, lat]
-  const coordinates = pointsWithGps.map(p => [p.exif.gps.lng, p.exif.gps.lat]);
+  const hull = buildPolygonFromGpsPoints(pointsWithGps.map(p => p.exif.gps));
+  if (hull.length < 3) {
+    return {
+      success: false,
+      message: 'Los puntos GPS no forman una envolvente con área suficiente.',
+      pointsCount: pointsWithGps.length,
+      points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
+    };
+  }
 
-  // Cerrar polígono conectando el último punto con el primero
-  const closedCoordinates = [...coordinates, coordinates[0]];
-
+  const closedCoordinates = [...hull, hull[0]];
   const geoJsonPolygon = {
     type: "Feature",
     properties: {
-      name: `Lote Reconstruido por Fotografía (${pointsWithGps.length} puntos GPS)`,
-      source: "EXIF GPS Cameras / Smartphone Batch",
+      name: `Envolvente GPS aproximada (${pointsWithGps.length} fotografías)`,
+      source: "Convex hull of photo EXIF GPS points",
+      geometryMethod: "convex_hull",
       createdAt: new Date().toISOString()
     },
     geometry: {
@@ -96,6 +132,9 @@ export function buildPolygonFromBatchGps() {
     success: true,
     feature: geoJsonPolygon,
     pointsCount: pointsWithGps.length,
+    hullPointsCount: hull.length,
+    approximation: true,
+    message: "La envolvente convexa aproxima la extensión de los puntos GPS; no equivale al límite real del lote.",
     points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
   };
 }
@@ -132,46 +171,32 @@ export async function analyzeUploadedImage(imageFile) {
     };
   }
 
-  // Métricas
-  const exg = visualStats.exg;
-  const avgR = visualStats.avgR;
-  const avgG = visualStats.avgG;
-
-  const greenPct = Math.min(100, Math.max(0, Math.round(((exg + 20) / 60) * 100)));
-
-  // Indicios y Síntomas compatibles
+  // Métricas RGB: describen color de la fotografía, no reflectancia multiespectral.
+  const greenPct = visualStats.greenDominancePercent;
   const sintomasCompatibles = [];
 
-  if (exg > 18) {
-    sintomasCompatibles.push("✓ Indicios de pigmentación foliar activa y alta densidad de dosel verde.");
-  } else if (exg > 5 && exg <= 18) {
-    sintomasCompatibles.push("• Cobertura vegetativa moderada o combinación de follaje con rastrojo/suelo.");
+  if (greenPct >= 40) {
+    sintomasCompatibles.push(`La muestra presenta dominancia de tonos verdes en ${greenPct}% de los píxeles analizados.`);
+  } else if (greenPct >= 15) {
+    sintomasCompatibles.push(`La muestra presenta una señal RGB verde intermedia (${greenPct}% de píxeles con dominancia verde).`);
   } else {
-    sintomasCompatibles.push("⚠ Fracción verde reducida: Tonos neutros o predominio de suelo desnudo/rastrojo.");
-  }
-
-  // Anomalías de color
-  if (avgR > avgG && avgR > 110) {
-    sintomasCompatibles.push("⚠ Posible presencia de tonos amarillentos/pajizos (síntomas compatibles con senescencia, clorosis o estrés de humedad).");
-  }
-  if (visualStats.brightness < 60) {
-    sintomasCompatibles.push("⚠ Escena con baja iluminación o tonos oscuros (posible presencia de necrosis, quemado o sombra severa).");
+    sintomasCompatibles.push(`La muestra presenta baja dominancia RGB verde (${greenPct}%); puede reflejar suelo, rastrojo, sombra, material seco o vegetación poco visible.`);
   }
 
   const observado = [
-    `Dimensiones reales: ${exif.dimensions || 'Dimensiones no detectadas'}.`,
-    `Brillo medio RGB: ${visualStats.brightness}/255.`,
-    `Índice ExG (Excess Green): ${exg.toFixed(2)}.`,
-    `Fracción vegetativa estimada: ${greenPct}%.`,
-    exif.date ? `Fecha EXIF: ${exif.date}.` : 'Fecha EXIF: NO DISPONIBLE.',
+    `Dimensiones: ${exif.dimensions || 'NO DISPONIBLE'}.`,
+    `Brillo RGB medio: ${visualStats.brightness}/255.`,
+    `ExG medio: ${visualStats.exg.toFixed(3)}.`,
+    `VARI medio: ${visualStats.vari == null ? 'NO DISPONIBLE' : visualStats.vari.toFixed(3)}.`,
+    `GLI medio: ${visualStats.gli == null ? 'NO DISPONIBLE' : visualStats.gli.toFixed(3)}.`,
+    `Píxeles con dominancia verde: ${greenPct}%.`,
+    exif.date && exif.date !== 'Fecha EXIF: NO DISPONIBLE' ? `Fecha EXIF: ${exif.date}.` : 'Fecha EXIF: NO DISPONIBLE.',
     exif.hasGps ? `GPS EXIF: Lat ${exif.gps.lat.toFixed(4)}, Lng ${exif.gps.lng.toFixed(4)}.` : 'GPS EXIF: NO DISPONIBLE.'
   ].join(' ');
 
-  const inferido = sintomasCompatibles.length > 0
-    ? sintomasCompatibles.join(' ')
-    : 'Muestra visual compatible con cubierta vegetal regular.';
+  const inferido = sintomasCompatibles.join(' ');
+  const noDeterminable = 'Los índices RGB son descriptores de color de una fotografía. No equivalen a NDVI/NDRE, no miden clorofila, biomasa, humedad ni rendimiento y no permiten diagnosticar plagas, enfermedades o deficiencias nutricionales.';
 
-  const noDeterminable = 'No es posible emitir diagnósticos categóricos de patógenos o deficiencias nutricionales mediante análisis fotográfico RGB únicamente sin validación de laboratorio o inspección foliar en terreno.';
 
   return {
     id: id,
@@ -187,6 +212,7 @@ export async function analyzeUploadedImage(imageFile) {
       sintomasList: sintomasCompatibles,
       noDeterminable: noDeterminable
     },
+    analysisScope: 'RGB_PHOTO_ONLY',
     analyzedAt: new Date().toISOString()
   };
 }
@@ -202,45 +228,57 @@ function analyzeCanvasVisualMetrics(file) {
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('Canvas 2D no disponible');
 
-        const width = Math.min(300, img.naturalWidth || 300);
-        const height = Math.min(300, img.naturalHeight || 300);
-
+        const scale = Math.min(1, 600 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+        const width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+        const height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
         canvas.width = width;
         canvas.height = height;
-
         ctx.drawImage(img, 0, 0, width, height);
 
-        const imgData = ctx.getImageData(0, 0, width, height);
-        const data = imgData.data;
-
+        const data = ctx.getImageData(0, 0, width, height).data;
         let totalR = 0, totalG = 0, totalB = 0;
-        const totalPixels = width * height;
+        let exgSum = 0, variSum = 0, variCount = 0, gliSum = 0, gliCount = 0;
+        let greenDominantCount = 0;
+        let sampleCount = 0;
 
         for (let i = 0; i < data.length; i += 4) {
-          totalR += data[i];
-          totalG += data[i + 1];
-          totalB += data[i + 2];
+          if (data[i + 3] < 16) continue;
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          totalR += r; totalG += g; totalB += b;
+          exgSum += (2 * g) - r - b;
+          const variDenominator = g + r - b;
+          if (Math.abs(variDenominator) > 1e-6) {
+            variSum += (g - r) / variDenominator;
+            variCount++;
+          }
+          const gliDenominator = (2 * g) + r + b;
+          if (gliDenominator > 1e-6) {
+            gliSum += ((2 * g) - r - b) / gliDenominator;
+            gliCount++;
+          }
+          if (g > r * 1.08 && g > b * 1.08 && g > 40) greenDominantCount++;
+          sampleCount++;
         }
 
-        const avgR = totalR / totalPixels;
-        const avgG = totalG / totalPixels;
-        const avgB = totalB / totalPixels;
-
-        const brightness = Math.round((avgR + avgG + avgB) / 3);
-
-        // Excess Green Index: 2G - R - B
-        const exg = (2 * avgG) - avgR - avgB;
-
         URL.revokeObjectURL(url);
+        if (!sampleCount) return resolve(null);
+        const avgR = totalR / sampleCount;
+        const avgG = totalG / sampleCount;
+        const avgB = totalB / sampleCount;
 
         resolve({
-          avgR: Math.round(avgR),
-          avgG: Math.round(avgG),
-          avgB: Math.round(avgB),
-          brightness: brightness,
-          exg: Math.round(exg * 100) / 100
+          avgR: Math.round(avgR * 100) / 100,
+          avgG: Math.round(avgG * 100) / 100,
+          avgB: Math.round(avgB * 100) / 100,
+          brightness: Math.round((avgR + avgG + avgB) / 3),
+          exg: Math.round((exgSum / sampleCount) * 1000) / 1000,
+          vari: variCount ? Math.round((variSum / variCount) * 1000) / 1000 : null,
+          gli: gliCount ? Math.round((gliSum / gliCount) * 1000) / 1000 : null,
+          greenDominancePercent: Math.round((greenDominantCount * 100 / sampleCount) * 10) / 10,
+          sampleCount
         });
       } catch (err) {
         URL.revokeObjectURL(url);
@@ -252,7 +290,6 @@ function analyzeCanvasVisualMetrics(file) {
       URL.revokeObjectURL(url);
       resolve(null);
     };
-
     img.src = url;
   });
 }

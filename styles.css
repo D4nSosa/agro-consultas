@@ -1365,3 +1365,32 @@ p, span, h1, h2, h3, h4, h5, h6, div, li, strong {
   .map-overlay-row { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 7px; }
   .map-overlay-name strong { font-size: .82rem; }
 }
+
+
+/* Comparación de lotes dentro de Agro-Consultas */
+.ac-lot-comparison { margin: 24px 0; padding: 20px; border-top: 4px solid var(--verde-principal); }
+.ac-lot-comparison > p { color: var(--texto-secundario); line-height: 1.5; }
+.ac-compare-lot-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin:8px 0; }
+.ac-compare-lot-option { display:flex; align-items:center; gap:9px; min-width:0; padding:10px; border:1px solid var(--borde-suave); border-radius:8px; background:var(--bg-principal); cursor:pointer; overflow-wrap:anywhere; }
+.ac-compare-lot-option input { width:18px; height:18px; flex:0 0 auto; accent-color:var(--verde-principal); }
+.ac-compare-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:14px 0; }
+#ac-compare-status { color:var(--texto-secundario); font-size:.86rem; }
+#ac-compare-output { margin-top:16px; }
+.ac-compare-summary { padding:12px; border:1px solid var(--borde-suave); border-radius:8px; margin-bottom:12px; }
+.ac-compare-summary p { margin:6px 0 0; color:var(--texto-secundario); font-size:.85rem; }
+.ac-compare-status-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; }
+.ac-compare-lot-status { border:1px solid var(--borde-suave); border-radius:8px; padding:12px; overflow-wrap:anywhere; }
+.ac-compare-lot-status ul { margin:8px 0 0; padding-left:18px; font-size:.8rem; color:var(--texto-secundario); }
+.ac-compare-source { margin-top:18px; }
+.ac-compare-source h3 { color:var(--verde-principal); text-transform:capitalize; }
+.ac-compare-metric { padding:12px; margin:10px 0; border:1px solid var(--borde-suave); border-radius:8px; }
+.ac-compare-metric h4 { margin:0 0 10px; text-transform:capitalize; }
+.ac-compare-bar-row { display:grid; grid-template-columns:minmax(90px,1fr) minmax(90px,2fr) minmax(55px,auto); gap:8px; align-items:center; margin:8px 0; font-size:.82rem; }
+.ac-compare-bar-track { height:12px; border-radius:10px; background:var(--gris-fondo); overflow:hidden; }
+.ac-compare-bar-track i { display:block; height:100%; border-radius:10px; }
+.ac-compare-metric small,.ac-compare-empty,.ac-compare-limitations { color:var(--texto-secundario); font-size:.8rem; line-height:1.5; }
+.ac-compare-limitations { margin-top:16px; padding-left:20px; }
+@media(max-width:600px) {
+  .ac-lot-comparison { padding:14px; }
+  .ac-compare-bar-row { grid-template-columns:minmax(75px,1fr) minmax(65px,1.4fr) minmax(48px,auto); gap:5px; font-size:.74rem; }
+}

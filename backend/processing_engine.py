@@ -10,6 +10,8 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import math
+import os
 import threading
 import concurrent.futures
 import urllib.parse
@@ -421,6 +423,527 @@ def analyze_existing_dataset(request: DatasetAnalysisRequest):
         raise HTTPException(status_code=502, detail=f"Falló el procesador territorial {request.processor}: {type(exc).__name__}: {str(exc)[:240]}")
 
 
+class TerrainAnalysisRequest(BaseModel):
+    geometry: dict[str, Any]
+
+
+class ComparisonLot(BaseModel):
+    id: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=120)
+    geometry: dict[str, Any]
+
+
+class LotComparisonRequest(BaseModel):
+    lots: list[ComparisonLot] = Field(min_length=2, max_length=5)
+    processors: list[str] = Field(default_factory=lambda: ["hansen", "gfw-drivers", "jrc"], min_length=1, max_length=5)
+    mapset_code: str | None = None
+    crop: str | None = None
+    period: str | None = None
+    climate_data_source: str | None = None
+    ssp: str | None = None
+    input_level: str | None = None
+    spectral_date: dt.date | None = None
+    spectral_collection: str = "auto"
+    spectral_indices: list[str] = Field(default_factory=lambda: ["ndvi", "evi", "ndmi", "gndvi", "ndre"])
+
+
+COMPARISON_PROCESSORS = {"gaez", "gfw", "hansen", "gfw-drivers", "jrc", "spectral", "terrain"}
+
+
+def _numeric_metrics(value: Any, prefix: str = "") -> dict[str, float]:
+    """Extract comparable analytical values, excluding pixel/record counters and metadata."""
+    metrics: dict[str, float] = {}
+    excluded = {
+        "pixels", "valid_pixels", "validpixels", "tiles_read", "tilesread",
+        "samplecount", "sample_count", "pixel_count", "validpixelspercent",
+        "resolution", "resolution_native_units", "cloudcover", "cloud_cover",
+        "code", "count", "total_pixels", "roi_pixel_count"
+    }
+    if isinstance(value, dict):
+        for key, child in value.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if str(key).casefold() in excluded:
+                continue
+            metrics.update(_numeric_metrics(child, path))
+    elif isinstance(value, list):
+        # Driver classes have stable source codes; arbitrary positional arrays do not.
+        for child in value:
+            if not isinstance(child, dict):
+                continue
+            identity = child.get("code")
+            label = child.get("driver") or child.get("class") or child.get("label")
+            if identity is None or not label:
+                continue
+            path = f"{prefix}[{identity}:{label}]"
+            metrics.update(_numeric_metrics(child, path))
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        number = float(value)
+        if math.isfinite(number) and prefix:
+            metrics[prefix] = number
+    return metrics
+
+
+def _run_comparison_processor(processor: str, geometry: dict, request: LotComparisonRequest):
+    from backend import territorial_analysis, open_forest_data
+
+    if processor in ("gaez", "gfw"):
+        specialist_request = territorial_analysis.LotDatasetRequest(
+            geometry=geometry,
+            mapset_code=request.mapset_code,
+            crop=request.crop,
+            period=request.period,
+            climate_data_source=request.climate_data_source,
+            ssp=request.ssp,
+            input_level=request.input_level,
+        )
+        handler = territorial_analysis.gaez_analyze if processor == "gaez" else territorial_analysis.gfw_analyze
+    elif processor == "spectral":
+        from backend import main as forest_api
+        specialist_request = forest_api.SpectralAnalysisRequest(
+            geometry=geometry,
+            date=request.spectral_date.isoformat() if request.spectral_date else None,
+            collection=request.spectral_collection,
+            indices=request.spectral_indices,
+        )
+        return forest_api.calculate_spectral_indices(specialist_request)
+    elif processor == "terrain":
+        return analyze_terrain(TerrainAnalysisRequest(geometry=geometry))
+    else:
+        specialist_request = open_forest_data.ForestLotRequest(geometry=geometry)
+        handler = {
+            "hansen": open_forest_data.hansen_analyze,
+            "gfw-drivers": open_forest_data.gfw_drivers_analyze,
+            "jrc": open_forest_data.jrc_analyze,
+        }[processor]
+    return handler(specialist_request)
+
+
+
+DEM_PROVIDER = {
+    "provider": "AWS Earth Search",
+    "endpoint": "https://earth-search.aws.element84.com/v1/search",
+    "collection": "cop-dem-glo-30",
+    "product": "Copernicus DEM GLO-30",
+    "kind": "elevation",
+    "catalog": "https://earth-search.aws.element84.com/v1/collections/cop-dem-glo-30",
+}
+
+
+def _copernicus_dem_asset_url(href: str) -> str:
+    prefix = "s3://copernicus-dem-30m/"
+    if href.startswith(prefix):
+        key = href[len(prefix):]
+        return "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com/" + key
+    parsed = urllib.parse.urlparse(href)
+    if parsed.scheme == "https" and parsed.netloc == "copernicus-dem-30m.s3.eu-central-1.amazonaws.com":
+        return href
+    raise ValueError("El catálogo DEM devolvió un asset fuera del bucket público autorizado.")
+
+
+def _terrain_preview_data_uri(values, valid_mask, palette):
+    """Render a compact transparent PNG preview; values remain available as numeric statistics."""
+    import base64
+    import io
+    import numpy as np
+    from PIL import Image
+
+    valid = valid_mask & np.isfinite(values)
+    if not np.any(valid):
+        return None
+    low, high = np.nanpercentile(values[valid], [2, 98])
+    if high <= low:
+        high = low + 1.0
+    scaled = np.clip((values - low) / (high - low), 0.0, 1.0)
+    stops = np.linspace(0.0, 1.0, len(palette))
+    rgba = np.zeros((*values.shape, 4), dtype="uint8")
+    for channel in range(3):
+        rgba[..., channel] = np.interp(
+            scaled, stops, [color[channel] for color in palette]
+        ).astype("uint8")
+    rgba[..., 3] = np.where(valid, 255, 0).astype("uint8")
+    image = Image.fromarray(rgba, mode="RGBA")
+    image.thumbnail((512, 512), Image.Resampling.BILINEAR)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return {
+        "dataUri": "data:image/png;base64," + encoded,
+        "displayMin": round(float(low), 2),
+        "displayMax": round(float(high), 2),
+        "width": image.width,
+        "height": image.height,
+    }
+
+
+@router.post("/terrain")
+def analyze_terrain(request: TerrainAnalysisRequest):
+    """Zonal elevation, slope and aspect from Copernicus DEM GLO-30 (DSM)."""
+    import numpy as np
+    try:
+        import rasterio
+        from rasterio.merge import merge
+        from rasterio.warp import reproject, Resampling
+        from rasterio.features import geometry_mask
+        from affine import Affine
+
+        geom = _validated_geometry(request.geometry)
+        if geom.geom_type not in ("Polygon", "MultiPolygon"):
+            raise HTTPException(status_code=422, detail="El análisis de elevación requiere un polígono o multipolígono.")
+        west, south, east, north = geom.bounds
+        search_body = {
+            "collections": ["cop-dem-glo-30"],
+            "intersects": mapping(geom),
+            "limit": 100,
+        }
+        features, has_more, pages = _read_stac_pages(
+            DEM_PROVIDER, search_body, max_pages=5, max_items=100
+        )
+        if not features:
+            return {
+                "status": "UNAVAILABLE",
+                "source": "Copernicus DEM GLO-30",
+                "message": "El catálogo no devolvió teselas de elevación para el polígono consultado."
+            }
+
+        datasets = []
+        env = rasterio.Env(
+            AWS_NO_SIGN_REQUEST="YES",
+            GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
+            CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif",
+            GDAL_HTTP_MULTIRANGE="YES",
+            CPL_VSIL_CURL_USE_HEAD="NO",
+            GDAL_HTTP_TIMEOUT="25",
+        )
+        env.__enter__()
+        try:
+            for item in features:
+                asset = (item.get("assets") or {}).get("data") or {}
+                href = asset.get("href")
+                if not href:
+                    continue
+                url = _copernicus_dem_asset_url(href)
+                datasets.append(rasterio.open(url))
+            if not datasets:
+                return {
+                    "status": "UNAVAILABLE",
+                    "source": "Copernicus DEM GLO-30",
+                    "message": "Las teselas encontradas no publican un asset de elevación accesible."
+                }
+            source_crs = datasets[0].crs
+            mosaic, src_transform = merge(
+                datasets,
+                bounds=(west, south, east, north),
+                nodata=np.nan,
+                res=(1 / 3600, 1 / 3600),
+            )
+            if mosaic.size == 0:
+                return {
+                    "status": "UNAVAILABLE",
+                    "source": "Copernicus DEM GLO-30",
+                    "message": "Las teselas no contienen píxeles dentro del polígono."
+                }
+            lon, lat = geom.centroid.x, geom.centroid.y
+            zone = int((lon + 180) // 6) + 1
+            epsg = (32600 if lat >= 0 else 32700) + zone
+            target_crs = f"EPSG:{epsg}"
+            from pyproj import Transformer
+            from shapely.ops import transform as transform_shape
+            transformer = Transformer.from_crs("EPSG:4326", target_crs, always_xy=True)
+            projected_geom = transform_shape(transformer.transform, geom)
+            minx, miny, maxx, maxy = projected_geom.bounds
+            resolution_m = 30.0
+            width = max(1, int(math.ceil((maxx - minx) / resolution_m)))
+            height = max(1, int(math.ceil((maxy - miny) / resolution_m)))
+            if width * height > 2_000_000:
+                raise HTTPException(status_code=413, detail="El área supera 2 millones de píxeles a 30 m por consulta.")
+            dst_transform = Affine(resolution_m, 0, minx, 0, -resolution_m, maxy)
+            elevation = np.full((height, width), np.nan, dtype="float32")
+            source_nodata = datasets[0].nodata if datasets[0].nodata is not None else -9999
+            source = mosaic[0].astype("float32")
+            source[~np.isfinite(source)] = np.nan
+            reproject(
+                source=source,
+                destination=elevation,
+                src_transform=src_transform,
+                src_crs=source_crs,
+                src_nodata=np.nan if np.isnan(source).any() else source_nodata,
+                dst_transform=dst_transform,
+                dst_crs=target_crs,
+                dst_nodata=np.nan,
+                resampling=Resampling.bilinear,
+            )
+            inside = geometry_mask(
+                [mapping(projected_geom)],
+                out_shape=elevation.shape,
+                transform=dst_transform,
+                invert=True,
+            )
+            elevation[~inside] = np.nan
+            valid_elevation = np.isfinite(elevation)
+            elevation_values = elevation[valid_elevation]
+            if height < 3 or width < 3 or elevation_values.size < 9:
+                return {
+                    "status": "UNAVAILABLE",
+                    "source": "Copernicus DEM GLO-30",
+                    "message": "El polígono no contiene suficientes píxeles de 30 m para derivar pendiente y orientación."
+                }
+            dz_dy, dz_dx = np.gradient(elevation, resolution_m, -resolution_m)
+            slope = np.degrees(np.arctan(np.sqrt(dz_dx ** 2 + dz_dy ** 2)))
+            slope_valid = valid_elevation & np.isfinite(slope)
+            slope_values = slope[slope_valid]
+            aspect = np.mod(
+                np.degrees(np.arctan2(-dz_dx, -dz_dy)), 360.0
+            )
+            aspect_valid = slope_valid & (slope >= 0.5) & np.isfinite(aspect)
+            aspect_values = aspect[aspect_valid]
+            if aspect_values.size:
+                mean_aspect = float(np.mod(
+                    np.degrees(np.arctan2(
+                        np.mean(np.sin(np.radians(aspect_values))),
+                        np.mean(np.cos(np.radians(aspect_values)))
+                    )), 360.0
+                ))
+            else:
+                mean_aspect = None
+
+            elevation_edges = np.linspace(
+                float(np.min(elevation_values)),
+                float(np.max(elevation_values)) if np.max(elevation_values) > np.min(elevation_values)
+                else float(np.min(elevation_values)) + 1.0,
+                6
+            )
+            elevation_counts, _ = np.histogram(elevation_values, bins=elevation_edges)
+            elevation_histogram = [
+                {
+                    "range_m": f"{elevation_edges[index]:.1f}–{elevation_edges[index + 1]:.1f}",
+                    "count": int(count),
+                    "share_percent": round(float(count * 100 / elevation_values.size), 2),
+                }
+                for index, count in enumerate(elevation_counts)
+            ]
+            slope_edges = [0, 2, 5, 10, 20, 90]
+            slope_labels = ["0–2°", "2–5°", "5–10°", "10–20°", ">20°"]
+            slope_counts, _ = np.histogram(slope_values, bins=slope_edges)
+            slope_histogram = [
+                {
+                    "class": label,
+                    "count": int(count),
+                    "share_percent": round(float(count * 100 / max(1, slope_values.size)), 2),
+                }
+                for label, count in zip(slope_labels, slope_counts)
+            ]
+            direction_labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+            direction_counts = np.zeros(8, dtype="int64")
+            if aspect_values.size:
+                direction_indices = np.floor((aspect_values + 22.5) / 45.0).astype("int64") % 8
+                direction_counts = np.bincount(direction_indices, minlength=8)
+            aspect_histogram = [
+                {
+                    "direction": label,
+                    "count": int(count),
+                    "share_percent": round(float(count * 100 / max(1, aspect_values.size)), 2),
+                }
+                for label, count in zip(direction_labels, direction_counts)
+            ]
+            return {
+                "status": "REAL",
+                "source": "Copernicus DEM GLO-30",
+                "sourceUrl": "https://earth-search.aws.element84.com/v1/collections/cop-dem-glo-30",
+                "attribution": f"Copernicus Digital Elevation Model (DEM), GLO-30 Public. Accessed on {dt.date.today().isoformat()} from https://registry.opendata.aws/copernicus-dem/.",
+                "model": "DSM",
+                "resolution": resolution_m,
+                "resolutionUnit": "m",
+                "horizontalCrs": target_crs,
+                "verticalDatum": "EGM2008",
+                "elevation": {
+                    "min_m": round(float(np.min(elevation_values)), 2),
+                    "mean_m": round(float(np.mean(elevation_values)), 2),
+                    "median_m": round(float(np.median(elevation_values)), 2),
+                    "max_m": round(float(np.max(elevation_values)), 2),
+                    "sample_count": int(elevation_values.size),
+                },
+                "slope": {
+                    "mean_deg": round(float(np.mean(slope_values)), 3),
+                    "median_deg": round(float(np.median(slope_values)), 3),
+                    "max_deg": round(float(np.max(slope_values)), 3),
+                    "sample_count": int(slope_values.size),
+                },
+                "aspect": {
+                    "circular_mean_deg": round(mean_aspect, 2) if mean_aspect is not None else None,
+                    "sample_count": int(aspect_values.size),
+                },
+                "distribution": {
+                    "elevation": elevation_histogram,
+                    "slope": slope_histogram,
+                    "aspect": aspect_histogram,
+                },
+                "previews": {
+                    "elevation": _terrain_preview_data_uri(
+                        elevation, valid_elevation,
+                        [(39, 94, 142), (89, 160, 120), (244, 220, 120), (184, 65, 55)]
+                    ),
+                    "slope": _terrain_preview_data_uri(
+                        slope, slope_valid,
+                        [(26, 152, 80), (254, 224, 139), (253, 174, 97), (215, 48, 39)]
+                    ),
+                },
+                "catalog": {
+                    "tiles_read": len(datasets),
+                    "pages_read": pages,
+                    "has_more_tiles": has_more,
+                },
+                "limitations": [
+                    "Copernicus GLO-30 es un modelo digital de superficie (DSM): las alturas incluyen vegetación y construcciones; no es un modelo de terreno desnudo.",
+                    "La pendiente y orientación se derivan de una grilla de 30 m y no sirven para diseño de drenajes, caminos o movimiento de suelo de precisión.",
+                    "La cobertura GLO-30 tiene algunas teselas no publicadas; si el catálogo no cubre el lote, el resultado se informa como no disponible.",
+                ],
+            }
+        finally:
+            for dataset in datasets:
+                dataset.close()
+            env.__exit__(None, None, None)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return {
+            "status": "UNAVAILABLE",
+            "source": "Copernicus DEM GLO-30",
+            "message": f"No se pudo procesar el modelo de elevación: {type(exc).__name__}: {str(exc)[:240]}"
+        }
+
+
+@router.post("/compare")
+def compare_lots(request: LotComparisonRequest):
+    """Run identical allow-listed dataset processors for 2–5 lots and return comparable metrics."""
+    if len({lot.id for lot in request.lots}) != len(request.lots):
+        raise HTTPException(status_code=422, detail="Cada lote debe tener un id único.")
+    if len({lot.name.strip().casefold() for lot in request.lots}) != len(request.lots):
+        raise HTTPException(status_code=422, detail="Cada lote debe tener un nombre distinto.")
+    unknown = sorted(set(request.processors) - COMPARISON_PROCESSORS)
+    if unknown:
+        raise HTTPException(status_code=422, detail="Procesadores no admitidos: " + ", ".join(unknown))
+    processors = list(dict.fromkeys(request.processors))
+    if "gaez" in processors:
+        missing = [name for name in ("mapset_code", "crop", "period", "climate_data_source", "ssp", "input_level")
+                   if not getattr(request, name)]
+        if missing:
+            raise HTTPException(status_code=422, detail="GAEZ requiere parámetros comunes para todos los lotes: " + ", ".join(missing))
+
+    validated_lots = []
+    for lot in request.lots:
+        geom = _validated_geometry(lot.geometry)
+        if geom.geom_type not in ("Polygon", "MultiPolygon") or geom.area <= 0:
+            raise HTTPException(status_code=422, detail=f"El lote {lot.name} debe ser un polígono con superficie.")
+        validated_lots.append((lot, mapping(geom), geom))
+
+    results = []
+    for lot, geometry, geom in validated_lots:
+        lot_result = {
+            "id": lot.id,
+            "name": lot.name,
+            "areaHa": None,
+            "datasets": {},
+        }
+        try:
+            from backend.main import calculate_shapely_area
+            lot_result["areaHa"] = round(calculate_shapely_area(geom) / 10000.0, 4)
+        except Exception:
+            pass
+        for processor in processors:
+            try:
+                result = _run_comparison_processor(processor, geometry, request)
+                success = result.get("success") is True or result.get("status") == "REAL"
+                lot_result["datasets"][processor] = {
+                    "status": "PROCESSED" if success else "PROCESSING_UNAVAILABLE",
+                    "result": result,
+                }
+            except HTTPException as exc:
+                lot_result["datasets"][processor] = {
+                    "status": "PROCESSING_UNAVAILABLE",
+                    "error": exc.detail,
+                }
+            except Exception as exc:
+                lot_result["datasets"][processor] = {
+                    "status": "PROCESSING_UNAVAILABLE",
+                    "error": f"{type(exc).__name__}: {str(exc)[:180]}",
+                }
+        results.append(lot_result)
+
+    comparisons = {}
+    chart_series = {}
+    for processor in processors:
+        per_lot = {}
+        metric_paths = None
+        for lot_result in results:
+            dataset = lot_result["datasets"][processor]
+            if dataset["status"] != "PROCESSED":
+                per_lot[lot_result["id"]] = {}
+                continue
+            metrics = _numeric_metrics(dataset.get("result", {}))
+            per_lot[lot_result["id"]] = metrics
+            paths = set(metrics)
+            metric_paths = paths if metric_paths is None else metric_paths.intersection(paths)
+        comparison_note = None
+        if processor == "spectral":
+            scene_signatures = {
+                (
+                    (lot_result["datasets"][processor].get("result") or {}).get("date"),
+                    (lot_result["datasets"][processor].get("result") or {}).get("collection"),
+                    (lot_result["datasets"][processor].get("result") or {}).get("resolution"),
+                )
+                for lot_result in results
+                if lot_result["datasets"][processor]["status"] == "PROCESSED"
+            }
+            if len(scene_signatures) != 1 or len(scene_signatures) == 0:
+                metric_paths = set()
+                comparison_note = "No se comparan índices espectrales porque los lotes no tienen la misma fecha de adquisición, colección y resolución."
+        rows = []
+        for path in sorted(metric_paths or []):
+            values = [{"lotId": lot["id"], "lotName": lot["name"], "value": per_lot[lot["id"]][path]}
+                      for lot in results if path in per_lot.get(lot["id"], {})]
+            if len(values) == len(results):
+                baseline = values[0]["value"]
+                for item in values:
+                    item["differenceFromFirst"] = item["value"] - baseline
+                    item["differencePercentFromFirst"] = (
+                        ((item["value"] - baseline) / abs(baseline)) * 100.0 if baseline != 0 else None
+                    )
+                rows.append({"metric": path, "values": values})
+        comparisons[processor] = rows
+        chart_series[processor] = [
+            {"metric": row["metric"], "series": [
+                {"name": item["lotName"], "lotId": item["lotId"], "value": item["value"]}
+                for item in row["values"]
+            ]}
+            for row in rows
+        ]
+
+    statuses = [dataset["status"] for lot in results for dataset in lot["datasets"].values()]
+    overall = "PROCESSED" if statuses and all(status == "PROCESSED" for status in statuses) else (
+        "PARTIAL" if any(status == "PROCESSED" for status in statuses) else "PROCESSING_UNAVAILABLE"
+    )
+    return {
+        "status": overall,
+        "comparisonMethod": "Same allow-listed processor and identical dataset parameters applied independently to each lot.",
+        "lots": results,
+        "comparisons": comparisons,
+        "chartSeries": chart_series,
+        "comparisonNotes": {
+            processor: "No se comparan índices espectrales porque los lotes no tienen la misma fecha de adquisición, colección y resolución."
+            for processor in processors
+            if processor == "spectral" and not comparisons.get(processor)
+        },
+        "processors": processors,
+        "limitations": [
+            "Los valores solo se comparan cuando el mismo procesador devuelve la misma ruta métrica para todos los lotes.",
+            "Las resoluciones, períodos, unidades y metodologías pertenecen a cada fuente; no se mezclan métricas entre procesadores.",
+            "La comparación describe las variables publicadas por las fuentes. No demuestra causalidad ni rendimiento cosechado.",
+            "Para comparar productividad real se necesitan registros de producción y superficie cosechada por lote y campaña.",
+            "Un resultado ausente o no procesado no se convierte en cero.",
+        ],
+    }
+
+
 @router.get("/sources")
 def engine_source_catalog():
     """Expose the existing official-source registry through the central engine."""
@@ -461,16 +984,44 @@ def engine_capabilities():
             }
             for key, value in PROVIDERS.items()
         ],
+        "terrainProvider": {
+            "collection": "cop-dem-glo-30",
+            "product": "Copernicus DEM GLO-30 Public",
+            "provider": "AWS Open Data / Earth Search STAC",
+            "kind": "digital_surface_model",
+            "catalog": DEM_PROVIDER["catalog"],
+            "resolution": "30 m",
+            "coverage": "Limited global public tile coverage; availability is checked per AOI.",
+        },
         "processing": {
             "sentinel1": "Existing Forestal SAR processor; exact-scene Sigma0 calibration status and limitations are returned by that processor.",
-            "sentinel2": "Existing Forestal NDVI processor with SCL quality mask.",
+            "sentinel2": "Existing Forestal NDVI plus calibrated multispectral NDVI, EVI, NDMI, GNDVI and NDRE with SCL quality mask.",
             "landsat": "Existing Forestal NDVI processor with QA_PIXEL quality mask.",
             "territorial": ["gaez", "gfw", "hansen", "gfw-drivers", "jrc"],
+            "dronePhotogrammetry": {
+                "status": "NOT_CONFIGURED",
+                "engine": "NodeODM / OpenDroneMap",
+                "nodeOdmUrlConfigured": bool(os.getenv("ODM_NODE_URL")),
+                "nodeOdmTokenConfigured": bool(os.getenv("ODM_NODE_TOKEN")),
+                "storageBucketConfigured": bool(os.getenv("DRONE_STORAGE_BUCKET")),
+                "tileServiceConfigured": bool(os.getenv("DRONE_TILE_SERVICE_URL")),
+                "requiredEnvironment": ["ODM_NODE_URL", "ODM_NODE_TOKEN", "DRONE_STORAGE_BUCKET", "DRONE_TILE_SERVICE_URL"],
+                "requiresPersistentStorage": True,
+                "runsInsideVercelFunction": False,
+                "outputs": ["orthophoto", "DSM", "DTM", "point cloud", "textured 3D model"],
+            },
+            "multispectral": "POST /api/forest/spectral calculates calibrated NDVI, EVI, NDMI, GNDVI and NDRE from Sentinel-2/Landsat assets with aligned QA masks.",
+            "terrain": "Copernicus DEM GLO-30 DSM zonal elevation, slope and aspect in a local metric CRS.",
+            "lotComparison": "Same allow-listed territorial processors applied to 2–5 lots; returns comparable metrics and chart-ready series. Spectral comparisons require matching acquisition date, collection and resolution.",
         },
         "dispatchEndpoints": {
             "sceneDiscovery": "POST /api/engine/scenes",
             "sceneProcessing": "POST /api/engine/process",
             "territorialAnalysis": "POST /api/engine/analyze",
+            "multispectralAnalysis": "POST /api/forest/spectral",
+            "terrainAnalysis": "POST /api/engine/terrain",
+            "dronePhotogrammetry": "External NodeODM worker integration; not configured until persistent worker and storage are provisioned.",
+            "lotComparison": "POST /api/engine/compare",
             "officialSources": "GET /api/engine/sources",
             "ogcCapabilities": "GET /api/engine/ogc/{provider}/{service}",
             "mapbiomasTiles": "GET /api/engine/mapbiomas/tiles/{year}",
