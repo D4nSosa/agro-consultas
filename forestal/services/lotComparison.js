@@ -87,6 +87,9 @@ export function initializeLotComparison() {
     if (lots.length < 2) status.textContent = 'Guardá al menos dos lotes en el mismo proyecto para compararlos.';
   }
 
+  const spectralDate = root.querySelector('#ac-compare-spectral-date');
+  if (spectralDate && !spectralDate.value) spectralDate.value = new Date().toISOString().slice(0, 10);
+
   refreshLots();
   window.addEventListener('agro:workspace-changed', refreshLots);
   window.addEventListener('agro:lot-context-changed', refreshLots);
@@ -116,7 +119,13 @@ export function initializeLotComparison() {
             name: lot.name,
             geometry: lot.feature.geometry
           })),
-          processors: DEFAULT_PROCESSORS
+          processors: [
+            ...DEFAULT_PROCESSORS,
+            ...(root.querySelector('#ac-compare-spectral')?.checked ? ['spectral'] : [])
+          ],
+          spectral_date: spectralDate?.value || null,
+          spectral_collection: 'auto',
+          spectral_indices: ['ndvi', 'evi', 'ndmi', 'gndvi', 'ndre']
         })
       });
       const payload = await response.json().catch(() => ({}));
