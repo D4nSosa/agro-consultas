@@ -72,3 +72,13 @@ test('recent fire detections respect the same active sensor filters as the map',
   assert.match(page, /if\(sensor==='GOES'\)return \$\('show-goes'\)\.checked/);
   assert.match(page, /drawDetections\(\);\s*renderRecentDetections\(\);/);
 });
+
+
+test('raster layer clicks explain the active thematic layer instead of moving the forecast marker', () => {
+  assert.match(page, /function bindDetectionPopup\(marker, content\)/);
+  assert.match(page, /className:'fire-detection-marker'/);
+  assert.match(page, /target\?\.closest\?\.\('\.fire-detection-marker'\)/);
+  assert.match(page, /Área quemada mensual · MODIS AQM/);
+  assert.match(page, /Peligro de incendio FWI · GWIS/);
+  assert.match(page, /La capa está representada como raster/);
+});
