@@ -122,7 +122,8 @@ export function initializeLotComparison() {
           })),
           processors: [
             ...DEFAULT_PROCESSORS,
-            ...(root.querySelector('#ac-compare-spectral')?.checked ? ['spectral'] : [])
+            ...(root.querySelector('#ac-compare-spectral')?.checked ? ['spectral'] : []),
+            ...(root.querySelector('#ac-compare-terrain')?.checked ? ['terrain'] : [])
           ],
           spectral_date: spectralDate?.value || null,
           spectral_collection: 'auto',
