@@ -310,6 +310,12 @@
       <!-- Cargado dinámicamente desde ChangeReport.js -->
     </div>
 
+    <section id="forest-report-actions" class="card" aria-label="Guardar y compartir informe forestal" style="margin-top:14px;padding:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+      <button id="btn-save-forest-report" class="btn primary" type="button">💾 Guardar resultados del lote</button>
+      <button id="btn-open-forest-report" class="btn outline" type="button">📄 Abrir informe PDF / compartir</button>
+      <span id="forest-report-action-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.8rem;color:var(--texto-secundario);">Los resultados se guardan en este navegador. El enlace compartido no transporta los datos analíticos a otro dispositivo.</span>
+    </section>
+
 
   </main>
 
@@ -328,7 +334,7 @@
     import { ForestTimeline } from './forestal/components/ForestTimeline.js';
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
-    import { saveReportSection } from './services/reportAnalysisStore.js';
+    import { saveReportSection, getReportSnapshot } from './services/reportAnalysisStore.js';
     import { exportToKML, exportToGPX } from './forestal/utils/geo.js';
     import { initializeLotComparison } from './forestal/services/lotComparison.js';
     import { analyzeUploadedImages } from './services/imageAnalysisService.js';
@@ -773,6 +779,51 @@
 
       // 3. Inicializar Componente de Reporte
       reportComp = new ChangeReport('report-container');
+
+      const saveForestReportButton = document.getElementById('btn-save-forest-report');
+      const openForestReportButton = document.getElementById('btn-open-forest-report');
+      const forestReportStatus = document.getElementById('forest-report-action-status');
+
+      saveForestReportButton?.addEventListener('click', () => {
+        const feature = forestMap.getCurrentFeature() || getLotContext();
+        if (!feature?.geometry) {
+          if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote antes de guardar sus resultados.';
+          return;
+        }
+
+        let saved = false;
+        if (currentAnalysisData) {
+          saved = persistForestSection(
+            feature.geometry,
+            'forest-sentinel2',
+            buildReportForestSnapshot(currentAnalysisData),
+            { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' }
+          );
+        }
+
+        const snapshot = getReportSnapshot(feature.geometry);
+        const hasForestResults = Object.keys(snapshot?.sections || {}).some(section => section.startsWith('forest-'));
+        if (forestReportStatus) {
+          forestReportStatus.textContent = saved || hasForestResults
+            ? 'Resultados forestales guardados en este navegador y asociados al lote seleccionado.'
+            : 'Todavía no hay resultados forestales para guardar. Ejecutá un análisis o una consulta de fuente primero.';
+        }
+      });
+
+      openForestReportButton?.addEventListener('click', () => {
+        const feature = forestMap.getCurrentFeature() || getLotContext();
+        if (!feature?.geometry) {
+          if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote para abrir su informe.';
+          return;
+        }
+        const snapshot = getReportSnapshot(feature.geometry);
+        const hasResults = Object.keys(snapshot?.sections || {}).some(section => section.startsWith('forest-'));
+        if (!hasResults) {
+          if (forestReportStatus) forestReportStatus.textContent = 'No hay resultados forestales guardados para este lote.';
+          return;
+        }
+        window.location.href = 'reporte.html';
+      });
 
       const today = new Date().toISOString().slice(0, 10);
       const previousYear = new Date();
