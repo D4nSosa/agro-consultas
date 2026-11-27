@@ -861,6 +861,18 @@
                 </article>`).join('')}
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px;">
+              <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:10px;">
+                <strong>Modelo de elevación · vista raster</strong>
+                ${payload.previews?.elevation?.dataUri ? `<img src="${escapeTerrain(payload.previews.elevation.dataUri)}" alt="Vista raster de elevación" style="width:100%;max-height:240px;object-fit:contain;margin-top:8px;background:var(--bg-principal);border-radius:6px;" />` : '<p>Vista raster no disponible.</p>'}
+                <small>Rango visual: ${Number(payload.previews?.elevation?.displayMin).toFixed(1)}–${Number(payload.previews?.elevation?.displayMax).toFixed(1)} m</small>
+              </article>
+              <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:10px;">
+                <strong>Pendiente · vista raster</strong>
+                ${payload.previews?.slope?.dataUri ? `<img src="${escapeTerrain(payload.previews.slope.dataUri)}" alt="Vista raster de pendiente" style="width:100%;max-height:240px;object-fit:contain;margin-top:8px;background:var(--bg-principal);border-radius:6px;" />` : '<p>Vista raster no disponible.</p>'}
+                <small>Rango visual: ${Number(payload.previews?.slope?.displayMin).toFixed(1)}–${Number(payload.previews?.slope?.displayMax).toFixed(1)}°</small>
+              </article>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px;">
               <section><strong>Distribución de pendientes</strong>
                 ${slopeRows.map(item => `
                   <div style="display:grid;grid-template-columns:52px 1fr 46px;gap:8px;align-items:center;margin-top:7px;font-size:.78rem;">

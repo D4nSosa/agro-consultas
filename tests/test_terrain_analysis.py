@@ -95,3 +95,5 @@ def test_terrain_endpoint_processes_a_real_synthetic_dem_raster(tmp_path, monkey
     assert payload["slope"]["mean_deg"] > 0
     assert sum(item["count"] for item in payload["distribution"]["slope"]) == payload["slope"]["sample_count"]
     assert payload["attribution"].startswith("© DLR")
+    assert payload["previews"]["elevation"]["dataUri"].startswith("data:image/png;base64,")
+    assert payload["previews"]["slope"]["dataUri"].startswith("data:image/png;base64,")

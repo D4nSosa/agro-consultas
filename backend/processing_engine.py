@@ -540,6 +540,41 @@ def _copernicus_dem_asset_url(href: str) -> str:
     raise ValueError("El catálogo DEM devolvió un asset fuera del bucket público autorizado.")
 
 
+def _terrain_preview_data_uri(values, valid_mask, palette):
+    """Render a compact transparent PNG preview; values remain available as numeric statistics."""
+    import base64
+    import io
+    import numpy as np
+    from PIL import Image
+
+    valid = valid_mask & np.isfinite(values)
+    if not np.any(valid):
+        return None
+    low, high = np.nanpercentile(values[valid], [2, 98])
+    if high <= low:
+        high = low + 1.0
+    scaled = np.clip((values - low) / (high - low), 0.0, 1.0)
+    stops = np.linspace(0.0, 1.0, len(palette))
+    rgba = np.zeros((*values.shape, 4), dtype="uint8")
+    for channel in range(3):
+        rgba[..., channel] = np.interp(
+            scaled, stops, [color[channel] for color in palette]
+        ).astype("uint8")
+    rgba[..., 3] = np.where(valid, 255, 0).astype("uint8")
+    image = Image.fromarray(rgba, mode="RGBA")
+    image.thumbnail((512, 512), Image.Resampling.BILINEAR)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return {
+        "dataUri": "data:image/png;base64," + encoded,
+        "displayMin": round(float(low), 2),
+        "displayMax": round(float(high), 2),
+        "width": image.width,
+        "height": image.height,
+    }
+
+
 @router.post("/terrain")
 def analyze_terrain(request: TerrainAnalysisRequest):
     """Zonal elevation, slope and aspect from Copernicus DEM GLO-30 (DSM)."""
@@ -741,6 +776,16 @@ def analyze_terrain(request: TerrainAnalysisRequest):
                     "elevation": elevation_histogram,
                     "slope": slope_histogram,
                     "aspect": aspect_histogram,
+                },
+                "previews": {
+                    "elevation": _terrain_preview_data_uri(
+                        elevation, valid_elevation,
+                        [(39, 94, 142), (89, 160, 120), (244, 220, 120), (184, 65, 55)]
+                    ),
+                    "slope": _terrain_preview_data_uri(
+                        slope, slope_valid,
+                        [(26, 152, 80), (254, 224, 139), (253, 174, 97), (215, 48, 39)]
+                    ),
                 },
                 "catalog": {
                     "tiles_read": len(datasets),
