@@ -1057,9 +1057,14 @@ def conae_wms_identify(
         raise HTTPException(status_code=400, detail="La extensión BBOX debe contener cuatro coordenadas válidas.")
 
     metadata = conae_wms_metadata(kind)
-    layer_metadata = next((item for item in metadata.get("layers", []) if item.get("name") == layer), None)
+    layer_key = layer.split(":")[-1]
+    layer_metadata = next((
+        item for item in metadata.get("layers", [])
+        if item.get("name") == layer or item.get("name", "").split(":")[-1] == layer_key
+    ), None)
     if not layer_metadata:
         raise HTTPException(status_code=400, detail="La capa solicitada no pertenece al catálogo CONAE permitido.")
+    resolved_layer = layer_metadata["name"]
     if layer_metadata.get("queryable") is not True:
         return {
             "queryable": False,
@@ -1073,8 +1078,8 @@ def conae_wms_identify(
         "service": "WMS",
         "version": "1.1.1",
         "request": "GetFeatureInfo",
-        "layers": layer,
-        "query_layers": layer,
+        "layers": resolved_layer,
+        "query_layers": resolved_layer,
         "styles": "",
         "srs": "EPSG:3857",
         "bbox": ",".join(str(value) for value in bounds),
