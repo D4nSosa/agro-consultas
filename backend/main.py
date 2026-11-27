@@ -1287,7 +1287,13 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
         for array in arrays.values():
             common_valid &= np.isfinite(array)
 
-        results = {}
+        results = {
+            key: {
+                "status": "UNAVAILABLE",
+                "message": "La colección o escena no publica todas las bandas calibradas necesarias para este índice."
+            }
+            for key in requested_indices if key not in available_indices
+        }
         for key, definition in available_indices.items():
             band_values = [arrays[name] for name in definition["bands"]]
             if key == "ndvi":
