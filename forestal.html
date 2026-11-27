@@ -785,7 +785,7 @@
       const forestReportStatus = document.getElementById('forest-report-action-status');
 
       saveForestReportButton?.addEventListener('click', () => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         if (!feature?.geometry) {
           if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote antes de guardar sus resultados.';
           return;
@@ -811,7 +811,7 @@
       });
 
       openForestReportButton?.addEventListener('click', () => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         if (!feature?.geometry) {
           if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote para abrir su informe.';
           return;
@@ -883,7 +883,7 @@
       };
 
       const runTerritorial = async (kind, endpoint, statusId) => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         const status = document.getElementById(statusId);
         const button = document.getElementById(kind === 'gfw-drivers' ? 'forest-gfw-run' : kind === 'hansen' ? 'forest-hansen-run' : 'forest-jrc-run');
         if (!feature?.geometry || !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) {
@@ -911,7 +911,7 @@
       document.getElementById('forest-jrc-run')?.addEventListener('click', () => runTerritorial('jrc', '/api/territorial/forest/jrc/analyze', 'forest-jrc-status'));
 
       document.getElementById('forest-terrain-run')?.addEventListener('click', async () => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         const status = document.getElementById('forest-terrain-status');
         const output = document.getElementById('forest-terrain-output');
         const button = document.getElementById('forest-terrain-run');
@@ -1003,7 +1003,7 @@
       const spectralDate = document.getElementById('forest-spectral-date');
       if (spectralDate && !spectralDate.value) spectralDate.value = new Date().toISOString().slice(0, 10);
       document.getElementById('forest-spectral-run')?.addEventListener('click', async () => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         const status = document.getElementById('forest-spectral-status');
         const output = document.getElementById('forest-spectral-output');
         const button = document.getElementById('forest-spectral-run');
@@ -1190,7 +1190,7 @@
         if (currentAnalysisData) {
           currentAnalysisData.inventory = inv;
           reportComp.renderReport(currentAnalysisData);
-          const activeFeature = forestMap.getCurrentFeature() || getLotContext();
+          const activeFeature = forestMap?.getCurrentFeature?.() || getLotContext();
           if (activeFeature?.geometry) persistForestSection(activeFeature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
         }
       });
@@ -1249,7 +1249,7 @@
     }
 
     async function ejecutarAnalisis(dateA, dateB) {
-      let feature = forestMap.getCurrentFeature() || getLotContext();
+      let feature = forestMap?.getCurrentFeature?.() || getLotContext();
       if (!feature) {
         alert('No hay un lote seleccionado. Dibujá o importá un polígono GeoJSON antes de ejecutar el análisis forestal. No se utilizará una ubicación de ejemplo.');
         return;
