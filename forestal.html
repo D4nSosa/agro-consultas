@@ -258,6 +258,17 @@
     </section>
 
     <!-- Contenedor del Reporte Técnico Exportable -->
+    <section id="lot-comparison" class="card ac-lot-comparison">
+      <h2>Comparación de lotes del mismo establecimiento</h2>
+      <p>Seleccioná entre dos y cinco lotes guardados en el proyecto activo. Agro-Consultas ejecutará las mismas fuentes para cada polígono y mostrará las métricas que sean comparables.</p>
+      <p id="ac-compare-project" class="text-muted">Cargando proyecto...</p>
+      <label for="ac-compare-lots">Lotes a comparar</label>
+      <select id="ac-compare-lots" multiple size="5" aria-describedby="ac-compare-help"></select>
+      <small id="ac-compare-help">En Android, mantené presionados los lotes para seleccionar más de uno. Máximo: 5.</small>
+      <div class="ac-compare-actions"><button id="ac-run-comparison" class="btn primary" type="button">Comparar lotes</button><span id="ac-compare-status" role="status" aria-live="polite">Seleccioná al menos dos lotes guardados.</span></div>
+      <div id="ac-compare-output" aria-live="polite"></div>
+    </section>
+
     <div id="report-container">
       <!-- Cargado dinámicamente desde ChangeReport.js -->
     </div>
@@ -281,10 +292,13 @@
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
     import { saveReportSection } from './services/reportAnalysisStore.js';
-    import { exportToKML, exportToGPX, exportToPyQGISScript } from './forestal/utils/geo.js';
+    import { exportToKML, exportToGPX } from './forestal/utils/geo.js';
+    import { initializeLotComparison } from './forestal/services/lotComparison.js';
     import { analyzeUploadedImage } from './services/imageAnalysisService.js';
     import { getForestCatalog } from './services/recommendationEngine.js';
     import { geocodeLocation } from './services/sources/geocodingService.js';
+
+    initializeLotComparison();
 
     async function cargarSelectorEspeciesForestales() {
       const select = document.getElementById('inv-especie');
