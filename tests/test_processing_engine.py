@@ -23,6 +23,8 @@ def test_capabilities_lists_allowlisted_global_catalogs():
     assert response.status_code==200
     assert {p["collection"] for p in response.json()["providers"]}=={"sentinel-1-grd","sentinel-2-l2a","landsat-c2-l2"}
     assert "POST /process delegates one exact scene" in response.json()["limitations"][0]
+    assert response.json()["terrainProvider"]["collection"] == "cop-dem-glo-30"
+    assert response.json()["terrainProvider"]["resolution"] == "30 m"
 
 def test_scene_discovery_normalizes_all_three_collections(monkeypatch):
     from backend import processing_engine

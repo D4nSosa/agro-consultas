@@ -984,6 +984,15 @@ def engine_capabilities():
             }
             for key, value in PROVIDERS.items()
         ],
+        "terrainProvider": {
+            "collection": "cop-dem-glo-30",
+            "product": "Copernicus DEM GLO-30 Public",
+            "provider": "AWS Open Data / Earth Search STAC",
+            "kind": "digital_surface_model",
+            "catalog": DEM_PROVIDER["catalog"],
+            "resolution": "30 m",
+            "coverage": "Limited global public tile coverage; availability is checked per AOI.",
+        },
         "processing": {
             "sentinel1": "Existing Forestal SAR processor; exact-scene Sigma0 calibration status and limitations are returned by that processor.",
             "sentinel2": "Existing Forestal NDVI plus calibrated multispectral NDVI, EVI, NDMI, GNDVI and NDRE with SCL quality mask.",
