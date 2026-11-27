@@ -85,3 +85,40 @@ def test_spectral_endpoint_reports_no_scene_without_fabricating_zero(monkeypatch
     assert payload["status"] == "UNAVAILABLE"
     assert payload["indices"]["ndvi"]["status"] == "UNAVAILABLE"
     assert payload["attempts"][0]["status"] == "NO_VALID_SCENE"
+
+
+@pytest.mark.parametrize(
+    "index,expected",
+    [
+        ("ndvi", 0.5),
+        ("evi", 2.5 * (0.6 - 0.2) / (0.6 + 6 * 0.2 - 7.5 * 0.1 + 1)),
+        ("ndmi", (0.6 - 0.3) / (0.6 + 0.3)),
+        ("gndvi", (0.6 - 0.3) / (0.6 + 0.3)),
+        ("ndre", (0.6 - 0.4) / (0.6 + 0.4)),
+    ],
+)
+def test_spectral_index_formulas_use_calibrated_band_arrays(index, expected):
+    import numpy as np
+    from backend.main import _spectral_index_array
+
+    arrays = {
+        "nir": np.array([0.6], dtype="float32"),
+        "red": np.array([0.2], dtype="float32"),
+        "blue": np.array([0.1], dtype="float32"),
+        "swir16": np.array([0.3], dtype="float32"),
+        "green": np.array([0.3], dtype="float32"),
+        "rededge1": np.array([0.4], dtype="float32"),
+    }
+    result = _spectral_index_array(index, arrays)
+    assert float(result[0]) == pytest.approx(expected, abs=1e-6)
+
+
+def test_spectral_index_zero_denominator_returns_nan_not_zero():
+    import numpy as np
+    from backend.main import _spectral_index_array
+
+    result = _spectral_index_array("ndvi", {
+        "nir": np.array([0.0], dtype="float32"),
+        "red": np.array([0.0], dtype="float32"),
+    })
+    assert np.isnan(result[0])
