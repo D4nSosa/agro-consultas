@@ -11,6 +11,7 @@ import datetime as dt
 import hashlib
 import json
 import math
+import os
 import threading
 import concurrent.futures
 import urllib.parse
@@ -943,6 +944,14 @@ def engine_capabilities():
             "sentinel2": "Existing Forestal NDVI plus calibrated multispectral NDVI, EVI, NDMI, GNDVI and NDRE with SCL quality mask.",
             "landsat": "Existing Forestal NDVI processor with QA_PIXEL quality mask.",
             "territorial": ["gaez", "gfw", "hansen", "gfw-drivers", "jrc"],
+            "dronePhotogrammetry": {
+                "status": "READY_FOR_WORKER" if os.getenv("ODM_NODE_URL") and os.getenv("ODM_NODE_TOKEN") else "NOT_CONFIGURED",
+                "engine": "NodeODM / OpenDroneMap",
+                "requiredEnvironment": ["ODM_NODE_URL", "ODM_NODE_TOKEN"],
+                "requiresPersistentStorage": True,
+                "runsInsideVercelFunction": False,
+                "outputs": ["orthophoto", "DSM", "DTM", "point cloud", "textured 3D model"],
+            },
             "multispectral": "POST /api/forest/spectral calculates calibrated NDVI, EVI, NDMI, GNDVI and NDRE from Sentinel-2/Landsat assets with aligned QA masks.",
             "terrain": "Copernicus DEM GLO-30 DSM zonal elevation, slope and aspect in a local metric CRS.",
             "lotComparison": "Same allow-listed territorial processors applied to 2–5 lots; returns comparable metrics and chart-ready series. Spectral comparisons require matching acquisition date, collection and resolution.",
@@ -953,6 +962,7 @@ def engine_capabilities():
             "territorialAnalysis": "POST /api/engine/analyze",
             "multispectralAnalysis": "POST /api/forest/spectral",
             "terrainAnalysis": "POST /api/engine/terrain",
+            "dronePhotogrammetry": "External NodeODM worker integration; not configured until persistent worker and storage are provisioned.",
             "lotComparison": "POST /api/engine/compare",
             "officialSources": "GET /api/engine/sources",
             "ogcCapabilities": "GET /api/engine/ogc/{provider}/{service}",
