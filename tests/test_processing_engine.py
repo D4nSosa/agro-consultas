@@ -355,3 +355,17 @@ def test_unknown_collection_and_reversed_dates_are_rejected():
     reversed_dates=client.post("/api/engine/scenes",json={"geometry":AOI,"startDate":"2026-11-22",
       "endDate":"2026-11-01","collections":["sentinel-1-grd"]})
     assert unknown.status_code==422 and reversed_dates.status_code==422
+
+
+def test_engine_capabilities_report_photogrammetry_as_unconfigured_without_worker(monkeypatch):
+    from backend import processing_engine
+
+    for key in ("ODM_NODE_URL", "ODM_NODE_TOKEN", "DRONE_STORAGE_BUCKET", "DRONE_TILE_SERVICE_URL"):
+        monkeypatch.delenv(key, raising=False)
+    response = client.get("/api/engine/capabilities")
+    assert response.status_code == 200
+    capability = response.json()["processing"]["dronePhotogrammetry"]
+    assert capability["status"] == "NOT_CONFIGURED"
+    assert capability["requiresPersistentStorage"] is True
+    assert capability["runsInsideVercelFunction"] is False
+    assert capability["nodeOdmTokenConfigured"] is False
