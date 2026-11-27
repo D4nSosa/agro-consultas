@@ -1186,6 +1186,35 @@ SPECTRAL_INDEX_DEFINITIONS = {
 }
 
 
+def _spectral_index_array(key, arrays):
+    """Compute one documented spectral index from calibrated reflectance arrays."""
+    if key == "ndvi":
+        nir, red = arrays["nir"], arrays["red"]
+        numerator, denominator = nir - red, nir + red
+    elif key == "evi":
+        nir, red, blue = arrays["nir"], arrays["red"], arrays["blue"]
+        numerator = 2.5 * (nir - red)
+        denominator = nir + 6.0 * red - 7.5 * blue + 1.0
+    elif key == "ndmi":
+        nir, swir = arrays["nir"], arrays["swir16"]
+        numerator, denominator = nir - swir, nir + swir
+    elif key == "gndvi":
+        nir, green = arrays["nir"], arrays["green"]
+        numerator, denominator = nir - green, nir + green
+    elif key == "ndre":
+        nir, rededge = arrays["nir"], arrays["rededge1"]
+        numerator, denominator = nir - rededge, nir + rededge
+    else:
+        raise ValueError(f"Índice espectral no admitido: {key}")
+    import numpy as np
+    return np.divide(
+        numerator,
+        denominator,
+        out=np.full_like(numerator, np.nan, dtype="float32"),
+        where=np.abs(denominator) > 1e-8
+    )
+
+
 def _process_spectral_scene(candidate, geom_shape, requested_indices):
     """Calcula índices sobre reflectancia calibrada y una máscara QA alineada."""
     import numpy as np
@@ -1295,28 +1324,7 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
             for key in requested_indices if key not in available_indices
         }
         for key, definition in available_indices.items():
-            band_values = [arrays[name] for name in definition["bands"]]
-            if key == "ndvi":
-                nir, red = band_values
-                numerator, denominator = nir - red, nir + red
-                index = np.divide(numerator, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
-            elif key == "evi":
-                nir, red, blue = band_values
-                numerator = 2.5 * (nir - red)
-                denominator = nir + 6.0 * red - 7.5 * blue + 1.0
-                index = np.divide(numerator, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
-            elif key == "ndmi":
-                nir, swir = band_values
-                denominator = nir + swir
-                index = np.divide(nir - swir, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
-            elif key == "gndvi":
-                nir, green = band_values
-                denominator = nir + green
-                index = np.divide(nir - green, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
-            else:
-                nir, rededge = band_values
-                denominator = nir + rededge
-                index = np.divide(nir - rededge, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
+            index = _spectral_index_array(key, arrays)
             valid = common_valid & np.isfinite(index)
             values = index[valid]
             if not values.size:
