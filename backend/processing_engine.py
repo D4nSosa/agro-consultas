@@ -610,12 +610,6 @@ def analyze_terrain(request: TerrainAnalysisRequest):
             zone = int((lon + 180) // 6) + 1
             epsg = (32600 if lat >= 0 else 32700) + zone
             target_crs = f"EPSG:{epsg}"
-            projected_geom = shape({
-                "type": "Polygon",
-                "coordinates": [[
-                    [x, y] for x, y in []
-                ]]
-            }) if False else geom
             from pyproj import Transformer
             from shapely.ops import transform as transform_shape
             transformer = Transformer.from_crs("EPSG:4326", target_crs, always_xy=True)
@@ -651,7 +645,7 @@ def analyze_terrain(request: TerrainAnalysisRequest):
             elevation[~inside] = np.nan
             valid_elevation = np.isfinite(elevation)
             elevation_values = elevation[valid_elevation]
-            if elevation_values.size < 9:
+            if height < 3 or width < 3 or elevation_values.size < 9:
                 return {
                     "status": "UNAVAILABLE",
                     "source": "Copernicus DEM GLO-30",
