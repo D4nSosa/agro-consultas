@@ -244,6 +244,25 @@
       </button>
     </div>
 
+    <!-- Análisis multiespectral dentro del flujo Forestal -->
+    <section id="forest-spectral-analysis" class="card" style="padding:16px;margin-bottom:24px;">
+      <h2 style="margin:0 0 8px;color:var(--verde-principal);">🛰️ Análisis multiespectral del lote</h2>
+      <p style="font-size:.84rem;color:var(--texto-secundario);">Calcula índices sobre reflectancia calibrada de Sentinel-2 o Landsat, con máscara SCL/QA y bandas alineadas a una grilla común. La fecha es objetivo: se utiliza una escena disponible dentro de los 45 días anteriores.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0;">
+        <label><input type="checkbox" name="spectral-index" value="ndvi" checked> NDVI · vegetación</label>
+        <label><input type="checkbox" name="spectral-index" value="evi" checked> EVI · vegetación densa</label>
+        <label><input type="checkbox" name="spectral-index" value="ndmi" checked> NDMI · humedad del dosel</label>
+        <label><input type="checkbox" name="spectral-index" value="gndvi" checked> GNDVI · clorofila relativa</label>
+        <label><input type="checkbox" name="spectral-index" value="ndre" checked> NDRE · red-edge</label>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end;">
+        <label style="font-size:.85rem;font-weight:600;">Fecha objetivo<input id="forest-spectral-date" type="date" style="display:block;width:100%;margin-top:5px;padding:9px;border:1px solid var(--borde-suave);border-radius:7px;background:var(--bg-principal);color:var(--texto-principal);"></label>
+        <button id="forest-spectral-run" class="btn primary" type="button">Calcular índices espectrales</button>
+      </div>
+      <div id="forest-spectral-status" role="status" aria-live="polite" style="font-size:.84rem;margin-top:10px;"></div>
+      <div id="forest-spectral-output" aria-live="polite" style="margin-top:12px;"></div>
+    </section>
+
     <!-- Análisis territoriales forestales: se ejecutan aquí y sus resultados se comparten con Informes -->
     <section class="card" style="padding:16px;margin-bottom:24px;">
       <h2 style="margin:0 0 8px;color:var(--verde-principal);">🌳 Análisis de cobertura y pérdida forestal</h2>
@@ -771,6 +790,74 @@
       document.getElementById('forest-gfw-run')?.addEventListener('click', () => runTerritorial('gfw-drivers', '/api/territorial/forest/gfw-drivers/analyze', 'forest-gfw-status'));
       document.getElementById('forest-hansen-run')?.addEventListener('click', () => runTerritorial('hansen', '/api/territorial/forest/hansen/analyze', 'forest-hansen-status'));
       document.getElementById('forest-jrc-run')?.addEventListener('click', () => runTerritorial('jrc', '/api/territorial/forest/jrc/analyze', 'forest-jrc-status'));
+
+      const spectralDate = document.getElementById('forest-spectral-date');
+      if (spectralDate && !spectralDate.value) spectralDate.value = new Date().toISOString().slice(0, 10);
+      document.getElementById('forest-spectral-run')?.addEventListener('click', async () => {
+        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const status = document.getElementById('forest-spectral-status');
+        const output = document.getElementById('forest-spectral-output');
+        const button = document.getElementById('forest-spectral-run');
+        const indices = Array.from(document.querySelectorAll('input[name="spectral-index"]:checked')).map(item => item.value);
+        if (!feature?.geometry || !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) {
+          status.textContent = 'Definí un polígono de lote antes de calcular índices espectrales.';
+          return;
+        }
+        if (!indices.length) {
+          status.textContent = 'Seleccioná al menos un índice espectral.';
+          return;
+        }
+        button.disabled = true;
+        status.textContent = 'Buscando una escena con bandas y máscara de calidad disponibles…';
+        output.replaceChildren();
+        try {
+          const response = await fetch('/api/forest/spectral', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+              geometry: feature.geometry,
+              date: spectralDate?.value || new Date().toISOString().slice(0, 10),
+              collection: 'auto',
+              indices
+            })
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.detail?.message || payload.detail || ('HTTP ' + response.status));
+          persistForestSection(feature.geometry, 'forest-spectral', payload, { module: 'forestal', source: payload.source || 'Sentinel-2 / Landsat STAC' });
+          if (payload.status !== 'REAL') {
+            status.textContent = payload.message || 'No hubo datos espectrales válidos para la consulta.';
+            return;
+          }
+          const rows = Object.entries(payload.indices || {});
+          const valid = rows.filter(([, item]) => item.status === 'REAL');
+          const unavailable = rows.filter(([, item]) => item.status !== 'REAL');
+          const maxAbs = Math.max(0.01, ...valid.map(([, item]) => Math.abs(item.mean)));
+          output.innerHTML = \`
+            <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">
+              Escena \${payload.productId} · \${payload.date} · \${payload.resolution} m · Máscara \${payload.qualityMask}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;">
+              \${valid.map(([key, item]) => \`
+                <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;">
+                  <strong>\${item.label || key.toUpperCase()}</strong>
+                  <div style="font-size:1.35rem;font-weight:700;margin:6px 0;">\${Number(item.mean).toFixed(3)}</div>
+                  <div style="height:9px;background:var(--borde-suave);border-radius:8px;overflow:hidden;">
+                    <i style="display:block;height:100%;width:\${Math.max(1, Math.min(100, Math.abs(item.mean) / maxAbs * 100))}%;background:var(--verde-principal);"></i>
+                  </div>
+                  <small>Mediana \${Number(item.median).toFixed(3)} · \${item.sampleCount} píxeles válidos</small>
+                  <div style="font-size:.72rem;color:var(--texto-secundario);margin-top:5px;">\${item.formula}</div>
+                </article>\`).join('')}
+            </div>
+            \${unavailable.map(([key, item]) => \`<p style="font-size:.8rem;color:var(--texto-secundario);">\${key.toUpperCase()}: \${item.message || 'No disponible en esta escena.'}</p>\`).join('')}
+            <ul style="font-size:.78rem;color:var(--texto-secundario);">\${(payload.limitations || []).map(item => \`<li>\${item}</li>\`).join('')}</ul>\`;
+          status.textContent = 'Índices calculados y guardados para el lote activo.';
+        } catch (error) {
+          status.textContent = 'No se pudo completar el análisis multiespectral: ' + error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+
 
       // Botones de interacción GPS y Mapa
       document.getElementById('btn-gps-loc').addEventListener('click', () => {
