@@ -61,29 +61,64 @@ export function clearBatch() {
  * Intenta reconstruir un polígono GeoJSON de Lote a partir del conjunto de fotos con GPS EXIF
  * @returns {Object|null} Objeto de Lote GeoJSON o null si hay menos de 3 puntos
  */
+export function buildPolygonFromGpsPoints(points) {
+  const unique = Array.from(new Map(
+    points
+      .filter(point => Number.isFinite(point?.lng) && Number.isFinite(point?.lat))
+      .map(point => [`${point.lng.toFixed(7)},${point.lat.toFixed(7)}`, [point.lng, point.lat]])
+  ).values()).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+  const cross = (origin, a, b) =>
+    (a[0] - origin[0]) * (b[1] - origin[1]) -
+    (a[1] - origin[1]) * (b[0] - origin[0]);
+
+  if (unique.length < 3) return [];
+  const lower = [];
+  for (const point of unique) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+    lower.push(point);
+  }
+  const upper = [];
+  for (const point of [...unique].reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+    upper.push(point);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
+/**
+ * Devuelve una envolvente convexa aproximada a partir de puntos GPS EXIF.
+ * No reconstruye límites catastrales ni un ortomosaico.
+ */
 export function buildPolygonFromBatchGps() {
   const pointsWithGps = uploadedImagesBatch.filter(img => img.exif && img.exif.hasGps && img.exif.gps);
 
   if (pointsWithGps.length < 3) {
     return {
       success: false,
-      message: `Se requieren al menos 3 imágenes con GPS EXIF para reconstruir el perímetro del lote (se encontraron ${pointsWithGps.length}).`,
+      message: `Se requieren al menos 3 fotografías con GPS EXIF (se encontraron ${pointsWithGps.length}).`,
       pointsCount: pointsWithGps.length,
       points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
     };
   }
 
-  // Extraer puntos [lng, lat]
-  const coordinates = pointsWithGps.map(p => [p.exif.gps.lng, p.exif.gps.lat]);
+  const hull = buildPolygonFromGpsPoints(pointsWithGps.map(p => p.exif.gps));
+  if (hull.length < 3) {
+    return {
+      success: false,
+      message: 'Los puntos GPS no forman una envolvente con área suficiente.',
+      pointsCount: pointsWithGps.length,
+      points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
+    };
+  }
 
-  // Cerrar polígono conectando el último punto con el primero
-  const closedCoordinates = [...coordinates, coordinates[0]];
-
+  const closedCoordinates = [...hull, hull[0]];
   const geoJsonPolygon = {
     type: "Feature",
     properties: {
-      name: `Lote Reconstruido por Fotografía (${pointsWithGps.length} puntos GPS)`,
-      source: "EXIF GPS Cameras / Smartphone Batch",
+      name: `Envolvente GPS aproximada (${pointsWithGps.length} fotografías)`,
+      source: "Convex hull of photo EXIF GPS points",
+      geometryMethod: "convex_hull",
       createdAt: new Date().toISOString()
     },
     geometry: {
@@ -96,6 +131,9 @@ export function buildPolygonFromBatchGps() {
     success: true,
     feature: geoJsonPolygon,
     pointsCount: pointsWithGps.length,
+    hullPointsCount: hull.length,
+    approximation: true,
+    message: "La envolvente convexa aproxima la extensión de los puntos GPS; no equivale al límite real del lote.",
     points: pointsWithGps.map(p => ({ lat: p.exif.gps.lat, lng: p.exif.gps.lng, name: p.filename, previewUrl: p.previewUrl }))
   };
 }

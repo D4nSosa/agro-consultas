@@ -1482,14 +1482,14 @@ function renderBatchEvidenceUI() {
       </h3>
       ${polygonBuild.success ? `
         <button type="button" id="btn-reconstruct-lot-photos" class="btn primary" style="padding: 6px 14px; font-size: 0.82rem; background: var(--verde-principal);">
-          📐 Reconstruir Polígono de Lote a partir de Fotos GPS (${polygonBuild.pointsCount} puntos)
+          📐 Generar envolvente aproximada desde GPS de fotos (${polygonBuild.pointsCount} puntos)
         </button>
       ` : ''}
     </div>
 
     ${polygonBuild.success ? `
       <div style="background: rgba(39, 174, 96, 0.08); border: 1px solid rgba(39, 174, 96, 0.3); border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 0.82rem;">
-        <strong>✅ Detección de Geometría de Lote:</strong> Se detectaron ${polygonBuild.pointsCount} fotografías con coordenadas GPS georreferenciadas. Podés presionar el botón de arriba para trazar el perímetro del lote en el mapa.
+        <strong>✅ Detección de Geometría de Lote:</strong> Se detectaron ${polygonBuild.pointsCount} fotografías con GPS. La envolvente convexa aproxima su extensión; no representa el límite real ni catastral del lote.
       </div>
     ` : ''}
 
@@ -1532,7 +1532,7 @@ function renderBatchEvidenceUI() {
         mapViewerInstance.map.fitBounds(drawnPolygonLayer.getBounds(), { padding: [30, 30] });
 
         const firstPt = polygonBuild.points[0];
-        procesarSeleccionCoordenadas(firstPt.lat, firstPt.lng, `Lote Reconstruido por Fotos GPS (${polygonBuild.pointsCount} Puntos)`);
+        procesarSeleccionCoordenadas(firstPt.lat, firstPt.lng, `Envolvente GPS aproximada (${polygonBuild.pointsCount} Puntos)`);
       }
     });
   }
