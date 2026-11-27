@@ -54,6 +54,7 @@ function renderResults(container, data) {
     <section class="ac-compare-source">
       <h3>${escapeHtml(source)}</h3>
       ${rows.length ? rows.map(renderMetric).join('') : '<p class="ac-compare-empty">No hay métricas comunes disponibles para comparar en esta fuente.</p>'}
+      ${data.comparisonNotes?.[source] ? `<p class="ac-compare-empty">${escapeHtml(data.comparisonNotes[source])}</p>` : ''}
     </section>`).join('');
   container.innerHTML = `
     <div class="ac-compare-summary"><strong>Estado: ${escapeHtml(data.status)}</strong><p>${escapeHtml(data.comparisonMethod)}</p></div>
