@@ -26,20 +26,37 @@ function formatValue(value) {
 
 function renderMetric(row) {
   const values = row.values || [];
-  const maxAbs = Math.max(1, ...values.map(item => Math.abs(item.value)));
+  const maxAbs = Math.max(0.000001, ...values.map(item => Math.abs(item.value)));
+  const width = 760;
+  const rowHeight = 42;
+  const height = Math.max(92, 48 + values.length * rowHeight);
   const colors = ['#238b57', '#3478b8', '#d28b32', '#8a63b5', '#bd5a5a'];
+  const zeroX = 405;
+  const maxBar = 185;
+  const bars = values.map((item, index) => {
+    const y = 22 + index * rowHeight;
+    const value = Number(item.value) || 0;
+    const barWidth = Math.max(1, Math.abs(value) / maxAbs * maxBar);
+    const x = value >= 0 ? zeroX : zeroX - barWidth;
+    const valueX = value >= 0 ? Math.min(650, x + barWidth + 8) : Math.max(585, x - 8);
+    const anchor = value >= 0 ? 'start' : 'end';
+    return `<text x="10" y="${y + 14}" font-size="12" fill="currentColor">${escapeHtml(item.lotName)}</text>
+      <rect x="${x.toFixed(1)}" y="${y}" width="${barWidth.toFixed(1)}" height="19" rx="4" fill="${colors[index % colors.length]}"/>
+      <text x="${valueX.toFixed(1)}" y="${y + 14}" text-anchor="${anchor}" font-size="12" fill="currentColor">${formatValue(value)}</text>`;
+  }).join('');
+  const difference = values.length > 1
+    ? `Diferencia respecto de ${escapeHtml(values[0].lotName)}: ${values.slice(1).map(item => `${escapeHtml(item.lotName)} ${formatValue(item.differenceFromFirst)} (${item.differencePercentFromFirst == null ? '—' : formatValue(item.differencePercentFromFirst) + '%'})`).join(' · ')}`
+    : 'Sin comparación completa entre lotes';
   return `
     <article class="ac-compare-metric">
       <h4>${escapeHtml(metricLabel(row.metric))}</h4>
-      <div class="ac-compare-bars">
-        ${values.map((item, index) => `
-          <div class="ac-compare-bar-row">
-            <span>${escapeHtml(item.lotName)}</span>
-            <div class="ac-compare-bar-track"><i style="width:${Math.max(1, Math.abs(item.value) / maxAbs * 100)}%;background:${colors[index % colors.length]}"></i></div>
-            <strong>${formatValue(item.value)}</strong>
-          </div>`).join('')}
+      <div style="overflow-x:auto">
+        <svg role="img" aria-label="Comparación de ${escapeHtml(metricLabel(row.metric))} entre lotes" viewBox="0 0 ${width} ${height}" style="display:block;width:100%;min-width:540px;max-width:850px;height:auto">
+          <line x1="${zeroX}" y1="10" x2="${zeroX}" y2="${height - 8}" stroke="currentColor" opacity=".35"/>
+          ${bars}
+        </svg>
       </div>
-      <small>${values.length > 1 ? `Diferencia respecto de ${escapeHtml(values[0].lotName)}: ${values.slice(1).map(item => `${escapeHtml(item.lotName)} ${formatValue(item.differenceFromFirst)} (${item.differencePercentFromFirst == null ? '—' : formatValue(item.differencePercentFromFirst) + '%'})`).join(' · ')}` : 'Sin comparación completa entre lotes'}</small>
+      <small>${difference}</small>
     </article>`;
 }
 
