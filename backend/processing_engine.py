@@ -749,7 +749,7 @@ def analyze_terrain(request: TerrainAnalysisRequest):
                 "status": "REAL",
                 "source": "Copernicus DEM GLO-30",
                 "sourceUrl": "https://earth-search.aws.element84.com/v1/collections/cop-dem-glo-30",
-                "attribution": "© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.",
+                "attribution": f"Copernicus Digital Elevation Model (DEM), GLO-30 Public. Accessed on {dt.date.today().isoformat()} from https://registry.opendata.aws/copernicus-dem/.",
                 "model": "DSM",
                 "resolution": resolution_m,
                 "resolutionUnit": "m",
