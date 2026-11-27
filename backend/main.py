@@ -1221,6 +1221,7 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
     import rasterio
     from rasterio.mask import mask as rasterio_mask
     from rasterio.warp import reproject, Resampling
+    from rasterio.features import geometry_mask
     from pyproj import Transformer
 
     assets = candidate.get("assets") or {}
@@ -1265,7 +1266,14 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
         if reference_data.size > 2_000_000:
             raise ValueError("El lote supera el límite de 2 millones de píxeles por consulta.")
         height, width = reference_data.shape[-2:]
-        base_mask = np.ma.getmaskarray(reference_data[0]).copy()
+        aoi_mask = geometry_mask(
+            [mapping(geom_projected)],
+            out_shape=(height, width),
+            transform=out_transform,
+            invert=True
+        )
+        aoi_pixel_count = int(np.count_nonzero(aoi_mask))
+        base_mask = np.ma.getmaskarray(reference_data[0]).copy() | ~aoi_mask
         arrays = {}
         for band in required_bands:
             source = datasets[band]
@@ -1309,7 +1317,7 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
                 resampling=Resampling.nearest
             )
         if quality_mask_type == "SCL":
-            clear = np.isin(quality.astype("int16"), [2, 4, 5, 6, 7])
+            clear = np.isin(quality.astype("int16"), [2, 4, 5, 6])
         else:
             clear = np.vectorize(is_landsat_qa_pixel_clear, otypes=[bool])(quality)
         common_valid = (~base_mask) & clear
@@ -1341,7 +1349,7 @@ def _process_spectral_scene(candidate, geom_shape, requested_indices):
                 "max": round(float(np.max(values)), 5),
                 "stdDev": round(float(np.std(values)), 5),
                 "sampleCount": int(values.size),
-                "validPixelsPercent": round(float(values.size * 100 / max(1, height * width)), 2)
+                "validPixelsPercent": round(float(values.size * 100 / max(1, aoi_pixel_count)), 2)
             }
         resolution = max(
             max(abs(datasets[band].res[0]), abs(datasets[band].res[1]))
