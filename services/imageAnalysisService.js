@@ -83,7 +83,8 @@ export function buildPolygonFromGpsPoints(points) {
     while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
     upper.push(point);
   }
-  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+  const hull = [...lower.slice(0, -1), ...upper.slice(0, -1)];
+  return hull.length >= 3 ? hull : [];
 }
 
 /**
