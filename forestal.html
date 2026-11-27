@@ -815,6 +815,9 @@
         const status = document.getElementById('forest-terrain-status');
         const output = document.getElementById('forest-terrain-output');
         const button = document.getElementById('forest-terrain-run');
+        const escapeTerrain = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
         if (!feature?.geometry || !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) {
           status.textContent = 'Definí un polígono de lote antes de analizar el relieve.';
           return;
@@ -852,7 +855,7 @@
                   <div style="font-size:1.2rem;font-weight:700;margin-top:5px;">\${Number.isFinite(value) ? Number(value).toFixed(2) + ' ' + unit : '—'}</div>
                 </article>\`).join('')}
             </div>
-            <ul style="font-size:.78rem;color:var(--texto-secundario);">\${(payload.limitations || []).map(item => \`<li>\${escapeSpectral(item)}</li>\`).join('')}</ul>\`;
+            <ul style="font-size:.78rem;color:var(--texto-secundario);">\${(payload.limitations || []).map(item => \`<li>\${escapeTerrain(item)}</li>\`).join('')}</ul>\`;
           status.textContent = 'Análisis del relieve calculado y guardado para el lote activo.';
         } catch (error) {
           status.textContent = 'No se pudo completar el análisis del relieve: ' + error.message;
