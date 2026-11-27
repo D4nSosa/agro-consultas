@@ -40,3 +40,58 @@ def test_copernicus_dem_asset_url_is_restricted_to_public_bucket():
         assert "bucket público autorizado" in str(exc)
     else:
         raise AssertionError("An external asset URL must be rejected")
+
+
+def test_terrain_endpoint_processes_a_real_synthetic_dem_raster(tmp_path, monkeypatch):
+    import numpy as np
+    import rasterio
+    from rasterio.transform import from_origin
+
+    dem_path = tmp_path / "synthetic_dem.tif"
+    data = np.tile((100 + np.arange(10, dtype="float32") * 2), (10, 1))
+    transform = from_origin(-56.002, -27.998, 1 / 3600, 1 / 3600)
+    with rasterio.open(
+        dem_path,
+        "w",
+        driver="GTiff",
+        height=10,
+        width=10,
+        count=1,
+        dtype="float32",
+        crs="EPSG:4326",
+        transform=transform,
+        nodata=-9999,
+    ) as dataset:
+        dataset.write(data, 1)
+
+    aoi = {
+        "type": "Polygon",
+        "coordinates": [[
+            [-56.0015, -28.0005], [-55.9995, -28.0005],
+            [-55.9995, -27.9985], [-56.0015, -27.9985],
+            [-56.0015, -28.0005]
+        ]]
+    }
+    monkeypatch.setattr(
+        processing_engine,
+        "_read_stac_pages",
+        lambda *args, **kwargs: ([
+            {"assets": {"data": {"href": "s3://copernicus-dem-30m/test.tif"}}}
+        ], False, 1),
+    )
+    monkeypatch.setattr(
+        processing_engine,
+        "_copernicus_dem_asset_url",
+        lambda href: str(dem_path),
+    )
+
+    response = client.post("/api/engine/terrain", json={"geometry": aoi})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "REAL"
+    assert payload["model"] == "DSM"
+    assert payload["resolution"] == 30
+    assert payload["elevation"]["sample_count"] >= 9
+    assert payload["slope"]["mean_deg"] > 0
+    assert sum(item["count"] for item in payload["distribution"]["slope"]) == payload["slope"]["sample_count"]
+    assert payload["attribution"].startswith("© DLR")
