@@ -352,6 +352,14 @@ class NDVIAnalysisRequest(BaseModel):
     productId: Optional[str] = None
     collection: str = "auto"
 
+class SpectralAnalysisRequest(BaseModel):
+    geometry: GeoJSONGeometry
+    date: Optional[str] = None
+    productId: Optional[str] = None
+    collection: str = "auto"
+    indices: List[str] = Field(default_factory=lambda: ["ndvi", "evi", "ndmi", "gndvi", "ndre"])
+
+
 class ChangeDetectionRequest(BaseModel):
     geometry: GeoJSONGeometry
     dateA: Optional[str] = None
@@ -560,7 +568,21 @@ def search_stac_catalog(req: STACSearchRequest):
                     "redResolution": red_resolution,
                     "nirResolution": nir_resolution,
                     "visual": item_assets.get("visual", {}).get("href"),
-                    "thumbnail": item_assets.get("thumbnail", {}).get("href")
+                    "thumbnail": item_assets.get("thumbnail", {}).get("href"),
+                    "spectralBands": {
+                        name: {
+                            "href": item_assets.get(asset_name, {}).get("href"),
+                            "scale": _stac_asset_calibration(item_assets.get(asset_name, {}))[0],
+                            "offset": _stac_asset_calibration(item_assets.get(asset_name, {}))[1],
+                            "resolution": _stac_asset_calibration(item_assets.get(asset_name, {}))[2]
+                        }
+                        for name, asset_name in (
+                            ("blue", "blue"), ("green", "green"), ("red", "red"),
+                            ("nir", "nir" if collection == "sentinel-2-l2a" else "nir08"),
+                            ("rededge1", "rededge1"), ("swir16", "swir16"), ("swir22", "swir22")
+                        )
+                        if item_assets.get(asset_name, {}).get("href")
+                    }
                 }
             })
 
@@ -1151,6 +1173,260 @@ def calculate_ndvi(req: NDVIAnalysisRequest):
             "status": "UNAVAILABLE",
             "source": "Copernicus Sentinel-2 / USGS Landsat 8/9 vía AWS Earth Search STAC",
             "message": f"No se pudo calcular NDVI: {str(e)}"
+        }
+
+
+
+SPECTRAL_INDEX_DEFINITIONS = {
+    "ndvi": {"label": "NDVI", "bands": ("nir", "red"), "formula": "(NIR - RED) / (NIR + RED)"},
+    "evi": {"label": "EVI", "bands": ("nir", "red", "blue"), "formula": "2.5 × (NIR - RED) / (NIR + 6 RED - 7.5 BLUE + 1)"},
+    "ndmi": {"label": "NDMI", "bands": ("nir", "swir16"), "formula": "(NIR - SWIR1) / (NIR + SWIR1)"},
+    "gndvi": {"label": "GNDVI", "bands": ("nir", "green"), "formula": "(NIR - GREEN) / (NIR + GREEN)"},
+    "ndre": {"label": "NDRE", "bands": ("nir", "rededge1"), "formula": "(NIR - Red Edge 1) / (NIR + Red Edge 1)"}
+}
+
+
+def _process_spectral_scene(candidate, geom_shape, requested_indices):
+    """Calcula índices sobre reflectancia calibrada y una máscara QA alineada."""
+    import numpy as np
+    import rasterio
+    from rasterio.mask import mask as rasterio_mask
+    from rasterio.warp import reproject, Resampling
+    from pyproj import Transformer
+
+    assets = candidate.get("assets") or {}
+    band_assets = assets.get("spectralBands") or {}
+    available_indices = {
+        key: definition for key, definition in SPECTRAL_INDEX_DEFINITIONS.items()
+        if key in requested_indices and all(
+            band in band_assets and band_assets[band].get("href") and
+            band_assets[band].get("scale") is not None and band_assets[band].get("offset") is not None
+            for band in definition["bands"]
+        )
+    }
+    if not available_indices:
+        return {}, "La escena no publica todos los assets espectrales calibrados requeridos."
+
+    required_bands = sorted({band for item in available_indices.values() for band in item["bands"]})
+    urls = {}
+    for band in required_bands:
+        url = band_assets[band]["href"]
+        if candidate.get("collection") == "landsat-c2-l2":
+            url = _sign_planetary_computer_asset(url)
+        urls[band] = url
+
+    # Usar la resolución más gruesa entre las bandas utilizadas evita presentar
+    # índices SWIR/red-edge como si tuvieran detalle nativo de 10 m.
+    datasets = {}
+    try:
+        for band, url in urls.items():
+            datasets[band] = rasterio.open(url)
+        reference_band = max(
+            required_bands,
+            key=lambda band: abs(datasets[band].transform.a * datasets[band].transform.e)
+        )
+        reference = datasets[reference_band]
+        transformer = Transformer.from_crs("EPSG:4326", reference.crs, always_xy=True)
+        geom_projected = transform_geometry(
+            lambda x, y, z=None: transformer.transform(x, y), geom_shape
+        )
+        reference_data, out_transform = rasterio_mask(
+            reference, [mapping(geom_projected)], crop=True, filled=False
+        )
+        if reference_data.size > 2_000_000:
+            raise ValueError("El lote supera el límite de 2 millones de píxeles por consulta.")
+        height, width = reference_data.shape[-2:]
+        base_mask = np.ma.getmaskarray(reference_data[0]).copy()
+        arrays = {}
+        for band in required_bands:
+            source = datasets[band]
+            if band == reference_band:
+                raw = np.ma.filled(reference_data[0], np.nan).astype("float32")
+            else:
+                raw = np.full((height, width), np.nan, dtype="float32")
+                reproject(
+                    source=rasterio.band(source, 1),
+                    destination=raw,
+                    src_transform=source.transform,
+                    src_crs=source.crs,
+                    src_nodata=source.nodata,
+                    dst_transform=out_transform,
+                    dst_crs=reference.crs,
+                    dst_nodata=np.nan,
+                    resampling=Resampling.bilinear
+                )
+            calibration = band_assets[band]
+            arrays[band] = raw * float(calibration["scale"]) + float(calibration["offset"])
+            if source.nodata is not None and band == reference_band:
+                base_mask |= np.ma.getmaskarray(reference_data[0])
+
+        quality_mask_type = "SCL" if candidate.get("collection") == "sentinel-2-l2a" else "QA_PIXEL"
+        quality_href = assets.get("scl") if quality_mask_type == "SCL" else assets.get("qaPixel")
+        if not quality_href:
+            raise ValueError("La escena no publica una máscara de calidad.")
+        if candidate.get("collection") == "landsat-c2-l2":
+            quality_href = _sign_planetary_computer_asset(quality_href)
+        with rasterio.open(quality_href) as quality_ds:
+            quality = np.zeros((height, width), dtype="float32")
+            reproject(
+                source=rasterio.band(quality_ds, 1),
+                destination=quality,
+                src_transform=quality_ds.transform,
+                src_crs=quality_ds.crs,
+                src_nodata=quality_ds.nodata,
+                dst_transform=out_transform,
+                dst_crs=reference.crs,
+                dst_nodata=0,
+                resampling=Resampling.nearest
+            )
+        if quality_mask_type == "SCL":
+            clear = np.isin(quality.astype("int16"), [2, 4, 5, 6, 7])
+        else:
+            clear = np.vectorize(is_landsat_qa_pixel_clear, otypes=[bool])(quality)
+        common_valid = (~base_mask) & clear
+        for array in arrays.values():
+            common_valid &= np.isfinite(array)
+
+        results = {}
+        for key, definition in available_indices.items():
+            band_values = [arrays[name] for name in definition["bands"]]
+            if key == "ndvi":
+                nir, red = band_values
+                numerator, denominator = nir - red, nir + red
+                index = np.divide(numerator, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
+            elif key == "evi":
+                nir, red, blue = band_values
+                numerator = 2.5 * (nir - red)
+                denominator = nir + 6.0 * red - 7.5 * blue + 1.0
+                index = np.divide(numerator, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
+            elif key == "ndmi":
+                nir, swir = band_values
+                denominator = nir + swir
+                index = np.divide(nir - swir, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
+            elif key == "gndvi":
+                nir, green = band_values
+                denominator = nir + green
+                index = np.divide(nir - green, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
+            else:
+                nir, rededge = band_values
+                denominator = nir + rededge
+                index = np.divide(nir - rededge, denominator, out=np.full_like(nir, np.nan), where=np.abs(denominator) > 1e-8)
+            valid = common_valid & np.isfinite(index)
+            values = index[valid]
+            if not values.size:
+                results[key] = {"status": "UNAVAILABLE", "message": "No quedaron píxeles válidos después de aplicar la máscara de calidad."}
+                continue
+            results[key] = {
+                "status": "REAL",
+                "label": definition["label"],
+                "formula": definition["formula"],
+                "bands": list(definition["bands"]),
+                "mean": round(float(np.mean(values)), 5),
+                "median": round(float(np.median(values)), 5),
+                "min": round(float(np.min(values)), 5),
+                "max": round(float(np.max(values)), 5),
+                "stdDev": round(float(np.std(values)), 5),
+                "sampleCount": int(values.size),
+                "validPixelsPercent": round(float(values.size * 100 / max(1, height * width)), 2)
+            }
+        resolution = max(
+            max(abs(datasets[band].res[0]), abs(datasets[band].res[1]))
+            for band in required_bands
+        )
+        return {
+            "indices": results,
+            "qualityMask": quality_mask_type,
+            "resolution": float(resolution),
+            "resolutionUnit": "m",
+            "gridShape": [height, width],
+            "referenceCrs": str(reference.crs),
+            "referenceBand": reference_band
+        }, None
+    finally:
+        for dataset in datasets.values():
+            dataset.close()
+
+
+@app.post("/api/forest/spectral")
+def calculate_spectral_indices(req: SpectralAnalysisRequest):
+    """Procesa índices espectrales Sentinel-2/Landsat con reflectancia calibrada y QA."""
+    try:
+        unknown = sorted(set(req.indices) - set(SPECTRAL_INDEX_DEFINITIONS))
+        if unknown:
+            raise HTTPException(status_code=422, detail="Índices no admitidos: " + ", ".join(unknown))
+        if not req.indices:
+            raise HTTPException(status_code=422, detail="Seleccioná al menos un índice espectral.")
+        target_date = req.date or get_default_dates()[2]
+        target_dt = datetime.datetime.strptime(target_date, "%Y-%m-%d")
+        start_range = (target_dt - datetime.timedelta(days=45)).strftime("%Y-%m-%d")
+        allowed = ("sentinel-2-l2a", "landsat-c2-l2")
+        if req.collection == "auto":
+            collections = list(allowed)
+        elif req.collection in allowed:
+            collections = [req.collection]
+        else:
+            raise HTTPException(status_code=422, detail="Colección espectral no permitida.")
+        geom_dict = get_geom_dict(req.geometry)
+        geom_shape = validate_geometry_shape(geom_dict)
+        attempts = []
+        for collection in collections:
+            cloud_limit = 30.0 if collection == "sentinel-2-l2a" else 100.0
+            stac = search_stac_catalog(STACSearchRequest(
+                geometry=req.geometry, startDate=start_range, endDate=target_date,
+                maxCloudCover=cloud_limit, collection=collection, productId=req.productId
+            ))
+            candidates = stac.get("products") or []
+            if req.productId:
+                candidates = [item for item in candidates if item.get("id") == req.productId]
+            for candidate in candidates[:5]:
+                try:
+                    processed, error = _process_spectral_scene(candidate, geom_shape, req.indices)
+                except Exception as exc:
+                    processed, error = None, str(exc)
+                if processed and any(item.get("status") == "REAL" for item in processed["indices"].values()):
+                    return {
+                        "status": "REAL",
+                        "indicator": "Índices espectrales",
+                        "requestedDate": target_date,
+                        "date": candidate.get("date"),
+                        "productId": candidate.get("id"),
+                        "collection": collection,
+                        "sensor": candidate.get("sensor"),
+                        "source": candidate.get("source"),
+                        "sourceUrl": candidate.get("sourceUrl"),
+                        "cloudCover": candidate.get("cloudCover"),
+                        "resolution": processed["resolution"],
+                        "resolutionUnit": processed["resolutionUnit"],
+                        "qualityMask": processed["qualityMask"],
+                        "gridShape": processed["gridShape"],
+                        "indices": processed["indices"],
+                        "limitations": [
+                            "Los índices describen respuesta espectral y no equivalen a rendimiento cosechado, biomasa medida ni diagnóstico sanitario.",
+                            "Las bandas de 20 m se procesan en una grilla común a la resolución más gruesa usada; no se atribuye detalle espacial adicional.",
+                            "La máscara de calidad excluye píxeles no válidos, pero no elimina todos los efectos atmosféricos o de geometría de observación."
+                        ]
+                    }
+            attempts.append({
+                "collection": collection,
+                "status": "NO_VALID_SCENE",
+                "message": stac.get("message") or "No se encontró una escena con bandas y máscara de calidad válidas."
+            })
+        return {
+            "status": "UNAVAILABLE",
+            "indicator": "Índices espectrales",
+            "requestedDate": target_date,
+            "indices": {key: {"status": "UNAVAILABLE"} for key in req.indices},
+            "attempts": attempts,
+            "message": "No se obtuvieron estadísticas espectrales válidas para el área y período consultados."
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return {
+            "status": "UNAVAILABLE",
+            "indicator": "Índices espectrales",
+            "requestedDate": req.date,
+            "message": f"No se pudieron calcular los índices espectrales: {str(exc)[:300]}"
         }
 
 
