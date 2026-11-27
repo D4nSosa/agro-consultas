@@ -263,6 +263,14 @@
       <div id="forest-spectral-output" aria-live="polite" style="margin-top:12px;"></div>
     </section>
 
+    <section id="forest-terrain-analysis" class="card" style="padding:16px;margin-bottom:24px;">
+      <h2 style="margin:0 0 8px;color:var(--verde-principal);">⛰️ Elevación, pendiente y orientación</h2>
+      <p style="font-size:.84rem;color:var(--texto-secundario);">Procesamiento zonal del Copernicus DEM GLO-30 a 30 m. Calcula elevación, pendiente y orientación dentro del lote. La fuente es un modelo digital de superficie (DSM), no un terreno desnudo.</p>
+      <button id="forest-terrain-run" class="btn primary" type="button">Analizar relieve del lote</button>
+      <div id="forest-terrain-status" role="status" aria-live="polite" style="font-size:.84rem;margin-top:10px;"></div>
+      <div id="forest-terrain-output" aria-live="polite" style="margin-top:12px;"></div>
+    </section>
+
     <!-- Análisis territoriales forestales: se ejecutan aquí y sus resultados se comparten con Informes -->
     <section class="card" style="padding:16px;margin-bottom:24px;">
       <h2 style="margin:0 0 8px;color:var(--verde-principal);">🌳 Análisis de cobertura y pérdida forestal</h2>
@@ -286,6 +294,10 @@
       <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.85rem;">
         <input id="ac-compare-spectral" type="checkbox">
         Incluir comparación multiespectral (solo compara si coincide fecha, colección y resolución)
+      </label>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:.85rem;">
+        <input id="ac-compare-terrain" type="checkbox" checked>
+        Incluir comparación de elevación, pendiente y orientación
       </label>
       <label style="display:block;font-size:.85rem;margin-top:8px;">Fecha objetivo multiespectral
         <input id="ac-compare-spectral-date" type="date" style="display:block;width:100%;max-width:260px;margin-top:5px;padding:8px;border:1px solid var(--borde-suave);border-radius:7px;background:var(--bg-principal);color:var(--texto-principal);">
@@ -797,6 +809,58 @@
       document.getElementById('forest-gfw-run')?.addEventListener('click', () => runTerritorial('gfw-drivers', '/api/territorial/forest/gfw-drivers/analyze', 'forest-gfw-status'));
       document.getElementById('forest-hansen-run')?.addEventListener('click', () => runTerritorial('hansen', '/api/territorial/forest/hansen/analyze', 'forest-hansen-status'));
       document.getElementById('forest-jrc-run')?.addEventListener('click', () => runTerritorial('jrc', '/api/territorial/forest/jrc/analyze', 'forest-jrc-status'));
+
+      document.getElementById('forest-terrain-run')?.addEventListener('click', async () => {
+        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const status = document.getElementById('forest-terrain-status');
+        const output = document.getElementById('forest-terrain-output');
+        const button = document.getElementById('forest-terrain-run');
+        if (!feature?.geometry || !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) {
+          status.textContent = 'Definí un polígono de lote antes de analizar el relieve.';
+          return;
+        }
+        button.disabled = true;
+        status.textContent = 'Buscando teselas Copernicus DEM GLO-30 y calculando estadísticas…';
+        output.replaceChildren();
+        try {
+          const response = await fetch('/api/engine/terrain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ geometry: feature.geometry })
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.detail?.message || payload.detail || ('HTTP ' + response.status));
+          persistForestSection(feature.geometry, 'forest-terrain', payload, { module: 'forestal', source: payload.source || 'Copernicus DEM GLO-30' });
+          if (payload.status !== 'REAL') {
+            status.textContent = payload.message || 'El modelo de elevación no devolvió píxeles válidos para este lote.';
+            return;
+          }
+          const cards = [
+            ['Elevación media', payload.elevation?.mean_m, 'm'],
+            ['Elevación mínima', payload.elevation?.min_m, 'm'],
+            ['Elevación máxima', payload.elevation?.max_m, 'm'],
+            ['Pendiente media', payload.slope?.mean_deg, '°'],
+            ['Pendiente máxima', payload.slope?.max_deg, '°'],
+            ['Orientación media', payload.aspect?.circular_mean_deg, '°']
+          ];
+          output.innerHTML = \`
+            <div style="font-size:.82rem;color:var(--texto-secundario);margin-bottom:10px;">DSM · \${Number(payload.resolution)} m · \${payload.horizontalCrs} · Datum vertical \${payload.verticalDatum}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
+              \${cards.map(([label, value, unit]) => \`
+                <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:10px;">
+                  <small>\${label}</small>
+                  <div style="font-size:1.2rem;font-weight:700;margin-top:5px;">\${Number.isFinite(value) ? Number(value).toFixed(2) + ' ' + unit : '—'}</div>
+                </article>\`).join('')}
+            </div>
+            <ul style="font-size:.78rem;color:var(--texto-secundario);">\${(payload.limitations || []).map(item => \`<li>\${escapeSpectral(item)}</li>\`).join('')}</ul>\`;
+          status.textContent = 'Análisis del relieve calculado y guardado para el lote activo.';
+        } catch (error) {
+          status.textContent = 'No se pudo completar el análisis del relieve: ' + error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+
 
       const spectralDate = document.getElementById('forest-spectral-date');
       if (spectralDate && !spectralDate.value) spectralDate.value = new Date().toISOString().slice(0, 10);
