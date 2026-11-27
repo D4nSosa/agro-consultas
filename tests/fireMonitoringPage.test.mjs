@@ -84,5 +84,16 @@ test('raster layer clicks explain the active thematic layer instead of moving th
   assert.match(page, /const hitBurned=!!target\?\.closest\?\.\('\.fire-context-burned'\)/);
   assert.match(page, /Área quemada mensual · MODIS AQM/);
   assert.match(page, /Peligro de incendio FWI · GWIS/);
-  assert.match(page, /La capa está representada como raster/);
+  assert.match(page, /queryConaePixel\('burned'/);
+  assert.match(page, /queryConaePixel\('fuel'/);
+  assert.match(page, /GetFeatureInfo/);
+});
+
+
+test('CONAE pixel identify is proxied through validated, queryable WMS layers', async () => {
+  const backend = await readFile(new URL('../backend/fire_monitoring.py', import.meta.url), 'utf8');
+  assert.match(backend, /def conae_wms_identify/);
+  assert.match(backend, /layer_metadata\.get\("queryable"\) is not True/);
+  assert.match(backend, /"request": "GetFeatureInfo"/);
+  assert.match(backend, /resolved_layer/);
 });
