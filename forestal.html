@@ -872,13 +872,6 @@
         downloadFile(gpx, `${lotName.replace(/\s+/g, '_')}_garmin.gpx`, 'application/gpx+xml');
       });
 
-      document.getElementById('btn-download-pyqgis').addEventListener('click', () => {
-        const feat = forestMap.getCurrentFeature();
-        if (!feat) return alert('No hay lote seleccionado.');
-        const lotName = document.getElementById('lot-name-input').value || 'Lote Forestal';
-        const script = exportToPyQGISScript(feat, lotName);
-        downloadFile(script, `script_qgis_${lotName.replace(/\s+/g, '_')}.py`, 'text/x-python');
-      });
 
       document.getElementById('btn-calc-inv').addEventListener('click', () => {
         const inv = calcularInventarioCampo();
