@@ -1286,6 +1286,46 @@
       }
     }
 
+    const forestReportStatus = document.getElementById('forest-report-action-status');
+    document.getElementById('btn-save-forest-report')?.addEventListener('click', () => {
+      const feature = forestMap?.getCurrentFeature?.() || getLotContext();
+      if (!feature?.geometry) {
+        if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote antes de guardar el informe.';
+        return;
+      }
+      const existing = getReportSnapshot(feature.geometry)?.sections?.['forest-sentinel2']?.payload;
+      if (currentAnalysisData) {
+        const saved = persistForestSection(
+          feature.geometry,
+          'forest-sentinel2',
+          buildReportForestSnapshot(currentAnalysisData),
+          { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' }
+        );
+        if (!saved) {
+          if (forestReportStatus) forestReportStatus.textContent = 'No se pudieron guardar los resultados en este navegador.';
+          return;
+        }
+      } else if (!existing) {
+        if (forestReportStatus) forestReportStatus.textContent = 'No hay resultados Sentinel-2 para este lote. Ejecutá primero el análisis forestal.';
+        return;
+      }
+      if (forestReportStatus) forestReportStatus.textContent = 'Resultados forestales guardados en este navegador y asociados a la geometría del lote.';
+    });
+
+    document.getElementById('btn-open-forest-report')?.addEventListener('click', () => {
+      const feature = forestMap?.getCurrentFeature?.() || getLotContext();
+      if (!feature?.geometry) {
+        if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote para abrir su informe.';
+        return;
+      }
+      try {
+        setLotContext(feature, { source: 'forest-report' });
+        window.location.href = 'reporte.html';
+      } catch (error) {
+        if (forestReportStatus) forestReportStatus.textContent = 'No se pudo preparar el informe: ' + error.message;
+      }
+    });
+
     document.querySelectorAll('.current-year').forEach(el => el.innerText = new Date().getFullYear());
 
     // Theme toggle
