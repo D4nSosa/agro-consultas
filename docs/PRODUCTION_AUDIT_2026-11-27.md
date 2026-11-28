@@ -11,7 +11,7 @@
 
 - La última publicación de producción consultada en Vercel figura como **READY** y corresponde al commit `e1203bb`.
 - El dominio de producción asociado al proyecto es `agro-consultas.vercel.app`. En el listado de dominios del proyecto no figura todavía un dominio personalizado.
-- GitHub no devuelve pull requests abiertos al momento de esta auditoría. El PR más reciente identificado es el #102, ya fusionado y cerrado.
+- El PR #103 concentra esta consolidación de mantenimiento; su estado de revisión e integración se consulta directamente en GitHub.
 - La rama `fix/persistencia-forestal-gps` se utiliza para agrupar las correcciones de esta auditoría. Los cambios de esa rama no forman parte de producción hasta que se integren en `main` y se publique una nueva versión.
 - Se deshabilita la creación de preview deployments de Vercel para esta rama de mantenimiento, evitando despliegues de vista previa mientras se trabaja en ella.
 
@@ -35,10 +35,12 @@ Los resultados forestales ya se persistían automáticamente en el almacenamient
 
 Corrección incluida:
 - Acción explícita para guardar los resultados actuales asociados al lote.
-- Acción para abrir el informe unificado, desde donde se puede generar PDF y utilizar las opciones de compartir existentes.
-- Aviso visible de que el contenido se conserva en el navegador que generó el análisis.
+- Acciones explícitas para guardar los resultados forestales y abrir el informe unificado.
+- El informe ofrece impresión/guardar como PDF y exportación del paquete de resultados en JSON.
+- El paquete JSON incluye geometría y secciones guardadas; se puede compartir como archivo o descargar e importar desde otro dispositivo.
+- La importación valida formato, versión, tamaño y estructura básica, y escapa texto importado antes de representarlo.
 
-**Limitación vigente:** compartir la URL del informe no transporta el contenido almacenado en `localStorage`. Otro dispositivo o navegador no recibe automáticamente los resultados. No debe presentarse como un informe remoto/autosuficiente.
+**Límite vigente:** los datos permanecen en almacenamiento local. La transferencia entre dispositivos requiere enviar el archivo JSON e importarlo; no hay sincronización remota automática.
 
 ### Incendios: marcador de pronóstico
 
@@ -63,9 +65,9 @@ Cuando se conecte el dominio personalizado, habrá que cambiar canónicos, sitem
 
 ## 3. Riesgos operativos que siguen abiertos
 
-1. **Límites de consumo del backend.** La auditoría de código y la documentación existente identifican límites/cachés que no equivalen a una cuota distribuida por usuario o cliente. En funciones serverless, los límites en memoria no constituyen por sí solos un control global. Antes de ampliar el uso público conviene implementar límites compartidos por IP/cliente y topes de área, ventana temporal y frecuencia en endpoints costosos.
+1. **Límites de consumo del backend.** Se configuró una regla de Vercel Firewall activa para solicitudes `POST` a los endpoints costosos de procesamiento geoespacial y al histórico FIRMS: 12 solicitudes por IP cada 60 segundos, ventana fija, con denegación al exceder. Es un límite perimetral compartido por el firewall, no una cuota por usuario autenticado ni un presupuesto mensual. Deben revisarse sus métricas y ajustarse los topes de geometría, fechas y concurrencia según el uso real.
 2. **Disponibilidad de proveedores externos.** Open-Meteo, NASA FIRMS, servicios WMS/WFS, STAC y demás proveedores públicos pueden cambiar, limitar o interrumpir respuestas. La presencia de una fuente en el catálogo no prueba que entregue datos válidos para cualquier AOI o fecha.
-3. **Compartición de informes.** Los snapshots y proyectos locales no se sincronizan entre navegadores. El enlace actual no serializa todos los resultados.
+3. **Compartición de informes.** Los snapshots y proyectos siguen siendo locales. La transferencia portátil se realiza mediante exportación/importación JSON; no hay sincronización automática ni URL pública autocontenida.
 4. **Validación territorial.** No hay que interpretar índices satelitales como rendimiento, volumen comercial ni productividad observada. Para esos resultados hacen falta inventarios, cosechas o registros de campo.
 5. **Validación operativa.** El estado READY confirma que Vercel completó la publicación; no certifica por sí solo la exactitud agronómica, la disponibilidad de cada proveedor ni el funcionamiento de cada flujo con todos los lotes.
 6. **Seguridad y abuso.** Mantener las credenciales de proveedores exclusivamente en backend y revisar límites de tamaño, geometría, tiempo de consulta y concurrencia en cada endpoint público.
@@ -93,7 +95,7 @@ Cuando se conecte el dominio personalizado, habrá que cambiar canónicos, sitem
 ## 6. Orden recomendado para la siguiente consolidación
 
 1. Integrar y publicar las correcciones de persistencia, informes, marcador y metadatos.
-2. Implementar límites globales de consumo para endpoints públicos costosos.
+2. Observar el firewall perimetral y calibrar el límite de 12 solicitudes por IP/minuto según telemetría real.
 3. Revisar cada fuente de datos con el recorrido completo: consulta, descarga, validación, procesamiento, resultado y trazabilidad.
 4. Verificar geometrías, unidades, fechas, píxeles inválidos, nubes y cobertura antes de mostrar resultados.
 5. Mantener los informes claros sobre fuentes, períodos, metodología y límites de interpretación.
