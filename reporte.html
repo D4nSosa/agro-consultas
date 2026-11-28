@@ -253,6 +253,9 @@
             throw new Error('El paquete no contiene una colección válida de resultados.');
           }
           const sanitizedFeature = sanitizeImportedValue(packageData.feature);
+          if (!['Feature', 'Polygon', 'MultiPolygon'].includes(sanitizedFeature?.type)) {
+            throw new Error('El paquete debe contener un único lote GeoJSON Polygon o MultiPolygon.');
+          }
           validateImportedGeometrySize(sanitizedFeature);
           const cleanFeature = normalizeLotFeature(
             sanitizedFeature,
