@@ -24,7 +24,7 @@ La arquitectura y la validación se diseñan para las 23 provincias y CABA, sin 
 El muestreo automatizado de INTA-CIRN consultó centroides de las 23 provincias: obtuvo pH válido en 23/23 y NoData en CABA. Esto valida consultas puntuales distribuidas nacionalmente, no cobertura uniforme de cada provincia.
 
 Auditoría técnica y matriz de cobertura: [docs/NATIONAL_SOURCE_AUDIT.md](docs/NATIONAL_SOURCE_AUDIT.md).  
-Auditoría de producción y estado del repositorio (27-11-2026): [docs/PRODUCTION_AUDIT_2026-11-28.md](docs/PRODUCTION_AUDIT_2026-11-28.md).
+Auditoría de producción y estado del repositorio (28-11-2026): [docs/PRODUCTION_AUDIT_2026-11-28.md](docs/PRODUCTION_AUDIT_2026-11-28.md).
 
 ## Monitoreo de incendios
 
