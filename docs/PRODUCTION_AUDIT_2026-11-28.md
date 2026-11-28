@@ -74,9 +74,11 @@ La transferencia sigue siendo por archivo JSON entre dispositivos. No existe sin
 
 ## 5. Verificación y publicación
 
-- Esta revisión fue estática: lectura de código y seguimiento de contratos entre módulos. No se ejecutaron pruebas manuales, pruebas de integración ni nuevos builds/despliegues, respetando la restricción operativa de evitar ejecuciones y publicaciones innecesarias.
-- GitHub Actions puede ejecutar automáticamente los controles configurados al abrir el PR. Un workflow verde no sustituye la validación funcional de fuentes externas, lotes reales y dispositivos móviles.
-- Las correcciones de la rama deben considerarse pendientes hasta que el PR se revise, se integre y una publicación de producción alcance estado READY.
+- No se ejecutaron pruebas manuales ni nuevos builds/despliegues. Al abrir el PR #104, GitHub Actions ejecutó automáticamente los controles configurados.
+- En esa primera ejecución pasaron la regresión de recomendaciones territoriales, los tests de backend y el smoke test de catálogos públicos; también pasaron la sintaxis de módulos y la integración del workspace.
+- El job de frontend quedó con 121/122 pruebas aprobadas. La única falla fue una aserción de contenido que exige la frase `no viajan dentro del enlace compartido`; la frase se incorporó en un commit posterior. GitHub no produjo todavía una nueva ejecución para ese último commit, por lo que el estado final de CI permanece pendiente de confirmación.
+- La rama tiene deshabilitados los preview deployments. No se ejecutó un nuevo build de Vercel ni un despliegue de producción.
+- Las correcciones deben considerarse pendientes hasta que el PR se revise, sus controles queden verdes y una publicación de producción autorizada alcance estado READY.
 
 ## 6. Criterio de cierre
 
