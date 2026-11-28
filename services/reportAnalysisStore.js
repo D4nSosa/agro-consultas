@@ -66,6 +66,7 @@ export function saveReportSection(geometryInput, section, payload, metadata = {}
   if (!/^[a-z0-9-]{2,48}$/i.test(String(section || ''))) throw new Error('Identificador de sección inválido.');
   const state = readState();
   const record = state.records[fingerprint] || { geometryFingerprint: fingerprint, sections: {} };
+  if (!record.sections || typeof record.sections !== 'object' || Array.isArray(record.sections)) record.sections = {};
   record.sections[section] = {
     module: metadata.module || 'unknown',
     source: metadata.source || null,
