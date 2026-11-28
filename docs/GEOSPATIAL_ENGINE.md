@@ -1,6 +1,6 @@
 # Motor geoespacial bajo demanda
 
-**Revisión:** 27 de noviembre de 2026. Este documento describe endpoints y responsabilidades del motor; que un proveedor figure en el catálogo o responda a STAC no garantiza cobertura ni resultados válidos para todas las geometrías. Ver [auditoría de producción](PRODUCTION_AUDIT_2026-11-27.md) para riesgos operativos y validaciones pendientes.
+**Revisión:** 28 de noviembre de 2026. Este documento describe endpoints y responsabilidades del motor; que un proveedor figure en el catálogo o responda a STAC no garantiza cobertura ni resultados válidos para todas las geometrías. Ver [auditoría de producción](PRODUCTION_AUDIT_2026-11-28.md) para riesgos operativos y validaciones pendientes.
 
 ## Alcance
 
