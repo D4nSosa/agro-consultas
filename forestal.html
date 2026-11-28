@@ -837,7 +837,12 @@
           if (forestReportStatus) forestReportStatus.textContent = 'No hay resultados forestales guardados para este lote.';
           return;
         }
-        window.location.href = 'reporte.html';
+        try {
+          setLotContext(feature, { source: 'forest-report' });
+          window.location.href = 'reporte.html';
+        } catch (error) {
+          if (forestReportStatus) forestReportStatus.textContent = 'No se pudo preparar el informe: ' + error.message;
+        }
       });
 
       const today = new Date().toISOString().slice(0, 10);
