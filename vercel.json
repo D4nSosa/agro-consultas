@@ -94,7 +94,8 @@
   "git": {
     "deploymentEnabled": {
       "fix/firms-auth-diagnostics-crop-soil-values": false,
-      "fix/persistencia-forestal-gps": false
+      "fix/persistencia-forestal-gps": false,
+      "fix/auditoria-integral-informes-2026-11-28": false
     }
   }
 }
