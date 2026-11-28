@@ -1,7 +1,7 @@
 # Nota de alcance para evaluación piloto — Agro-Consultas
 
-**Revisión:** 27 de noviembre de 2026 · **Producción:** commit `e1203bb` (READY).  
-**Auditoría operativa vigente:** [docs/PRODUCTION_AUDIT_2026-11-27.md](docs/PRODUCTION_AUDIT_2026-11-27.md).  
+**Revisión:** 28 de noviembre de 2026 · **Producción:** commit `cc5aaa4` (READY).  
+**Auditoría operativa vigente:** [docs/PRODUCTION_AUDIT_2026-11-28.md](docs/PRODUCTION_AUDIT_2026-11-28.md).  
 La publicación READY no equivale a validación agronómica, prueba de campo ni certificación institucional.
 
 **Desarrollo independiente:** Dante Iván Sosa · Gobernador Virasoro, Corrientes, Argentina  
