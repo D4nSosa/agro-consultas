@@ -1285,10 +1285,24 @@
       }
 
       try {
-        currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
-        currentAnalysisGeometryFingerprint = getGeometryFingerprint(feature.geometry);
-        currentAnalysisData.inventory = calcularInventarioCampo();
-        persistForestSection(feature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
+        const analysisFingerprint = getGeometryFingerprint(feature.geometry);
+        const analysisResult = await runFullForestAnalysis(feature, dateA, dateB);
+        analysisResult.inventory = calcularInventarioCampo();
+        persistForestSection(feature.geometry, 'forest-sentinel2', buildReportForestSnapshot(analysisResult), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
+
+        const activeFeature = forestMap?.getCurrentFeature?.() || getLotContext();
+        const activeFingerprint = getGeometryFingerprint(activeFeature?.geometry);
+        if (activeFingerprint !== analysisFingerprint) {
+          currentAnalysisData = null;
+          currentAnalysisGeometryFingerprint = null;
+          if (forestReportStatus) {
+            forestReportStatus.textContent = 'El lote activo cambió durante el análisis. Los resultados quedaron asociados al lote original; volvé a seleccionarlo para visualizarlos.';
+          }
+          return;
+        }
+
+        currentAnalysisData = analysisResult;
+        currentAnalysisGeometryFingerprint = analysisFingerprint;
         timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);
         reportComp.renderReport(currentAnalysisData);
       } catch (error) {
