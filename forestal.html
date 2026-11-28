@@ -334,7 +334,7 @@
     import { ForestTimeline } from './forestal/components/ForestTimeline.js';
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
-    import { saveReportSection, getReportSnapshot } from './services/reportAnalysisStore.js';
+    import { saveReportSection, getReportSnapshot, getGeometryFingerprint } from './services/reportAnalysisStore.js';
     import { exportToKML, exportToGPX } from './forestal/utils/geo.js';
     import { initializeLotComparison } from './forestal/services/lotComparison.js';
     import { analyzeUploadedImages } from './services/imageAnalysisService.js';
@@ -384,6 +384,7 @@
     let timelineComp = null;
     let reportComp = null;
     let currentAnalysisData = null;
+    let currentAnalysisGeometryFingerprint = null;
 
     function evaluarReglasSilvicolas(especie, dap, altura, densidad, edad, G) {
       const sp = (especie || '').toLowerCase().trim();
@@ -707,6 +708,11 @@
       // 1. Inicializar Mapa Forestal
       forestMap = new ForestMap('forest-map', (feature, centroid, area) => {
         if (feature) {
+          const selectedFingerprint = getGeometryFingerprint(feature.geometry);
+          if (currentAnalysisGeometryFingerprint && selectedFingerprint !== currentAnalysisGeometryFingerprint) {
+            currentAnalysisData = null;
+            currentAnalysisGeometryFingerprint = null;
+          }
           document.getElementById('lot-area-val').innerText = `${area.hectares} ha`;
           document.getElementById('lot-coords-val').innerText = `${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}`;
           document.getElementById('geojson-textarea').value = JSON.stringify(feature, null, 2);
@@ -730,11 +736,15 @@
 
       onLotContextChange(feature => {
         if (!feature) {
+          currentAnalysisData = null;
+          currentAnalysisGeometryFingerprint = null;
           forestMap.clearGeoJSON();
           return;
         }
         const current = forestMap.getCurrentFeature();
         if (JSON.stringify(current?.geometry) === JSON.stringify(feature.geometry)) return;
+        currentAnalysisData = null;
+        currentAnalysisGeometryFingerprint = null;
         try { forestMap.setGeoJSON(feature); }
         catch (error) { console.warn('No se pudo actualizar el lote forestal compartido:', error); }
       });
@@ -792,7 +802,12 @@
         }
 
         let saved = false;
-        if (currentAnalysisData) {
+        const selectedFingerprint = getGeometryFingerprint(feature.geometry);
+        const analysisMatchesSelectedLot = Boolean(
+          currentAnalysisData && currentAnalysisGeometryFingerprint &&
+          currentAnalysisGeometryFingerprint === selectedFingerprint
+        );
+        if (analysisMatchesSelectedLot) {
           saved = persistForestSection(
             feature.geometry,
             'forest-sentinel2',
@@ -1271,6 +1286,7 @@
 
       try {
         currentAnalysisData = await runFullForestAnalysis(feature, dateA, dateB);
+        currentAnalysisGeometryFingerprint = getGeometryFingerprint(feature.geometry);
         currentAnalysisData.inventory = calcularInventarioCampo();
         persistForestSection(feature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
         timelineComp.setTimelineData(currentAnalysisData.timeline, dateA, dateB);
@@ -1285,46 +1301,6 @@
         }
       }
     }
-
-    const forestReportStatus = document.getElementById('forest-report-action-status');
-    document.getElementById('btn-save-forest-report')?.addEventListener('click', () => {
-      const feature = forestMap?.getCurrentFeature?.() || getLotContext();
-      if (!feature?.geometry) {
-        if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote antes de guardar el informe.';
-        return;
-      }
-      const existing = getReportSnapshot(feature.geometry)?.sections?.['forest-sentinel2']?.payload;
-      if (currentAnalysisData) {
-        const saved = persistForestSection(
-          feature.geometry,
-          'forest-sentinel2',
-          buildReportForestSnapshot(currentAnalysisData),
-          { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' }
-        );
-        if (!saved) {
-          if (forestReportStatus) forestReportStatus.textContent = 'No se pudieron guardar los resultados en este navegador.';
-          return;
-        }
-      } else if (!existing) {
-        if (forestReportStatus) forestReportStatus.textContent = 'No hay resultados Sentinel-2 para este lote. Ejecutá primero el análisis forestal.';
-        return;
-      }
-      if (forestReportStatus) forestReportStatus.textContent = 'Resultados forestales guardados en este navegador y asociados a la geometría del lote.';
-    });
-
-    document.getElementById('btn-open-forest-report')?.addEventListener('click', () => {
-      const feature = forestMap?.getCurrentFeature?.() || getLotContext();
-      if (!feature?.geometry) {
-        if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote para abrir su informe.';
-        return;
-      }
-      try {
-        setLotContext(feature, { source: 'forest-report' });
-        window.location.href = 'reporte.html';
-      } catch (error) {
-        if (forestReportStatus) forestReportStatus.textContent = 'No se pudo preparar el informe: ' + error.message;
-      }
-    });
 
     document.querySelectorAll('.current-year').forEach(el => el.innerText = new Date().getFullYear());
 
