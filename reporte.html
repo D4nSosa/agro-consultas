@@ -127,21 +127,19 @@
 
   <!-- Script del Reporte -->
   <script type="module">
-    import { getLotContext } from './services/lotContext.js';
+    import { getLotContext, setLotContext, normalizeLotFeature } from './services/lotContext.js';
     import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
-    import { getReportSnapshot, saveReportSection } from './services/reportAnalysisStore.js';
-    import { setLotContext } from './services/lotContext.js';
+    import { getReportSnapshot, saveReportSections } from './services/reportAnalysisStore.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       let activeReportFeature = null;
       const transferStatus = document.getElementById('report-transfer-status');
       const importInput = document.getElementById('report-import-file');
 
-      const escapeImportedText = value => String(value).replace(/[&<>"']/g, char => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[char]));
+      // Los valores se conservan como texto; la salida HTML se escapa en cada punto de renderizado.
+      // También se eliminan controles invisibles y claves que pueden alterar prototipos.
       const sanitizeImportedValue = value => {
-        if (typeof value === 'string') return escapeImportedText(value.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, ''));
+        if (typeof value === 'string') return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
         if (Array.isArray(value)) return value.map(sanitizeImportedValue);
         if (value && typeof value === 'object') {
           const clean = Object.create(null);
@@ -237,22 +235,28 @@
           if (!sections || typeof sections !== 'object' || Array.isArray(sections) || Object.keys(sections).length > 100) {
             throw new Error('El paquete no contiene una colección válida de resultados.');
           }
-          const importedFeature = setLotContext(
+          const cleanFeature = normalizeLotFeature(
             sanitizeImportedValue(packageData.feature),
             { source: 'agro-consultas-report-import' }
           );
-          let importedCount = 0;
+          const cleanSections = Object.create(null);
           for (const [section, entry] of Object.entries(sections)) {
-            if (!/^[a-z0-9-]{2,48}$/i.test(section) || !entry || typeof entry !== 'object' || !('payload' in entry)) continue;
-            saveReportSection(
-              importedFeature.geometry,
-              section,
-              sanitizeImportedValue(entry.payload),
-              { module: String(entry.module || 'imported').slice(0, 80), source: String(entry.source || 'Informe importado').slice(0, 200) }
-            );
-            importedCount += 1;
+            if (!/^[a-z0-9-]{2,48}$/i.test(section) || !entry || typeof entry !== 'object' ||
+                Array.isArray(entry) || !Object.prototype.hasOwnProperty.call(entry, 'payload')) continue;
+            cleanSections[section] = {
+              module: String(entry.module || 'imported').slice(0, 80),
+              source: String(entry.source || 'Informe importado').slice(0, 200),
+              updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : null,
+              payload: sanitizeImportedValue(entry.payload)
+            };
           }
+          const importedCount = Object.keys(cleanSections).length;
           if (!importedCount) throw new Error('No se encontraron secciones de resultados válidas.');
+          const importedFeature = setLotContext(
+            cleanFeature,
+            { source: 'agro-consultas-report-import' }
+          );
+          saveReportSections(importedFeature.geometry, cleanSections);
           if (transferStatus) transferStatus.textContent = importedCount + ' secciones importadas. Se abrirá el informe del lote recibido.';
           window.location.href = 'reporte.html';
         } catch (error) {
