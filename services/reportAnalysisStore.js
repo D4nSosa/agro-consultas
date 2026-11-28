@@ -100,6 +100,7 @@ export function saveReportSections(geometryInput, sectionsInput) {
 
   const state = readState();
   const record = state.records[fingerprint] || { geometryFingerprint: fingerprint, sections: {} };
+  if (!record.sections || typeof record.sections !== 'object' || Array.isArray(record.sections)) record.sections = {};
   const now = new Date().toISOString();
   for (const [section, entry] of entries) {
     record.sections[section] = {
