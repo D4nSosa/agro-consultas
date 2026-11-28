@@ -1,7 +1,7 @@
 # Auditoría inicial de fuentes y cobertura nacional
 
 **Corte original:** 21 de noviembre de 2026  
-**Revisión de vigencia:** 27 de noviembre de 2026  
+**Revisión de vigencia:** 28 de noviembre de 2026  
 **Base de código de producción:** `main`, commit `cc5aaa4f422a326caf130f94ebc32c0a04c18621` (PR #103, 28-11-2026)  
 **Alcance:** diagnóstico de código y documentación pública. No equivale a una certificación de disponibilidad operativa de cada endpoint. Para el estado de publicación y las correcciones de interfaz pendientes, consultar [la auditoría de producción](PRODUCTION_AUDIT_2026-11-28.md).
 
