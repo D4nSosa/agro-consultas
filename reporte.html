@@ -141,7 +141,7 @@
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
       }[char]));
       const sanitizeImportedValue = value => {
-        if (typeof value === 'string') return value.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, '');
+        if (typeof value === 'string') return escapeImportedText(value.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, ''));
         if (Array.isArray(value)) return value.map(sanitizeImportedValue);
         if (value && typeof value === 'object') {
           const clean = Object.create(null);
