@@ -264,7 +264,9 @@
           const cleanSections = Object.create(null);
           for (const [section, entry] of Object.entries(sections)) {
             if (!/^[a-z0-9-]{2,48}$/i.test(section) || !entry || typeof entry !== 'object' ||
-                Array.isArray(entry) || !Object.prototype.hasOwnProperty.call(entry, 'payload')) continue;
+                Array.isArray(entry) || !Object.prototype.hasOwnProperty.call(entry, 'payload')) {
+              throw new Error('El paquete contiene una sección inválida: ' + section);
+            }
             cleanSections[section] = {
               module: String(entry.module || 'imported').slice(0, 80),
               source: String(entry.source || 'Informe importado').slice(0, 200),
