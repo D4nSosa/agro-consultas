@@ -138,17 +138,34 @@
 
       // Los valores se conservan como texto; la salida HTML se escapa en cada punto de renderizado.
       // También se eliminan controles invisibles y claves que pueden alterar prototipos.
-      const sanitizeImportedValue = value => {
+      const sanitizeImportedValue = (value, depth = 0) => {
+        if (depth > 40) throw new Error('El paquete tiene una estructura demasiado profunda.');
         if (typeof value === 'string') return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-        if (Array.isArray(value)) return value.map(sanitizeImportedValue);
+        if (Array.isArray(value)) return value.map(item => sanitizeImportedValue(item, depth + 1));
         if (value && typeof value === 'object') {
           const clean = Object.create(null);
           Object.entries(value).forEach(([key, item]) => {
-            if (!['__proto__', 'prototype', 'constructor'].includes(key)) clean[key] = sanitizeImportedValue(item);
+            if (!['__proto__', 'prototype', 'constructor'].includes(key)) clean[key] = sanitizeImportedValue(item, depth + 1);
           });
           return clean;
         }
         return value;
+      };
+
+      const validateImportedGeometrySize = feature => {
+        const geometry = feature?.type === 'Feature' ? feature.geometry : feature;
+        const stack = [geometry?.coordinates];
+        let positions = 0;
+        while (stack.length) {
+          const item = stack.pop();
+          if (!Array.isArray(item)) continue;
+          if (typeof item[0] === 'number' && typeof item[1] === 'number') {
+            positions += 1;
+            if (positions > 5000) throw new Error('El lote supera el máximo de 5.000 posiciones para importar con seguridad.');
+          } else {
+            for (const child of item) stack.push(child);
+          }
+        }
       };
 
       document.getElementById('report-date').innerText = `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`;
@@ -235,8 +252,10 @@
           if (!sections || typeof sections !== 'object' || Array.isArray(sections) || Object.keys(sections).length > 100) {
             throw new Error('El paquete no contiene una colección válida de resultados.');
           }
+          const sanitizedFeature = sanitizeImportedValue(packageData.feature);
+          validateImportedGeometrySize(sanitizedFeature);
           const cleanFeature = normalizeLotFeature(
-            sanitizeImportedValue(packageData.feature),
+            sanitizedFeature,
             { source: 'agro-consultas-report-import' }
           );
           const cleanSections = Object.create(null);
