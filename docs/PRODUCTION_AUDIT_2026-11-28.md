@@ -27,12 +27,12 @@ La exportación y la importación JSON utilizan el mismo contrato de secciones: 
 
 ### Agro: restauración de resultados guardados
 
-El módulo guarda el contexto territorial bajo la sección `agro-territory`, pero la función de restauración buscaba `agro-environment`. Por eso no recuperaba el snapshot esperado aunque estuviera guardado para la misma geometría.
+El módulo guarda el snapshot completo bajo `agro-environment` (suelo, clima e histórico NASA POWER) y también conserva un snapshot territorial parcial bajo `agro-territory`. La función de restauración original ya consultaba correctamente `agro-environment`; la hipótesis inicial de que esa clave no coincidía con el guardado fue incorrecta.
 
-Corrección preparada en la rama de mantenimiento:
-- Leer `agro-territory` y `agro-recommendations` desde el formato real del almacenamiento.
-- Mantener el acceso al `payload` que define el contrato del store.
-- No inventar ni reconstruir una serie histórica climática: el módulo no persiste esa serie en el snapshot actual. Al restaurar sin ella, la interfaz debe informar que no hay histórico guardado y no disparar una consulta nueva en modo de restauración.
+Corrección de compatibilidad preparada en la rama:
+- Mantener `agro-environment` como fuente primaria y usar `agro-territory` como respaldo si falta el snapshot completo.
+- Recuperar el `payload` con el contrato real del store.
+- Restaurar `climateHistory` cuando esté presente en `agro-environment`; si no existe, informar que no hay histórico guardado y no disparar una consulta nueva en modo de restauración.
 
 ### Forestal: acciones duplicadas y asociación del análisis al lote
 
