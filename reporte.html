@@ -141,7 +141,7 @@
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
       }[char]));
       const sanitizeImportedValue = value => {
-        if (typeof value === 'string') return escapeImportedText(value);
+        if (typeof value === 'string') return value.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, '');
         if (Array.isArray(value)) return value.map(sanitizeImportedValue);
         if (value && typeof value === 'object') {
           const clean = Object.create(null);
@@ -375,6 +375,7 @@
         const recomendacionesForestales = Array.isArray(agroRecommendations?.forestRecommendations) ? agroRecommendations.forestRecommendations : [];
         document.getElementById('report-prov').innerText = locationLabel;
 
+        const safeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
         const forestCandidatesHTML = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type) ? `
           <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
             <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌲 Especies forestales del análisis Agro</h2>
@@ -383,9 +384,9 @@
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
                 ${recomendacionesForestales.map(item => `
                   <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;font-size:.82rem">
-                    <strong style="color:var(--verde-principal)">${item.nombre}</strong>
-                    <div style="margin:5px 0"><span class="compatibility-badge badge-origin">Candidato provincial · ${item.compatibilidad}</span></div>
-                    <p style="margin:0;color:var(--texto-secundario)">${item.descripcion || 'Ficha técnica de referencia.'}</p>
+                    <strong style="color:var(--verde-principal)">${safeText(item.nombre)}</strong>
+                    <div style="margin:5px 0"><span class="compatibility-badge badge-origin">Candidato provincial · ${safeText(item.compatibilidad)}</span></div>
+                    <p style="margin:0;color:var(--texto-secundario)">${safeText(item.descripcion || 'Ficha técnica de referencia.')}</p>
                     <small style="display:block;margin-top:6px;color:var(--texto-secundario)">${item.datosFaltantes?.length ? item.datosFaltantes.join(' ') : 'Validar la evidencia disponible antes de decidir una implantación.'}</small>
                   </article>
                 `).join('')}
@@ -402,7 +403,6 @@
         const ndviB = forestAnalysis?.ndvi?.analysisB || null;
         const timeline = Array.isArray(forestAnalysis?.timeline) ? forestAnalysis.timeline : [];
         const ndviValue = item => Number.isFinite(item?.stats?.mean) ? item.stats.mean.toFixed(3) : 'No procesado';
-        const safeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
         const safeImage = value => typeof value === 'string' && /^https:\/\//i.test(value) ? value : null;
         const renderScene = (product, label, color) => {
           if (!product) return '<p style="font-size:.82rem;color:var(--texto-secundario)">No hay escena registrada para esta fecha.</p>';
