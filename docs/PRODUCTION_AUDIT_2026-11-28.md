@@ -55,7 +55,9 @@ Corrección preparada:
 - Registrar una marca de actualización global.
 - Agregar una operación de escritura por lote para importar todas las secciones en una sola escritura verificada.
 - Validar la geometría GeoJSON y la estructura de las secciones antes de guardar.
-- Eliminar caracteres de control y claves peligrosas sin pre-escapar el texto; el escape HTML se realiza en la representación.
+- Limitar la importación a archivos de 15 MB, 100 secciones, 40 niveles de anidamiento y 5.000 posiciones GeoJSON; rechazar el paquete completo si alguna sección es inválida.
+- Guardar todas las secciones importadas mediante una sola escritura verificada.
+- Eliminar caracteres de control y claves peligrosas sin pre-escapar el texto; los valores se escapan en cada salida HTML y las miniaturas solo aceptan URLs HTTPS válidas.
 
 La transferencia sigue siendo por archivo JSON entre dispositivos. No existe sincronización remota.
 
