@@ -10,13 +10,13 @@
   <meta name="keywords" content="análisis forestal, teledetección satelital, Sentinel-2 L2A, NDVI, inventario forestal de campo, GeoJSON" />
   <meta name="author" content="Dante Iván Sosa" />
   <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://agroconsultas.com.ar/forestal.html" />
+  <link rel="canonical" href="https://agro-consultas.vercel.app/forestal.html" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Módulo Forestal y Teledetección Satelital — Agro Consultas" />
   <meta property="og:description" content="Consulta de escenas Sentinel-2 L2A, análisis NDVI cuando hay datos ráster disponibles y registro de evidencia forestal de campo." />
-  <meta property="og:image" content="https://agroconsultas.com.ar/dwnl.png" />
+  <meta property="og:image" content="https://agro-consultas.vercel.app/dwnl.png" />
 
   <script type="application/ld+json">
   {
@@ -24,7 +24,7 @@
     "@type": "WebPage",
     "name": "Módulo Forestal y Teledetección Satelital",
     "description": "Exploración de escenas satelitales y registro de información de lotes forestales en Argentina.",
-    "url": "https://agroconsultas.com.ar/forestal.html"
+    "url": "https://agro-consultas.vercel.app/forestal.html"
   }
   </script>
 
@@ -310,6 +310,12 @@
       <!-- Cargado dinámicamente desde ChangeReport.js -->
     </div>
 
+    <section id="forest-report-actions" class="card" aria-label="Guardar y compartir informe forestal" style="margin-top:14px;padding:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+      <button id="btn-save-forest-report" class="btn primary" type="button">💾 Guardar resultados del lote</button>
+      <button id="btn-open-forest-report" class="btn outline" type="button">📄 Abrir informe PDF / compartir</button>
+      <span id="forest-report-action-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.8rem;color:var(--texto-secundario);">Los resultados se guardan en este navegador. El enlace compartido no transporta los datos analíticos a otro dispositivo.</span>
+    </section>
+
 
   </main>
 
@@ -328,7 +334,7 @@
     import { ForestTimeline } from './forestal/components/ForestTimeline.js';
     import { ChangeReport } from './forestal/components/ChangeReport.js';
     import { runFullForestAnalysis } from './forestal/services/forestAnalysisService.js';
-    import { saveReportSection } from './services/reportAnalysisStore.js';
+    import { saveReportSection, getReportSnapshot } from './services/reportAnalysisStore.js';
     import { exportToKML, exportToGPX } from './forestal/utils/geo.js';
     import { initializeLotComparison } from './forestal/services/lotComparison.js';
     import { analyzeUploadedImages } from './services/imageAnalysisService.js';
@@ -774,6 +780,51 @@
       // 3. Inicializar Componente de Reporte
       reportComp = new ChangeReport('report-container');
 
+      const saveForestReportButton = document.getElementById('btn-save-forest-report');
+      const openForestReportButton = document.getElementById('btn-open-forest-report');
+      const forestReportStatus = document.getElementById('forest-report-action-status');
+
+      saveForestReportButton?.addEventListener('click', () => {
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
+        if (!feature?.geometry) {
+          if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote antes de guardar sus resultados.';
+          return;
+        }
+
+        let saved = false;
+        if (currentAnalysisData) {
+          saved = persistForestSection(
+            feature.geometry,
+            'forest-sentinel2',
+            buildReportForestSnapshot(currentAnalysisData),
+            { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' }
+          );
+        }
+
+        const snapshot = getReportSnapshot(feature.geometry);
+        const hasForestResults = Object.keys(snapshot?.sections || {}).some(section => section.startsWith('forest-'));
+        if (forestReportStatus) {
+          forestReportStatus.textContent = saved || hasForestResults
+            ? 'Resultados forestales guardados en este navegador y asociados al lote seleccionado.'
+            : 'Todavía no hay resultados forestales para guardar. Ejecutá un análisis o una consulta de fuente primero.';
+        }
+      });
+
+      openForestReportButton?.addEventListener('click', () => {
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
+        if (!feature?.geometry) {
+          if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote para abrir su informe.';
+          return;
+        }
+        const snapshot = getReportSnapshot(feature.geometry);
+        const hasResults = Object.keys(snapshot?.sections || {}).some(section => section.startsWith('forest-'));
+        if (!hasResults) {
+          if (forestReportStatus) forestReportStatus.textContent = 'No hay resultados forestales guardados para este lote.';
+          return;
+        }
+        window.location.href = 'reporte.html';
+      });
+
       const today = new Date().toISOString().slice(0, 10);
       const previousYear = new Date();
       previousYear.setFullYear(previousYear.getFullYear() - 1);
@@ -832,7 +883,7 @@
       };
 
       const runTerritorial = async (kind, endpoint, statusId) => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         const status = document.getElementById(statusId);
         const button = document.getElementById(kind === 'gfw-drivers' ? 'forest-gfw-run' : kind === 'hansen' ? 'forest-hansen-run' : 'forest-jrc-run');
         if (!feature?.geometry || !['Polygon', 'MultiPolygon'].includes(feature.geometry.type)) {
@@ -860,7 +911,7 @@
       document.getElementById('forest-jrc-run')?.addEventListener('click', () => runTerritorial('jrc', '/api/territorial/forest/jrc/analyze', 'forest-jrc-status'));
 
       document.getElementById('forest-terrain-run')?.addEventListener('click', async () => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         const status = document.getElementById('forest-terrain-status');
         const output = document.getElementById('forest-terrain-output');
         const button = document.getElementById('forest-terrain-run');
@@ -952,7 +1003,7 @@
       const spectralDate = document.getElementById('forest-spectral-date');
       if (spectralDate && !spectralDate.value) spectralDate.value = new Date().toISOString().slice(0, 10);
       document.getElementById('forest-spectral-run')?.addEventListener('click', async () => {
-        const feature = forestMap.getCurrentFeature() || getLotContext();
+        const feature = forestMap?.getCurrentFeature?.() || getLotContext();
         const status = document.getElementById('forest-spectral-status');
         const output = document.getElementById('forest-spectral-output');
         const button = document.getElementById('forest-spectral-run');
@@ -1139,7 +1190,7 @@
         if (currentAnalysisData) {
           currentAnalysisData.inventory = inv;
           reportComp.renderReport(currentAnalysisData);
-          const activeFeature = forestMap.getCurrentFeature() || getLotContext();
+          const activeFeature = forestMap?.getCurrentFeature?.() || getLotContext();
           if (activeFeature?.geometry) persistForestSection(activeFeature.geometry, 'forest-sentinel2', buildReportForestSnapshot(currentAnalysisData), { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' });
         }
       });
@@ -1198,7 +1249,7 @@
     }
 
     async function ejecutarAnalisis(dateA, dateB) {
-      let feature = forestMap.getCurrentFeature() || getLotContext();
+      let feature = forestMap?.getCurrentFeature?.() || getLotContext();
       if (!feature) {
         alert('No hay un lote seleccionado. Dibujá o importá un polígono GeoJSON antes de ejecutar el análisis forestal. No se utilizará una ubicación de ejemplo.');
         return;
@@ -1234,6 +1285,46 @@
         }
       }
     }
+
+    const forestReportStatus = document.getElementById('forest-report-action-status');
+    document.getElementById('btn-save-forest-report')?.addEventListener('click', () => {
+      const feature = forestMap?.getCurrentFeature?.() || getLotContext();
+      if (!feature?.geometry) {
+        if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote antes de guardar el informe.';
+        return;
+      }
+      const existing = getReportSnapshot(feature.geometry)?.sections?.['forest-sentinel2']?.payload;
+      if (currentAnalysisData) {
+        const saved = persistForestSection(
+          feature.geometry,
+          'forest-sentinel2',
+          buildReportForestSnapshot(currentAnalysisData),
+          { module: 'forestal', source: 'AWS Earth Search STAC · Sentinel-2 L2A' }
+        );
+        if (!saved) {
+          if (forestReportStatus) forestReportStatus.textContent = 'No se pudieron guardar los resultados en este navegador.';
+          return;
+        }
+      } else if (!existing) {
+        if (forestReportStatus) forestReportStatus.textContent = 'No hay resultados Sentinel-2 para este lote. Ejecutá primero el análisis forestal.';
+        return;
+      }
+      if (forestReportStatus) forestReportStatus.textContent = 'Resultados forestales guardados en este navegador y asociados a la geometría del lote.';
+    });
+
+    document.getElementById('btn-open-forest-report')?.addEventListener('click', () => {
+      const feature = forestMap?.getCurrentFeature?.() || getLotContext();
+      if (!feature?.geometry) {
+        if (forestReportStatus) forestReportStatus.textContent = 'Seleccioná o dibujá un lote para abrir su informe.';
+        return;
+      }
+      try {
+        setLotContext(feature, { source: 'forest-report' });
+        window.location.href = 'reporte.html';
+      } catch (error) {
+        if (forestReportStatus) forestReportStatus.textContent = 'No se pudo preparar el informe: ' + error.message;
+      }
+    });
 
     document.querySelectorAll('.current-year').forEach(el => el.innerText = new Date().getFullYear());
 

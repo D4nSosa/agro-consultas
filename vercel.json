@@ -93,7 +93,8 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "fix/firms-auth-diagnostics-crop-soil-values": false
+      "fix/firms-auth-diagnostics-crop-soil-values": false,
+      "fix/persistencia-forestal-gps": false
     }
   }
 }

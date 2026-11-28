@@ -25,7 +25,7 @@ import { getClimateHistory } from './services/sources/nasaPowerService.js';
 import { getSentinel1SarAnalysis } from './forestal/services/satelliteService.js';
 import { MapViewer } from './services/mapViewer.js';
 import { setLotContext, getLotContext, clearLotContext, onLotContextChange } from './services/lotContext.js';
-import { saveReportSection } from './services/reportAnalysisStore.js';
+import { saveReportSection, getReportSnapshot } from './services/reportAnalysisStore.js';
 
 let mapViewerInstance = null;
 let currentMarker = null;
@@ -59,6 +59,59 @@ function persistAgroReportSection(section, payload, source = 'Agro module') {
   } catch (error) {
     console.warn('[Agro-Consultas] No se pudo guardar el resultado para Informes:', error.message);
   }
+}
+
+async function restaurarAgroSnapshot(feature, centroid) {
+  const snapshot = getReportSnapshot(feature?.geometry);
+  const sections = snapshot?.sections || {};
+  const environment = sections['agro-environment']?.payload;
+  const recommendations = sections['agro-recommendations']?.payload;
+
+  if (!environment?.soilReport || !environment?.climateReport ||
+      !Array.isArray(recommendations?.recommendations)) return false;
+
+  currentLat = centroid.lat;
+  currentLng = centroid.lng;
+  currentUbicacionNombre = feature.properties?.name || environment.province || 'Lote seleccionado';
+  currentSpatialLevel = 'LOTE / POLÍGONO';
+
+  const title = document.getElementById('resultado_ubicacion');
+  if (title) title.innerText = currentUbicacionNombre;
+  colocarMarcador(currentLat, currentLng, currentUbicacionNombre);
+
+  const geoVal = {
+    nombre: currentUbicacionNombre,
+    provincia: environment.province || 'Argentina',
+    pais: 'Argentina',
+    lat: currentLat,
+    lng: currentLng,
+    spatialLevel: currentSpatialLevel
+  };
+
+  lastRecommendationsCache = recommendations.recommendations;
+  lastSoilReportCache = environment.soilReport;
+  lastClimateReportCache = environment.climateReport;
+
+  const filtered = filtrarRecomendacionesPorCultivo(lastRecommendationsCache, selectedCropKey);
+  renderRecommendationsCards(filtered);
+  actualizarCapaAptitudMapa(filtered, currentLat, currentLng);
+
+  await actualizarPanelTerritorialBasico(
+    currentUbicacionNombre,
+    currentLat,
+    currentLng,
+    geoVal,
+    {
+      provinceKey: environment.provinceKey,
+      subregion: environment.subregion,
+      soilReport: environment.soilReport,
+      climateReport: environment.climateReport
+    }
+  );
+
+  await renderHistoriaClimaticaUI(currentLat, currentLng, currentUbicacionNombre, environment.climateHistory, true);
+  renderSarRadarUI(currentLat, currentLng, currentAOIPolygon);
+  return true;
 }
 
 
@@ -215,12 +268,15 @@ export async function inicializarMapa(provinciaRaw) {
     leafletMap.fitBounds(drawnPolygonLayer.getBounds(), { padding: [24, 24] });
     const centroid = calculateCentroid(sharedLot);
     if (centroid) {
-      await procesarSeleccionCoordenadas(
-        centroid.lat,
-        centroid.lng,
-        sharedLot.properties?.name || 'Lote seleccionado',
-        'LOTE / POLÍGONO'
-      );
+      const restored = await restaurarAgroSnapshot(sharedLot, centroid);
+      if (!restored) {
+        await procesarSeleccionCoordenadas(
+          centroid.lat,
+          centroid.lng,
+          sharedLot.properties?.name || 'Lote seleccionado',
+          'LOTE / POLÍGONO'
+        );
+      }
     }
   }
 
@@ -502,20 +558,22 @@ export async function procesarSeleccionCoordenadas(lat, lng, nombreCustom = null
 /**
  * Actualiza el panel lateral con datos de coordenadas, clima en vivo y suelo
  */
-export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoVal = null) {
+export async function actualizarPanelTerritorialBasico(provincia, lat, lng, geoVal = null, cachedData = null) {
   const detailsContainer = document.getElementById("territory-details");
   if (!detailsContainer) return;
 
   try {
-    const key = await findProvinceByCoords(lat, lng);
-    const subregion = key ? await findSubregion(key, lat, lng) : null;
+    const key = cachedData?.provinceKey || await findProvinceByCoords(lat, lng);
+    const subregion = cachedData?.subregion || (key ? await findSubregion(key, lat, lng) : null);
 
-    const soilReport = await getSoilReport(lat, lng, subregion?.suelo);
-    const climateReport = await getClimateData(lat, lng, provincia, subregion?.clima);
+    const soilReport = cachedData?.soilReport || await getSoilReport(lat, lng, subregion?.suelo);
+    const climateReport = cachedData?.climateReport || await getClimateData(lat, lng, provincia, subregion?.clima);
 
     lastSoilReportCache = soilReport;
     lastClimateReportCache = climateReport;
-    persistAgroReportSection('agro-territory', { province: provincia, provinceKey: key, subregion, coordinates: { lat, lng }, soilReport, climateReport }, 'INTA-CIRN · Open-Meteo');
+    if (!cachedData) {
+      persistAgroReportSection('agro-territory', { province: provincia, provinceKey: key, subregion, coordinates: { lat, lng }, soilReport, climateReport }, 'INTA-CIRN · Open-Meteo');
+    }
 
     const soilBadgeText = soilReport.status === 'CARTOGRAPHIC' || soilReport.status === 'PARTIAL' ? 'Cartografía INTA-CIRN' : 'Sin dato edáfico verificado';
     const soilPh030Text = soilReport.ph_0_30 !== null && soilReport.ph_0_30 !== undefined && Number.isFinite(Number(soilReport.ph_0_30))
@@ -690,7 +748,7 @@ export function usarGeolocalizacion() {
 /**
  * Renderiza la sección de Historia Climática desde NASA POWER
  */
-export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
+export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre, cachedResult = null, cachedOnly = false) {
   const container = document.getElementById("climate-history-content");
   const periodSelect = document.getElementById("select-climate-period");
   if (!container) return;
@@ -715,7 +773,11 @@ export async function renderHistoriaClimaticaUI(lat, lng, ubicacionNombre) {
     </div>
   `;
 
-  const climateHistory = await getClimateHistoryCached(lat, lng, months);
+  if (cachedOnly && !cachedResult) {
+    container.innerHTML = '<div class="fire-empty">No hay una serie histórica guardada para este lote. El resto de los resultados se recuperó sin volver a consultar las fuentes.</div>';
+    return;
+  }
+  const climateHistory = cachedResult || await getClimateHistoryCached(lat, lng, months);
 
   if (climateHistory.status === 'UNAVAILABLE' || !climateHistory.data) {
     const detail = String(climateHistory.message || '')
@@ -1421,6 +1483,10 @@ function initApp() {
   setTimeout(async () => {
     await inicializarSelectorCultivos();
     await inicializarMapa(null);
+
+    // Si el mapa ya recuperó un lote compartido, su análisis fue restaurado
+    // desde el almacenamiento local o procesado una sola vez en inicializarMapa.
+    if (currentAOIPolygon) return;
 
     if (paramLat && paramLng) {
       const latVal = parseFloat(paramLat);

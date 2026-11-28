@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://agroconsultas.com.ar/sitemap.xml
+Sitemap: https://agro-consultas.vercel.app/sitemap.xml

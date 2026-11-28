@@ -1,5 +1,7 @@
 # Agro-Consultas — unified GIS workspace
 
+**Revisión de estado:** 27 de noviembre de 2026. Producción verificada sobre `e1203bb`; consultar [auditoría de producción](docs/PRODUCTION_AUDIT_2026-11-27.md) para diferencias entre producción y la rama de mantenimiento. Los proyectos, lotes y snapshots de informes se guardan localmente en el navegador: no se sincronizan automáticamente entre dispositivos.
+
 ## Product direction
 Agro-Consultas is an Argentina-wide GIS workspace for producers, technical professionals and agricultural/forestry businesses. Its workflow is: select a territory, inspect evidence, run a domain analysis, and export a traceable result.
 

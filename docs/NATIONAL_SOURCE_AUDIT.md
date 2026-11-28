@@ -1,8 +1,9 @@
 # Auditoría inicial de fuentes y cobertura nacional
 
-**Corte:** 21 de noviembre de 2026  
-**Rama:** `fix/firms-auth-diagnostics-crop-soil-values`  
-**Alcance:** diagnóstico de código y documentación pública. No equivale a una certificación de disponibilidad operativa de cada endpoint.
+**Corte original:** 21 de noviembre de 2026  
+**Revisión de vigencia:** 27 de noviembre de 2026  
+**Base de código de producción:** `main`, commit `e1203bb2b6dc413493774e37065052dc60ab96b0`  
+**Alcance:** diagnóstico de código y documentación pública. No equivale a una certificación de disponibilidad operativa de cada endpoint. Para el estado de publicación y las correcciones de interfaz pendientes, consultar [la auditoría de producción](PRODUCTION_AUDIT_2026-11-27.md).
 
 ## Regla de lectura
 
