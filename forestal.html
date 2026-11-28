@@ -1295,8 +1295,9 @@
         if (activeFingerprint !== analysisFingerprint) {
           currentAnalysisData = null;
           currentAnalysisGeometryFingerprint = null;
-          if (forestReportStatus) {
-            forestReportStatus.textContent = 'El lote activo cambió durante el análisis. Los resultados quedaron asociados al lote original; volvé a seleccionarlo para visualizarlos.';
+          const statusElement = document.getElementById('forest-report-action-status');
+          if (statusElement) {
+            statusElement.textContent = 'El lote activo cambió durante el análisis. Los resultados quedaron asociados al lote original; volvé a seleccionarlo para visualizarlos.';
           }
           return;
         }
