@@ -1,0 +1,87 @@
+# Auditoría de producción y mantenimiento
+
+**Fecha de corte:** 28 de noviembre de 2026  
+**Producción:** https://agro-consultas.vercel.app  
+**Repositorio:** https://github.com/D4nSosa/agro-consultas  
+**Commit de producción auditado:** `cc5aaa4f422a326caf130f94ebc32c0a04c18621`  
+**Último PR integrado:** [#103](https://github.com/D4nSosa/agro-consultas/pull/103)  
+**Rama de mantenimiento en revisión:** `fix/auditoria-integral-informes-2026-11-28`
+
+## 1. Estado de publicación
+
+- El PR #103 fue integrado mediante squash.
+- Vercel informó estado **READY** para la publicación de producción asociada al commit `cc5aaa4`.
+- El dominio de producción continúa siendo `agro-consultas.vercel.app`; el dominio personalizado todavía no está conectado.
+- Los cambios de la rama de mantenimiento indicada en este documento no forman parte de producción. La rama tiene deshabilitados los preview deployments para evitar publicaciones innecesarias.
+- No se ejecutó un nuevo despliegue como parte de esta revisión.
+
+## 2. Qué quedó publicado en PR #103
+
+El PR #103 incorporó la consolidación de metadatos SEO, la eliminación del marcador móvil asociado al pronóstico en Incendios, acciones de informe forestal, soporte de exportación/importación JSON y una regla perimetral de limitación para rutas costosas.
+
+La regla de firewall publicada limita a 12 solicitudes POST por IP cada 60 segundos para las rutas geoespaciales costosas incluidas en su expresión. No equivale a una cuota por usuario autenticado ni a una protección completa frente a abuso distribuido. Sus métricas y el comportamiento de los endpoints deben seguir revisándose.
+
+La exportación y la importación JSON utilizan el mismo contrato de secciones: cada sección contiene metadatos y un campo `payload`. La revisión confirmó que el contrato básico de exportación e importación es compatible. El problema posterior no era una ausencia general del campo `payload`; el trabajo de mantenimiento mejora validación, sanitización y escritura atómica para hacer la transferencia más robusta.
+
+## 3. Hallazgos de la revisión posterior
+
+### Agro: restauración de resultados guardados
+
+El módulo guarda el snapshot completo bajo `agro-environment` (suelo, clima e histórico NASA POWER) y también conserva un snapshot territorial parcial bajo `agro-territory`. La función de restauración original ya consultaba correctamente `agro-environment`; la hipótesis inicial de que esa clave no coincidía con el guardado fue incorrecta.
+
+Corrección de compatibilidad preparada en la rama:
+- Mantener `agro-environment` como fuente primaria y usar `agro-territory` como respaldo si falta el snapshot completo.
+- Recuperar el `payload` con el contrato real del store.
+- Restaurar `climateHistory` cuando esté presente en `agro-environment`; si no existe, informar que no hay histórico guardado y no disparar una consulta nueva en modo de restauración.
+
+### Forestal: acciones duplicadas y asociación del análisis al lote
+
+La revisión encontró dos juegos de listeners para guardar y abrir el informe forestal: uno dentro de la inicialización del DOM y otro registrado fuera de ella. Esto podía ejecutar dos veces las acciones.
+
+También se detectó que el resultado asíncrono de un análisis podía terminar después de que el usuario cambiara de lote, dejando el resultado anterior visible como si correspondiera al lote activo.
+
+Corrección preparada en la rama:
+- Eliminar el segundo juego de listeners y conservar un único flujo.
+- Vincular los resultados en memoria a la huella de la geometría analizada.
+- Invalidar el resultado en memoria al cambiar o limpiar el lote.
+- Si el lote cambia mientras la consulta está en curso, guardar el resultado solamente bajo la geometría original y no mostrarlo como resultado del lote nuevo.
+
+### Almacenamiento e importación de informes
+
+El almacenamiento intentaba leer primero `localStorage` y solo después `sessionStorage`, sin comparar cuál contenía la versión más reciente. Si una escritura fallaba en el primer almacenamiento y se guardaba en el segundo, una lectura posterior podía recuperar un estado anterior.
+
+Corrección preparada:
+- Comparar marcas de actualización y leer el estado más reciente disponible.
+- Registrar una marca de actualización global.
+- Agregar una operación de escritura por lote para importar todas las secciones en una sola escritura verificada.
+- Validar la geometría GeoJSON y la estructura de las secciones antes de guardar.
+- Limitar la importación a archivos de 15 MB, 100 secciones, 40 niveles de anidamiento y 5.000 posiciones GeoJSON; rechazar el paquete completo si alguna sección es inválida.
+- Guardar todas las secciones importadas mediante una sola escritura verificada.
+- Eliminar caracteres de control y claves peligrosas sin pre-escapar el texto; los valores se escapan en cada salida HTML y las miniaturas solo aceptan URLs HTTPS válidas.
+
+La transferencia sigue siendo por archivo JSON entre dispositivos. No existe sincronización remota.
+
+## 4. Límites del producto que siguen vigentes
+
+1. **Fuentes externas:** la disponibilidad de Open-Meteo, NASA POWER, NASA FIRMS, WMS/WFS y catálogos STAC depende del proveedor, del área y del período consultado.
+2. **Cartografía de suelo:** los valores de pH de INTA-CIRN son modelos cartográficos de 1 km; no son análisis de laboratorio ni mediciones directas de cada lote. Las clases de salinidad permanecen sin interpretación mientras no se valide la leyenda.
+3. **Teledetección forestal:** NDVI no es biomasa, inventario, sanidad ni rendimiento. Sentinel-1 permanece en DN VV/VH sin calibración sigma0 y no permite inferir humedad, biomasa o especie.
+4. **Productividad:** no se infiere rendimiento agrícola o forestal a partir de índices remotos. Las comparaciones de rendimiento requieren cosechas, inventarios o registros de campo.
+5. **Geometrías:** un polígono es un área de interés y no certifica límites parcelarios, mensura ni titularidad.
+6. **PDF:** el informe utiliza la función de impresión del navegador para guardar como PDF; no es un generador PDF independiente.
+7. **Almacenamiento:** los proyectos, lotes y resultados continúan guardándose localmente en el navegador. No hay cuentas ni sincronización remota.
+8. **Protección de consumo:** el rate limit perimetral no reemplaza límites de tamaño de AOI, fechas, concurrencia y costo computacional en backend.
+
+## 5. Verificación y publicación
+
+- No se ejecutaron pruebas manuales ni nuevos builds/despliegues. Al abrir el PR #104, GitHub Actions ejecutó automáticamente los controles configurados.
+- En esa primera ejecución pasaron la regresión de recomendaciones territoriales, los tests de backend y el smoke test de catálogos públicos; también pasaron la sintaxis de módulos y la integración del workspace.
+- El job de frontend quedó con 121/122 pruebas aprobadas. La única falla fue una aserción de contenido que exige la frase `no viajan dentro del enlace compartido`; la frase se incorporó en un commit posterior. GitHub no produjo todavía una nueva ejecución para ese último commit, por lo que el estado final de CI permanece pendiente de confirmación.
+- La rama tiene deshabilitados los preview deployments. No se ejecutó un nuevo build de Vercel ni un despliegue de producción.
+- Las correcciones deben considerarse pendientes hasta que el PR se revise, sus controles queden verdes y una publicación de producción autorizada alcance estado READY.
+
+## 6. Criterio de cierre
+
+Agro-Consultas debe seguir evolucionando sobre el motor existente, sin sumar módulos durante esta etapa. La prioridad es que cada flujo sea reproducible y trazable desde la fuente hasta el resultado, que el estado guardado se recupere sin contradicciones y que la interfaz no presente datos de otro lote ni convierta ausencias en valores.
+
+La presencia de una fuente, endpoint o componente visual no demuestra por sí sola que una capacidad esté operativa. Para declarar una capacidad validada hace falta comprobar su recorrido completo con datos externos actuales y geometrías representativas.

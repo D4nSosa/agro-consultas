@@ -1,6 +1,6 @@
 # Agro-Consultas — auditoría comparativa y hoja de ruta de producto
 
-> **Documento histórico:** investigación con corte al 18-11-2026. La referencia a commit `8a0d14b` se conserva para reproducir el análisis original; no representa el estado de producción actual. Para estado operativo, pull requests, riesgos y cambios recientes consultar [docs/PRODUCTION_AUDIT_2026-11-27.md](PRODUCTION_AUDIT_2026-11-27.md).
+> **Documento histórico:** investigación con corte al 18-11-2026. La referencia a commit `8a0d14b` se conserva para reproducir el análisis original; no representa el estado de producción actual. Para estado operativo, pull requests, riesgos y cambios recientes consultar [docs/PRODUCTION_AUDIT_2026-11-28.md](PRODUCTION_AUDIT_2026-11-28.md).
 
 **Fecha de corte:** 18 de noviembre de 2026  
 **Base de código auditada:** `main`, commit `8a0d14bbd0479a2e43f30a0d822b1223e6de5eba`  

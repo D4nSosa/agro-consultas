@@ -1,6 +1,6 @@
 # Monitoreo de incendios — Agro Consultas
 
-**Revisión:** 27 de noviembre de 2026. El pronóstico meteorológico consulta el punto seleccionado, pero no representa la ubicación GPS ni una detección de incendio. La corrección que desacopla el clic del mapa del marcador verde está en la rama `fix/persistencia-forestal-gps` y queda pendiente de publicación. Estado y limitaciones: [auditoría de producción](docs/PRODUCTION_AUDIT_2026-11-27.md).
+**Revisión:** 28 de noviembre de 2026. El pronóstico meteorológico consulta el punto seleccionado, pero no representa la ubicación GPS ni una detección de incendio. El marcador verde móvil asociado al pronóstico fue eliminado en el PR #103 y ya está publicado. Estado y limitaciones: [auditoría de producción](docs/PRODUCTION_AUDIT_2026-11-28.md).
 
 ## Vista nacional y fuentes recientes
 

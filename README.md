@@ -5,7 +5,7 @@ Agro-Consultas es un desarrollo independiente orientado a explorar información 
 **Demo pública:** https://agro-consultas.vercel.app  
 **Repositorio:** https://github.com/D4nSosa/agro-consultas
 
-> Estado de referencia: 27 de noviembre de 2026. Producción verificada en Vercel como READY sobre el commit `e1203bb`. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo. Las correcciones de persistencia e interfaz descritas en la auditoría están en una rama de mantenimiento y todavía no forman parte de producción.
+> Estado de referencia: 28 de noviembre de 2026. Producción verificada en Vercel como READY sobre el commit `cc5aaa4`. El PR #103 ya está integrado. Una revisión posterior detectó correcciones adicionales en restauración de Agro, persistencia compartida e informes forestales; están agrupadas en la rama `fix/auditoria-integral-informes-2026-11-28` y todavía no forman parte de producción. La publicación de una interfaz o la existencia de un endpoint no implica que todas las fuentes externas estén disponibles en todo momento ni que cada flujo haya sido validado en campo.
 
 ## Alcance y estado de los módulos
 
@@ -24,7 +24,7 @@ La arquitectura y la validación se diseñan para las 23 provincias y CABA, sin 
 El muestreo automatizado de INTA-CIRN consultó centroides de las 23 provincias: obtuvo pH válido en 23/23 y NoData en CABA. Esto valida consultas puntuales distribuidas nacionalmente, no cobertura uniforme de cada provincia.
 
 Auditoría técnica y matriz de cobertura: [docs/NATIONAL_SOURCE_AUDIT.md](docs/NATIONAL_SOURCE_AUDIT.md).  
-Auditoría de producción y estado del repositorio (27-11-2026): [docs/PRODUCTION_AUDIT_2026-11-27.md](docs/PRODUCTION_AUDIT_2026-11-27.md).
+Auditoría de producción y estado del repositorio (28-11-2026): [docs/PRODUCTION_AUDIT_2026-11-28.md](docs/PRODUCTION_AUDIT_2026-11-28.md).
 
 ## Monitoreo de incendios
 

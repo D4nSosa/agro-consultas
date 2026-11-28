@@ -64,7 +64,7 @@ function persistAgroReportSection(section, payload, source = 'Agro module') {
 async function restaurarAgroSnapshot(feature, centroid) {
   const snapshot = getReportSnapshot(feature?.geometry);
   const sections = snapshot?.sections || {};
-  const environment = sections['agro-environment']?.payload;
+  const environment = sections['agro-environment']?.payload || sections['agro-territory']?.payload;
   const recommendations = sections['agro-recommendations']?.payload;
 
   if (!environment?.soilReport || !environment?.climateReport ||

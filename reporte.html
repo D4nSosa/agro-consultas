@@ -58,7 +58,7 @@
       <button id="btn-share-report" class="btn primary" style="font-size: 0.85rem; background: #2980b9; border-color: #2980b9;">📦 Compartir datos del informe</button>
       <button id="btn-import-report" class="btn outline" style="font-size: 0.85rem;">📥 Importar informe</button>
       <input id="report-import-file" type="file" accept="application/json,.json" hidden>
-      <span id="report-transfer-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.75rem;color:var(--texto-secundario);"></span>
+      <span id="report-transfer-status" role="status" aria-live="polite" style="flex-basis:100%;font-size:.75rem;color:var(--texto-secundario);">Los resultados no viajan dentro del enlace compartido; para transferirlos entre dispositivos usá Compartir datos del informe e Importar informe.</span>
       <a class="btn outline" href="index.html" style="font-size: 0.85rem;">🌐 Ir a Agro Consultas</a>
       <button id="themeToggle" class="icon-btn" title="Cambiar tema">🌗</button>
     </div>
@@ -127,30 +127,45 @@
 
   <!-- Script del Reporte -->
   <script type="module">
-    import { getLotContext } from './services/lotContext.js';
+    import { getLotContext, setLotContext, normalizeLotFeature } from './services/lotContext.js';
     import { calculateArea, calculateCentroid } from './forestal/utils/geo.js';
-    import { getReportSnapshot, saveReportSection } from './services/reportAnalysisStore.js';
-    import { setLotContext } from './services/lotContext.js';
+    import { getReportSnapshot, saveReportSections } from './services/reportAnalysisStore.js';
 
     document.addEventListener('DOMContentLoaded', async () => {
       let activeReportFeature = null;
       const transferStatus = document.getElementById('report-transfer-status');
       const importInput = document.getElementById('report-import-file');
 
-      const escapeImportedText = value => String(value).replace(/[&<>"']/g, char => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[char]));
-      const sanitizeImportedValue = value => {
-        if (typeof value === 'string') return escapeImportedText(value.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, ''));
-        if (Array.isArray(value)) return value.map(sanitizeImportedValue);
+      // Los valores se conservan como texto; la salida HTML se escapa en cada punto de renderizado.
+      // También se eliminan controles invisibles y claves que pueden alterar prototipos.
+      const sanitizeImportedValue = (value, depth = 0) => {
+        if (depth > 40) throw new Error('El paquete tiene una estructura demasiado profunda.');
+        if (typeof value === 'string') return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+        if (Array.isArray(value)) return value.map(item => sanitizeImportedValue(item, depth + 1));
         if (value && typeof value === 'object') {
           const clean = Object.create(null);
           Object.entries(value).forEach(([key, item]) => {
-            if (!['__proto__', 'prototype', 'constructor'].includes(key)) clean[key] = sanitizeImportedValue(item);
+            if (!['__proto__', 'prototype', 'constructor'].includes(key)) clean[key] = sanitizeImportedValue(item, depth + 1);
           });
           return clean;
         }
         return value;
+      };
+
+      const validateImportedGeometrySize = feature => {
+        const geometry = feature?.type === 'Feature' ? feature.geometry : feature;
+        const stack = [geometry?.coordinates];
+        let positions = 0;
+        while (stack.length) {
+          const item = stack.pop();
+          if (!Array.isArray(item)) continue;
+          if (typeof item[0] === 'number' && typeof item[1] === 'number') {
+            positions += 1;
+            if (positions > 5000) throw new Error('El lote supera el máximo de 5.000 posiciones para importar con seguridad.');
+          } else {
+            for (const child of item) stack.push(child);
+          }
+        }
       };
 
       document.getElementById('report-date').innerText = `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`;
@@ -237,22 +252,35 @@
           if (!sections || typeof sections !== 'object' || Array.isArray(sections) || Object.keys(sections).length > 100) {
             throw new Error('El paquete no contiene una colección válida de resultados.');
           }
-          const importedFeature = setLotContext(
-            sanitizeImportedValue(packageData.feature),
+          const sanitizedFeature = sanitizeImportedValue(packageData.feature);
+          if (!['Feature', 'Polygon', 'MultiPolygon'].includes(sanitizedFeature?.type)) {
+            throw new Error('El paquete debe contener un único lote GeoJSON Polygon o MultiPolygon.');
+          }
+          validateImportedGeometrySize(sanitizedFeature);
+          const cleanFeature = normalizeLotFeature(
+            sanitizedFeature,
             { source: 'agro-consultas-report-import' }
           );
-          let importedCount = 0;
+          const cleanSections = Object.create(null);
           for (const [section, entry] of Object.entries(sections)) {
-            if (!/^[a-z0-9-]{2,48}$/i.test(section) || !entry || typeof entry !== 'object' || !('payload' in entry)) continue;
-            saveReportSection(
-              importedFeature.geometry,
-              section,
-              sanitizeImportedValue(entry.payload),
-              { module: String(entry.module || 'imported').slice(0, 80), source: String(entry.source || 'Informe importado').slice(0, 200) }
-            );
-            importedCount += 1;
+            if (!/^[a-z0-9-]{2,48}$/i.test(section) || !entry || typeof entry !== 'object' ||
+                Array.isArray(entry) || !Object.prototype.hasOwnProperty.call(entry, 'payload')) {
+              throw new Error('El paquete contiene una sección inválida: ' + section);
+            }
+            cleanSections[section] = {
+              module: String(entry.module || 'imported').slice(0, 80),
+              source: String(entry.source || 'Informe importado').slice(0, 200),
+              updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : null,
+              payload: sanitizeImportedValue(entry.payload)
+            };
           }
+          const importedCount = Object.keys(cleanSections).length;
           if (!importedCount) throw new Error('No se encontraron secciones de resultados válidas.');
+          const importedFeature = setLotContext(
+            cleanFeature,
+            { source: 'agro-consultas-report-import' }
+          );
+          saveReportSections(importedFeature.geometry, cleanSections);
           if (transferStatus) transferStatus.textContent = importedCount + ' secciones importadas. Se abrirá el informe del lote recibido.';
           window.location.href = 'reporte.html';
         } catch (error) {
@@ -376,18 +404,19 @@
         document.getElementById('report-prov').innerText = locationLabel;
 
         const safeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        const safeClass = value => /^[a-z0-9_-]{1,40}$/i.test(String(value || '')) ? String(value) : 'badge-origin';
         const forestCandidatesHTML = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type) ? `
           <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
             <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌲 Especies forestales del análisis Agro</h2>
             <p style="font-size:.82rem;color:var(--texto-secundario)">Resultados recuperados del análisis guardado en Agro. Su inclusión no implica aptitud del lote ni recomendación de plantación.</p>
             ${recomendacionesForestales.length ? `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
-                ${recomendacionesForestales.map(item => `
+                ${recomendacionesForestales.filter(item => item && typeof item === 'object').map(item => `
                   <article style="border:1px solid var(--borde-suave);border-radius:8px;padding:12px;font-size:.82rem">
                     <strong style="color:var(--verde-principal)">${safeText(item.nombre)}</strong>
                     <div style="margin:5px 0"><span class="compatibility-badge badge-origin">Candidato provincial · ${safeText(item.compatibilidad)}</span></div>
                     <p style="margin:0;color:var(--texto-secundario)">${safeText(item.descripcion || 'Ficha técnica de referencia.')}</p>
-                    <small style="display:block;margin-top:6px;color:var(--texto-secundario)">${item.datosFaltantes?.length ? item.datosFaltantes.join(' ') : 'Validar la evidencia disponible antes de decidir una implantación.'}</small>
+                    <small style="display:block;margin-top:6px;color:var(--texto-secundario)">${Array.isArray(item.datosFaltantes) && item.datosFaltantes.length ? item.datosFaltantes.map(safeText).join(' ') : 'Validar la evidencia disponible antes de decidir una implantación.'}</small>
                   </article>
                 `).join('')}
               </div>` : '<p style="font-size:.82rem;color:var(--texto-secundario)">No hay una evaluación forestal guardada desde Agro para este lote.</p>'}
@@ -403,7 +432,13 @@
         const ndviB = forestAnalysis?.ndvi?.analysisB || null;
         const timeline = Array.isArray(forestAnalysis?.timeline) ? forestAnalysis.timeline : [];
         const ndviValue = item => Number.isFinite(item?.stats?.mean) ? item.stats.mean.toFixed(3) : 'No procesado';
-        const safeImage = value => typeof value === 'string' && /^https:\/\//i.test(value) ? value : null;
+        const safeImage = value => {
+          if (typeof value !== 'string') return null;
+          try {
+            const url = new URL(value);
+            return url.protocol === 'https:' && !url.username && !url.password ? url.href : null;
+          } catch (_) { return null; }
+        };
         const renderScene = (product, label, color) => {
           if (!product) return '<p style="font-size:.82rem;color:var(--texto-secundario)">No hay escena registrada para esta fecha.</p>';
           const preview = safeImage(product.assets?.thumbnail || product.assets?.visual);
@@ -414,7 +449,7 @@
               <div><b>Adquisición:</b> ${safeText(product.date || 'No informada')}</div>
               <div><b>Nubosidad:</b> ${Number.isFinite(product.cloudCover) ? safeText(product.cloudCover + '%') : 'No informada'}</div>
               <div><b>Fuente:</b> ${safeText(product.source || 'AWS Earth Search STAC')}</div>
-              ${preview ? `<img loading="lazy" src="${preview}" alt="Vista previa de escena ${safeText(product.id)}" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : '<p style="color:var(--texto-secundario)">El catálogo no entregó miniatura para esta escena.</p>'}
+              ${preview ? `<img loading="lazy" src="${safeText(preview)}" alt="Vista previa de escena ${safeText(product.id)}" style="display:block;width:100%;max-height:220px;object-fit:contain;margin-top:10px;border-radius:6px">` : '<p style="color:var(--texto-secundario)">El catálogo no entregó miniatura para esta escena.</p>'}
             </div></article>`;
         };
         const forestHTML = parsedGeom?.geometry && ['Polygon','MultiPolygon'].includes(parsedGeom.geometry.type) ? `
@@ -435,7 +470,7 @@
                   <span>Delta: <b>${Number.isFinite(changes.deltaNDVI) ? changes.deltaNDVI.toFixed(3) : 'No disponible'}</b></span>
                 </div>
               </div>
-              ${timeline.length ? `<div style="margin-top:12px"><strong>Escenas recuperadas</strong><ul style="font-size:.82rem">${timeline.map(item=>'<li>'+safeText(item.date)+' · '+safeText(item.product)+' · nubosidad '+(Number.isFinite(item.cloudCover)?safeText(item.cloudCover+'%'):'N/D')+'</li>').join('')}</ul></div>` : ''}
+              ${timeline.length ? `<div style="margin-top:12px"><strong>Escenas recuperadas</strong><ul style="font-size:.82rem">${timeline.filter(item=>item && typeof item === 'object').map(item=>'<li>'+safeText(item.date)+' · '+safeText(item.product)+' · nubosidad '+(Number.isFinite(item.cloudCover)?safeText(item.cloudCover+'%'):'N/D')+'</li>').join('')}</ul></div>` : ''}
             ` : '<p style="font-size:.84rem;color:var(--texto-secundario)">Todavía no hay un análisis Sentinel-2 guardado para esta geometría. Ejecutá la búsqueda desde el módulo Forestal; este informe no inicia consultas satelitales.</p>'}
             <p style="font-size:.78rem;color:var(--texto-secundario)">OTBN: no evaluado. No se dispone de una capa oficial validada e intersectada con la geometría de este lote.</p>
           </section>` : '';
@@ -450,9 +485,9 @@
             <h2 style="margin:0 0 8px;color:var(--verde-principal)">🌍 Cobertura y pérdida forestal · resultados guardados</h2>
             <p style="font-size:.82rem;color:var(--texto-secundario)">Esta sección reproduce análisis realizados desde Forestal. No ejecuta consultas, no recalcula indicadores y no ofrece controles de análisis.</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
-              ${renderStoredSection('gfw-drivers','🌳 GFW / WRI · Drivers de pérdida','Driver dominante por celda (~1 km), período 2001–2025.',p=>(p.drivers||[]).map(x=>safeText(x.driver)+': '+Number(x.area_ha||0).toLocaleString('es-AR')+' ha ('+safeText(x.share_percent)+'%)').join('\n')+'\n'+(p.limitations||[]).map(safeText).join(' '),'WRI / Google DeepMind · COG público · CC BY 4.0')}
-              ${renderStoredSection('hansen','🛰️ Hansen / UMD · Global Forest Change 2025','Cobertura de copa de referencia 2000 y pérdida bruta anual 2001–2025 (~30 m).',p=>['Cobertura media 2000: '+safeText(p.tree_cover_2000?.mean_percent)+'%','Mediana: '+safeText(p.tree_cover_2000?.median_percent)+'%','Pérdida bruta anual:',...Object.entries(p.loss_by_year||{}).map(([year,item])=>year+': '+Number(item.area_ha||0).toLocaleString('es-AR')+' ha'),...(p.limitations||[])].map(safeText).join('\n'),'Hansen / UMD / Google / USGS / NASA · CC BY 4.0')}
-              ${renderStoredSection('jrc','🌲 JRC · Cobertura forestal 2020 v4','Clasificación bosque/no bosque a 10 m.',p=>['Bosque 2020: '+Number(p.forest_area_ha||0).toLocaleString('es-AR')+' ha','No bosque: '+Number(p.nonforest_area_ha||0).toLocaleString('es-AR')+' ha','Proporción de bosque: '+safeText(p.forest_share_percent)+'%','Píxeles válidos: '+safeText(p.valid_pixels),...(p.limitations||[])].map(safeText).join('\n'),'Comisión Europea · Joint Research Centre')}
+              ${renderStoredSection('gfw-drivers','🌳 GFW / WRI · Drivers de pérdida','Driver dominante por celda (~1 km), período 2001–2025.',p=>(Array.isArray(p.drivers)?p.drivers:[]).filter(x=>x&&typeof x==='object').map(x=>safeText(x.driver)+': '+Number(x.area_ha||0).toLocaleString('es-AR')+' ha ('+safeText(x.share_percent)+'%)').join('\n')+'\n'+(Array.isArray(p.limitations)?p.limitations:[]).map(safeText).join(' '),'WRI / Google DeepMind · COG público · CC BY 4.0')}
+              ${renderStoredSection('hansen','🛰️ Hansen / UMD · Global Forest Change 2025','Cobertura de copa de referencia 2000 y pérdida bruta anual 2001–2025 (~30 m).',p=>['Cobertura media 2000: '+safeText(p.tree_cover_2000?.mean_percent)+'%','Mediana: '+safeText(p.tree_cover_2000?.median_percent)+'%','Pérdida bruta anual:',...Object.entries(p.loss_by_year||{}).map(([year,item])=>safeText(year)+': '+Number(item?.area_ha||0).toLocaleString('es-AR')+' ha'),...(Array.isArray(p.limitations)?p.limitations:[])].map(safeText).join('\n'),'Hansen / UMD / Google / USGS / NASA · CC BY 4.0')}
+              ${renderStoredSection('jrc','🌲 JRC · Cobertura forestal 2020 v4','Clasificación bosque/no bosque a 10 m.',p=>['Bosque 2020: '+Number(p.forest_area_ha||0).toLocaleString('es-AR')+' ha','No bosque: '+Number(p.nonforest_area_ha||0).toLocaleString('es-AR')+' ha','Proporción de bosque: '+safeText(p.forest_share_percent)+'%','Píxeles válidos: '+safeText(p.valid_pixels),...(Array.isArray(p.limitations)?p.limitations:[])].map(safeText).join('\n'),'Comisión Europea · Joint Research Centre')}
             </div>
             <p style="font-size:.76rem;color:var(--texto-secundario);margin-top:10px">Los productos globales no identifican por sí solos bosque nativo frente a plantaciones; pérdida de cobertura no equivale automáticamente a deforestación ni a incumplimiento legal.</p>
           </section>` : '';
@@ -468,16 +503,16 @@
             <p style="font-size:.85rem;color:var(--texto-secundario)">Resultados guardados desde el módulo Incendios para la geometría del lote. Son anomalías térmicas, no incendios confirmados ni perímetros quemados.</p>
             ${fireLotData ? `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-                <div><strong>${insideFire.filter(f=>f.properties?.sensor==='MODIS').length}</strong><br><small>Observaciones MODIS</small></div>
-                <div><strong>${insideFire.filter(f=>f.properties?.sensor==='VIIRS').length}</strong><br><small>Observaciones VIIRS</small></div>
+                <div><strong>${insideFire.filter(f=>f?.properties?.sensor==='MODIS').length}</strong><br><small>Observaciones MODIS</small></div>
+                <div><strong>${insideFire.filter(f=>f?.properties?.sensor==='VIIRS').length}</strong><br><small>Observaciones VIIRS</small></div>
                 <div><strong>${insideGoes.length}</strong><br><small>Alertas GOES-19</small></div>
               </div>
-              <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireLotData.fallback ? 'NASA FIRMS fue utilizado como respaldo; no se atribuyen estos resultados a CONAE.' : 'NASA FIRMS y GOES-19 consultados desde Incendios.'} Actualizado: ${fireLotData.updatedAt || fireLotEntry.updatedAt || 'Fecha no informada'}.</p>
+              <p style="font-size:.78rem;color:var(--texto-secundario);margin:10px 0 0">${fireLotData.fallback ? 'NASA FIRMS fue utilizado como respaldo; no se atribuyen estos resultados a CONAE.' : 'NASA FIRMS y GOES-19 consultados desde Incendios.'} Actualizado: ${safeText(fireLotData.updatedAt || fireLotEntry.updatedAt || 'Fecha no informada')}.</p>
               <h3 style="font-size:.92rem;margin:12px 0 6px;color:var(--verde-principal)">Detecciones recientes dentro del lote</h3>
-              ${insideFire.slice(0,8).map(feature=>{const p=feature.properties||{},coords=feature.geometry?.coordinates||[];return '<div class="report-fire-row"><strong>'+String(p.sensor||'Sensor').replace(/[&<>"']/g,'')+'</strong><span>'+String(p.date||'Fecha N/D').replace(/[&<>"']/g,'')+'</span><span>'+Number(coords[1]).toFixed(4)+', '+Number(coords[0]).toFixed(4)+'</span><span>'+String(p.satellite||'Satélite N/D').replace(/[&<>"']/g,'')+'</span></div>';}).join('') || '<p style="font-size:.78rem;color:var(--texto-secundario)">El análisis del lote no encontró detecciones en la respuesta consultada. Esto no confirma ausencia de incendios.</p>'}
+              ${insideFire.slice(0,8).map(feature=>{const p=feature?.properties||{},coords=feature?.geometry?.coordinates||[];return '<div class="report-fire-row"><strong>'+safeText(p.sensor||'Sensor')+'</strong><span>'+safeText(p.date||'Fecha N/D')+'</span><span>'+Number(coords[1]).toFixed(4)+', '+Number(coords[0]).toFixed(4)+'</span><span>'+safeText(p.satellite||'Satélite N/D')+'</span></div>';}).join('') || '<p style="font-size:.78rem;color:var(--texto-secundario)">El análisis del lote no encontró detecciones en la respuesta consultada. Esto no confirma ausencia de incendios.</p>'}
             ` : '<p style="font-size:.82rem;color:var(--texto-secundario)">Todavía no hay un análisis de detecciones guardado desde Incendios para este lote. Ejecutá “Analizar detecciones del lote” en ese módulo.</p>'}
             <h3 style="font-size:.92rem;margin:14px 0 6px;color:var(--verde-principal)">Pronóstico meteorológico local · Open-Meteo</h3>
-            ${fireForecast?.days?.length ? fireForecast.days.map(day=>'<div class="report-forecast-row"><strong>'+day.label+'</strong><span>Máx. '+(day.temperatureMax??'N/D')+' °C</span><span>Humedad mín. '+(day.humidityMin??'N/D')+'%</span><span>Viento '+(day.windMax??'N/D')+' km/h</span><span>Lluvia '+(day.precipitation??'N/D')+' mm</span></div>').join('') : '<p style="font-size:.78rem;color:var(--texto-secundario)">No hay un pronóstico guardado desde Incendios para el centro del lote.</p>'}
+            ${Array.isArray(fireForecast?.days) && fireForecast.days.length ? fireForecast.days.map(day=>'<div class="report-forecast-row"><strong>'+safeText(day?.label)+'</strong><span>Máx. '+safeText(day?.temperatureMax??'N/D')+' °C</span><span>Humedad mín. '+safeText(day?.humidityMin??'N/D')+'%</span><span>Viento '+safeText(day?.windMax??'N/D')+' km/h</span><span>Lluvia '+safeText(day?.precipitation??'N/D')+' mm</span></div>').join('') : '<p style="font-size:.78rem;color:var(--texto-secundario)">No hay un pronóstico guardado desde Incendios para el centro del lote.</p>'}
             <p style="font-size:.75rem;color:var(--texto-secundario)">El pronóstico es orientativo y no equivale al FWI oficial ni predice igniciones.</p>
           </section>`;
 
@@ -491,8 +526,8 @@
           <section style="margin:24px 0;padding:16px;border:1px solid var(--borde-suave);border-radius:10px">
             <h2 style="margin:0 0 10px;color:var(--verde-principal)">🧭 Campo y geometría relevada</h2>
             <div style="font-size:.85rem;line-height:1.7">
-              <div><strong>Origen:</strong> ${parsedGeom?.properties?.source || 'No informado'}</div>
-              <div><strong>Tipo de geometría:</strong> ${fieldGeometry?.type || 'Sin geometría asociada'}</div>
+              <div><strong>Origen:</strong> ${safeText(parsedGeom?.properties?.source || 'No informado')}</div>
+              <div><strong>Tipo de geometría:</strong> ${safeText(fieldGeometry?.type || 'Sin geometría asociada')}</div>
               <div><strong>Vértices del contorno:</strong> ${fieldVertices || 'No aplica / no registrado'}</div>
               <div><strong>Área calculada:</strong> ${geometryArea && !geometryArea.isPoint ? geometryArea.hectares.toLocaleString('es-AR',{maximumFractionDigits:2})+' ha' : 'No corresponde a un polígono'}</div>
             </div>
@@ -514,11 +549,11 @@
             <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
               <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌱 Cartografía de Suelos disponible</h4>
               <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
-                <div><strong>Tipo y Clasificación:</strong> ${soilReport.tipo || 'NO DISPONIBLE'}</div>
-                <div><strong>Textura Predominante:</strong> ${soilReport.textura || 'NO DISPONIBLE'}</div>
-                <div><strong>Drenaje / Escurrimiento:</strong> ${soilReport.drenaje || 'NO DISPONIBLE'}</div>
-                <div><strong>Limitantes Edáficas:</strong> ${soilReport.limitantes || 'No evaluado'}</div>
-                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Estado de evidencia: ${soilReport.status || 'UNAVAILABLE'} · ${soilReport.fuente || 'Fuente no informada'}</div>
+                <div><strong>Tipo y Clasificación:</strong> ${safeText(soilReport.tipo || 'NO DISPONIBLE')}</div>
+                <div><strong>Textura Predominante:</strong> ${safeText(soilReport.textura || 'NO DISPONIBLE')}</div>
+                <div><strong>Drenaje / Escurrimiento:</strong> ${safeText(soilReport.drenaje || 'NO DISPONIBLE')}</div>
+                <div><strong>Limitantes Edáficas:</strong> ${safeText(soilReport.limitantes || 'No evaluado')}</div>
+                <div style="font-size: 0.75rem; color: var(--texto-secundario); margin-top: 6px;">Estado de evidencia: ${safeText(soilReport.status || 'UNAVAILABLE')} · ${safeText(soilReport.fuente || 'Fuente no informada')}</div>
               </div>
             </div>
 
@@ -526,12 +561,12 @@
             <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 10px; padding: 15px;">
               <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">⚡ Clima en Vivo y Riesgo (Open-Meteo)</h4>
               <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
-                <div><strong>Temperatura Actual:</strong> ${climateReport.temperaturaActual}</div>
-                <div><strong>Viento:</strong> ${climateReport.vientoActual}</div>
-                <div><strong>Condición Met:</strong> ${climateReport.condicionActualTexto}</div>
+                <div><strong>Temperatura Actual:</strong> ${safeText(climateReport.temperaturaActual)}</div>
+                <div><strong>Viento:</strong> ${safeText(climateReport.vientoActual)}</div>
+                <div><strong>Condición Met:</strong> ${safeText(climateReport.condicionActualTexto)}</div>
                 ${climateReport.peligroIncendio ? `
                   <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--borde-suave);">
-                    <strong>🔥 Indicador meteorológico interno (no FWI):</strong> ${climateReport.peligroIncendio.icono} <span class="compatibility-badge ${climateReport.peligroIncendio.clase}">${climateReport.peligroIncendio.nivel}</span>
+                    <strong>🔥 Indicador meteorológico interno (no FWI):</strong> ${safeText(climateReport.peligroIncendio.icono)} <span class="compatibility-badge ${safeClass(climateReport.peligroIncendio.clase)}">${safeText(climateReport.peligroIncendio.nivel)}</span>
                     <small style="display:block;color:var(--texto-secundario);margin-top:5px">Indicador heurístico con temperatura, viento y condición meteorológica actual. No es FWI oficial ni pronostica ignición; consultar alertas del SMN.</small>
                   </div>
                 ` : ''}
@@ -543,9 +578,9 @@
               <h4 style="margin: 0 0 8px 0; color: var(--verde-principal); font-size: 0.95rem;">🌦️ Serie Histórica Climática (NASA POWER)</h4>
               <p style="font-size:.76rem;color:var(--texto-secundario);margin:0 0 8px">NASA POWER aporta datos en grilla derivados de reanálisis/modelado espacial; no son mediciones directas de una estación meteorológica ni del lote.</p>
               <div style="font-size: 0.83rem; line-height: 1.5; color: var(--texto-principal);">
-                <div><strong>Período mensual reciente (reanálisis):</strong> ${climateHistory?.data?.periodMetrics?.precipitacionAcumuladaMm ?? 'NO DISPONIBLE'} mm ac.</div>
-                <div><strong>Línea Base Histórica de Referencia (2001–2020):</strong> ${climateHistory?.data?.historicalAverages?.precipitacionMediaAnualMm ?? 'NO DISPONIBLE'} mm/año</div>
-                <div><strong>Anomalía:</strong> ${climateHistory?.data?.comparison?.clasificacionPrecipitacion ?? 'NO DISPONIBLE'}</div>
+                <div><strong>Período mensual reciente (reanálisis):</strong> ${safeText(climateHistory?.data?.periodMetrics?.precipitacionAcumuladaMm ?? 'NO DISPONIBLE')} mm ac.</div>
+                <div><strong>Línea Base Histórica de Referencia (2001–2020):</strong> ${safeText(climateHistory?.data?.historicalAverages?.precipitacionMediaAnualMm ?? 'NO DISPONIBLE')} mm/año</div>
+                <div><strong>Anomalía:</strong> ${safeText(climateHistory?.data?.comparison?.clasificacionPrecipitacion ?? 'NO DISPONIBLE')}</div>
               </div>
             </div>
           </div>
@@ -556,23 +591,23 @@
           ${!provKey ? '<p style="color:var(--texto-secundario);">No hay una evaluación de aptitud guardada desde Agro para esta geometría. Ejecutá la evaluación desde el módulo Agro y volvé a abrir Informes.</p>' : ''}
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
-            ${recomendaciones.map(c => `
+            ${recomendaciones.filter(c => c && typeof c === 'object').map(c => `
               <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--borde-suave); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <strong style="font-size: 0.9rem; color: var(--verde-principal);">${c.nombre}</strong>
-                  <span class="compatibility-badge ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'badge-origin' : (c.compatibilidad.includes('ALTA') ? 'badge-alta' : (c.compatibilidad.includes('MEDIA') ? 'badge-media' : 'badge-baja'))}" style="font-size: 0.72rem; padding: 3px 6px;">
-                    ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'Ficha de referencia' : c.compatibilidad}
+                  <strong style="font-size: 0.9rem; color: var(--verde-principal);">${safeText(c.nombre)}</strong>
+                  <span class="compatibility-badge ${String(c.compatibilidad || '').includes('INFORMACIÓN PENDIENTE') || String(c.compatibilidad || '').includes('NO EVALUABLE') ? 'badge-origin' : (String(c.compatibilidad || '').includes('ALTA') ? 'badge-alta' : (String(c.compatibilidad || '').includes('MEDIA') ? 'badge-media' : 'badge-baja'))}" style="font-size: 0.72rem; padding: 3px 6px;">
+                    ${String(c.compatibilidad || '').includes('INFORMACIÓN PENDIENTE') || String(c.compatibilidad || '').includes('NO EVALUABLE') ? 'Ficha de referencia' : safeText(c.compatibilidad)}
                   </span>
                 </div>
-                <p style="margin: 0 0 6px 0; color: var(--texto-secundario); font-size: 0.8rem;">${c.descripcion}</p>
-                <div style="font-size: 0.78rem;"><strong>💡 Referencia técnica:</strong> ${c.compatibilidad.includes('INFORMACIÓN PENDIENTE') || c.compatibilidad.includes('NO EVALUABLE') ? 'La ficha provincial describe los requerimientos del cultivo; no constituye una recomendación de siembra.' : (c.motivos[0] || 'Factores agroambientales comparados con la ficha técnica.')}</div>
+                <p style="margin: 0 0 6px 0; color: var(--texto-secundario); font-size: 0.8rem;">${safeText(c.descripcion)}</p>
+                <div style="font-size: 0.78rem;"><strong>💡 Referencia técnica:</strong> ${String(c.compatibilidad || '').includes('INFORMACIÓN PENDIENTE') || String(c.compatibilidad || '').includes('NO EVALUABLE') ? 'La ficha provincial describe los requerimientos del cultivo; no constituye una recomendación de siembra.' : safeText(c.motivos?.[0] || 'Factores agroambientales comparados con la ficha técnica.')}</div>
               </div>
             `).join('')}
           </div>
         `;
 
       } catch (err) {
-        analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al preparar el informe: ${err.message}</p>`;
+        analysisContainer.innerHTML = `<p style="color:#c0392b;">Error al preparar el informe: ${safeText(err.message)}</p>`;
       }
     });
   </script>
